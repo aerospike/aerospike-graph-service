@@ -1,0 +1,285 @@
+Aerospike Master License Agreement
+
+PLEASE READ THIS MASTER LICENSE AGREEMENT CAREFULLY BEFORE USING THE SOFTWARE
+AND SERVICES OFFERED BY AEROSPIKE, INC. AND ITS SUBSIDIARIES, (“AEROSPIKE”). BY
+SIGNING AN AEROSPIKE ORDER FORM WHICH REFERENCES THIS AGREEMENT (AN “ORDER
+FORM”) OR BY DOWNLOADING THE AEROSPIKE SOFTWARE ON A TRIAL OR EVALUATION BASIS
+(AN “EVALUATION”), YOU OR THE ENTITY THAT YOU REPRESENT (“LICENSEE”) ARE
+UNCONDITIONALLY CONSENTING TO BE BOUND BY AND ARE BECOMING A PARTY TO THE MASTER
+LICENSE AGREEMENT CONSISTING OF THIS PARAGRAPH AND THE FOLLOWING TERMS (THE
+“AGREEMENT”). PROVISION OF THE PRODUCT IS CONDITIONED ON, AND LICENSEE’S
+INSTALLATION OR USE OF THE PRODUCT SHALL CONSTITUTE, LICENSEE’S ASSENT TO THE
+TERMS OF THIS AGREEMENT TO THE EXCLUSION OF ALL OTHER TERMS. IF THESE TERMS ARE
+CONSIDERED AN OFFER, ACCEPTANCE IS EXPRESSLY LIMITED TO SUCH TERMS. IN THE EVENT
+OF A CONFLICT BETWEEN THIS AGREEMENT AND THE ORDER FORM, THE ORDER FORM SHALL
+CONTROL.
+
+    1. Grant of License and Restrictions. Subject to the terms hereof and any
+    applicable user/use limitations, Aerospike grants Licensee a personal,
+    nonsublicensable, nonexclusive, right to use the licensed product set forth
+    on the Order Form (or downloaded for an Evaluation) in object code form only
+    (the “Product”) subject to any limitations on the Order Form and only in
+    accordance with Aerospike’s applicable user documentation and price list.
+    Except for one copy solely for back-up purposes, Licensee may possess only
+    the number of copies of any Product as has been expressly authorized by
+    Aerospike and may install and run the Product only on those Licensed
+    Production Instances that have been expressly authorized by Aerospike on the
+    Order Form or during registration for an Evaluation. A “Licensed Production
+    Instance” means a single instance of the Product running on an individual
+    server cluster as may be further described and limited on the Order Form or
+    during registration for an Evaluation or Development license. Licensee may
+    make copies of the Product for any instance that is being used solely for
+    development, testing, or temporary backup (i.e., hot failover) purposes,
+    Further, a Product that you download for an Evaluation (an “Evaluation
+    Product”) or Development (a Development Product) may be used only during the
+    Evaluation or Development Term (defined below) and only for purposes of
+    internal evaluation and or development and not for any production use.
+    Aerospike retains ownership of all Products and any Deliverables defined in
+    Section 3 and the rights therein and Licensee will maintain the copyright
+    notice and any other notices that appear on the Product on any copies and
+    any media. Licensee will not (and will not allow any third party to) (i)
+    reverse engineer or attempt to discover any source code or underlying ideas
+    or algorithms of any Product (except to the extent that applicable law
+    prohibits reverse engineering restrictions), (ii) provide, lease, lend,
+    disclose, use for timesharing or service bureau purposes, or otherwise use
+    or allow others to use for the benefit of any third party, any Product
+    (except as expressly and specifically authorized by Aerospike), (iii)
+    possess or use any Product, or allow the transfer, transmission, export, or
+    re-export of any Product or portion thereof in violation of any export
+    control laws or regulations administered by the U.S. Commerce Department,
+    U.S. Treasury Department’s Office of Foreign Assets Control, or any other
+    government agency, (iv) disclose to any third party any benchmarking or
+    comparative study involving any Product, (v) modify any Product, or (vi) run
+    any production instance of an Enterprise Edition version of a Product with
+    any Standard Edition and or Community Edition version of a Product. Prior to
+    disposing of any media or apparatus containing any part of the Product,
+    Licensee shall completely destroy any Product contained therein. All the
+    limitations and restrictions on Products in this Agreement also apply to
+    documentation.
+
+    2. Support and Maintenance. While all applicable fees have been timely paid
+    for each license term, Aerospike will use reasonable commercial efforts to
+    provide the support and maintenance services for that Product as and to the
+    extent described in Aerospike’s then-current Support and Maintenance Terms
+    found at https://aerospike.com/forms/premium-support-terms/ for the support
+    package selected by Licensee on the Order Form (“Support Services”).
+    Licensee shall not use any Support Services for any unsupported application,
+    including, without limitation, any open source or community edition of any
+    Aerospike product, without paying Aerospike’s then-current Enterprise
+    subscription fees. Aerospike shall be entitled to invoice Licensee (and
+    Licensee shall pay) Aerospike’s then-current Enterprise subscription fees
+    for every instance of any Aerospike product (including, without limitation,
+    any open source or community edition thereof) in connection with which
+    Licensee uses (or otherwise benefits from) any Support Services.
+
+    3. Additional Services. The parties may agree to have Aerospike perform
+    certain additional services for Licensee (e.g., implementation, training, or
+    installation services in connection with a Product, etc.) (“Additional
+    Services”), by describing such Additional Services and any fees therefor on
+    (i) an Order Form, or (ii) on a separate, mutually-executed Statement of
+    Work which references this Agreement (each, an “SOW”, which upon mutual
+    execution, will be incorporated into and form a part of the Agreement). Upon
+    payment of any applicable fees set forth in the applicable Order Form and/or
+    SOW (which shall be paid in accordance with Section 4), Aerospike agrees to
+    use reasonable commercial efforts to provide the Additional Services
+    described therein for the term specified therein (if any). If Aerospike
+    provides Additional Services beyond those agreed in an Order Form or SOW
+    (including, without limitation, in excess of any hours estimate set forth
+    therein), Licensee will pay Aerospike at its then-current hourly rates for
+    professional services. Any deliverables provided, work product, or other
+    intellectual property created or delivered under a Statement of Work or as
+    part of Additional Services (the “Deliverables”) shall be the property of
+    Aerospike. Licensee will have a nonexclusive, nontransferable, royalty-free
+    license to the Deliverables to the extent necessary to enable Licensee to
+    fully use the Product and the Deliverable(s) provided under license by
+    Aerospike. During the term of this Agreement, both Aerospike and Licensee
+    agree to not directly or indirectly solicit the employees of the other
+    party.
+
+    4. Fees and Payment. With the exception of the initial Evaluation Term,
+    within thirty (30) days after first receipt of the Product or the date(s)
+    otherwise expressly agreed by Aerospike, Licensee shall pay Aerospike’s then
+    current standard license/subscription fees for any authorized copies or uses
+    of Product or such other fees as have been expressly agreed to by Aerospike
+    on an Order Form (“Subscription Fees”); in the case of annual subscriptions,
+    License Fees therefor will also be paid annually in advance. Licensee shall
+    provide to Aerospike a copy of the diagnostic reports in Section 7 within
+    one hundred and eighty (180) days prior to the expiration of the license
+    period specified for the applicable Product set forth on an Order Form. In
+    addition, without limiting Aerospike’s remedies, if Licensee makes uses of
+    any Product or Support Services that are not authorized hereunder (including
+    without limitation, any use in excess of capacity limitations or for any
+    instance other than the Licensed Production Instance(s) set forth on an
+    Order Form), it will so report to Aerospike. Licensee will pay additional
+    license and maintenance and support fees equal to Aerospike’s then current
+    standard fees for the license and maintenance and support of such additional
+    uses (and annually, Aerospike will be entitled to audit or have audited all
+    systems and records relevant to assure compliance with the foregoing; any
+    audit showing material noncompliance will be at Licensee’s expense).
+    Licensee shall pay Aerospike the fees for any Additional Services as
+    described in the applicable Order Form or SOW within thirty (30) days
+    following receipt of invoice therefor. All payments shall be made in the
+    currency of, and within the borders of the United States. Any payments more
+    than thirty (30) days overdue will bear a late payment fee of 1.5% per
+    month, or, if lower, the maximum rate allowed by law. In addition, Licensee
+    will pay all taxes, shipping, duties, withholdings, backup withholding and
+    the like; when Aerospike has the legal obligation to pay or collect such
+    taxes, the appropriate amount shall be paid by Licensee directly to
+    Aerospike. Licensee will reimburse Aerospike for all reasonable travel and
+    other related expenses incurred by Aerospike in its performance hereunder;
+    provided, however, that such expenses shall have been pre-approved by
+    Licensee.
+
+    5. Termination; Breach. All licenses will terminate thirty (30) days after
+    notice of any breach by Licensee remaining uncured at the end of such notice
+    period. A license will also terminate upon the expiration of any applicable
+    license period specified for the applicable Product (which, for an
+    Evaluation Product, will be a period of sixty (60) days from the date of
+    download unless extended in a writing signed by both parties; such period,
+    the “Evaluation Term”), subject to annual renewal in the case of an annual
+    subscription license, only if and as set forth on the Order Form. Upon any
+    termination, Licensee shall immediately cease all use of all affected
+    Products and return or destroy all copies of all affected Products and all
+    portions thereof and so certify to Aerospike. Except as otherwise expressly
+    provided herein, the terms hereof shall survive any termination. Termination
+    is not an exclusive remedy and all other remedies will be available whether
+    or not termination occurs.
+
+    6. Indemnification. Aerospike shall defend, indemnify and hold Licensee
+    harmless from liability to third parties resulting from infringement by a
+    Product of any United States patent or any copyright or misappropriation of
+    any trade secret, provided Aerospike is promptly notified of any and all
+    threats, claims and proceedings related thereto and given reasonable
+    assistance and the opportunity to assume sole control over defense and
+    settlement; Aerospike will not be responsible for any settlement it does not
+    approve. The foregoing obligations do not apply with respect to a Product or
+    portions or components thereof to the extent (i) not created by Aerospike,
+    (ii) made in whole or in part in accordance to Licensee specifications,
+    (iii) that are modified after delivery by Aerospike, (iv) combined with
+    other products, processes or materials where the alleged infringement
+    relates to such combination, (v) where Licensee continues allegedly
+    infringing activity after being notified thereof or after being informed of
+    modifications that would have avoided the alleged infringement, or (vi)
+    where Licensee’s use of such Product is not strictly in accordance herewith.
+    Licensee will indemnify Aerospike from all damages, costs, settlements,
+    attorneys’ fees and expenses related to any claim of infringement or
+    misappropriation excluded from Aerospike’s indemnity obligation by the
+    preceding sentence.
+
+    7. Embedded Reporting/Compliance Routine; Data Access and Use; Feedback.
+    Licensee acknowledges that Products contain automated diagnostic routines
+    that when initiated by the Licensee will automatically identify and analyze
+    certain aspects of use and performance of Products and/or the systems on
+    which they are installed, as well as the operator and operating environment
+    (including problems and issues that arise in connection therewith).
+    Aerospike will be entitled to request that the Licensee initiate such
+    diagnostic routines and deliver such to Aerospike on a quarterly basis upon
+    reasonable notice to Licensee. Such reports will be deemed Proprietary
+    Information. Provided it does not identify Licensee and is not identifiable
+    to Licensee, Aerospike will be free to use for development, diagnostic and
+    corrective purposes any data and information it so collects relating to
+    diagnosis, problems, systems, performance, use or functionality, and may
+    allow others to do so. Notwithstanding anything else, Licensee agrees that
+    Aerospike may freely exploit and make available any and all feedback,
+    suggestions, ideas, enhancement requests, recommendations or other
+    information provided by Licensee any other party relating to the Products.
+
+    8. Limited Warranty and Disclaimer. Except in the case of Evaluation
+    Products, Aerospike warrants for a period of ninety (90) days from delivery
+    of a Product that such Product will materially conform to Aerospike’s then
+    current user documentation for such Product. This warranty covers only
+    problems reported to Aerospike during the warranty period. ANY LIABILITY OF
+    AEROSPIKE WITH RESPECT TO A PRODUCT OR THE PERFORMANCE THEREOF OR ANY
+    SERVICES PROVIDED HEREUNDER UNDER THE WARRANTY SET FORTH IN THIS SECTION 7
+    SHALL BE LIMITED EXCLUSIVELY TO PRODUCT REPLACEMENT OR RE-PERFORMANCE OF
+    SERVICES OR, IF REPLACEMENT OR RE-PERFORMANCE IS AN INADEQUATE REMEDY OR, IN
+    AEROSPIKE’S OPINION, IMPRACTICAL, TO A REFUND OF AN APPROPRIATE PORTION OF
+    THE REMAINING UNAMORTIZED APPLICABLE FEES PAID BY LICENSEE. EXCEPT FOR THE
+    FOREGOING WARRANTY BY AEROSPIKE, ALL PRODUCTS AND SERVICES (INCLUDING,
+    WITHOUT LIMITATION, EVALUATION PRODUCTS) ARE PROVIDED “AS IS” WITHOUT
+    WARRANTY OF ANY KIND FROM ANYONE, INCLUDING WITHOUT LIMITATION, ANY WARRANTY
+    OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
+    FURTHER, AEROSPIKE DOES NOT WARRANT RESULTS OF USE OR THAT THE PRODUCTS ARE
+    BUG FREE OR THAT THE PRODUCT’S USE WILL BE UNINTERRUPTED.
+
+    9. Limitation of Liability. NOTWITHSTANDING ANYTHING ELSE HEREIN OR
+    OTHERWISE, AND EXCEPT FOR BODILY INJURY, NEITHER AEROSPIKE NOR ANY LICENSOR
+    SHALL BE LIABLE OR OBLIGATED WITH RESPECT TO THE SUBJECT MATTER HEREOF OR
+    UNDER ANY CONTRACT, NEGLIGENCE, STRICT LIABILITY OR OTHER LEGAL OR EQUITABLE
+    THEORY (I) FOR ANY AMOUNTS IN EXCESS IN THE AGGREGATE OF THE FEES PAID TO IT
+    HEREUNDER WITH RESPECT TO THE APPLICABLE PRODUCT DURING THE TWELVE (12)
+    MONTH PERIOD PRIOR TO THE CAUSE OF ACTION; (II) FOR ANY COST OF PROCUREMENT
+    OF SUBSTITUTE GOODS, TECHNOLOGY, SERVICES OR RIGHTS; (III) FOR ANY LOST
+    PROFITS OR SPECIAL, INDIRECT, INCIDENTAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES
+    OF ANY KIND WHATSOEVER; (IV) FOR INTERRUPTION OF USE OR LOSS OR CORRUPTION
+    OF DATA; OR (V) FOR ANY MATTER BEYOND ITS REASONABLE CONTROL. THE PRODUCT IS
+    NOT DESIGNED, MANUFACTURED, OR INTENDED FOR USE IN HAZARDOUS ENVIRONMENTS
+    REQUIRING FAIL-SAFE PERFORMANCE WHERE THE FAILURE OF THE PRODUCT COULD LEAD
+    DIRECTLY TO DEATH, PERSONAL INJURY, OR SIGNIFICANT PHYSICAL OR ENVIRONMENTAL
+    DAMAGE (“HIGH RISK ACTIVITIES”). USE OF THE PRODUCT IN HIGH RISK ACTIVITIES
+    IS NOT AUTHORIZED. THE PARTIES AGREE THAT THIS SECTION 8 REPRESENTS A
+    REASONABLE ALLOCATION OF RISK AND THAT AEROSPIKE WOULD NOT PROCEED IN THE
+    ABSENCE OF SUCH ALLOCATION.
+
+    10. Confidentiality:. Licensee understands that Company has disclosed or may
+    disclose information relating to Company’s technology or business,
+    including, without limitation, the Products and any other software,
+    documentation, updates, modifications, or new releases thereof and the
+    existence, terms and conditions of this Agreement (hereinafter collectively
+    referred to as “Proprietary Information”). Licensee agrees: (i) not to
+    divulge to any third person any such Proprietary Information, (ii) to give
+    access to such Proprietary Information solely to those employees with a need
+    to have access thereto for purposes of this Agreement, and (iii) to take the
+    same security precautions to protect against disclosure or unauthorized use
+    of such Proprietary Information that Licensee takes with its own proprietary
+    information, but in no event will Licensee apply less than reasonable
+    precautions to protect such Proprietary Information. Nothing in this
+    Agreement will prevent Licensee from disclosing the Proprietary Information
+    pursuant to any judicial or governmental order, provided that Licensee gives
+    Company reasonable prior notice of such disclosure to contest such order.
+
+    11. Miscellaneous. Neither this Agreement nor the licenses granted hereunder
+    are assignable or transferable (and any attempt to do so shall be void);
+    provided that either party may assign and transfer the foregoing to a
+    successor to all or substantially all of (i) in the case of Aerospike,
+    Aerospike’s Product business or assets or, (ii) in the case of Licensee,
+    Licensee’s business for which Products are licensed (but if the authorized
+    use is not limited, the assignee is not licensed to expand use beyond
+    Licensee’s bona fide pre-assignment use plus reasonably expected growth
+    assuming the assignment and related transactions had not occurred). The
+    provisions hereof are for the benefit of the parties only and not for any
+    other person or entity. Aerospike’s obligations under Section 2 and Section
+    6 of this Agreement shall not apply in connection with any Evaluation
+    Product. Any notice, report, approval, authorization, agreement or consent
+    required or permitted hereunder shall be in writing; notices shall be sent
+    to the addresses set forth on the Order Form (or provided by Licensee in
+    connection with registering for an Evaluation), or to any updated address
+    that a party may provide by written notice. No failure or delay in
+    exercising any right hereunder will operate as a waiver thereof, nor will
+    any partial exercise of any right or power hereunder preclude further
+    exercise. If any provision shall be adjudged by any court of competent
+    jurisdiction to be unenforceable or invalid, that provision shall be limited
+    or eliminated to the minimum extent necessary so that this Agreement shall
+    otherwise remain in full force and effect and enforceable. This Agreement
+    shall be deemed to have been made in, and shall be construed pursuant to the
+    laws of the State of California and the United States without regard to
+    conflicts of the laws provisions thereof, and without regard to the United
+    Nations Convention on the International Sale of Goods or the Uniform
+    Computer Information Transactions Act. Licensee acknowledges and agrees that
+    due to the unique nature of Aerospike’s Proprietary Information, there can
+    be no adequate remedy at law for any breach of its obligations hereunder,
+    that any such breach may allow Licensee or third parties to unfairly compete
+    with Aerospike resulting in irreparable harm to Aerospike, and therefore,
+    that upon any such breach or threat thereof, Aerospike shall be entitled to
+    injunctions and other appropriate equitable relief without posting a bond in
+    addition to whatever remedies it may have at law. This Agreement is the
+    complete and exclusive statement of the mutual understanding of the parties
+    and supersedes and cancels all previous written and oral agreements and
+    communications relating to the subject matter hereof and any waivers or
+    amendments shall be effective only if made in a writing executed by
+    authorized representatives of both parties; however, any pre-printed or
+    standard terms of any Licensee purchase order, confirmation, or similar
+    form, even if signed by the parties after the effective date hereof, shall
+    have no force or effect. The substantially prevailing party in any action to
+    enforce this agreement will be entitled to recover its attorney’s fees and
+    costs in connection with such action.

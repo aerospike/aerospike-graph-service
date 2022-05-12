@@ -165,5 +165,13 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public void removeProperty(String key) {
         ((FireflyGraph)this.graph()).db.removePropertyFromVertex(this,key);
     }
+    @Override
+    public boolean equals(final Object object) {
+        return ElementHelper.areEqual(this, object);
+    }
 
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode(this);
+    }
 }

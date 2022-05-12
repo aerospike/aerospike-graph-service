@@ -38,4 +38,9 @@ public abstract class FireflyElement implements Element {
     }
 
     public abstract void removeProperty(String key);
+
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode(this);
+    }
 }

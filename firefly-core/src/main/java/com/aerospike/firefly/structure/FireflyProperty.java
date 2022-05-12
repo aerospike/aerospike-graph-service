@@ -58,4 +58,9 @@ public class FireflyProperty<V> implements Property<V> {
     public String toString(){
         return StringFactory.propertyString(this);
     }
+    @Override
+    public boolean equals(final Object object) {
+        return ElementHelper.areEqual(this, object);
+    }
+
 }

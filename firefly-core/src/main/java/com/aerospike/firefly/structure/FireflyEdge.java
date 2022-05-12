@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.Iterator;
@@ -46,10 +47,21 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void removeProperty(String key) {
-        ((FireflyGraph)this.graph()).db.removePropertyFromEdge(this,key);
+        ((FireflyGraph) this.graph()).db.removePropertyFromEdge(this, key);
     }
+
     @Override
-    public String toString(){
+    public String toString() {
         return StringFactory.edgeString(this);
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        return ElementHelper.areEqual(this, object);
+    }
+
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode(this);
     }
 }

@@ -5,6 +5,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import com.aerospike.client.Record;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
@@ -93,5 +94,14 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
         } else
             return (Iterator) properties.entrySet().stream().filter(entry -> ElementHelper.keyExists(entry.getKey(), propertyKeys)).map(entry -> entry.getValue()).collect(Collectors.toList()).iterator();
+    }
+
+    @Override
+    public void removeProperty(String key) {
+        ((FireflyGraph)this.graph()).db.removePropertyFromVertexProperty(this,key);
+    }
+    @Override
+    public String toString(){
+        return StringFactory.propertyString(this);
     }
 }

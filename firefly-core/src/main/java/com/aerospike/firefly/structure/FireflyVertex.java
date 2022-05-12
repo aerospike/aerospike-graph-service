@@ -160,4 +160,10 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public Record getBaseVertex() {
         return record;
     }
+
+    @Override
+    public void removeProperty(String key) {
+        ((FireflyGraph)this.graph()).db.removePropertyFromVertex(this,key);
+    }
+
 }

@@ -44,6 +44,10 @@ public class AerospikeConnection {
         client.put(null, key, bins);
     }
 
+    public void delete(Key key) {
+        client.delete(null, key);
+    }
+
     public <V> List<VertexProperty> readVertexProperty(FireflyVertex vertex, String propertyKey) {
         Key key = new Key(namespace, FireflyVertexProperty.AERO_SET, (Long) vertex.id());
         Record r = read(key);
@@ -133,7 +137,6 @@ public class AerospikeConnection {
             return null;
         }
         return new FireflyVertex(r, id, r.getString("label"), graph);
-
     }
 
     public void writeVertex(FireflyGraph fireflyGraph, Object id, String label) {
@@ -141,32 +144,41 @@ public class AerospikeConnection {
         Bin lbin = new Bin("label", Value.get(label));
         write(key, lbin);
     }
-    public List<Object> getInEdgeIdsFromVertex(Record r){
+
+    public void removeVertex(FireflyGraph fireflyGraph, Object id) {
+        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) id);
+        delete(key);
+    }
+
+    public List<Object> getInEdgeIdsFromVertex(Record r) {
         List<Object> inEdgeIds = (List<Object>) r.getList(Direction.IN.name());
         return inEdgeIds == null ? new LinkedList<>() : inEdgeIds;
     }
-    public List<Object> getOutEdgeIdsFromVertex(Record r){
+
+    public List<Object> getOutEdgeIdsFromVertex(Record r) {
         List<Object> outEdgeIds = (List<Object>) r.getList(Direction.OUT.name());
         return outEdgeIds == null ? new LinkedList<>() : outEdgeIds;
     }
-    public void addEdgeToVertex(FireflyGraph fireflyGraph,Object vertexId, Object edgeId, Direction direction) {
+
+    public void addEdgeToVertex(FireflyGraph fireflyGraph, Object vertexId, Object edgeId, Direction direction) {
         Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
         Record r = read(key);
         List<Long> directionEdges;
         directionEdges = (List<Long>) r.getList(direction.name());
-        if (directionEdges == null){
+        if (directionEdges == null) {
             directionEdges = new ArrayList<>();
         }
         directionEdges.add(((Number) edgeId).longValue());
         Bin deb = new Bin(direction.name(), Value.get(directionEdges));
         write(key, deb);
     }
-    public void removeEdgeFromVertex(FireflyGraph fireflyGraph,Object vertexId, Object edgeId, Direction direction) {
+
+    public void removeEdgeFromVertex(FireflyGraph fireflyGraph, Object vertexId, Object edgeId, Direction direction) {
         Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
         Record r = read(key);
         List<Long> directionEdges;
         directionEdges = (List<Long>) r.getList(direction.name());
-        if (directionEdges == null){
+        if (directionEdges == null) {
             directionEdges = new ArrayList<>();
         }
         directionEdges.remove(((Number) edgeId).longValue());
@@ -174,10 +186,6 @@ public class AerospikeConnection {
         write(key, deb);
     }
 
-    public void removeVertex(FireflyGraph fireflyGraph, Object id) {
-
-        throw new Exceptions.Unimplemented();
-    }
 
     public long getIdCounter(String name) {
         Key key = new Key(namespace, ID_MANAGER_SET, name);
@@ -214,11 +222,42 @@ public class AerospikeConnection {
         this.client.close();
     }
 
+
     public Edge readEdge(FireflyGraph graph, Object id) {
+        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+        Record r = read(key);
+        if (r == null) {
+            return null;
+        }
+        return new FireflyEdge(r, id, r.getString("label"), r.getLong(Direction.IN.name()), r.getLong(Direction.OUT.name()), graph);
+    }
+
+    public void writeEdge(FireflyGraph graph, Object id, String label, FireflyVertex inVertex, FireflyVertex outVertex, Object[] keyValues) {
+        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+        Bin lbin = new Bin("label", Value.get(label));
+        write(key, lbin);
+    }
+
+    public void removeEdge(FireflyGraph graph, Object id) {
+        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+        delete(key);
+    }
+
+    public <V> void removePropertyFromVertex(FireflyVertex vFireflyVertexProperty, String key) {
         throw new Exceptions.Unimplemented();
     }
 
-    public void writeEdge(FireflyGraph graph, FireflyVertex outVertex, FireflyVertex inVertex, String label, Object[] keyValues) {
+    public <V> void removePropertyFromVertexProperty(FireflyVertexProperty vFireflyVertexProperty, String key) {
         throw new Exceptions.Unimplemented();
+
+    }
+
+    public void removePropertyFromEdge(FireflyEdge fireflyEdge, String key) {
+        throw new Exceptions.Unimplemented();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s %s %s", host, port, namespace);
     }
 }

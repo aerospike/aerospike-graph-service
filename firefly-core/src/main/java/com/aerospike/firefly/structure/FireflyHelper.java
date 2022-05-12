@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.util.Exceptions;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -21,9 +20,9 @@ public class FireflyHelper {
     }
 
     protected static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
-        graph.db.writeEdge(graph,  outVertex, inVertex, label, keyValues);
-
-        throw new Exceptions.Unimplemented();
+        Object id = graph.edgeIdManager.getNextId(graph);
+        graph.db.writeEdge(graph,id ,label, outVertex, inVertex, keyValues);
+        return graph.db.readEdge(graph,id);
     }
 
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {

@@ -17,7 +17,7 @@ import java.util.Properties;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyConfiguration {
-    private static class Keys {
+    protected static class Keys {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
@@ -34,7 +34,11 @@ public class FireflyConfiguration {
         try {
             Properties props = new Properties();
             props.load(Files.newBufferedReader(Paths.get(path)));
-            return new FireflyConfiguration(new HashMap(props));
+            HashMap<String,Object> configData = new HashMap<>();
+            props.keySet().forEach(it -> {
+                configData.put(it.toString().toUpperCase(),props.get(it.toString()));
+            });
+            return new FireflyConfiguration(configData);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -47,7 +51,11 @@ public class FireflyConfiguration {
                  final BufferedReader reader = new BufferedReader(isr)) {
                 Properties props = new Properties();
                 props.load(reader);
-                return new FireflyConfiguration(new HashMap(props));
+                HashMap<String,Object> configData = new HashMap<>();
+                props.keySet().forEach(it -> {
+                    configData.put(it.toString().toUpperCase(),props.get(it.toString()));
+                });
+                return new FireflyConfiguration(configData);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -57,7 +65,8 @@ public class FireflyConfiguration {
     public static FireflyConfiguration loadFromEnv() {
         return new FireflyConfiguration(new HashMap<>() {{
             put(Keys.AEROSPIKE_HOST, System.getenv(Keys.AEROSPIKE_HOST));
-            put(Keys.AEROSPIKE_PORT, System.getenv(Keys.AEROSPIKE_PORT));
+            put(Keys.AEROSPIKE_PORT, Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));
+            put(Keys.AEROSPIKE_NAMESPACE, System.getenv(Keys.AEROSPIKE_NAMESPACE));
         }});
     }
 
@@ -69,14 +78,14 @@ public class FireflyConfiguration {
 
 
     public String aerospikeHost() {
-        return (String) data.get(Keys.AEROSPIKE_HOST.toLowerCase());
+        return (String) data.get(Keys.AEROSPIKE_HOST);
     }
 
     public int aerospikePort() {
-        return Integer.valueOf((String) data.get(Keys.AEROSPIKE_PORT.toLowerCase()));
+        return Integer.valueOf(data.get(Keys.AEROSPIKE_PORT).toString());
     }
 
     public String aerospikeNamespace() {
-        return (String) data.get(Keys.AEROSPIKE_NAMESPACE.toLowerCase());
+        return (String) data.get(Keys.AEROSPIKE_NAMESPACE);
     }
 }

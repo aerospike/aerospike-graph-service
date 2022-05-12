@@ -8,6 +8,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 
 import java.util.ArrayList;
@@ -58,12 +59,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         throw new Unimplemented();
     }
 
-    private void writeEdge(Object id, String label) {
-        throw new Unimplemented();
+    private void writeEdge(Object id, String label,FireflyVertex inV, FireflyVertex outV) {
+        this.db.writeEdge(this,id,label,inV,outV,null);
     }
 
     private void removeEdge(Object id) {
-        throw new Unimplemented();
+        this.db.removeEdge(this,id);
     }
 
     private boolean hasEdge(Object id) {
@@ -237,6 +238,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         public boolean allow(Object id) {
             return id instanceof Number || id instanceof String;
         }
+    }
+    @Override
+    public String toString(){
+        return StringFactory.graphString(this,db.toString());
     }
 
 

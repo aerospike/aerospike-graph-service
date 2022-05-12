@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.Exceptions.Unimplemented;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.NoSuchElementException;
 
@@ -14,11 +15,11 @@ import java.util.NoSuchElementException;
 public class FireflyProperty<V> implements Property<V> {
     public static final String AERO_SET = FireflyVertexProperty.class.getSimpleName().toUpperCase();
     public static final String ELEMENT_PROPERTIES = "_EP";
-    private final Element element;
+    private final FireflyElement element;
     private final String key;
     private final V value;
 
-    public FireflyProperty(Element element, String key, V value) {
+    public FireflyProperty(FireflyElement element, String key, V value) {
         this.element = element;
         this.key = key;
         this.value = value;
@@ -51,6 +52,10 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public void remove() {
-        throw new Unimplemented();
+        this.element.removeProperty(this.key);
+    }
+    @Override
+    public String toString(){
+        return StringFactory.propertyString(this);
     }
 }

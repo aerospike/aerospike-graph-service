@@ -32,6 +32,14 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return readProperties();
     }
 
+    protected List<Object> getInEdgeIds() {
+        return this.graph.db.getInEdgeIdsFromVertex(this.record);
+    }
+
+    protected List<Object> getOutEdgeIds() {
+        return this.graph.db.getOutEdgeIdsFromVertex(this.record);
+    }
+
     public FireflyVertex(final Record record, final Object id, final String label, final FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
@@ -87,6 +95,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public Edge addEdge(final String label, final Vertex vertex, final Object... keyValues) {
         if (null == vertex) throw Graph.Exceptions.argumentCanNotBeNull("vertex");
         if (this.removed) throw elementAlreadyRemoved(Vertex.class, this.id);
+
         return FireflyHelper.addEdge(this.graph, this, (FireflyVertex) vertex, label, keyValues);
     }
 

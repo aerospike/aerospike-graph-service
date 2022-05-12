@@ -4,6 +4,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.util.Exceptions;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -140,6 +141,38 @@ public class AerospikeConnection {
         Bin lbin = new Bin("label", Value.get(label));
         write(key, lbin);
     }
+    public List<Object> getInEdgeIdsFromVertex(Record r){
+        List<Object> inEdgeIds = (List<Object>) r.getList(Direction.IN.name());
+        return inEdgeIds == null ? new LinkedList<>() : inEdgeIds;
+    }
+    public List<Object> getOutEdgeIdsFromVertex(Record r){
+        List<Object> outEdgeIds = (List<Object>) r.getList(Direction.OUT.name());
+        return outEdgeIds == null ? new LinkedList<>() : outEdgeIds;
+    }
+    public void addEdgeToVertex(FireflyGraph fireflyGraph,Object vertexId, Object edgeId, Direction direction) {
+        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
+        Record r = read(key);
+        List<Long> directionEdges;
+        directionEdges = (List<Long>) r.getList(direction.name());
+        if (directionEdges == null){
+            directionEdges = new ArrayList<>();
+        }
+        directionEdges.add(((Number) edgeId).longValue());
+        Bin deb = new Bin(direction.name(), Value.get(directionEdges));
+        write(key, deb);
+    }
+    public void removeEdgeFromVertex(FireflyGraph fireflyGraph,Object vertexId, Object edgeId, Direction direction) {
+        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
+        Record r = read(key);
+        List<Long> directionEdges;
+        directionEdges = (List<Long>) r.getList(direction.name());
+        if (directionEdges == null){
+            directionEdges = new ArrayList<>();
+        }
+        directionEdges.remove(((Number) edgeId).longValue());
+        Bin deb = new Bin(direction.name(), Value.get(directionEdges));
+        write(key, deb);
+    }
 
     public void removeVertex(FireflyGraph fireflyGraph, Object id) {
 
@@ -185,4 +218,7 @@ public class AerospikeConnection {
         throw new Exceptions.Unimplemented();
     }
 
+    public void writeEdge(FireflyGraph graph, FireflyVertex outVertex, FireflyVertex inVertex, String label, Object[] keyValues) {
+        throw new Exceptions.Unimplemented();
+    }
 }

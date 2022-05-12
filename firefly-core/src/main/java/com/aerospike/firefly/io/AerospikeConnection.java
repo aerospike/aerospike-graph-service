@@ -142,6 +142,7 @@ public class AerospikeConnection {
     }
 
     public void removeVertex(FireflyGraph fireflyGraph, Object id) {
+
         throw new Exceptions.Unimplemented();
     }
 

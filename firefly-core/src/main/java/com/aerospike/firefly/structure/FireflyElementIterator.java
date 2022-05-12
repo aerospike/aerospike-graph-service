@@ -27,6 +27,12 @@ public abstract class FireflyElementIterator<E> implements CloseableIterator<E> 
 
     @Override
     public E next() {
-        return fn.apply(this.idIterator.next());
+        //@todo performance
+        // we will not want to iterate thru removed ids
+        // if it can be avoided
+        E ele = null;
+        while (ele == null && this.hasNext())
+            ele = fn.apply(this.idIterator.next());
+        return ele;
     }
 }

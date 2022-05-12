@@ -4,11 +4,13 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.FireflyConfiguration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -22,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class AerospikeClientIntegration {
+public class TestAerospikeClientIntegration {
     @Test
     void testConnectToAerospike() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
@@ -104,7 +106,7 @@ public class AerospikeClientIntegration {
         LongStream.range(0, 100).forEach(l -> {
             Long next = (Long) graph.vertexIdManager.getNextId(graph);
             usedIds.add(next);
-            ac.writeVertex(graph,next , "aVertexLabel");
+            ac.writeVertex(graph, next, "aVertexLabel");
         });
         final AtomicLong ctr = new AtomicLong(0);
         new FireflyVertexIterator<Long>(graph, usedIds.iterator()).forEachRemaining(v -> {
@@ -131,9 +133,52 @@ public class AerospikeClientIntegration {
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
         FireflyGraph graph = FireflyGraph.open(ac, c);
         GraphTraversalSource g = graph.traversal();
-        g.addV("puppy").property("color", "brown").next();
+        g.addV("herring").property("color", "white").next();
         Vertex thing = g.V().next();
-        assertEquals("brown", g.V().hasLabel("puppy").values("color").next());
+        assertEquals("white", g.V().hasLabel("herring").values("color").next());
+        GraphTraversal<Vertex, Vertex> i = g.V();
+        while (i.hasNext()){
+            assertNotEquals(i.next(),null);
+        }
+    }
+    @Test
+    void testTraversalIterator() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        FireflyGraph graph = FireflyGraph.open(ac, c);
+        GraphTraversalSource g = graph.traversal();
+        g.addV("puppy").property("color", "red").next();
+        Vertex thing = g.V().next();
+        GraphTraversal<Vertex, Vertex> i = g.V();
+        while (i.hasNext()){
+            assertNotEquals(i.next(),null);
+        }
+    }
+
+    @Disabled
+    @Test
+    void testRemoveVertexTraversal(){
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        FireflyGraph graph = FireflyGraph.open(ac, c);
+        GraphTraversalSource g = graph.traversal();
+        g.addV("puppy").property("color", "brown").next();
+        GraphTraversal<Vertex, Vertex> i = g.V();
+        while (i.hasNext()){
+            assertNotEquals(i.next(),null);
+            i.next().remove();
+        }
+        assertFalse(g.V().hasNext());
+    }
+
+    @Test
+    void testWriteMultipleThenIterate() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        FireflyGraph graph = FireflyGraph.open(ac, c);
+        GraphTraversalSource g = graph.traversal();
+        g.addV("penguin").property("color", "red").next();
+        assertEquals("red", g.V().hasLabel("penguin").next().values("color").next());
     }
 
 }

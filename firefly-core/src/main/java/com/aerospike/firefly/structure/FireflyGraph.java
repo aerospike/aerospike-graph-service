@@ -157,7 +157,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(vertexIds).forEach(o -> {
-            longs.add((long)o);
+            longs.add(((Number)o).longValue());
         });
         if (vertexIds.length != 0)
             itr = longs.iterator();

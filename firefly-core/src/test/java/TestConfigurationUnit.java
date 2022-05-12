@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestConfiguration {
+public class TestConfigurationUnit {
 
 
     @Test

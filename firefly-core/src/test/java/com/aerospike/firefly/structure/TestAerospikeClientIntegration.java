@@ -205,7 +205,6 @@ public class TestAerospikeClientIntegration {
         assertEquals(0, (long) g.V().count().next());
     }
 
-    @Disabled
     @Test
     void testWrite2VertexWithEdge() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");

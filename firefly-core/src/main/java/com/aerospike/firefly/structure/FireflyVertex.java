@@ -16,12 +16,9 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyVertex extends FireflyElement implements WrappedVertex<Record>, Vertex {
-    public static final String AERO_SET = FireflyVertex.class.getSimpleName().toUpperCase();
 
     private final FireflyGraph graph;
-    private final boolean allowNullPropertyValues = true;
     private final Record record;
-
 
     private Map<String, List<VertexProperty>> readProperties() {
         return this.graph.db.readVertexProperties(this);
@@ -110,11 +107,6 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     }
 
     @Override
-    public String toString() {
-        return StringFactory.vertexString(this);
-    }
-
-    @Override
     public Iterator<Edge> edges(Direction direction, String... edgeLabels) {
         final Iterator<Edge> edgeIterator = (Iterator) FireflyHelper.getEdges(this, direction, edgeLabels);
         return FireflyHelper.inComputerMode(this.graph) ?
@@ -165,13 +157,10 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public void removeProperty(String key) {
         ((FireflyGraph)this.graph()).db.removePropertyFromVertex(this,key);
     }
-    @Override
-    public boolean equals(final Object object) {
-        return ElementHelper.areEqual(this, object);
-    }
 
     @Override
-    public int hashCode() {
-        return ElementHelper.hashCode(this);
+    public String toString() {
+        return StringFactory.vertexString(this);
     }
+
 }

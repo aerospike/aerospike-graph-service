@@ -4,7 +4,6 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import com.aerospike.client.Record;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
@@ -15,8 +14,6 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
-    public static final String AERO_SET = FireflyVertexProperty.class.getSimpleName().toUpperCase();
-    public static final String VERTEX_PROPERTY_KEYS = "_VPK";
 
     private final boolean allowNullPropertyValues = true;
     private final FireflyVertex vertex;

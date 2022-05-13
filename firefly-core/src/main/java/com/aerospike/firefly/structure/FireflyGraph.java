@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.util.Tokens.*;
@@ -56,19 +55,19 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     private FireflyEdge readEdge(Object id) {
-        throw new Unimplemented();
+        return this.db.readEdge(this, id);
     }
 
-    private void writeEdge(Object id, String label,FireflyVertex inV, FireflyVertex outV) {
-        this.db.writeEdge(this,id,label,inV,outV,null);
+    private void writeEdge(Object id, String label, FireflyVertex inV, FireflyVertex outV) {
+        this.db.writeEdge(this, id, label, inV, outV, null);
     }
 
     private void removeEdge(Object id) {
-        this.db.removeEdge(this,id);
+        this.db.removeEdge(this, id);
     }
 
     private boolean hasEdge(Object id) {
-        throw new Unimplemented();
+        return !(readEdge(id) == null);
     }
 
     private long getLastId(String type) {
@@ -154,16 +153,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Iterator<Vertex> vertices(Object... vertexIds) {
         //@todo correctness
+        //@todo performance
         // should be a scan query, find vertices that have not been deleted
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(vertexIds).forEach(o -> {
-            longs.add(((Number)o).longValue());
+            longs.add(((Number) o).longValue());
         });
         if (vertexIds.length != 0)
             itr = longs.iterator();
         else
-            itr = (Iterator<Long>)LongStream.range(1L, (long) db.getIdCounter(GLOBAL)).iterator();
+            itr = (Iterator<Long>) LongStream.range(1L, (long) db.getIdCounter(GLOBAL)).iterator();
 
         return new FireflyVertexIterator(this, itr);
     }
@@ -239,9 +239,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return id instanceof Number || id instanceof String;
         }
     }
+
     @Override
-    public String toString(){
-        return StringFactory.graphString(this,db.toString());
+    public String toString() {
+        return StringFactory.graphString(this, db.toString());
     }
 
 

@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +31,13 @@ public class TestAerospikeClientIntegration {
     void testConnectToAerospike() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+    }
+
+    @BeforeEach
+    void clearData() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        ac.dropDatabase();
     }
 
     @Test
@@ -103,7 +112,7 @@ public class TestAerospikeClientIntegration {
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
         FireflyGraph graph = new FireflyGraph(ac, c);
         List<Long> usedIds = new ArrayList<>();
-        LongStream.range(0, 100).forEach(l -> {
+        LongStream.range(0, 10).forEach(l -> {
             Long next = (Long) graph.vertexIdManager.getNextId(graph);
             usedIds.add(next);
             ac.writeVertex(graph, next, "aVertexLabel");
@@ -113,7 +122,7 @@ public class TestAerospikeClientIntegration {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });
-        assertEquals(100, ctr.get());
+        assertEquals(10, ctr.get());
     }
 
     @Test
@@ -137,10 +146,11 @@ public class TestAerospikeClientIntegration {
         Vertex thing = g.V().next();
         assertEquals("white", g.V().hasLabel("herring").values("color").next());
         GraphTraversal<Vertex, Vertex> i = g.V();
-        while (i.hasNext()){
-            assertNotEquals(i.next(),null);
+        while (i.hasNext()) {
+            assertNotEquals(i.next(), null);
         }
     }
+
     @Test
     void testTraversalIterator() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
@@ -150,22 +160,22 @@ public class TestAerospikeClientIntegration {
         g.addV("puppy").property("color", "red").next();
         Vertex thing = g.V().next();
         GraphTraversal<Vertex, Vertex> i = g.V();
-        while (i.hasNext()){
-            assertNotEquals(i.next(),null);
+        while (i.hasNext()) {
+            assertNotEquals(i.next(), null);
         }
     }
 
     @Disabled
     @Test
-    void testRemoveVertexTraversal(){
+    void testRemoveVertexTraversal() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
         FireflyGraph graph = FireflyGraph.open(ac, c);
         GraphTraversalSource g = graph.traversal();
         g.addV("puppy").property("color", "brown").next();
         GraphTraversal<Vertex, Vertex> i = g.V();
-        while (i.hasNext()){
-            assertNotEquals(i.next(),null);
+        while (i.hasNext()) {
+            assertNotEquals(i.next(), null);
             i.next().remove();
         }
         assertFalse(g.V().hasNext());
@@ -181,4 +191,36 @@ public class TestAerospikeClientIntegration {
         assertEquals("red", g.V().hasLabel("penguin").next().values("color").next());
     }
 
+    @Test
+    void testWriteThenDrop() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        FireflyGraph graph = FireflyGraph.open(ac, c);
+        GraphTraversalSource g = graph.traversal();
+        IntStream.range(0, 10).forEach(i -> {
+            g.addV().next();
+        });
+        assertTrue(g.V().count().next() > 0);
+        ac.dropDatabase();
+        assertEquals(0, (long) g.V().count().next());
+    }
+
+    @Disabled
+    @Test
+    void testWrite2VertexWithEdge() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        FireflyGraph graph = FireflyGraph.open(ac, c);
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").iterate();
+        Vertex s1 = g.V().has("type", "taxonomy").next();
+        List<Vertex> s2 = g.V().has("type", "plant").next(2);
+        assertEquals(2, g.V(fruit.id()).outE().count().next());
+    }
 }

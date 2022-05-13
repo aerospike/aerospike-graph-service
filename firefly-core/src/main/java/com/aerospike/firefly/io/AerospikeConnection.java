@@ -13,8 +13,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.Serialization.*;
-import static com.aerospike.firefly.util.Tokens.COUNTER;
-import static com.aerospike.firefly.util.Tokens.ID_MANAGER_SET;
+import static com.aerospike.firefly.util.Tokens.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -24,6 +23,13 @@ public class AerospikeConnection {
     private final int port;
     private final AerospikeClient client;
     private final String namespace;
+
+    private static final String EDGE_AERO_SET = FireflyEdge.class.getSimpleName().toUpperCase();
+    private static final String VERTEX_AERO_SET = FireflyVertex.class.getSimpleName().toUpperCase();
+    private static final String PROPERTY_AERO_SET = FireflyVertexProperty.class.getSimpleName().toUpperCase();
+    private static final String VERTEX_PROPERTY_AERO_SET = FireflyVertexProperty.class.getSimpleName().toUpperCase();
+    private static final String VERTEX_PROPERTY_KEYS = "_VPK";
+    private static final String ELEMENT_PROPERTIES = "_EP";
 
     private AerospikeConnection(final String host, final int port, final String namespace) {
         this.host = host;
@@ -49,11 +55,11 @@ public class AerospikeConnection {
     }
 
     public <V> List<VertexProperty> readVertexProperty(FireflyVertex vertex, String propertyKey) {
-        Key key = new Key(namespace, FireflyVertexProperty.AERO_SET, (Long) vertex.id());
+        Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) vertex.id());
         Record r = read(key);
         if (r == null)
             return null;
-        List<String> propertyKeys = (List<String>) r.getList(FireflyVertexProperty.VERTEX_PROPERTY_KEYS);
+        List<String> propertyKeys = (List<String>) r.getList(VERTEX_PROPERTY_KEYS);
         if (propertyKeys == null || !propertyKeys.contains(propertyKey))
             return null;
         List<byte[]> serializedProperties = (List<byte[]>) r.getList((String) propertyKey);
@@ -62,13 +68,13 @@ public class AerospikeConnection {
     }
 
     public Map<String, List<VertexProperty>> readVertexProperties(FireflyVertex vertex) {
-        Key key = new Key(namespace, FireflyVertexProperty.AERO_SET, (Long) vertex.id());
+        Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) vertex.id());
         Record r = read(key);
         if (r == null)
             return new HashMap<>();
 
         HashMap<String, List<VertexProperty>> result = new HashMap<>();
-        List<String> propertyKeys = (List<String>) r.getList(FireflyVertexProperty.VERTEX_PROPERTY_KEYS);
+        List<String> propertyKeys = (List<String>) r.getList(VERTEX_PROPERTY_KEYS);
         if (propertyKeys == null)
             return result;
         propertyKeys.forEach(vpk -> {
@@ -79,30 +85,30 @@ public class AerospikeConnection {
     }
 
     public void writeVertexProperty(FireflyVertex vertex, String k, List<VertexProperty> v) {
-        Key key = new Key(namespace, FireflyVertexProperty.AERO_SET, (Long) vertex.id());
+        Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) vertex.id());
         Record r = read(key);
 
         List<Value> propertyKeys = r == null ?
-                new LinkedList<>() : (List<Value>) r.getList(FireflyVertexProperty.VERTEX_PROPERTY_KEYS);
+                new LinkedList<>() : (List<Value>) r.getList(VERTEX_PROPERTY_KEYS);
         if (propertyKeys == null)
             propertyKeys = new ArrayList<>();
         propertyKeys.add(Value.get(k));
         ArrayList<Value> values =
                 new ArrayList<>(v.stream().map(vp -> Value.get(serializeObject(vp))).collect(Collectors.toList()));
         Bin propertyValues = new Bin(k, values);
-        Bin propertyKeysBin = new Bin(FireflyVertexProperty.VERTEX_PROPERTY_KEYS, propertyKeys);
+        Bin propertyKeysBin = new Bin(VERTEX_PROPERTY_KEYS, propertyKeys);
         write(key, propertyValues, propertyKeysBin);
     }
 
 
     public <V> Map<String, Property> readProperties(FireflyElement ele) {
-        Key key = new Key(namespace, FireflyProperty.AERO_SET, (Long) ele.id());
+        Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) ele.id());
         Record r = read(key);
         if (r == null)
             return new HashMap<>();
 
         Map<String, Property> result = new HashMap<>();
-        Map<String, byte[]> data = (Map<String, byte[]>) r.getMap(FireflyProperty.ELEMENT_PROPERTIES);
+        Map<String, byte[]> data = (Map<String, byte[]>) r.getMap(ELEMENT_PROPERTIES);
         if (data == null)
             return result;
         data.entrySet().stream().forEach(e -> {
@@ -114,24 +120,26 @@ public class AerospikeConnection {
     }
 
     public <V> Property readProperty(FireflyElement ele, String k) {
-        Key key = new Key(namespace, FireflyProperty.AERO_SET, (Long) ele.id());
+        Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) ele.id());
         Record r = read(key);
-        return deserializeObject((byte[]) r.getMap(FireflyProperty.ELEMENT_PROPERTIES).get(k), Property.class);
+        return deserializeObject((byte[]) r.getMap(ELEMENT_PROPERTIES).get(k), Property.class);
     }
 
     public <V> void writeProperty(FireflyElement ele, String k, Property<V> property) {
-        Key key = new Key(namespace, FireflyProperty.AERO_SET, (Long) ele.id());
+        Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) ele.id());
         Record r = read(key);
-        Map<String, byte[]> data = (Map<String, byte[]>) r.getMap(FireflyProperty.ELEMENT_PROPERTIES);
-        if (data == null)
+        Map<String, byte[]> data;
+        if (r == null)
             data = new HashMap<>();
+        else
+            data = (Map<String, byte[]>) Optional.ofNullable( r.getMap(ELEMENT_PROPERTIES)).orElse(new HashMap<>());
         data.put(k, serializeObject(property));
-        Bin bin = new Bin(FireflyProperty.ELEMENT_PROPERTIES, Value.get(data));
+        Bin bin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
         write(key, bin);
     }
 
     public FireflyVertex readVertex(FireflyGraph graph, Object id) {
-        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) id);
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) id);
         Record r = read(key);
         if (r == null) {
             return null;
@@ -139,14 +147,14 @@ public class AerospikeConnection {
         return new FireflyVertex(r, id, r.getString("label"), graph);
     }
 
-    public void writeVertex(FireflyGraph fireflyGraph, Object id, String label) {
-        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) id);
+    public void writeVertex(FireflyGraph graph, Object id, String label) {
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) id);
         Bin lbin = new Bin("label", Value.get(label));
         write(key, lbin);
     }
 
-    public void removeVertex(FireflyGraph fireflyGraph, Object id) {
-        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) id);
+    public void removeVertex(FireflyGraph graph, Object id) {
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) id);
         delete(key);
     }
 
@@ -160,8 +168,8 @@ public class AerospikeConnection {
         return outEdgeIds == null ? new LinkedList<>() : outEdgeIds;
     }
 
-    public void addEdgeToVertex(FireflyGraph fireflyGraph, Object vertexId, Object edgeId, Direction direction) {
-        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
+    public void addEdgeToVertex(FireflyGraph graph, Object vertexId, Object edgeId, Direction direction) {
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) vertexId);
         Record r = read(key);
         List<Long> directionEdges;
         directionEdges = (List<Long>) r.getList(direction.name());
@@ -173,8 +181,8 @@ public class AerospikeConnection {
         write(key, deb);
     }
 
-    public void removeEdgeFromVertex(FireflyGraph fireflyGraph, Object vertexId, Object edgeId, Direction direction) {
-        Key key = new Key(namespace, FireflyVertex.AERO_SET, (Long) vertexId);
+    public void removeEdgeFromVertex(FireflyGraph graph, Object vertexId, Object edgeId, Direction direction) {
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) vertexId);
         Record r = read(key);
         List<Long> directionEdges;
         directionEdges = (List<Long>) r.getList(direction.name());
@@ -223,8 +231,8 @@ public class AerospikeConnection {
     }
 
 
-    public Edge readEdge(FireflyGraph graph, Object id) {
-        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+    public FireflyEdge readEdge(FireflyGraph graph, Object id) {
+        Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
         Record r = read(key);
         if (r == null) {
             return null;
@@ -233,13 +241,15 @@ public class AerospikeConnection {
     }
 
     public void writeEdge(FireflyGraph graph, Object id, String label, FireflyVertex inVertex, FireflyVertex outVertex, Object[] keyValues) {
-        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+        Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
         Bin lbin = new Bin("label", Value.get(label));
         write(key, lbin);
+        addEdgeToVertex(graph,inVertex.id(),id,Direction.IN);
+        addEdgeToVertex(graph,outVertex.id(),id,Direction.OUT);
     }
 
     public void removeEdge(FireflyGraph graph, Object id) {
-        Key key = new Key(namespace, FireflyEdge.AERO_SET, (Long) id);
+        Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
         delete(key);
     }
 
@@ -259,5 +269,18 @@ public class AerospikeConnection {
     @Override
     public String toString() {
         return String.format("%s %s %s", host, port, namespace);
+    }
+
+    public Map<String, Property> readEdgeProperties(FireflyEdge edge) {
+        return null;
+    }
+
+
+    public void dropDatabase() {
+        client.truncate(null, namespace, EDGE_AERO_SET,Calendar.getInstance());
+        client.truncate(null, namespace, VERTEX_AERO_SET,Calendar.getInstance());
+        client.truncate(null, namespace, PROPERTY_AERO_SET,Calendar.getInstance());
+        client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET,Calendar.getInstance());
+        zeroIdCounter(GLOBAL);
     }
 }

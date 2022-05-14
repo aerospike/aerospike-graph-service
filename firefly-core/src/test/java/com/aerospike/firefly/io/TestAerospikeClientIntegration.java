@@ -91,6 +91,21 @@ public class TestAerospikeClientIntegration {
             last = current;
         }
     }
+    @Test
+    void testCounterOps() {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        ac.zeroIdCounter("test");
+        ac.incrementIdCounter("test");
+        assertEquals(1, ac.getIdCounter("test"));
+        ac.decrementIdCounter("test");
+        assertEquals(0, ac.getIdCounter("test"));
+        ac.incrementIdCounter("test");
+        ac.incrementIdCounter("test");
+        assertEquals(2, ac.getIdCounter("test"));
+        ac.zeroIdCounter("test");
+        assertEquals(0, ac.getIdCounter("test"));
+    }
 
 
 }

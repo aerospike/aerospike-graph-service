@@ -117,6 +117,7 @@ public class AerospikeConnection {
         removeElementId(FireflyVertexProperty.class, id);
         delete(key);
     }
+
     public <V> Map<String, Property> readProperties(final FireflyElement ele) {
         final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) ele.id());
         final Record r = read(key);
@@ -242,7 +243,7 @@ public class AerospikeConnection {
         final id_config cfg = new id_config(type);
         final Key key = new Key(namespace, cfg.getAeroSet(), cfg.getIdKey());
         final Record r = read(key);
-        if (r == null)
+        if (r == null || r.getList(cfg.getIdBin()).isEmpty())
             return EmptyIterator.instance();
         client.operate(client.writePolicyDefault, key,
                 ListOperation.sort(cfg.getIdBin(), ListSortFlags.DROP_DUPLICATES)
@@ -330,7 +331,9 @@ public class AerospikeConnection {
                           final Object[] keyValues) {
         final Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
         final Bin lbin = new Bin("label", Value.get(label));
-        write(key, lbin);
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id()));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id()));
+        write(key, lbin, inVbin, outVBin);
         addEdgeToVertex(graph, inVertex.id(), id, Direction.IN);
         addEdgeToVertex(graph, outVertex.id(), id, Direction.OUT);
     }

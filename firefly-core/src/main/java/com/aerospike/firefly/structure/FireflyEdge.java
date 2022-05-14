@@ -21,13 +21,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final Object outVid;
 
 
-
     private void writeProperty(String k, Property v) {
         this.graph.db.writeProperty(this, k, v);
     }
+
     private Map<String, Property> readProperties() {
         return this.graph.db.readProperties(this);
     }
+
     public FireflyEdge(Record record, Object id, String label, long inVid, long outVid, FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
@@ -37,12 +38,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.db.readVertex(graph,this.outVid);
+        return graph.db.readVertex(graph, this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.db.readVertex(graph,this.inVid);
+        return graph.db.readVertex(graph, this.inVid);
     }
 
     @Override
@@ -55,16 +56,19 @@ public class FireflyEdge extends FireflyElement implements Edge {
                 return IteratorUtils.of(this.inVertex());
             default:
                 return IteratorUtils.of(this.outVertex(), this.inVertex());
-        }    }
+        }
+    }
 
     @Override
     public Graph graph() {
         return this.graph;
     }
+
     @Override
     public <V> Property<V> property(final String key) {
         return null == this.readProperties() ? Property.<V>empty() : this.readProperties().getOrDefault(key, Property.<V>empty());
     }
+
     @Override
     public <V> Property<V> property(String key, V value) {
         if (this.removed) throw elementAlreadyRemoved(VertexProperty.class, id);
@@ -79,7 +83,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void remove() {
-
+        graph.db.removeEdgeFromVertex(graph,this.outVid,this.id,Direction.BOTH);
+        graph.db.removeEdgeFromVertex(graph,this.inVid,this.id,Direction.BOTH);
+        graph.db.removeEdge(graph, this.id);
     }
 
     @Override

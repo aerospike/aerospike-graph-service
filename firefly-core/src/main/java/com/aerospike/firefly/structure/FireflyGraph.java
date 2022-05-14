@@ -171,7 +171,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Edge> edges(Object... edgeIds) {
-        return new FireflyEdgeIterator(this, Arrays.stream(edgeIds).iterator());
+        Iterator<Long> itr;
+        List<Long> longs = new ArrayList<>();
+        Arrays.stream(edgeIds).forEach(o -> {
+            longs.add(((Number) o).longValue());
+        });
+        if (edgeIds.length != 0)
+            itr = longs.iterator();
+        else
+            itr = (Iterator<Long>) db.readElementIds(FireflyEdge.class);
+
+        return new FireflyEdgeIterator(this, itr);
     }
 
     @Override

@@ -22,6 +22,8 @@ public abstract class FireflyElementIterator<E> implements CloseableIterator<E> 
 
     @Override
     public boolean hasNext() {
+        //@todo performance
+        //vertex ids should be in their own counter
         return this.idIterator.hasNext();
     }
 

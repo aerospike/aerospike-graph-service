@@ -1,7 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.FireflyConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -11,7 +9,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -26,12 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestAerospikeClientIntegration {
-    @Test
-    void testConnectToAerospike() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
-        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-    }
+public class TestAerospikeGraphIntegration {
+
 
     @BeforeEach
     void clearData() {
@@ -41,15 +34,9 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testBasicReadWrite() {
+    void testConnectToAerospike() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-        Key key = new Key(c.aerospikeNamespace(), "demo", "foo");
-        Bin bin1 = new Bin("name", "John Doe");
-        Bin bin2 = new Bin("age", 32);
-        Bin bin3 = new Bin("greeting", "Hello World!");
-        ac.write(key, bin1, bin2, bin3);
-        assertEquals(ac.read(key).getInt("age"), 32);
     }
 
     @Test
@@ -165,7 +152,6 @@ public class TestAerospikeClientIntegration {
         }
     }
 
-    @Disabled
     @Test
     void testRemoveVertexTraversal() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
@@ -173,12 +159,12 @@ public class TestAerospikeClientIntegration {
         FireflyGraph graph = FireflyGraph.open(ac, c);
         GraphTraversalSource g = graph.traversal();
         g.addV("puppy").property("color", "brown").next();
-        GraphTraversal<Vertex, Vertex> i = g.V();
-        while (i.hasNext()) {
-            assertNotEquals(i.next(), null);
-            i.next().remove();
+        assertTrue(g.V().hasNext());
+        g.V().drop().iterate();
+        if (g.V().hasNext()) {
+            Vertex it = g.V().next();
+            fail();
         }
-        assertFalse(g.V().hasNext());
     }
 
     @Test
@@ -205,6 +191,7 @@ public class TestAerospikeClientIntegration {
         assertEquals(0, (long) g.V().count().next());
     }
 
+
     @Test
     void testWrite2VertexWithEdge() {
         FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
@@ -222,4 +209,6 @@ public class TestAerospikeClientIntegration {
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, g.V(fruit.id()).outE().count().next());
     }
+
+
 }

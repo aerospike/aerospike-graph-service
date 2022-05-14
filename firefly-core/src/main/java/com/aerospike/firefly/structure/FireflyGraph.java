@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.LongStream;
 
+import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -81,9 +82,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected FireflyGraph(final AerospikeConnection db, final FireflyConfiguration configuration) {
         this.fireflyConfiguration = configuration;
         this.db = db;
-        vertexPropertyIdManager = new DefaultIdManager(VERTEX_PROPERTY_ID_COUNTER_SET);
-        vertexIdManager = new DefaultIdManager(VERTEX_ID_COUNTER_SET);
-        edgeIdManager = new DefaultIdManager(EDGE_ID_COUNTER_SET);
+        vertexPropertyIdManager = new DefaultIdManager(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER_SET);
+        vertexIdManager = new DefaultIdManager(FireflyVertex.class, VERTEX_ID_COUNTER_SET);
+        edgeIdManager = new DefaultIdManager(FireflyEdge.class, EDGE_ID_COUNTER_SET);
     }
 
     public static FireflyGraph open(AerospikeConnection db, FireflyConfiguration conf) {
@@ -163,7 +164,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (vertexIds.length != 0)
             itr = longs.iterator();
         else
-            itr = (Iterator<Long>) LongStream.range(1L, (long) db.getIdCounter(GLOBAL)).iterator();
+            itr = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
 
         return new FireflyVertexIterator(this, itr);
     }
@@ -195,16 +196,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return fireflyConfiguration.toApacheConfiguration();
     }
 
-    public static class DefaultIdManager implements FireflyGraph.IdManager<Long> {
+    public static class DefaultIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
 
         /**
          * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
          * {@link Long} and will also attempt to convert {@code String} values
          */
         private final String counterNamespace;
+        private final Class<? extends FireflyElement> type;
 
-        public DefaultIdManager(String counterNamespace) {
+        public DefaultIdManager(Class<? extends FireflyElement> type, String counterNamespace) {
             this.counterNamespace = counterNamespace;
+            this.type = type;
         }
 
         private static String createErrorMessage(final Class<?> expectedType, final Object id) {
@@ -213,7 +216,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public Long getNextId(FireflyGraph graph) {
-            return graph.db.incrementIdCounter(GLOBAL);
+            long val = graph.db.incrementIdCounter(GLOBAL);
+            graph.db.writeElementId(type, val);
+            return val;
         }
 
         @Override

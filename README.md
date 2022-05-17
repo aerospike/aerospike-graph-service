@@ -32,6 +32,6 @@ gremlin> graph = FireflyGraph.openFromPath(Path.of(System.getProperty("user.home
 gremlin> g = graph.traversal()  
 gremlin> g.addV("dog").property("color","blue").next()    
 ==>v[1]  
-gremlin> g.V().hasLabel("dog").propertyMap()
+gremlin> g.V().hasLabel("dog").propertyMap()  
 ==>[color:[vp[color->blue]]]
 

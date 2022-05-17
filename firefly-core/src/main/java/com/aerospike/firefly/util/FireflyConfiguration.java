@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,10 +31,10 @@ public class FireflyConfiguration {
         this.data = data;
     }
 
-    public static FireflyConfiguration loadFromFile(final String path) {
+    public static FireflyConfiguration loadFromFile(final Path path) {
         try {
             Properties props = new Properties();
-            props.load(Files.newBufferedReader(Paths.get(path)));
+            props.load(Files.newBufferedReader(path));
             HashMap<String,Object> configData = new HashMap<>();
             props.keySet().forEach(it -> {
                 configData.put(it.toString().toUpperCase(),props.get(it.toString()));

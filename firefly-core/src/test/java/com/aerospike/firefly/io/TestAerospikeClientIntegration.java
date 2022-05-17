@@ -4,23 +4,15 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.util.FireflyConfiguration;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.io.AerospikeConnection.*;
+import static java.lang.Thread.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -28,25 +20,30 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class TestAerospikeClientIntegration {
 
-
+    private FireflyConfiguration conf;
+    private AerospikeConnection db;
     @BeforeEach
-    void clearData() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
-        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-        ac.dropDatabase();
+    void setup() {
+        conf = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        db = AerospikeConnection.connect(conf.aerospikeHost(), conf.aerospikePort(), conf.aerospikeNamespace());
+    }
+    @AfterEach
+    void cleanup(){
+        db.dropDatabase();
+        db.close();
     }
 
     @Test
     void testConnectToAerospike() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
     }
 
     @Test
     void testBasicReadWrite() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-        Key key = new Key(c.aerospikeNamespace(), "demo", "foo");
+        Key key = new Key(c.aerospikeNamespace(), TEST_SET, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -56,9 +53,9 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testBasicDelete() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-        Key key = new Key(c.aerospikeNamespace(), "demo", "foo");
+        Key key = new Key(c.aerospikeNamespace(), TEST_SET, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -69,8 +66,22 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
+    void testDropDatabase() throws InterruptedException {
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
+        Key key = new Key(c.aerospikeNamespace(), TEST_SET, "foo");
+        Bin bin1 = new Bin("name", "John Doe");
+        Bin bin2 = new Bin("age", 32);
+        Bin bin3 = new Bin("greeting", "Hello World!");
+        ac.write(key, bin1, bin2, bin3);
+        assertNotEquals(null, ac.read(key));
+        ac.dropDatabase();
+        assertNull(ac.read(key));
+    }
+
+    @Test
     void testAddRemoveIterateVertexIdList() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
         ac.writeElementId(FireflyVertex.class, 1L);
         ac.writeElementId(FireflyVertex.class, 2L);
@@ -91,20 +102,21 @@ public class TestAerospikeClientIntegration {
             last = current;
         }
     }
+
     @Test
     void testCounterOps() {
-        FireflyConfiguration c = FireflyConfiguration.loadFromResources("phaseshift-integration-settings.properties");
+        FireflyConfiguration c = FireflyConfiguration.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection ac = AerospikeConnection.connect(c.aerospikeHost(), c.aerospikePort(), c.aerospikeNamespace());
-        ac.zeroIdCounter("test");
-        ac.incrementIdCounter("test");
-        assertEquals(1, ac.getIdCounter("test"));
-        ac.decrementIdCounter("test");
-        assertEquals(0, ac.getIdCounter("test"));
-        ac.incrementIdCounter("test");
-        ac.incrementIdCounter("test");
-        assertEquals(2, ac.getIdCounter("test"));
-        ac.zeroIdCounter("test");
-        assertEquals(0, ac.getIdCounter("test"));
+        ac.zeroIdCounter(GLOBAL);
+        ac.incrementIdCounter(GLOBAL);
+        assertEquals(1, ac.getIdCounter(GLOBAL));
+        ac.decrementIdCounter(GLOBAL);
+        assertEquals(0, ac.getIdCounter(GLOBAL));
+        ac.incrementIdCounter(GLOBAL);
+        ac.incrementIdCounter(GLOBAL);
+        assertEquals(2, ac.getIdCounter(GLOBAL));
+        ac.zeroIdCounter(GLOBAL);
+        assertEquals(0, ac.getIdCounter(GLOBAL));
     }
 
 

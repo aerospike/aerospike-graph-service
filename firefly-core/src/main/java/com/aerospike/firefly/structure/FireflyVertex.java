@@ -20,13 +20,13 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     private final FireflyGraph graph;
     private final Record record;
 
-    private Map<String, List<VertexProperty>> readProperties() {
+    private Map<String, List<VertexProperty>> readVertexProperties() {
         return this.graph.db.readVertexProperties(this);
     }
 
-    private Map<String, List<VertexProperty>> writeProperty(String k, List<VertexProperty> v) {
-        this.graph.db.writeVertexProperty(this, k, v);
-        return readProperties();
+    private Map<String, List<VertexProperty>> writeVertexProperty(String k, List<VertexProperty> v) {
+        this.graph.db.writeVertexPropertyList(this, k, v);
+        return readVertexProperties();
     }
 
     protected List<Object> getInEdgeIds() {
@@ -70,10 +70,10 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
                     graph.vertexPropertyIdManager.getNextId(graph);
             final VertexProperty<V> vertexProperty = new FireflyVertexProperty<>(idValue, this, key, value);
 
-            final List<VertexProperty> list = this.readProperties().getOrDefault(key, new ArrayList());
+            final List<VertexProperty> list = this.readVertexProperties().getOrDefault(key, new ArrayList());
             list.add(vertexProperty);
 
-            this.writeProperty(key, list);
+            this.writeVertexProperty(key, list);
             //FireflyHelper.autoUpdateIndex(this, key, value, null);
             ElementHelper.attachProperties(vertexProperty, keyValues);
             return vertexProperty;
@@ -85,11 +85,12 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         if (null == this.properties()) return Collections.emptySet();
         return FireflyHelper.inComputerMode((FireflyGraph) graph()) ?
                 Vertex.super.keys() :
-                this.readProperties().keySet();
+                this.readVertexProperties().keySet();
     }
 
     @Override
     public Edge addEdge(final String label, final Vertex vertex, final Object... keyValues) {
+        ElementHelper.legalPropertyKeyValueArray(keyValues);
         if (null == vertex) throw Graph.Exceptions.argumentCanNotBeNull("vertex");
         if (this.removed) throw elementAlreadyRemoved(Vertex.class, this.id);
 
@@ -134,7 +135,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     @Override
     public <V> Iterator<VertexProperty<V>> properties(String... propertyKeys) {
         //@todo performance
-        Map<String, List<VertexProperty>> allProperties = this.readProperties();
+        Map<String, List<VertexProperty>> allProperties = this.readVertexProperties();
         if (propertyKeys.length == 1) {
             final List<VertexProperty> properties = allProperties.getOrDefault(propertyKeys[0], Collections.emptyList());
             if (properties.size() == 1) {
@@ -155,7 +156,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
 
     @Override
     public void removeProperty(String key) {
-        ((FireflyGraph)this.graph()).db.removePropertyFromVertex(this,key);
+        ((FireflyGraph) this.graph()).db.removeProperty(this, key);
     }
 
     @Override

@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -91,6 +92,24 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return new FireflyGraph(db, conf);
     }
 
+    public static FireflyGraph openFromResources(String resourcePropertyName) {
+        FireflyConfiguration config = FireflyConfiguration.loadFromResources(resourcePropertyName);
+        AerospikeConnection db = AerospikeConnection.connect(config.aerospikeHost(), config.aerospikePort(), config.aerospikeNamespace());
+        return new FireflyGraph(db, config);
+    }
+
+    public static FireflyGraph openFromPath(Path resourcePropertyName) {
+        FireflyConfiguration config = FireflyConfiguration.loadFromFile(resourcePropertyName);
+        AerospikeConnection db = AerospikeConnection.connect(config.aerospikeHost(), config.aerospikePort(), config.aerospikeNamespace());
+        return new FireflyGraph(db, config);
+    }
+
+    public static FireflyGraph openFromEnv() {
+        FireflyConfiguration config = FireflyConfiguration.loadFromEnv();
+        AerospikeConnection db = AerospikeConnection.connect(config.aerospikeHost(), config.aerospikePort(), config.aerospikeNamespace());
+        return new FireflyGraph(db, config);
+    }
+
     @Override
     public AerospikeConnection getBaseGraph() {
         return db;
@@ -153,9 +172,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Vertex> vertices(Object... vertexIds) {
-        //@todo correctness
-        //@todo performance
-        // should be a scan query, find vertices that have not been deleted
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(vertexIds).forEach(o -> {

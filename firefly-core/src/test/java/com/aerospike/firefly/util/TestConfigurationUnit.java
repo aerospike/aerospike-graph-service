@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +30,7 @@ public class TestConfigurationUnit {
     @Test
     void testLoadConfigurationFromFile() {
         String here = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-        FireflyConfiguration c = FireflyConfiguration.loadFromFile(String.format("%s/%s", here, "phaseshift-integration-settings.properties"));
+        FireflyConfiguration c = FireflyConfiguration.loadFromFile(Paths.get(String.format("%s/%s", here, "phaseshift-integration-settings.properties")));
         assertEquals(c.aerospikePort(), 3000);
         assertEquals(c.aerospikeNamespace(), "test");
     }

@@ -20,8 +20,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final Object inVid;
     private final Object outVid;
 
-
-    private void writeProperty(String k, Property v) {
+    private void writeProperty(String k, Object v) {
         this.graph.db.writeProperty(this, k, v);
     }
 
@@ -76,9 +75,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
-        final Property<V> property = new FireflyProperty<>(this, key, value);
-        this.writeProperty(key, property);
-        return property;
+        this.writeProperty(key, value);
+        return new FireflyProperty<>(this,key,value);
     }
 
     @Override
@@ -99,8 +97,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
     }
 
     @Override
-    public void removeProperty(String key) {
-        ((FireflyGraph) this.graph()).db.removePropertyFromEdge(this, key);
+    public void removeProperty(String key){
+            ((FireflyGraph) this.graph()).db.removeProperty(this, key);
     }
 
     @Override

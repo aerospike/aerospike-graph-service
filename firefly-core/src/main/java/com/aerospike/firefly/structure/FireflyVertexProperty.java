@@ -28,11 +28,12 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         return ((FireflyGraph) this.graph()).db.readProperties(this);
     }
 
+
     private void writeProperty(String key, Property property) {
         ((FireflyGraph) this.graph()).db.writeProperty(this, key, property);
     }
 
-    protected FireflyVertexProperty(final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
+    public FireflyVertexProperty(final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
@@ -42,6 +43,17 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         this.value = value;
         ElementHelper.legalPropertyKeyValueArray(propertyKeyValues);
         ElementHelper.attachProperties(this, propertyKeyValues);
+    }
+
+    public FireflyVertexProperty(final Object id, final FireflyVertex vertex, String key, V value) {
+        super(id, key);
+        if (!allowNullPropertyValues && null == value)
+            throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
+
+        this.vertex = vertex;
+        this.key = key;
+        this.value = value;
+
     }
 
     @Override
@@ -80,7 +92,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public void remove() {
-
+        ((FireflyGraph) this.graph()).db.removeVertexProperty((FireflyGraph) this.graph(),this.id());
     }
 
     @Override
@@ -95,7 +107,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public void removeProperty(String key) {
-        ((FireflyGraph)this.graph()).db.removePropertyFromVertexProperty(this,key);
+        ((FireflyGraph)this.graph()).db.removeProperty(this,key);
     }
     @Override
     public String toString(){

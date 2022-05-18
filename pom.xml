@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.aerospike</groupId>
+    <artifactId>firefly</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <!-- PROJECT DETAILS -->
+    <name>Firefly</name>
+    <description>Graph Computing On Aerospike</description>
+    <url>http://aerospike.com</url>
+    <inceptionYear>2022</inceptionYear>
+    <!-- PRIMARY DEVELOPERS -->
+    <developers>
+        <developer>
+            <name>Marko A. Rodriguez</name>
+            <email>marko@markorodriguez.com</email>
+            <organization>PhaseShift Studio</organization>
+        </developer>
+        <developer>
+            <name>Grant Haywood</name>
+            <email>grant@iowntheinter.net</email>
+            <organization>PhaseShift Studio</organization>
+        </developer>
+    </developers>
+    <!-- firefly SUBMODULES (COMPILE ORDERED) -->
+    <modules>
+        <module>firefly-gremlin</module>
+    </modules>
+    <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
+    <properties>
+        <firefly.version>0.0.1-SNAPSHOT</firefly.version>
+        <aerospike.version>6.0.0</aerospike.version>
+        <java.version>11</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <tinkerpop.version>3.6.0</tinkerpop.version>
+        <junit.version>5.8.2</junit.version>
+        <awaitly.version>4.2.0</awaitly.version>
+        <log4j.version>2.17.1</log4j.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <!-- MAVEN PLUGIN VERSIONS -->
+        <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
+        <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
+        <build-helper.version>3.3.0</build-helper.version>
+        <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <!-- SOURCE ENCODINGS -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <!-- DEPLOYMENT REPOSITORIES -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <id>mvn.phaseshift.internal/releases</id>
+            <url>http://mvn.phaseshift.internal/releases</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>mvn.phaseshift.internal/snapshots</id>
+            <url>http://mvn.phaseshift.internal/snapshots</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
+    <distributionManagement>
+        <repository>
+            <id>mvn.phaseshift.internal/releases</id>
+            <url>http://mvn.phaseshift.internal/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>mvn.phaseshift.internal/snapshots</id>
+            <url>http://mvn.phaseshift.internal/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+    <!-- BUILD/DOC INFRASTRUCTURE -->
+    <build>
+        <directory>${basedir}/target</directory>
+        <finalName>${project.artifactId}-${project.version}</finalName>
+        <testSourceDirectory>firefly-core/src/test/java</testSourceDirectory>
+        <resources>
+            <resource>
+                <directory>firefly-core/src/main/resources
+                </directory>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>firefly-core/src/test/resources
+                </directory>
+            </testResource>
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec-maven-plugin.version}</version>
+                <configuration>
+                    <mainClass>com.aerospike.firefly.server.Entrypoint</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <argLine>
+                        -Dbuild.dir=${project.build.directory}
+                        -Dis.testing=true -Djava.net.preferIPv4Stack=true
+                    </argLine>
+                    <trimStackTrace>false</trimStackTrace>
+<!--                    <excludes>-->
+<!--                        <exclude>**/*IntegrateTest.java</exclude>-->
+<!--                    </excludes>-->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>aggregate-surefire-report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <phase>install</phase>
+                        <configuration>
+                            <aggregate>true</aggregate>
+                            <alwaysGenerateSurefireReport>true</alwaysGenerateSurefireReport>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <profiles>
+    </profiles>
+</project>

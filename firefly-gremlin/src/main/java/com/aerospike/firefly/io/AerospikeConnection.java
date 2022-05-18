@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -24,6 +25,7 @@ public class AerospikeConnection {
 
     private static final String EDGE_AERO_SET = "_EDST";
     private static final String VERTEX_AERO_SET = "_VXST";
+    private static final String VERTEX_EDGELIST_AERO_SET = "_VXEL";
     private static final String PROPERTY_AERO_SET = "_PRST";
     private static final String VERTEX_PROPERTY_AERO_SET = "_VPST";
     private static final String EDGE_ID_KEY = "_EDIDST";
@@ -37,7 +39,7 @@ public class AerospikeConnection {
     private static final String KEY_VALUE = "_KV";
     private static final String COUNTER = "_CT";
     private static final String ID_MANAGER_SET = "_IDMGR";
-
+    private static final String LABEL_EDGES = "_LBLED";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
 
@@ -357,23 +359,39 @@ public class AerospikeConnection {
     /**
      * return the inbound edges for a FireflyVertex
      *
-     * @param r
+     * @param v
      * @return
      */
-    public List<Object> getInEdgeIdsFromVertex(final Record r) {
-        final List<Object> inEdgeIds = (List<Object>) r.getList(Direction.IN.name());
-        return inEdgeIds == null ? new LinkedList<>() : inEdgeIds;
+    public List<Object> getInEdgeIdsFromVertex(final FireflyVertex v) {
+        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.IN.name(), (Long) v.id()));
+        final Record r = read(key);
+        if (r == null) {
+            return new ArrayList<>();
+        }
+        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
+        if (labelEdges == null) {
+            labelEdges = new HashMap<>();
+        }
+        return labelEdges.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
     }
 
     /**
      * return the outbound edges for a FireflyVertex
      *
-     * @param r
+     * @param v
      * @return
      */
-    public List<Object> getOutEdgeIdsFromVertex(final Record r) {
-        List<Object> outEdgeIds = (List<Object>) r.getList(Direction.OUT.name());
-        return outEdgeIds == null ? new LinkedList<>() : outEdgeIds;
+    public List<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
+        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.OUT.name(), (Long) v.id()));
+        final Record r = read(key);
+        if (r == null) {
+            return new ArrayList<>();
+        }
+        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
+        if (labelEdges == null) {
+            labelEdges = new HashMap<>();
+        }
+        return labelEdges.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
     }
 
     /**
@@ -405,6 +423,7 @@ public class AerospikeConnection {
 
     /**
      * get a list of currently valid ids
+     *
      * @param type
      * @return
      */
@@ -426,19 +445,25 @@ public class AerospikeConnection {
      *
      * @param graph
      * @param vertexId
-     * @param edgeId
+     * @param edge
      * @param direction
      */
-    public void addEdgeToVertex(final FireflyGraph graph, final Object vertexId, final Object edgeId, final Direction direction) {
-        final Key key = new Key(namespace, VERTEX_AERO_SET, (Long) vertexId);
+    public void addEdgeToVertex(final FireflyGraph graph, final Object vertexId, final FireflyEdge edge, final Direction direction) {
+        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", direction.name(), (Long) vertexId));
         final Record r = read(key);
-        List<Long> directionEdges;
-        directionEdges = (List<Long>) r.getList(direction.name());
-        if (directionEdges == null) {
-            directionEdges = new ArrayList<>();
+        Map<String, List<Long>> labelEdges;
+        if (r == null) {
+            labelEdges = new HashMap<>();
+        } else {
+            labelEdges = (Map<String, List<Long>>) Optional.ofNullable(r.getMap(LABEL_EDGES)).orElse(new HashMap<>());
         }
-        directionEdges.add(((Number) edgeId).longValue());
-        final Bin deb = new Bin(direction.name(), Value.get(directionEdges));
+        if (labelEdges == null) {
+            labelEdges = new HashMap<>();
+        }
+        List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
+        edges.add(((Number) edge.id()).longValue());
+        labelEdges.put(edge.label(), edges);
+        final Bin deb = new Bin(LABEL_EDGES, Value.get(labelEdges));
         write(key, deb);
     }
 
@@ -448,19 +473,22 @@ public class AerospikeConnection {
      *
      * @param graph
      * @param vertexId
-     * @param edgeId
+     * @param edge
      * @param direction
      */
-    public void removeEdgeFromVertex(final FireflyGraph graph, final Object vertexId, final Object edgeId, final Direction direction) {
-        final Key key = new Key(namespace, VERTEX_AERO_SET, (Long) vertexId);
+    public void removeEdgeFromVertex(final FireflyGraph graph, final Object vertexId, final FireflyEdge edge, final Direction direction) {
+        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", direction.name(), (Long) vertexId));
         final Record r = read(key);
-        List<Long> directionEdges;
-        directionEdges = (List<Long>) r.getList(direction.name());
-        if (directionEdges == null) {
-            directionEdges = new ArrayList<>();
+        if (r == null)
+            return;
+        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
+        if (labelEdges == null) {
+            labelEdges = new HashMap<>();
         }
-        directionEdges.remove(((Number) edgeId).longValue());
-        final Bin deb = new Bin(direction.name(), Value.get(directionEdges));
+        List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
+        edges.remove(((Number) edge.id()).longValue());
+        labelEdges.put(edge.label(), edges);
+        final Bin deb = new Bin(LABEL_EDGES, Value.get(labelEdges));
         write(key, deb);
     }
 
@@ -478,6 +506,7 @@ public class AerospikeConnection {
      * Write an edge
      * The edge will form 1 record in the EDGE_AERO_SET set
      * properties are written to the property record associated with this edge ID in the property set
+     *
      * @param graph
      * @param id
      * @param label
@@ -497,13 +526,14 @@ public class AerospikeConnection {
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id()));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id()));
         write(key, lbin, inVbin, outVBin);
-        addEdgeToVertex(graph, inVertex.id(), id, Direction.IN);
-        addEdgeToVertex(graph, outVertex.id(), id, Direction.OUT);
+        FireflyEdge edge = readEdge(graph, id);
+        addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
+        addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
         Iterator<Object> propIter = Arrays.stream(keyValues).iterator();
         while (propIter.hasNext()) {
             Object propKey = propIter.next();
             Object propVal = propIter.next();
-            writeProperty(readEdge(graph, id), (String) propKey, propVal);
+            writeProperty(edge, (String) propKey, propVal);
         }
     }
 
@@ -553,6 +583,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
+        client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
     }
 
     @Override

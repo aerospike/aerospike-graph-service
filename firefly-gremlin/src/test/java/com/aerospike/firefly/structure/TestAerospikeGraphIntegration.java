@@ -27,11 +27,13 @@ public class TestAerospikeGraphIntegration {
     private AerospikeConnection db;
     private FireflyGraph graph;
 
+
     @BeforeEach
     void openGraph() {
         conf = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         graph = new FireflyGraph(conf);
         db = graph.db;
+        db.dropDatabase();
     }
 
     @AfterEach

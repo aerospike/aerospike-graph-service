@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;

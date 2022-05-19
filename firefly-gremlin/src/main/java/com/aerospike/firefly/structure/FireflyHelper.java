@@ -53,11 +53,11 @@ public class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (!vertex.getInEdgeIds().isEmpty()) {
+            if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getInEdgeIds().forEach(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
+                    vertex.getInEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
                 } else {
-                    vertex.getInEdgeIds().forEach(id -> {
+                    vertex.getInEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
                         if (e.isPresent() && Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.get().label()))
                             e.ifPresent(edges::add);
@@ -87,13 +87,13 @@ public class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (!vertex.getInEdgeIds().isEmpty()) {
+            if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getInEdgeIds().forEach(id -> {
+                    vertex.getInEdgeIds().forEachRemaining(id -> {
                         vertices.add(db.readEdge((FireflyGraph) vertex.graph(), id).outVertex());
                     });
                 } else {
-                    vertex.getInEdgeIds().forEach(id -> {
+                    vertex.getInEdgeIds().forEachRemaining(id -> {
                         Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
                         if (Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.label()))
                             vertices.add(e.outVertex());

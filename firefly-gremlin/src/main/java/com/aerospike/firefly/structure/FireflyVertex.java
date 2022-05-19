@@ -30,12 +30,12 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return readVertexProperties();
     }
 
-    protected List<Object> getInEdgeIds() {
-        return this.graph.db.getInEdgeIdsFromVertex(this.record);
+    protected Iterator<Long> getInEdgeIds() {
+        return this.graph.db.getInEdgeIdsFromVertex(this);
     }
 
     protected List<Object> getOutEdgeIds() {
-        return this.graph.db.getOutEdgeIdsFromVertex(this.record);
+        return this.graph.db.getOutEdgeIdsFromVertex(this);
     }
 
     public FireflyVertex(final Record record, final Object id, final String label, final FireflyGraph graph) {

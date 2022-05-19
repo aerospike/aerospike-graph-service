@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -414,17 +415,17 @@ public class AerospikeConnection {
      * @param v
      * @return
      */
-    public List<Object> getInEdgeIdsFromVertex(final FireflyVertex v) {
+    public Iterator<Long> getInEdgeIdsFromVertex(final FireflyVertex v) {
         final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.IN.name(), (Long) v.id()));
         final Record r = read(key);
         if (r == null) {
-            return new ArrayList<>();
+            return EmptyIterator.instance();
         }
         Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
         if (labelEdges == null) {
             labelEdges = new HashMap<>();
         }
-        return labelEdges.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
+        return IteratorUtils.flatMap(labelEdges.entrySet().iterator(), longList -> ((List<Long>) longList).iterator());
     }
 
     /**

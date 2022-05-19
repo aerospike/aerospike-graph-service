@@ -34,9 +34,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final FireflyGraph.IdManager<?> vertexIdManager;
     protected final FireflyGraph.IdManager<?> edgeIdManager;
     protected final FireflyGraph.IdManager<?> vertexPropertyIdManager;
+    private final FireflyGraphVariables variables;
+
 
     protected FireflyGraphComputerView graphComputerView = null;
-
 
     protected FireflyGraph(final Configuration conf) {
         this.configuration = conf;
@@ -47,6 +48,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         vertexPropertyIdManager = new DefaultIdManager(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER_SET);
         vertexIdManager = new DefaultIdManager(FireflyVertex.class, VERTEX_ID_COUNTER_SET);
         edgeIdManager = new DefaultIdManager(FireflyEdge.class, EDGE_ID_COUNTER_SET);
+        variables = new FireflyGraphVariables(this);
     }
 
     public static FireflyGraph open(Configuration conf) {
@@ -158,7 +160,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Variables variables() {
-        return null;
+        return variables;
     }
 
     @Override

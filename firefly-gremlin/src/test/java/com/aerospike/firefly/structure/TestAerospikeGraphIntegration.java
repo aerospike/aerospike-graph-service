@@ -65,9 +65,17 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
+    void testReadWriteRemoveGraphVariables(){
+        graph.variables().set("this","that");
+        assertEquals("that",graph.variables().get("this").get().toString());
+        assertEquals("this",graph.variables().keys().iterator().next());
+        graph.variables().remove("this");
+        assertFalse(graph.variables().keys().iterator().hasNext());
+    }
+
+    @Test
     void testReadWriteVertexProperty() {
         db.writeVertex(graph, 2l, "aVertexLabel");
-
         FireflyVertex vertex = db.readVertex(graph, 2l);
         VertexProperty<String> p = new FireflyVertexProperty<>(graph.vertexPropertyIdManager.getNextId(graph), vertex, "a", "b");
         db.writeVertexPropertyList(vertex, "aKey", List.of(p));

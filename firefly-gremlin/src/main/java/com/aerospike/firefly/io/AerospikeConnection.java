@@ -22,6 +22,9 @@ public class AerospikeConnection {
     private final String namespace;
 
 
+    private static final String GRAPH_VARIABLES_AERO_SET = "_GVST";
+    private static final String GRAPH_VARIABLES_RECORD = "_GVR";
+    private static final String GRAPH_VARIABLES_MAP = "_GVM";
     private static final String EDGE_AERO_SET = "_EDST";
     private static final String VERTEX_AERO_SET = "_VXST";
     private static final String PROPERTY_AERO_SET = "_PRST";
@@ -37,7 +40,6 @@ public class AerospikeConnection {
     private static final String KEY_VALUE = "_KV";
     private static final String COUNTER = "_CT";
     private static final String ID_MANAGER_SET = "_IDMGR";
-
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
 
@@ -103,6 +105,54 @@ public class AerospikeConnection {
         }
 
     }
+
+
+    public <V> V readGraphVariable(String k) {
+        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
+        Record r = read(key);
+        if (r == null)
+            return null;
+        Map<String, V> m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
+        if (!m.containsKey(k))
+            return null;
+        return m.get(k);
+    }
+
+    public Set<String> readGraphVariableKeys() {
+        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
+        Record r = read(key);
+        if (r == null)
+            return new HashSet<>();
+        Map<String, ?> m = (Map<String, ?>) r.getMap(GRAPH_VARIABLES_MAP);
+        return m.keySet();
+    }
+
+    public <V> void writeGraphVariable(String k, V v) {
+        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
+        Record r = read(key);
+        Map<String, V> m;
+        if (r == null)
+            m = new HashMap<>();
+        else
+            m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
+        m.put(k, v);
+        write(key, new Bin(GRAPH_VARIABLES_MAP, Value.get(m)));
+    }
+
+    public <V> void removeGraphVariable(String k) {
+        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
+        Record r = read(key);
+        Map<String, V> m;
+        if (r == null)
+            m = new HashMap<>();
+        else
+            m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
+        if (!m.containsKey(k))
+            throw new NoSuchElementException();
+        m.remove(k);
+        write(key, new Bin(GRAPH_VARIABLES_MAP, Value.get(m)));
+    }
+
 
     /**
      * Read a single VertexProperty from its id
@@ -405,6 +455,7 @@ public class AerospikeConnection {
 
     /**
      * get a list of currently valid ids
+     *
      * @param type
      * @return
      */
@@ -478,6 +529,7 @@ public class AerospikeConnection {
      * Write an edge
      * The edge will form 1 record in the EDGE_AERO_SET set
      * properties are written to the property record associated with this edge ID in the property set
+     *
      * @param graph
      * @param id
      * @param label

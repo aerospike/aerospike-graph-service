@@ -25,11 +25,7 @@ public class ConfigurationHelper {
 
     }
 
-    private final Map<String, Object> data;
 
-    private ConfigurationHelper(final Map<String, Object> data) {
-        this.data = data;
-    }
 
     public static Configuration loadFromFile(final Path path) {
         try {

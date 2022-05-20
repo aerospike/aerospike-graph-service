@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,6 +22,57 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
+
+@Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
+
+// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest",
+        method = "*",
+        reason = "MAKE ACTIVE LATER",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
+        method = "*",
+        reason = "MAKE ACTIVE LATER",
+        computers = {"ALL"})
+// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest",
+        method = "*",
+        reason = "Creating another graph on the same cluster with an open transaction causes a locking issue",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONTest",
+        method = "shouldWriteNormalizedGraphSON",
+        reason = "Test assumes integer when IgniteGraph uses longs",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV3D0Test",
+        method = "shouldWriteNormalizedGraphSON",
+        reason = "Test assumes integer when IgniteGraph uses longs",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV2D0Test",
+        method = "shouldWriteNormalizedGraphSON",
+        reason = "Test assumes integer when IgniteGrapht uses longs",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV2D0Test",
+        method = "shouldWriteNormalizedGraphSON",
+        reason = "Test assumes integer when IgniteGraph uses longs",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
+        method = "shouldCopyFromGraphAToGraphB",
+        reason = "Creating another graph on the same cluster with an open transaction causes a locking issue",
+        computers = {"ALL"})
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.TransactionTest",
+        method = "*",
+        reason = "MAKE ACTIVE LATER",
+        computers = {"ALL"})
+
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
@@ -79,10 +131,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Features features() {
         return features;
-    }
-
-    public class FireflyGraphFeatures implements Features {
-
     }
 
     @Override
@@ -211,9 +259,151 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public boolean allow(Object id) {
-            return id instanceof Number || id instanceof String;
+            return id instanceof Long || id instanceof String;
         }
     }
+
+
+    public class FireflyGraphFeatures implements Features {
+
+        private final FireflyGraph.FireflyGraphGraphFeatures graphFeatures = new FireflyGraph.FireflyGraphGraphFeatures();
+        private final FireflyGraph.FireflyGraphEdgeFeatures edgeFeatures = new FireflyGraph.FireflyGraphEdgeFeatures();
+        private final FireflyGraph.FireflyGraphVertexFeatures vertexFeatures = new FireflyGraph.FireflyGraphVertexFeatures();
+
+        private FireflyGraphFeatures() {
+        }
+
+        @Override
+        public GraphFeatures graph() {
+            return graphFeatures;
+        }
+
+        @Override
+        public EdgeFeatures edge() {
+            return edgeFeatures;
+        }
+
+        @Override
+        public VertexFeatures vertex() {
+            return vertexFeatures;
+        }
+
+        @Override
+        public String toString() {
+            return StringFactory.featureString(this);
+        }
+
+    }
+
+    public class FireflyGraphVertexFeatures implements Features.VertexFeatures {
+
+        private final FireflyGraph.FireflyGraphVertexPropertyFeatures vertexPropertyFeatures = new FireflyGraph.FireflyGraphVertexPropertyFeatures();
+
+        private FireflyGraphVertexFeatures() {
+        }
+
+        @Override
+        public boolean supportsNullPropertyValues() {
+            return true;
+        }
+
+        @Override
+        public Features.VertexPropertyFeatures properties() {
+            return vertexPropertyFeatures;
+        }
+
+        @Override
+        public boolean supportsCustomIds() {
+            return false;
+        }
+
+        @Override
+        public boolean willAllowId(final Object id) {
+            return vertexIdManager.allow(id);
+        }
+
+        @Override
+        public VertexProperty.Cardinality getCardinality(final String key) {
+            return VertexProperty.Cardinality.single;
+        }
+    }
+
+    public class FireflyGraphEdgeFeatures implements Features.EdgeFeatures {
+
+        private FireflyGraphEdgeFeatures() {
+        }
+
+        @Override
+        public boolean supportsNullPropertyValues() {
+            return true;
+        }
+
+        @Override
+        public boolean supportsCustomIds() {
+            return false;
+        }
+
+        @Override
+        public boolean willAllowId(final Object id) {
+            return edgeIdManager.allow(id);
+        }
+    }
+
+    public class FireflyGraphGraphFeatures implements Features.GraphFeatures {
+
+        private FireflyGraphGraphFeatures() {
+        }
+
+        @Override
+        public boolean supportsConcurrentAccess() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsTransactions() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsThreadedTransactions() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsServiceCall() {
+            return true;
+        }
+
+    }
+
+    public class FireflyGraphVertexPropertyFeatures implements Features.VertexPropertyFeatures {
+
+        private FireflyGraphVertexPropertyFeatures() {
+        }
+
+        @Override
+        public boolean supportsNullPropertyValues() {
+            return true;
+        }
+
+        @Override
+        public boolean supportsCustomIds() {
+            return false;
+        }
+
+        @Override
+        public boolean willAllowId(final Object id) {
+            return vertexIdManager.allow(id);
+        }
+    }
+
+
+
+
+
+
+
+
 
 
     @Override

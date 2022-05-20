@@ -1,5 +1,7 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
@@ -8,10 +10,12 @@ import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoVertexTest;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
@@ -22,7 +26,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
 
     protected FireflyGraph.IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {
         if (test.equals(GraphTest.class)) {
-            final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>(){{
+            final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentation");
                 add("shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentations");
                 add("shouldIterateVerticesWithNumericIdSupportUsingIntegerRepresentation");
@@ -33,7 +37,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
                 add("shouldIterateVerticesWithNumericIdSupportUsingStringRepresentations");
 
             }};
-            final Set<String> edgeTestsThatNeedLongIdManager = new HashSet<String>(){{
+            final Set<String> edgeTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldIterateEdgesWithNumericIdSupportUsingDoubleRepresentation");
                 add("shouldIterateEdgesWithNumericIdSupportUsingDoubleRepresentations");
                 add("shouldIterateEdgesWithNumericIdSupportUsingIntegerRepresentation");
@@ -43,7 +47,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
                 add("shouldIterateEdgesWithNumericIdSupportUsingStringRepresentation");
                 add("shouldIterateEdgesWithNumericIdSupportUsingStringRepresentations");
             }};
-                final Set<String> testsThatNeedUuidIdManager = new HashSet<String>(){{
+            final Set<String> testsThatNeedUuidIdManager = new HashSet<String>() {{
                 add("shouldIterateVerticesWithUuidIdSupportUsingStringRepresentation");
                 add("shouldIterateVerticesWithUuidIdSupportUsingStringRepresentations");
                 add("shouldIterateEdgesWithUuidIdSupportUsingStringRepresentation");
@@ -51,13 +55,13 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyVertex>(FireflyVertex.class,GLOBAL);
+                return new FireflyGraph.LongIdManager<FireflyVertex>(FireflyVertex.class, GLOBAL);
             else if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class,GLOBAL);
+                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
             else if (testsThatNeedUuidIdManager.contains(testMethodName))
                 throw new UnsupportedOperationException(UNIMPLEMENTED);
-        }  else if (test.equals(IoEdgeTest.class)) {
-            final Set<String> edgeTestsThatNeedLongIdManager = new HashSet<String>(){{
+        } else if (test.equals(IoEdgeTest.class)) {
+            final Set<String> edgeTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteEdge[graphson-v1]");
                 add("shouldReadWriteDetachedEdgeAsReference[graphson-v1]");
                 add("shouldReadWriteDetachedEdge[graphson-v1]");
@@ -67,9 +71,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class,GLOBAL);
+                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
         } else if (test.equals(IoVertexTest.class)) {
-            final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>(){{
+            final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteVertexWithBOTHEdges[graphson-v1]");
                 add("shouldReadWriteVertexWithINEdges[graphson-v1]");
                 add("shouldReadWriteVertexWithOUTEdges[graphson-v1]");
@@ -87,28 +91,35 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager(FireflyVertex.class,GLOBAL);
+                return new FireflyGraph.LongIdManager(FireflyVertex.class, GLOBAL);
         }
-        throw new UnsupportedOperationException(UNIMPLEMENTED);
+        return new FireflyGraph.LongIdManager(FireflyVertex.class, GLOBAL);
+
 //        return FireflyGraph.DefaultIdManager.ANY;
     }
 
 
     @Override
     public Map<String, Object> getBaseConfiguration(String graphName, Class<?> test, String testMethodName, LoadGraphWith.GraphData loadGraphWith) {
-//        Class<? extends FireflyGraph.IdManager<?>> idManager = (Class<? extends FireflyGraph.IdManager<?>>) FireflyGraph.LongIdManager.class;
-        return null;
+        HashMap<String, Object> configMap = new HashMap<String, Object>();
+        final Configuration config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config.getKeys().forEachRemaining(key -> {
+            configMap.put(key, config.get(Object.class, key));
+        });
+        configMap.put(Graph.GRAPH,FireflyGraph.class.getName());
 
+        return configMap;
     }
 
     @Override
     public void clear(Graph graph, Configuration configuration) throws Exception {
-
+        AerospikeConnection db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(configuration), ConfigurationHelper.aerospikePort(configuration), ConfigurationHelper.aerospikeNamespace(configuration));
+        db.dropDatabase();
     }
 
     @Override
     public Set<Class> getImplementations() {
-        return new HashSet<>(){{
+        return new HashSet<>() {{
             add(FireflyGraph.class);
             add(FireflyGraphVariables.class);
             add(FireflyEdge.class);

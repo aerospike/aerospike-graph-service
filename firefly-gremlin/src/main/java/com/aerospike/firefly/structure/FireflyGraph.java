@@ -10,16 +10,13 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
 import static com.aerospike.firefly.structure.FireflyHelper.readVertex;
 import static com.aerospike.firefly.structure.FireflyHelper.writeVertex;
-import static com.aerospike.firefly.util.Tokens.*;
+import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -45,9 +42,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Integer aerospikePort = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
         final String aerospikeNamespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
         this.db = AerospikeConnection.connect(aerospikeHost, aerospikePort, aerospikeNamespace);
-        vertexPropertyIdManager = new DefaultIdManager(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER_SET);
-        vertexIdManager = new DefaultIdManager(FireflyVertex.class, VERTEX_ID_COUNTER_SET);
-        edgeIdManager = new DefaultIdManager(FireflyEdge.class, EDGE_ID_COUNTER_SET);
+        vertexPropertyIdManager = new LongIdManager<>(FireflyVertexProperty.class, GLOBAL);
+        vertexIdManager = new LongIdManager<>(FireflyVertex.class, GLOBAL);
+        edgeIdManager = new LongIdManager<>(FireflyEdge.class, GLOBAL);
         variables = new FireflyGraphVariables(this);
     }
 
@@ -168,7 +165,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return configuration;
     }
 
-    public static class DefaultIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
+
+    public static class LongIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
 
         /**
          * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
@@ -177,7 +175,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         private final String counterNamespace;
         private final Class<? extends FireflyElement> type;
 
-        public DefaultIdManager(Class<? extends FireflyElement> type, String counterNamespace) {
+        public LongIdManager(Class<? extends FireflyElement> type, String counterNamespace) {
             this.counterNamespace = counterNamespace;
             this.type = type;
         }
@@ -216,6 +214,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return id instanceof Number || id instanceof String;
         }
     }
+
 
     @Override
     public String toString() {

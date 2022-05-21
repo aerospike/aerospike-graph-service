@@ -16,6 +16,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static java.lang.Thread.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -65,7 +66,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteRemoveGraphVariables(){
+    void testReadWriteRemoveGraphVariables() throws InterruptedException {
         graph.variables().set("this","that");
         assertEquals("that",graph.variables().get("this").get().toString());
         assertEquals("this",graph.variables().keys().iterator().next());
@@ -125,9 +126,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testGraph() {
-        long id = (Long) graph.vertexIdManager.getNextId(graph);
-        graph.addVertex(T.id, id).property("this", "that");
-        Vertex thing = graph.vertices(id).next();
+        Vertex v = graph.addVertex();
+        v.property("this", "that");
+        Vertex thing = graph.vertices(v.id()).next();
         assertEquals("that", thing.property("this").value().toString());
     }
 

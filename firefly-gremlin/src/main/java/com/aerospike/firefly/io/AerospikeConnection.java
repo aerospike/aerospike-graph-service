@@ -8,6 +8,7 @@ import com.aerospike.client.cdt.ListSortFlags;
 import com.aerospike.firefly.structure.*;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -233,7 +234,6 @@ public class AerospikeConnection {
         data.put(k, v);
         final Bin bin = new Bin(KEY_VALUE, Value.get(data));
         write(key, bin);
-
     }
 
     /**
@@ -266,15 +266,35 @@ public class AerospikeConnection {
         write(vertexKey, vertexPropertyIds);
     }
 
+    public void removeIdFromVertexPropertyList(final FireflyVertex vertex, VertexProperty vp) {
+        final Key vertexKey = new Key(namespace, VERTEX_AERO_SET, (Long) vertex.id());
+        final Record vertexRecord = read(vertexKey);
+        if (vertexRecord == null)
+            throw new NoSuchElementException();
+        Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.getMap(VERTEX_PROPERTY_NAME_TO_ID);
+        if (propertyKeys == null)
+            propertyKeys = new HashMap<>();
+        final List<Object> ids = propertyKeys.getOrDefault(vp.key(), new ArrayList<>());
+
+        ids.remove(vp.id());
+        if (ids.isEmpty())
+            propertyKeys.remove(vp.key());
+        else
+            propertyKeys.put(vp.key(), ids);
+        final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
+        write(vertexKey, vertexPropertyIds);
+    }
+
     /**
      * Remove a VertexProperty Record from the database
      *
-     * @param graph
-     * @param id
+     * @param property
      */
-    public void removeVertexProperty(FireflyGraph graph, Object id) {
-        final Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) id);
-        removeElementId(FireflyVertexProperty.class, id);
+    public void removeVertexProperty(FireflyVertexProperty property) {
+        final Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) property.id());
+        Vertex parent = property.element();
+        removeElementId(FireflyVertexProperty.class, property.id());
+        removeIdFromVertexPropertyList((FireflyVertex) parent, property);
         delete(key);
     }
 
@@ -337,6 +357,7 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void writeProperty(final FireflyElement element, final String k, final V value) {
+        FireflyHelper.validatePropertyValue(value);
         final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) element.id());
         final Record r = read(key);
         Map<String, Object> data;
@@ -646,6 +667,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
+        client.truncate(null, namespace, GRAPH_VARIABLES_AERO_SET, Calendar.getInstance());
     }
 
     @Override

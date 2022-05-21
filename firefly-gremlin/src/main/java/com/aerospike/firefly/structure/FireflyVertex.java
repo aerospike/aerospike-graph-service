@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.FireflyHelper.removeVertex;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
+import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -60,6 +61,9 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             return VertexProperty.empty();
         }
         final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
+        if (optionalId.isPresent())
+            throw new UnsupportedOperationException("user supplied ids not supported");
+
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
         if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
 
@@ -91,8 +95,11 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
 
     @Override
     public Edge addEdge(final String label, final Vertex vertex, final Object... keyValues) {
-        ElementHelper.legalPropertyKeyValueArray(keyValues);
+        FireflyHelper.legalPropertyKeyValueArray(keyValues);
+
         if (null == vertex) throw Graph.Exceptions.argumentCanNotBeNull("vertex");
+        if (null == label || label.isEmpty()) throw Graph.Exceptions.argumentCanNotBeNull("label");
+        if (isHidden(label)) throw Edge.Exceptions.labelCanNotBeAHiddenKey(label);
         if (this.removed) throw elementAlreadyRemoved(Vertex.class, this.id);
 
         return FireflyHelper.addEdge(this.graph, this, (FireflyVertex) vertex, label, keyValues);

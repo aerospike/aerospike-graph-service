@@ -1,6 +1,8 @@
 package com.aerospike.firefly.structure;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.Optional;
 import java.util.Set;
@@ -8,12 +10,13 @@ import java.util.Set;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyGraphVariables implements Graph.Variables{
+public class FireflyGraphVariables implements Graph.Variables {
     private final FireflyGraph graph;
 
-    public FireflyGraphVariables(FireflyGraph graph){
+    public FireflyGraphVariables(FireflyGraph graph) {
         this.graph = graph;
     }
+
     @Override
     public Set<String> keys() {
         return graph.db.readGraphVariableKeys();
@@ -26,11 +29,21 @@ public class FireflyGraphVariables implements Graph.Variables{
 
     @Override
     public void set(String key, Object value) {
-        graph.db.writeGraphVariable(key,value);
+        if (null == value)
+            throw Graph.Variables.Exceptions.variableValueCanNotBeNull();
+        if (null == key || key.isEmpty())
+            throw Graph.Variables.Exceptions.variableKeyCanNotBeEmpty();
+        FireflyHelper.validatePropertyValue(value);
+        graph.db.writeGraphVariable(key, value);
     }
 
     @Override
     public void remove(String key) {
         graph.db.removeGraphVariable(key);
+    }
+
+    @Override
+    public String toString() {
+        return StringFactory.graphVariablesString(this);
     }
 }

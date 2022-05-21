@@ -20,6 +20,8 @@ public class FireflyGraphFeatures implements Graph.Features {
     private final FireflyVertexPropertyFeatures vertexPropertyFeatures;
 
     private final FireflyGraphGraphFeatures graphFeatures;
+
+
     FireflyGraphFeatures(FireflyGraph fireflyGraph) {
         this.fireflyGraph = fireflyGraph;
         edgeFeatures = new FireflyEdgeFeatures(fireflyGraph.edgeIdManager);
@@ -43,11 +45,11 @@ public class FireflyGraphFeatures implements Graph.Features {
         return vertexFeatures;
     }
 
+
     @Override
     public String toString() {
         return StringFactory.featureString(this);
     }
-
 
 
     public class FireflyGraphGraphFeatures implements Graph.Features.GraphFeatures {
@@ -75,7 +77,98 @@ public class FireflyGraphFeatures implements Graph.Features {
             return false;
         }
 
+        @Override
+        public VariableFeatures variables() {
+            return new FireflyVariableFeatures();
+        }
+
+        public class FireflyVariableFeatures implements VariableFeatures {
+            String FEATURE_VARIABLES = "Variables";
+
+            @Override
+            public boolean supportsBooleanArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsByteArrayValues() {
+                return true;
+            }
+
+            @Override
+            public boolean supportsDoubleArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsFloatArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsIntegerArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsStringArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsLongArrayValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsStringValues() {
+                return true;
+            }
+
+            @Override
+            public boolean supportsIntegerValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsFloatValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsMapValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsMixedListValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsSerializableValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsUniformListValues() {
+                return false;
+            }
+
+            @Override
+            public boolean supportsVariables() {
+                return supportsBooleanValues() || supportsByteValues() || supportsDoubleValues() || supportsFloatValues()
+                        || supportsIntegerValues() || supportsLongValues() || supportsMapValues()
+                        || supportsMixedListValues() || supportsSerializableValues()
+                        || supportsStringValues() || supportsUniformListValues() || supportsBooleanArrayValues()
+                        || supportsByteArrayValues() || supportsDoubleArrayValues() || supportsFloatArrayValues()
+                        || supportsIntegerArrayValues() || supportsLongArrayValues() || supportsStringArrayValues();
+            }
+        }
+
+
     }
+
     public class FireflyVertexFeatures implements Graph.Features.VertexFeatures {
         private final FireflyGraph.IdManager vertexIdManager;
 
@@ -102,6 +195,11 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
+        public boolean supportsAnyIds() {
+            return false;
+        }
+
+        @Override
         public boolean supportsUserSuppliedIds() {
             return false;
         }
@@ -119,7 +217,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return vertexIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexIdManager.allow(id);
         }
 
         @Override
@@ -153,6 +251,11 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
+        public boolean supportsAnyIds() {
+            return false;
+        }
+
+        @Override
         public boolean supportsUserSuppliedIds() {
             return false;
         }
@@ -170,49 +273,54 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return edgeIdManager.allow(id);
-        }
-    }
-
-    public class FireflyElementFeatures implements Graph.Features.ElementFeatures {
-
-        FireflyElementFeatures() {
-        }
-
-        @Override
-        public boolean supportsNullPropertyValues() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsUserSuppliedIds() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsStringIds() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsUuidIds() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsAnyIds() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsCustomIds() {
-            return false;
+            return supportsUserSuppliedIds() && edgeIdManager.allow(id);
         }
     }
 
     public static class FireflyEdgePropertyFeatures implements Graph.Features.EdgePropertyFeatures {
 
         FireflyEdgePropertyFeatures() {
+        }
+
+
+        @Override
+        public boolean supportsBooleanArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsByteArrayValues() {
+            return true;
+        }
+
+        @Override
+        public boolean supportsDoubleArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsFloatArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsIntegerArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsStringArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsLongArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsStringValues() {
+            return true;
         }
 
         @Override
@@ -246,7 +354,6 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
     }
 
-
     public class FireflyVertexPropertyFeatures implements Graph.Features.VertexPropertyFeatures {
 
         private final FireflyGraph.IdManager vertexPropertyIdManager;
@@ -271,6 +378,53 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
+        public boolean supportsAnyIds() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsBooleanArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsByteArrayValues() {
+            return true;
+        }
+
+        @Override
+        public boolean supportsDoubleArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsFloatArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsIntegerArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsStringArrayValues() {
+            return false;
+        }
+
+
+        //@todo
+        @Override
+        public boolean supportsLongArrayValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsStringValues() {
+            return true;
+        }
+
+        @Override
         public boolean supportsIntegerValues() {
             return false;
         }
@@ -281,8 +435,28 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
+        public boolean supportsMapValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsMixedListValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsSerializableValues() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsUniformListValues() {
+            return false;
+        }
+
+        @Override
         public boolean willAllowId(final Object id) {
-            return vertexPropertyIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id);
         }
     }
 }

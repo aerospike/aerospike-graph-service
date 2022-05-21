@@ -1,10 +1,10 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,9 +30,31 @@ public class FireflyHelper {
 
 
     protected static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
+        //user supplied ids not supported
+        if (ElementHelper.getIdValue(keyValues).isPresent())
+            throw new UnsupportedOperationException();
         Object id = graph.edgeIdManager.getNextId(graph);
         graph.db.writeEdge(graph, id, label, outVertex, inVertex, keyValues);
         return graph.db.readEdge(graph, id);
+    }
+
+    public static <V> V validatePropertyValue(V v) {
+        List<Class<? extends Serializable>> supported = List.of(String.class, Long.class, Boolean.class, Double.class, byte[].class);
+        if (v != null && !supported.contains(v.getClass()))
+            throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
+        return v;
+    }
+    public static void legalPropertyKeyValueArray(Object... keyValues){
+        ElementHelper.legalPropertyKeyValueArray(keyValues);
+        Iterator<Object> i = Arrays.stream(keyValues).iterator();
+        while(i.hasNext()){
+            Object key = i.next();
+            if(String.class.equals(key.getClass())){
+                assert !key.toString().isEmpty();
+            }
+
+            i.next();
+        }
     }
 
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {

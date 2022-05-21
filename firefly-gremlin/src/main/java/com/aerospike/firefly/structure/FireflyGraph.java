@@ -8,6 +8,8 @@ import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedElement;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 
 import java.util.ArrayList;
@@ -79,12 +81,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
-    private final FireflyGraphFeatures features = new FireflyGraphFeatures(this);
+    private final FireflyGraphFeatures features;
 
     private final Configuration configuration;
-    protected final FireflyGraph.IdManager<?> vertexIdManager;
-    protected final FireflyGraph.IdManager<?> edgeIdManager;
-    protected final FireflyGraph.IdManager<?> vertexPropertyIdManager;
+
+    protected final FireflyGraph.IdManager<Long> vertexIdManager;
+    protected final FireflyGraph.IdManager<Long> edgeIdManager;
+
+    protected final FireflyGraph.IdManager<Long> vertexPropertyIdManager;
     private final FireflyGraphVariables variables;
 
 
@@ -100,6 +104,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         vertexIdManager = new LongIdManager<>(FireflyVertex.class, GLOBAL);
         edgeIdManager = new LongIdManager<>(FireflyEdge.class, GLOBAL);
         variables = new FireflyGraphVariables(this);
+        this.features = new FireflyGraphFeatures(this);
     }
 
     public static FireflyGraph open(Configuration conf) {
@@ -138,11 +143,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Vertex addVertex(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
+        Iterator<Object> i = Arrays.stream(keyValues).iterator();
+        while(i.hasNext()){
+            i.next();
+            FireflyHelper.validatePropertyValue(i.next());
+        }
         Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
         if (null != idValue) {
-            if (readVertex(this, idValue) != null)
-                throw Exceptions.vertexWithIdAlreadyExists(idValue);
+            throw new UnsupportedOperationException("user supplied ids not supported");
+//            if (readVertex(this, idValue) != null)
+//                throw Exceptions.vertexWithIdAlreadyExists(idValue);
         } else {
             idValue = vertexIdManager.getNextId(this);
         }
@@ -164,13 +175,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public Iterator<Vertex> vertices(Object... vertexIds) {
+    public Iterator<Vertex> vertices(Object... vertexIdsOrVerticies) {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
-        Arrays.stream(vertexIds).forEach(o -> {
-            longs.add(Long.valueOf(o.toString()));
+        Arrays.stream(vertexIdsOrVerticies).forEach(o -> {
+            longs.add(vertexIdManager.convert(o));
         });
-        if (vertexIds.length != 0)
+        if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();
         else
             itr = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
@@ -183,7 +194,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(edgeIds).forEach(o -> {
-            longs.add(Long.valueOf(o.toString()));
+            longs.add(edgeIdManager.convert(o));
         });
         if (edgeIds.length != 0)
             itr = longs.iterator();
@@ -195,7 +206,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Transaction tx() {
-        return null;
+        throw new UnsupportedOperationException(UNIMPLEMENTED);
     }
 
     @Override
@@ -245,6 +256,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         public Long convert(Object id) {
             if (null == id)
                 return null;
+            else if (Element.class.isAssignableFrom(id.getClass()))
+                return (Long) ((Element) id).id();
             else if (id instanceof Long)
                 return (Long) id;
             else if (id instanceof Number)
@@ -264,9 +277,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return id instanceof Long || id instanceof String;
         }
     }
-
-
-
 
 
     @Override

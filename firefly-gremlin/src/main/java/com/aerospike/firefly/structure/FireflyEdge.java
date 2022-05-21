@@ -28,7 +28,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
         return this.graph.db.readProperties(this);
     }
 
-    public FireflyEdge(Record record, Object id, String label, long inVid, long outVid, FireflyGraph graph) {
+
+    //@todo out, in or in, out
+    public FireflyEdge(Record record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;
@@ -76,13 +78,13 @@ public class FireflyEdge extends FireflyElement implements Edge {
             return Property.empty();
         }
         this.writeProperty(key, value);
-        return new FireflyProperty<>(this,key,value);
+        return new FireflyProperty<>(this, key, value);
     }
 
     @Override
     public void remove() {
-        graph.db.removeEdgeFromVertex(graph,this.outVid,this,Direction.BOTH);
-        graph.db.removeEdgeFromVertex(graph,this.inVid,this,Direction.BOTH);
+        graph.db.removeEdgeFromVertex(graph, this.outVid, this, Direction.BOTH);
+        graph.db.removeEdgeFromVertex(graph, this.inVid, this, Direction.BOTH);
         graph.db.removeEdge(graph, this.id);
     }
 

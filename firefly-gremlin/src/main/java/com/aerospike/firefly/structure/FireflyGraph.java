@@ -9,9 +9,11 @@ import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
@@ -77,7 +79,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
-    private final FireflyGraphFeatures features = new FireflyGraphFeatures();
+    private final FireflyGraphFeatures features = new FireflyGraphFeatures(this);
 
     private final Configuration configuration;
     protected final FireflyGraph.IdManager<?> vertexIdManager;
@@ -166,7 +168,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(vertexIds).forEach(o -> {
-            longs.add(((Number) o).longValue());
+            longs.add(Long.valueOf(o.toString()));
         });
         if (vertexIds.length != 0)
             itr = longs.iterator();
@@ -181,7 +183,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
         Arrays.stream(edgeIds).forEach(o -> {
-            longs.add(((Number) o).longValue());
+            longs.add(Long.valueOf(o.toString()));
         });
         if (edgeIds.length != 0)
             itr = longs.iterator();
@@ -262,145 +264,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return id instanceof Long || id instanceof String;
         }
     }
-
-
-    public class FireflyGraphFeatures implements Features {
-
-        private final FireflyGraph.FireflyGraphGraphFeatures graphFeatures = new FireflyGraph.FireflyGraphGraphFeatures();
-        private final FireflyGraph.FireflyGraphEdgeFeatures edgeFeatures = new FireflyGraph.FireflyGraphEdgeFeatures();
-        private final FireflyGraph.FireflyGraphVertexFeatures vertexFeatures = new FireflyGraph.FireflyGraphVertexFeatures();
-
-        private FireflyGraphFeatures() {
-        }
-
-        @Override
-        public GraphFeatures graph() {
-            return graphFeatures;
-        }
-
-        @Override
-        public EdgeFeatures edge() {
-            return edgeFeatures;
-        }
-
-        @Override
-        public VertexFeatures vertex() {
-            return vertexFeatures;
-        }
-
-        @Override
-        public String toString() {
-            return StringFactory.featureString(this);
-        }
-
-    }
-
-    public class FireflyGraphVertexFeatures implements Features.VertexFeatures {
-
-        private final FireflyGraph.FireflyGraphVertexPropertyFeatures vertexPropertyFeatures = new FireflyGraph.FireflyGraphVertexPropertyFeatures();
-
-        private FireflyGraphVertexFeatures() {
-        }
-
-        @Override
-        public boolean supportsNullPropertyValues() {
-            return true;
-        }
-
-        @Override
-        public Features.VertexPropertyFeatures properties() {
-            return vertexPropertyFeatures;
-        }
-
-        @Override
-        public boolean supportsCustomIds() {
-            return false;
-        }
-
-        @Override
-        public boolean willAllowId(final Object id) {
-            return vertexIdManager.allow(id);
-        }
-
-        @Override
-        public VertexProperty.Cardinality getCardinality(final String key) {
-            return VertexProperty.Cardinality.single;
-        }
-    }
-
-    public class FireflyGraphEdgeFeatures implements Features.EdgeFeatures {
-
-        private FireflyGraphEdgeFeatures() {
-        }
-
-        @Override
-        public boolean supportsNullPropertyValues() {
-            return true;
-        }
-
-        @Override
-        public boolean supportsCustomIds() {
-            return false;
-        }
-
-        @Override
-        public boolean willAllowId(final Object id) {
-            return edgeIdManager.allow(id);
-        }
-    }
-
-    public class FireflyGraphGraphFeatures implements Features.GraphFeatures {
-
-        private FireflyGraphGraphFeatures() {
-        }
-
-        @Override
-        public boolean supportsConcurrentAccess() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsTransactions() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsThreadedTransactions() {
-            return false;
-        }
-
-        @Override
-        public boolean supportsServiceCall() {
-            return true;
-        }
-
-    }
-
-    public class FireflyGraphVertexPropertyFeatures implements Features.VertexPropertyFeatures {
-
-        private FireflyGraphVertexPropertyFeatures() {
-        }
-
-        @Override
-        public boolean supportsNullPropertyValues() {
-            return true;
-        }
-
-        @Override
-        public boolean supportsCustomIds() {
-            return false;
-        }
-
-        @Override
-        public boolean willAllowId(final Object id) {
-            return vertexIdManager.allow(id);
-        }
-    }
-
-
-
-
-
 
 
 

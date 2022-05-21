@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.NoSuchElementException;
@@ -42,7 +43,13 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public void remove() {
+
         ((FireflyGraph) this.element.graph()).db.removeProperty(this.element, this.key);
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        return ElementHelper.areEqual(this, object);
     }
 
     @Override

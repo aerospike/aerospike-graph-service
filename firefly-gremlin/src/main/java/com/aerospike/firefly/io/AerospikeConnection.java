@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
+import java.io.NotSerializableException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,7 +66,12 @@ public class AerospikeConnection {
     }
 
     public void write(final Key key, final Bin... bins) {
-        client.put(null, key, bins);
+        try {
+            client.put(null, key, bins);
+        } catch (com.aerospike.client.AerospikeException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     public void delete(final Key key) {
@@ -425,7 +431,9 @@ public class AerospikeConnection {
         if (labelEdges == null) {
             labelEdges = new HashMap<>();
         }
-        return IteratorUtils.flatMap(labelEdges.entrySet().iterator(), longList -> ((List<Long>) longList).iterator());
+
+        return IteratorUtils.flatMap(labelEdges.entrySet().iterator(), mapEntry ->
+                mapEntry.getValue().iterator());
     }
 
     /**
@@ -472,6 +480,7 @@ public class AerospikeConnection {
         client.operate(client.writePolicyDefault, key,
                 ListOperation.removeByValue(cfg.getIdBin(),
                         Value.get(((Number) id).longValue()), ListReturnType.NONE));
+
     }
 
     /**

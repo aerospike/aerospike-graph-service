@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.AerospikeException;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -26,7 +27,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
 
     private void writeProperty(String key, Property property) {
-        ((FireflyGraph) this.graph()).db.writeProperty(this, key, property);
+        ((FireflyGraph) this.graph()).db.writeProperty(this, key, property.value());
     }
 
     public FireflyVertexProperty(final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
@@ -88,7 +89,12 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public void remove() {
-        ((FireflyGraph) this.graph()).db.removeVertexProperty((FireflyGraph) this.graph(),this.id());
+        try {
+            ((FireflyGraph) this.graph()).db.removeVertexProperty((FireflyGraph) this.graph(), this.id());
+        } catch (AerospikeException e) {
+            //@todo
+            System.out.println("error removing, not present?");
+        }
     }
 
     @Override
@@ -102,7 +108,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return StringFactory.propertyString(this);
     }
 }

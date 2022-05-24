@@ -74,7 +74,7 @@ public class FireflyHelper {
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).db;
         final List<Edge> edges = new ArrayList<>();
-        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
+        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(
@@ -90,7 +90,7 @@ public class FireflyHelper {
                 }
             }
         }
-        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
+        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
             if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getInEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));

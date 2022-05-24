@@ -67,9 +67,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testReadWriteRemoveGraphVariables() throws InterruptedException {
-        graph.variables().set("this","that");
-        assertEquals("that",graph.variables().get("this").get().toString());
-        assertEquals("this",graph.variables().keys().iterator().next());
+        graph.variables().set("this", "that");
+        assertEquals("that", graph.variables().get("this").get().toString());
+        assertEquals("this", graph.variables().keys().iterator().next());
         graph.variables().remove("this");
         assertFalse(graph.variables().keys().iterator().hasNext());
     }
@@ -198,7 +198,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).outE().count().next());
+        assertEquals(2, g.V(fruit.id()).inE().count().next());
     }
 
     @Test
@@ -213,7 +213,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).outE().count().next());
+        assertEquals(2, g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
         if (g.V(fruit.id()).outE().count().next() > 0) {
             Edge a = g.V(fruit.id()).outE().next();
@@ -233,10 +233,11 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).outE().count().next());
-        Property<Object> prop = g.V(fruit.id()).outE().next().properties("this").next();
+        assertEquals(2, g.V(fruit.id()).inE().count().next());
+        Property<Object> prop = g.V(fruit.id()).inE().next().properties("this").next();
         assertEquals("that", prop.value());
     }
+
     @Test
     void testEdgeLabel() {
         GraphTraversalSource g = graph.traversal();
@@ -247,7 +248,20 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-//        assertEquals(2, g.E().hasLabel("IsA").count().next());
+        assertEquals(2, g.E().hasLabel("IsA").count().next());
         assertEquals(2, g.V().outE().hasLabel("IsA").count().next());
+    }
+
+    @Test
+    void testEdgeLabel2() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        assertEquals(1, g.V().has("color", "yellow").outE().count().next());
     }
 }

@@ -82,8 +82,10 @@ public class FireflyHelper {
                 } else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
-                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
-                            e.ifPresent(edges::add);
+                        e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
+                            if (label.equals(edge.label()))
+                                edges.add(edge);
+                        }));
                     });
                 }
             }
@@ -95,8 +97,12 @@ public class FireflyHelper {
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
-                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
-                            e.ifPresent(edges::add);
+                        e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
+                            if (label.equals(edge.label()))
+                                edges.add(edge);
+                        }));
+//                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
+//                            e.ifPresent(edges::add);
                     });
                 }
             }

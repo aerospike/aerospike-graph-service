@@ -237,4 +237,17 @@ public class TestAerospikeGraphIntegration {
         Property<Object> prop = g.V(fruit.id()).outE().next().properties("this").next();
         assertEquals("that", prop.value());
     }
+    @Test
+    void testEdgeLabel() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("this", "that").iterate();
+//        assertEquals(2, g.E().hasLabel("IsA").count().next());
+        assertEquals(2, g.V().outE().hasLabel("IsA").count().next());
+    }
 }

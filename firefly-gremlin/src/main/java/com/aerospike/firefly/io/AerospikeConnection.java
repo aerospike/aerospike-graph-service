@@ -612,7 +612,7 @@ public class AerospikeConnection {
         FireflyEdge edge = readEdge(graph, id);
         addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
         addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
-        Iterator<Object> propIter = Arrays.stream(keyValues).iterator();
+        Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
             Object propKey = propIter.next();
             Object propVal = propIter.next();

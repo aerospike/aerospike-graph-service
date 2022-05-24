@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedElement;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -143,7 +144,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Vertex addVertex(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        Iterator<Object> i = Arrays.stream(keyValues).iterator();
+
+        Iterator i = IteratorUtils.asIterator(keyValues);
         while(i.hasNext()){
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
@@ -178,7 +180,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public Iterator<Vertex> vertices(Object... vertexIdsOrVerticies) {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
-        Arrays.stream(vertexIdsOrVerticies).forEach(o -> {
+        IteratorUtils.asIterator(vertexIdsOrVerticies).forEachRemaining(o -> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVerticies.length != 0)
@@ -193,7 +195,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public Iterator<Edge> edges(Object... edgeIds) {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
-        Arrays.stream(edgeIds).forEach(o -> {
+        IteratorUtils.asIterator(edgeIds).forEachRemaining(o -> {
             longs.add(edgeIdManager.convert(o));
         });
         if (edgeIds.length != 0)

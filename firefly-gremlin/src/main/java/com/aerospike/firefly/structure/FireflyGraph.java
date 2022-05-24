@@ -8,13 +8,10 @@ import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedElement;
-import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceElement;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,37 +37,6 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
         test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
         method = "*",
         reason = "MAKE ACTIVE LATER",
-        computers = {"ALL"})
-// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest",
-        method = "*",
-        reason = "Creating another graph on the same cluster with an open transaction causes a locking issue",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONTest",
-        method = "shouldWriteNormalizedGraphSON",
-        reason = "Test assumes integer when IgniteGraph uses longs",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV3D0Test",
-        method = "shouldWriteNormalizedGraphSON",
-        reason = "Test assumes integer when IgniteGraph uses longs",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV2D0Test",
-        method = "shouldWriteNormalizedGraphSON",
-        reason = "Test assumes integer when IgniteGrapht uses longs",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoTest$GraphSONV2D0Test",
-        method = "shouldWriteNormalizedGraphSON",
-        reason = "Test assumes integer when IgniteGraph uses longs",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest",
-        method = "shouldCopyFromGraphAToGraphB",
-        reason = "Creating another graph on the same cluster with an open transaction causes a locking issue",
         computers = {"ALL"})
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.structure.TransactionTest",

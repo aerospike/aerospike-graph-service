@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -40,7 +41,9 @@ public class ConfigurationHelper {
             throw new RuntimeException(e);
         }
     }
-
+    public static Configuration loadFromFile(final String path) {
+        return loadFromFile(Paths.get(path));
+    }
     public static Configuration loadFromResources(final String name) {
         try (InputStream is = ConfigurationHelper.class.getClassLoader().getResourceAsStream(name)) {
             if (is == null) throw new RuntimeException("unable to find resource " + name);

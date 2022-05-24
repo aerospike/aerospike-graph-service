@@ -13,9 +13,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.io.NotSerializableException;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,7 +43,7 @@ public class AerospikeConnection {
     private static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
     private static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
     private static final String ELEMENT_PROPERTIES = "_EP";
-    private static final String ELEMENT_PROPERTY_TYPES = "_EPT";
+    private static final String TYPE_HINTS = "_EPT";
     private static final String KEY_VALUE = "_KV";
     private static final String COUNTER = "_CT";
     private static final String ID_MANAGER_SET = "_IDMGR";
@@ -135,16 +133,120 @@ public class AerospikeConnection {
 
     }
 
+    private <V> V readTypeHintedValueFromMap(final String aeroSet,
+                                             final Object aeroKey,
+                                             final String mapName,
+                                             final String mapKey) {
+        final Key key = getAeroKey(aeroSet, aeroKey);
+        final Record r = read(key);
+        if (r == null || !r.getMap(mapName).containsKey(mapKey))
+            throw new NoSuchElementException();
+        Optional<? extends Map<?, ?>> map = Optional.ofNullable(r.getMap(mapName));
+        if (!map.isPresent())
+            return null;
+        Object val = map.get().get(mapKey);
+        Long typeHint = (Long) r.getMap(TYPE_HINTS).get(mapKey);
+        if (val == null)
+            return null;
+        Class clazz = SupportedTypes.entrySet()
+                .stream()
+                .filter(entry -> typeHint.equals(entry.getValue()))
+                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        return (V) typeCast(clazz, val);
+    }
+
+    private <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
+                                                                           final Object aeroKey,
+                                                                           final String mapName
+    ) {
+        final Key key = getAeroKey(aeroSet, aeroKey);
+        final Record r = read(key);
+        if (r == null || r.getMap(mapName).size() == 0)
+            throw new NoSuchElementException();
+        Optional<? extends Map<?, ?>> map = Optional.ofNullable(r.getMap(mapName));
+        if (!map.isPresent())
+            return null;
+        String mapKey = (String) map.get().keySet().iterator().next();
+        Long typeHint = (Long) r.getMap(TYPE_HINTS).get(mapKey);
+        Object val = map.get().values().iterator().next();
+
+        if (val == null)
+            return null;
+        Class clazz = SupportedTypes.entrySet()
+                .stream()
+                .filter(entry -> typeHint.equals(entry.getValue()))
+                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
+    }
+
+    private Key getAeroKey(String aeroSet, Object aeroKey) {
+        final Key key;
+        if (aeroKey.getClass().equals(String.class))
+            key = new Key(namespace, aeroSet, (String) aeroKey);
+        else if (aeroKey.getClass().equals(Long.class))
+            key = new Key(namespace, aeroSet, (Long) aeroKey);
+        else if (aeroKey.getClass().equals(Integer.class))
+            key = new Key(namespace, aeroSet, (Long) aeroKey);
+        else if (aeroKey.getClass().equals(byte[].class))
+            key = new Key(namespace, aeroSet, (byte[]) aeroKey);
+        else
+            throw new UnsupportedOperationException("unsupported database record key class" + aeroKey.getClass());
+        return key;
+    }
+
+    private void removeTypeHintedValueFromMap(final String aeroSet,
+                                              final Object aeroKey,
+                                              final String mapName,
+                                              final String mapKey) {
+        final Key key = getAeroKey(aeroSet, aeroKey);
+        final Record r = read(key);
+        final Map<String, Object> data;
+        final Map<String, Object> typeHints;
+        if (r == null)
+            return;
+        else {
+            data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new HashMap<>());
+            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new HashMap<>());
+        }
+        if (!data.containsKey(mapKey)) {
+            return;
+        } else {
+            data.remove(mapKey);
+            typeHints.remove(mapKey);
+        }
+        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
+        final Bin valueBin = new Bin(mapName, Value.get(data));
+        write(key, valueBin, typeHintBin);
+    }
+
+    private <V> void writeTypeHintedValueToMap(final String aeroSet,
+                                               final Object aeroKey,
+                                               final String mapName,
+                                               final String mapKey,
+                                               final V value) {
+
+        final Record r = read(getAeroKey(aeroSet, aeroKey));
+        final Map<String, Object> data;
+        final Map<String, Object> typeHints;
+        if (r == null) {
+            data = new HashMap<>();
+            typeHints = new HashMap<>();
+        } else {
+            data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new HashMap<>());
+            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new HashMap<>());
+        }
+        if (value != null)
+            typeHints.put(mapKey, getSupportedType(value.getClass()));
+        else
+            typeHints.put(mapKey, null);
+        data.put(mapKey, value);
+        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
+        final Bin valueBin = new Bin(mapName, Value.get(data));
+        write(getAeroKey(aeroSet, aeroKey), valueBin, typeHintBin);
+    }
 
     public <V> V readGraphVariable(String k) {
-        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
-        Record r = read(key);
-        if (r == null)
-            return null;
-        Map<String, V> m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
-        if (!m.containsKey(k))
-            return null;
-        return m.get(k);
+        return readTypeHintedValueFromMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
     }
 
     public Set<String> readGraphVariableKeys() {
@@ -157,29 +259,11 @@ public class AerospikeConnection {
     }
 
     public <V> void writeGraphVariable(String k, V v) {
-        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
-        Record r = read(key);
-        Map<String, V> m;
-        if (r == null)
-            m = new HashMap<>();
-        else
-            m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
-        m.put(k, v);
-        write(key, new Bin(GRAPH_VARIABLES_MAP, Value.get(m)));
+        writeTypeHintedValueToMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k, v);
     }
 
     public <V> void removeGraphVariable(String k) {
-        Key key = new Key(this.namespace, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
-        Record r = read(key);
-        Map<String, V> m;
-        if (r == null)
-            m = new HashMap<>();
-        else
-            m = (Map<String, V>) r.getMap(GRAPH_VARIABLES_MAP);
-        if (!m.containsKey(k))
-            throw new NoSuchElementException();
-        m.remove(k);
-        write(key, new Bin(GRAPH_VARIABLES_MAP, Value.get(m)));
+        removeTypeHintedValueFromMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
     }
 
 
@@ -196,11 +280,14 @@ public class AerospikeConnection {
         final Record r = read(key);
         if (r == null)
             throw new NoSuchElementException();
-        Map<String, V> kv = (Map<String, V>) r.getMap(KEY_VALUE);
-        String vpKey = kv.entrySet().iterator().next().getKey();
-        Object vpVal = kv.entrySet().iterator().next().getValue();
-
+        Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(readTypeHintedKeyValueFromMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE));
+        if (kv.isEmpty())
+            return new FireflyVertexProperty<V>(id, vertex, null, null);
+        String vpKey = kv.get().getKey();
+        Object vpVal = kv.get().getValue();
         return new FireflyVertexProperty<V>(id, vertex, vpKey, (V) vpVal);
+
+
     }
 
     /**
@@ -241,16 +328,7 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void writeVertexProperty(final FireflyVertex vertex, Object id, String k, V v) {
-        final Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) id);
-        final Record r = read(key);
-        Map<String, V> data;
-        if (r == null)
-            data = new HashMap<>();
-        else
-            data = (Map<String, V>) Optional.ofNullable(r.getMap(KEY_VALUE)).orElse(new HashMap<>());
-        data.put(k, v);
-        final Bin bin = new Bin(KEY_VALUE, Value.get(data));
-        write(key, bin);
+        writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE, k, v);
     }
 
     /**
@@ -351,25 +429,14 @@ public class AerospikeConnection {
      * @return
      */
     public <V> Property readProperty(final FireflyElement ele, final String k) {
-        final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) ele.id());
-        final Record r = read(key);
-        if (r == null) {
-            throw new NoSuchElementException();
-        }
-
-        Object val = r.getMap(ELEMENT_PROPERTIES).get(k);
-        Long typeHint = (Long) r.getMap(ELEMENT_PROPERTY_TYPES).get(k);
-        if (val == null) {
-            return new FireflyProperty(ele, k, null);
-        }
-
-        Class clazz = SupportedTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        return new FireflyProperty(ele, k, readTypeHintedValueFromMap(PROPERTY_AERO_SET, ele.id(), ELEMENT_PROPERTIES, k));
+    }
 
 
-        return new FireflyProperty(ele, k, clazz.cast(val));
+    private Object typeCast(Class clazz, Object val) {
+        if (clazz.equals(Integer.class))
+            return Math.toIntExact((Long) val);
+        return clazz.cast(val);
     }
 
     /**
@@ -383,25 +450,7 @@ public class AerospikeConnection {
      */
     public <V> void writeProperty(final FireflyElement element, final String k, final V value) {
         FireflyHelper.validatePropertyValue(value);
-        final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) element.id());
-        final Record r = read(key);
-        final Map<String, Object> data;
-        final Map<String, Object> typeHints;
-        if (r == null) {
-            data = new HashMap<>();
-            typeHints = new HashMap<>();
-        } else {
-            data = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTIES)).orElse(new HashMap<>());
-            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTY_TYPES)).orElse(new HashMap<>());
-        }
-        if (value != null)
-            typeHints.put(k, getSupportedType(value.getClass()));
-        else
-            typeHints.put(k, null);
-        data.put(k, value);
-        final Bin typeHintBin = new Bin(ELEMENT_PROPERTY_TYPES, Value.get(typeHints));
-        final Bin valueBin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
-        write(key, valueBin, typeHintBin);
+        writeTypeHintedValueToMap(PROPERTY_AERO_SET, element.id(), ELEMENT_PROPERTIES, k, value);
     }
 
     /**
@@ -413,25 +462,7 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void removeProperty(final FireflyElement element, final String k) {
-        final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) element.id());
-        final Record r = read(key);
-        final Map<String, Object> data;
-        final Map<String, Object> typeHints;
-        if (r == null)
-            return;
-        else {
-            data = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTIES)).orElse(new HashMap<>());
-            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTY_TYPES)).orElse(new HashMap<>());
-        }
-        if (!data.containsKey(k)) {
-            return;
-        } else {
-            data.remove(k);
-            typeHints.remove(k);
-        }
-        final Bin typeHintBin = new Bin(ELEMENT_PROPERTY_TYPES, Value.get(typeHints));
-        final Bin valueBin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
-        write(key, valueBin, typeHintBin);
+        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, element.id(), ELEMENT_PROPERTIES, k);
     }
 
     /**
@@ -503,17 +534,17 @@ public class AerospikeConnection {
      * @param v
      * @return
      */
-    public List<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
+    public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
         final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.OUT.name(), (Long) v.id()));
         final Record r = read(key);
         if (r == null) {
-            return new ArrayList<>();
+            return EmptyIterator.instance();
         }
         Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
         if (labelEdges == null) {
             labelEdges = new HashMap<>();
         }
-        return labelEdges.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
+        return IteratorUtils.flatMap(IteratorUtils.asIterator(labelEdges.entrySet()), e -> IteratorUtils.asIterator(((AbstractMap.Entry) e).getValue()));
     }
 
     /**
@@ -652,7 +683,7 @@ public class AerospikeConnection {
         FireflyEdge edge = readEdge(graph, id);
         addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
         addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
-        Iterator<Object> propIter = Arrays.stream(keyValues).iterator();
+        Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
             Object propKey = propIter.next();
             Object propVal = propIter.next();

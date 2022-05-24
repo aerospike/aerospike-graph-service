@@ -9,7 +9,6 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -103,8 +102,13 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         if (propertyKeys.length == 1) {
             final Property<U> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
-        } else
-            return (Iterator) properties.entrySet().stream().filter(entry -> ElementHelper.keyExists(entry.getKey(), propertyKeys)).map(entry -> entry.getValue()).collect(Collectors.toList()).iterator();
+        } else {
+            return IteratorUtils.map(
+                    IteratorUtils.filter(
+                            IteratorUtils.asIterator(properties.entrySet()),
+                            entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
+                    entry -> ((AbstractMap.Entry) entry).getValue());
+        }
     }
 
     @Override

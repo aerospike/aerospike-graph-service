@@ -12,6 +12,9 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyHelper {
+    private FireflyHelper() {
+    }
+
     public static boolean inComputerMode(final FireflyGraph graph) {
         return false;
     }
@@ -44,12 +47,13 @@ public class FireflyHelper {
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         return v;
     }
-    public static void legalPropertyKeyValueArray(Object... keyValues){
+
+    public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         Iterator<Object> i = Arrays.stream(keyValues).iterator();
-        while(i.hasNext()){
+        while (i.hasNext()) {
             Object key = i.next();
-            if(String.class.equals(key.getClass())){
+            if (String.class.equals(key.getClass())) {
                 assert !key.toString().isEmpty();
             }
 

@@ -6,10 +6,10 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -94,8 +94,10 @@ public class FireflyEdge extends FireflyElement implements Edge {
         if (propertyKeys.length == 1) {
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
-        } else
-            return (Iterator) properties.entrySet().stream().filter(entry -> ElementHelper.keyExists(entry.getKey(), propertyKeys)).map(entry -> entry.getValue()).collect(Collectors.toList()).iterator();
+        } else{
+            return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
+                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry -> ((AbstractMap.Entry)entry).getValue());
+        }
     }
 
 

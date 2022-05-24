@@ -1,14 +1,13 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Record;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedVertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import com.aerospike.client.Record;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.FireflyHelper.removeVertex;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
@@ -35,7 +34,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return this.graph.db.getInEdgeIdsFromVertex(this);
     }
 
-    protected List<Object> getOutEdgeIds() {
+    protected Iterator<Object> getOutEdgeIds() {
         return this.graph.db.getOutEdgeIdsFromVertex(this);
     }
 
@@ -109,8 +108,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public void remove() {
         final List<Edge> edges = new ArrayList<>();
         this.edges(Direction.BOTH).forEachRemaining(edges::add);
-        edges.stream().filter(edge -> !((FireflyEdge) edge).removed).forEach(Edge::remove);
-        //FireflyHelper.removeElementIndex(this);
+        IteratorUtils.filter(IteratorUtils.asIterator(edges), edge -> !((FireflyEdge) edge).removed).forEachRemaining(edge -> ((Edge) edge).remove());
         removeVertex(graph, this.id);
         this.removed = true;
     }
@@ -153,8 +151,11 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             } else {
                 return (Iterator) new ArrayList<>(properties).iterator();
             }
-        } else
-            return (Iterator) allProperties.entrySet().stream().filter(entry -> ElementHelper.keyExists(entry.getKey(), propertyKeys)).flatMap(entry -> entry.getValue().stream()).collect(Collectors.toList()).iterator();
+        } else {
+            return IteratorUtils.flatMap(IteratorUtils.filter(IteratorUtils.asIterator(allProperties.entrySet()),
+                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
+                    entry -> IteratorUtils.asIterator(((AbstractMap.Entry) entry).getValue()));
+        }
     }
 
     @Override

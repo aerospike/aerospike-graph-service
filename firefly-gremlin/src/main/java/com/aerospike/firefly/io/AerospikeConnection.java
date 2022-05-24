@@ -13,9 +13,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.io.NotSerializableException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -463,17 +461,17 @@ public class AerospikeConnection {
      * @param v
      * @return
      */
-    public List<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
+    public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
         final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.OUT.name(), (Long) v.id()));
         final Record r = read(key);
         if (r == null) {
-            return new ArrayList<>();
+            return EmptyIterator.instance();
         }
         Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
         if (labelEdges == null) {
             labelEdges = new HashMap<>();
         }
-        return labelEdges.entrySet().stream().flatMap(e -> e.getValue().stream()).collect(Collectors.toList());
+        return IteratorUtils.flatMap(IteratorUtils.asIterator(labelEdges.entrySet()),e -> IteratorUtils.asIterator(((AbstractMap.Entry)e).getValue()));
     }
 
     /**
@@ -612,7 +610,7 @@ public class AerospikeConnection {
         FireflyEdge edge = readEdge(graph, id);
         addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
         addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
-        Iterator<Object> propIter = Arrays.stream(keyValues).iterator();
+        Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
             Object propKey = propIter.next();
             Object propVal = propIter.next();

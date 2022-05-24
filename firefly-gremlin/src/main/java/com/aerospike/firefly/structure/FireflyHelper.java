@@ -1,12 +1,18 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -50,7 +56,7 @@ public class FireflyHelper {
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        Iterator<Object> i = Arrays.stream(keyValues).iterator();
+        Iterator i = IteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             Object key = i.next();
             if (String.class.equals(key.getClass())) {
@@ -65,14 +71,14 @@ public class FireflyHelper {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).db;
         final List<Edge> edges = new ArrayList<>();
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (!vertex.getOutEdgeIds().isEmpty()) {
+            if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getOutEdgeIds().forEach(id -> Optional.ofNullable(
+                    vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(
                             db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
                 } else {
-                    vertex.getOutEdgeIds().forEach(id -> {
+                    vertex.getOutEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
-                        if (e.isPresent() && Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.get().label()))
+                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
                             e.ifPresent(edges::add);
                     });
                 }
@@ -85,28 +91,28 @@ public class FireflyHelper {
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
-                        if (e.isPresent() && Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.get().label()))
+                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
                             e.ifPresent(edges::add);
                     });
                 }
             }
         }
-        return (Iterator) edges.iterator();
+        return edges.iterator();
     }
 
     public static Iterator<Vertex> getVertices(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).db;
         final List<Vertex> vertices = new ArrayList<>();
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (!vertex.getOutEdgeIds().isEmpty()) {
+            if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getOutEdgeIds().forEach(id -> {
+                    vertex.getOutEdgeIds().forEachRemaining(id -> {
                         vertices.add(db.readEdge((FireflyGraph) vertex.graph(), id).inVertex());
                     });
                 } else {
-                    vertex.getOutEdgeIds().forEach(id -> {
+                    vertex.getOutEdgeIds().forEachRemaining(id -> {
                         Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
-                        if (Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.label()))
+                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.label()))
                             vertices.add(e.inVertex());
                     });
                 }
@@ -121,12 +127,12 @@ public class FireflyHelper {
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
                         Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
-                        if (Arrays.stream(edgeLabels).collect(Collectors.toList()).contains(e.label()))
+                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.label()))
                             vertices.add(e.outVertex());
                     });
                 }
             }
         }
-        return (Iterator) vertices.iterator();
+        return vertices.iterator();
     }
 }

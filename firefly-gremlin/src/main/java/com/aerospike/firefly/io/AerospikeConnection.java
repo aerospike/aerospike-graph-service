@@ -287,7 +287,6 @@ public class AerospikeConnection {
         Object vpVal = kv.get().getValue();
         return new FireflyVertexProperty<V>(id, vertex, vpKey, (V) vpVal);
 
-
     }
 
     /**

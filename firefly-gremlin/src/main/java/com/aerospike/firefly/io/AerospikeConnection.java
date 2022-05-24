@@ -14,6 +14,8 @@ import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.NotSerializableException;
+import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -43,13 +45,28 @@ public class AerospikeConnection {
     private static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
     private static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
     private static final String ELEMENT_PROPERTIES = "_EP";
+    private static final String ELEMENT_PROPERTY_TYPES = "_EPT";
     private static final String KEY_VALUE = "_KV";
     private static final String COUNTER = "_CT";
     private static final String ID_MANAGER_SET = "_IDMGR";
     private static final String LABEL_EDGES = "_LBLED";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
+    public static final Map<Class<? extends Serializable>, Long> SupportedTypes = new HashMap<>() {{
+        put(String.class, 1L);
+        put(Long.class, 2L);
+        put(Integer.class, 3L);
+        put(Boolean.class, 4L);
+        put(ArrayList.class, 5L);
+        put(Double.class, 6L);
+        put(byte[].class, 7L);
+    }};
 
+    private Long getSupportedType(Class clazz) {
+        if (!SupportedTypes.containsKey(clazz))
+            throw new UnsupportedOperationException(clazz + " is not a supported type");
+        return SupportedTypes.get(clazz);
+    }
 
     private AerospikeConnection(final String host, final int port, final String namespace) {
         this.host = host;
@@ -318,7 +335,7 @@ public class AerospikeConnection {
         if (data == null)
             return result;
         data.forEach((key1, value) -> {
-            Property<V> prop = new FireflyProperty<>(ele, key1, value);
+            Property<V> prop = readProperty(ele, key1);
             result.put(key1, prop);
         });
         return result;
@@ -339,12 +356,20 @@ public class AerospikeConnection {
         if (r == null) {
             throw new NoSuchElementException();
         }
+
         Object val = r.getMap(ELEMENT_PROPERTIES).get(k);
+        Long typeHint = (Long) r.getMap(ELEMENT_PROPERTY_TYPES).get(k);
         if (val == null) {
-            throw new NoSuchElementException();
+            return new FireflyProperty(ele, k, null);
         }
 
-        return new FireflyProperty(ele, k, val);
+        Class clazz = SupportedTypes.entrySet()
+                .stream()
+                .filter(entry -> typeHint.equals(entry.getValue()))
+                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+
+
+        return new FireflyProperty(ele, k, clazz.cast(val));
     }
 
     /**
@@ -360,14 +385,23 @@ public class AerospikeConnection {
         FireflyHelper.validatePropertyValue(value);
         final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) element.id());
         final Record r = read(key);
-        Map<String, Object> data;
-        if (r == null)
+        final Map<String, Object> data;
+        final Map<String, Object> typeHints;
+        if (r == null) {
             data = new HashMap<>();
-        else
+            typeHints = new HashMap<>();
+        } else {
             data = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTIES)).orElse(new HashMap<>());
+            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTY_TYPES)).orElse(new HashMap<>());
+        }
+        if (value != null)
+            typeHints.put(k, getSupportedType(value.getClass()));
+        else
+            typeHints.put(k, null);
         data.put(k, value);
-        final Bin bin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
-        write(key, bin);
+        final Bin typeHintBin = new Bin(ELEMENT_PROPERTY_TYPES, Value.get(typeHints));
+        final Bin valueBin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
+        write(key, valueBin, typeHintBin);
     }
 
     /**
@@ -381,17 +415,23 @@ public class AerospikeConnection {
     public <V> void removeProperty(final FireflyElement element, final String k) {
         final Key key = new Key(namespace, PROPERTY_AERO_SET, (Long) element.id());
         final Record r = read(key);
-        Map<String, Object> data;
+        final Map<String, Object> data;
+        final Map<String, Object> typeHints;
         if (r == null)
             return;
-        else
+        else {
             data = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTIES)).orElse(new HashMap<>());
-        if (!data.containsKey(k))
+            typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(ELEMENT_PROPERTY_TYPES)).orElse(new HashMap<>());
+        }
+        if (!data.containsKey(k)) {
             return;
-        else
+        } else {
             data.remove(k);
-        final Bin bin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
-        write(key, bin);
+            typeHints.remove(k);
+        }
+        final Bin typeHintBin = new Bin(ELEMENT_PROPERTY_TYPES, Value.get(typeHints));
+        final Bin valueBin = new Bin(ELEMENT_PROPERTIES, Value.get(data));
+        write(key, valueBin, typeHintBin);
     }
 
     /**

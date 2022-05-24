@@ -8,6 +8,8 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypes;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -39,7 +41,7 @@ public class FireflyHelper {
     }
 
     public static <V> V validatePropertyValue(V v) {
-        List<Class<? extends Serializable>> supported = List.of(String.class, Long.class, Boolean.class, Double.class, byte[].class);
+        Set<Class<? extends Serializable>> supported = SupportedTypes.keySet();
         if (v != null && !supported.contains(v.getClass()))
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         return v;
@@ -50,7 +52,8 @@ public class FireflyHelper {
         while(i.hasNext()){
             Object key = i.next();
             if(String.class.equals(key.getClass())){
-                assert !key.toString().isEmpty();
+                if(key.toString().isEmpty())
+                    throw Property.Exceptions.propertyKeyCanNotBeEmpty();
             }
 
             i.next();

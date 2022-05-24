@@ -22,17 +22,17 @@ How to load Firefly in gremlin-console
 -----------
 copy firefly-core/src/test/resources/phaseshift-integration-settings.properties to ~/firefly-settings.properties  
 edit ~/firefly-settings.properties to connect to your aerospike instance  
-$ mkdir -p  ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/plugin/ ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/  
+$ mkdir -p  ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/plugin/ ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/    
 $ cp firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT.jar ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/plugin/  
-$ cp firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/  
-$ echo >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt
-$ echo 'com.aerospike.firefly.jsr223.FireflyGremlinPlugin' >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt  
-$ export CLASSPATH=$CLASSPATH:./firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar
-$ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh
-...
-plugin activated: aerospike.firefly
-gremlin>
-gremlin> graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(System.getProperty("user.home")+"/firefly-settings.properties"))  
+$ cp firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/    
+$ echo >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt  
+$ echo 'com.aerospike.firefly.jsr223.FireflyGremlinPlugin' >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt    
+$ export CLASSPATH=$CLASSPATH:./firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar  
+$ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh  
+...  
+plugin activated: aerospike.firefly  
+gremlin>  
+gremlin> graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(System.getProperty("user.home")+"/firefly-settings.properties"))    
 gremlin> 
 
 

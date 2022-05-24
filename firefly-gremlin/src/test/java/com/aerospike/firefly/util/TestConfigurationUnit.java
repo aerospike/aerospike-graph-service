@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import org.apache.commons.configuration2.Configuration;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -47,6 +48,7 @@ public class TestConfigurationUnit {
     }
 
     @Test
+    @Disabled
     void testLoadConfigurationFromEnv() throws Exception {
         Map<String, String> env = getModifiableEnvironment();
         env.put(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, "test");

@@ -1,9 +1,11 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 /**
@@ -35,6 +37,8 @@ public abstract class FireflyElementIterator<E> implements CloseableIterator<E> 
         E ele = null;
         while (ele == null && this.hasNext())
             ele = fn.apply(this.idIterator.next());
+        if (ele == null)
+            throw new NoSuchElementException();
         return ele;
     }
 }

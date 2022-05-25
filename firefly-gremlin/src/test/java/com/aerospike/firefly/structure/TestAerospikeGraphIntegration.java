@@ -6,8 +6,13 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.hamcrest.core.IsInstanceOf;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -17,6 +22,8 @@ import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static java.lang.Thread.sleep;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -264,4 +271,74 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, g.V().has("color", "yellow").outE().count().next());
     }
+
+    @Test
+    @Disabled
+        // requires user supplied ids
+    void testGrateful() {
+        GraphTraversalSource g = graph.traversal();
+        GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
+        g.io("/home/g/ext_code/tinkerpop/tinkergraph-gremlin/src/main/resources/org/apache/tinkerpop/gremlin/tinkergraph/structure/grateful-dead.kryo").read();
+        Edge thing = graph.edges().next();
+        assertEquals(
+                g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
+                g.V().has("name", "CANT COME DOWN").outE().inV().count().next());
+    }
+
+    @Test
+    void noNext() {
+        try {
+            graph.edges(10000l).next();
+            fail("Call to g.edges(10000l) should throw an exception");
+        } catch (Exception ex) {
+            assertThat(ex, IsInstanceOf.instanceOf(NoSuchElementException.class));
+        }
+    }
+
+    @Test
+    void testTree() {
+        int branchSize = 11;
+        final Vertex start = graph.addVertex();
+        for (int i = 0; i < branchSize; i++) {
+            final Vertex a = graph.addVertex();
+            start.addEdge("test1", a);
+            for (int j = 0; j < branchSize; j++) {
+                final Vertex b = graph.addVertex();
+                a.addEdge("test2", b);
+                for (int k = 0; k < branchSize; k++) {
+                    final Vertex c = graph.addVertex();
+                    b.addEdge("test3", c);
+                }
+            }
+        }
+        assertEquals(0L, IteratorUtils.count(start.edges(Direction.IN, new String[0])));
+        assertEquals((long) branchSize, IteratorUtils.count(start.edges(Direction.OUT, new String[0])));
+        Iterator var9 = IteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
+
+        while (var9.hasNext()) {
+            Edge a = (Edge) var9.next();
+            Assert.assertEquals("test1", a.label());
+
+            Assert.assertEquals((long) branchSize, IteratorUtils.count(a.inVertex().vertices(Direction.OUT, new String[0])));
+            Assert.assertEquals(1L, IteratorUtils.count(a.inVertex().vertices(Direction.IN, new String[0])));
+            Iterator var12 = IteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
+
+            while (var12.hasNext()) {
+                Edge b = (Edge) var12.next();
+                Assert.assertEquals("test2", b.label());
+                Assert.assertEquals((long) branchSize, IteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
+                Assert.assertEquals(1L, IteratorUtils.count(b.inVertex().vertices(Direction.IN, new String[0])));
+                Iterator var14 = IteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
+
+                while (var14.hasNext()) {
+                    Edge c = (Edge) var14.next();
+                    Assert.assertEquals("test3", c.label());
+                    Assert.assertEquals(0L, IteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
+                    Assert.assertEquals(1L, IteratorUtils.count(c.inVertex().vertices(Direction.IN, new String[0])));
+                }
+            }
+        }
+    }
+
+
 }

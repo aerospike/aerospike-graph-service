@@ -6,33 +6,39 @@ How to build Firefly
 -----------
 $ mvn -DskipTests clean package  
 .....  
-$ ls firefly-core/target/*.jar  
-firefly-core/target/firefly-core-0.0.1-SNAPSHOT-jar-with-dependencies.jar  
-firefly-core/target/firefly-core-0.0.1-SNAPSHOT.jar
+$ ls firefly-gremlin/target/*.jar  
+firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar  
+firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT.jar
 
 How to test Firefly
 ----------
 the integration tests use configuration stored in  
-firefly-core/src/test/resources/phaseshift-integration-settings.properties  
+firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties  
 update these settings to point to your aerospike instance  
 
 $ mvn clean test  
 
 How to load Firefly in gremlin-console
 -----------
-copy firefly-core/src/test/resources/phaseshift-integration-settings.properties to ~/firefly-settings.properties  
+copy firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties to ~/firefly-settings.properties  
 edit ~/firefly-settings.properties to connect to your aerospike instance  
-$ mkdir -p  ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/plugin/ ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/    
-$ cp firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT.jar ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/plugin/  
-$ cp firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/aerospike-firefly/lib/    
-$ echo >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt  
-$ echo 'com.aerospike.firefly.jsr223.FireflyGremlinPlugin' >> ~/software/apache-tinkerpop-gremlin-console-3.6.0/ext/plugins.txt    
-$ export CLASSPATH=$CLASSPATH:./firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT-jar-with-dependencies.jar  
+
+#install to maven local  
+$ mvn -DskipTests clean install  
+#allow gremlin console environment to install from maven local  
+$ mkdir -p ~/.groovy/ && cp samples/grapeConfig.xml ~/.groovy/  
+
+$ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh    
+...  
+gremlin> :install com.aerospike firefly-gremlin 0.0.1-SNAPSHOT  
+==>Loaded: [com.aerospike, firefly-gremlin, 0.0.1-SNAPSHOT] - restart the console to use [aerospike.firefly]  
+(exit)  
 $ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh  
 ...  
-plugin activated: aerospike.firefly  
-gremlin>  
+gremlin> :plugin use aerospike.firefly  
+==>aerospike.firefly activated   
 gremlin> graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(System.getProperty("user.home")+"/firefly-settings.properties"))    
-gremlin> 
+gremlin> g = graph.traversal()  
+==>graphtraversalsource[fireflygraph[172.17.0.1 3000 test], standard]  
 
 

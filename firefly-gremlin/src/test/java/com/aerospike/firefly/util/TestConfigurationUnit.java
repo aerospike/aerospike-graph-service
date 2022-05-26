@@ -48,7 +48,7 @@ public class TestConfigurationUnit {
     }
 
     @Test
-    @Disabled
+    @Disabled // some JVM distributions may not allow getModifiableEnvironment to succeed
     void testLoadConfigurationFromEnv() throws Exception {
         Map<String, String> env = getModifiableEnvironment();
         env.put(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, "test");

@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -15,6 +16,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
@@ -273,13 +277,18 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    @Disabled
-        // requires user supplied ids
-    void testGrateful() {
+    @Disabled // requires user supplied ids
+    void testGrateful() throws IOException {
+
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-        g.io("/home/g/ext_code/tinkerpop/tinkergraph-gremlin/src/main/resources/org/apache/tinkerpop/gremlin/tinkergraph/structure/grateful-dead.kryo").read();
-        Edge thing = graph.edges().next();
+
+        final String resourceName = "grateful-dead.kryo";
+        final Path tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
+        tempPath.toFile().deleteOnExit();
+        Util.copyResourceToDirectory(resourceName, tempPath);
+        String kryoGratefulPath = tempPath.resolve(resourceName).toAbsolutePath().toString();
+        g.io(kryoGratefulPath).read();
         assertEquals(
                 g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
                 g.V().has("name", "CANT COME DOWN").outE().inV().count().next());

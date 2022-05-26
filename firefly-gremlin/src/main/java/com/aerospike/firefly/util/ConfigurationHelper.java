@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -45,7 +46,7 @@ public class ConfigurationHelper {
         return loadFromFile(Paths.get(path));
     }
     public static Configuration loadFromResources(final String name) {
-        try (InputStream is = ConfigurationHelper.class.getClassLoader().getResourceAsStream(name)) {
+        try (InputStream is = FireflyGraph.class.getClassLoader().getResourceAsStream(name)) {
             if (is == null) throw new RuntimeException("unable to find resource " + name);
             try (final InputStreamReader isr = new InputStreamReader(is);
                  final BufferedReader reader = new BufferedReader(isr)) {

@@ -27,6 +27,7 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
  */
 
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
+@Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
 @Graph.OptOut(

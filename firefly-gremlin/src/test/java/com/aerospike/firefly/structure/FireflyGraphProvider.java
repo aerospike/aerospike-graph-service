@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
@@ -10,6 +11,9 @@ import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoVertexTest;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,6 +27,12 @@ import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyGraphProvider extends AbstractGraphProvider {
+
+    private static final Configuration config;
+
+    static {
+        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+    }
 
     protected FireflyGraph.IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {
         if (test.equals(GraphTest.class)) {
@@ -102,12 +112,10 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
     @Override
     public Map<String, Object> getBaseConfiguration(String graphName, Class<?> test, String testMethodName, LoadGraphWith.GraphData loadGraphWith) {
         HashMap<String, Object> configMap = new HashMap<String, Object>();
-        final Configuration config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         config.getKeys().forEachRemaining(key -> {
             configMap.put(key, config.get(Object.class, key));
         });
-        configMap.put(Graph.GRAPH,FireflyGraph.class.getName());
-
+        configMap.put(Graph.GRAPH, FireflyGraph.class.getName());
         return configMap;
     }
 

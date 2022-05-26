@@ -35,16 +35,21 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class TestAerospikeGraphIntegration {
 
-    private Configuration conf;
+    private static final Configuration config;
+
+    static {
+        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+    }
     private AerospikeConnection db;
     private FireflyGraph graph;
 
 
     @BeforeEach
     void openGraph() {
-        conf = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        graph = new FireflyGraph(conf);
-        db = graph.db;
+        this.db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(config),
+                ConfigurationHelper.aerospikePort(config),
+                ConfigurationHelper.aerospikeNamespace(config));
+        graph = new FireflyGraph(config);
         db.dropDatabase();
     }
 

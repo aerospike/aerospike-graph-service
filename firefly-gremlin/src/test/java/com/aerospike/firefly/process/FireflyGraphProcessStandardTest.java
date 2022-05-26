@@ -4,15 +4,11 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyGraphProvider;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.process.ProcessStandardSuite;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.runner.RunWith;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -31,10 +27,11 @@ public class FireflyGraphProcessStandardTest {
 
     @AfterEach
     void closeGraphClearData() {
-        AerospikeConnection.connect(
-                        ConfigurationHelper.aerospikeHost(config),
-                        ConfigurationHelper.aerospikePort(config),
-                        ConfigurationHelper.aerospikeNamespace(config))
-                .dropDatabase();
+        AerospikeConnection db = AerospikeConnection.connect(
+                ConfigurationHelper.aerospikeHost(config),
+                ConfigurationHelper.aerospikePort(config),
+                ConfigurationHelper.aerospikeNamespace(config));
+        db.dropDatabase();
+        db.close();
     }
 }

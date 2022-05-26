@@ -2,10 +2,15 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.Record;
 import com.aerospike.client.*;
+import com.aerospike.client.async.*;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.ListSortFlags;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.structure.*;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -21,6 +26,12 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class AerospikeConnection {
+    final int NumLoops = 2;
+    final int CommandsPerEventLoop = 50;
+    final int DelayQueueSize = 50;
+
+    final EventLoops eventLoops;
+
     private final String host;
     private final int port;
     private final AerospikeClient client;
@@ -59,6 +70,7 @@ public class AerospikeConnection {
         put(Double.class, 6L);
         put(byte[].class, 7L);
     }};
+    private final int commandsPerLoop = 25;
 
     private Long getSupportedType(Class clazz) {
         if (!SupportedTypes.containsKey(clazz))
@@ -69,8 +81,41 @@ public class AerospikeConnection {
     private AerospikeConnection(final String host, final int port, final String namespace) {
         this.host = host;
         this.port = port;
+        this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
         this.client = new AerospikeClient(host, port);
         this.namespace = namespace;
+    }
+
+    Throttles initializeThrottles(int numLoops, int commandsPerEventLoop) {
+        Throttles throttles = new Throttles(numLoops, commandsPerEventLoop);
+        return throttles;
+    }
+
+    private EventLoops initializeEventLoops(
+            final EventLoopType eventLoopType,
+            final int numLoops,
+            final int commandsPerEventLoop,
+            final int maxCommandsInQueue) {
+        final EventPolicy eventPolicy = new EventPolicy();
+        eventPolicy.maxCommandsInProcess = commandsPerEventLoop;
+        eventPolicy.maxCommandsInQueue = maxCommandsInQueue;
+        EventLoops eventLoops = null;
+        switch (eventLoopType) {
+            case DIRECT_NIO:
+                eventLoops = new NioEventLoops(eventPolicy, numLoops);
+                break;
+            case NETTY_NIO:
+                NioEventLoopGroup nioGroup = new NioEventLoopGroup(numLoops);
+                eventLoops = new NettyEventLoops(eventPolicy, nioGroup);
+                break;
+            case NETTY_EPOLL:
+                EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(numLoops);
+                eventLoops = new NettyEventLoops(eventPolicy, epollGroup);
+                break;
+            default:
+                System.out.println("Error: Invalid event loop type");
+        }
+        return eventLoops;
     }
 
     public static AerospikeConnection connect(final String host, final int port, final String namespace) {
@@ -131,6 +176,22 @@ public class AerospikeConnection {
             return ID_BIN;
         }
 
+    }
+
+
+    private Iterator<Object> scanAllIdsInSet(final String setName) {
+        Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
+        Monitor scanMonitor = new Monitor();
+        int progressFreq = 100;
+        ScanPolicy policy = new ScanPolicy();
+        policy.filterExp = Exp.build(
+                Exp.and(
+                        Exp.le(Exp.intBin("bin1"), Exp.val(1000)),
+                        Exp.ge(Exp.intBin("bin1"), Exp.val(1))));
+        ScanRecordSequenceListener listener = new ScanRecordSequenceListener(eventLoops, throttles, scanMonitor, client, progressFreq);
+        client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName);
+        scanMonitor.waitTillComplete();
+        return null;
     }
 
     private <V> V readTypeHintedValueFromMap(final String aeroSet,
@@ -747,6 +808,7 @@ public class AerospikeConnection {
 
     public void close() {
         this.client.close();
+        this.eventLoops.close();
     }
 
 }

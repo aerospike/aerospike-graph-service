@@ -46,6 +46,7 @@ public class TestAerospikeClientIntegration {
                 ConfigurationHelper.aerospikeHost(c),
                 ConfigurationHelper.aerospikePort(c),
                 ConfigurationHelper.aerospikeNamespace(c));
+        ac.close();
     }
 
     @Test
@@ -58,6 +59,7 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         ac.write(key, bin1, bin2, bin3);
         assertEquals(ac.read(key).getInt("age"), 32);
+        ac.close();
     }
 
     @Test
@@ -72,6 +74,7 @@ public class TestAerospikeClientIntegration {
         assertNotEquals(null, ac.read(key));
         ac.delete(key);
         assertNull(ac.read(key));
+        ac.close();
     }
 
     @Test

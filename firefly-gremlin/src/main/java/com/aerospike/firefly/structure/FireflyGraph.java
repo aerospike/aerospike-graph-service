@@ -184,10 +184,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         this.closed.set(true);
         this.db.close();
-
     }
 
     @Override

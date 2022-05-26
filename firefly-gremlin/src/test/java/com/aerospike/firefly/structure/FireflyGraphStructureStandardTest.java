@@ -25,10 +25,11 @@ public class FireflyGraphStructureStandardTest {
 
     @AfterEach
     void closeGraphClearData() {
-        AerospikeConnection.connect(
-                        ConfigurationHelper.aerospikeHost(config),
-                        ConfigurationHelper.aerospikePort(config),
-                        ConfigurationHelper.aerospikeNamespace(config))
-                .dropDatabase();
+        AerospikeConnection db = AerospikeConnection.connect(
+                ConfigurationHelper.aerospikeHost(config),
+                ConfigurationHelper.aerospikePort(config),
+                ConfigurationHelper.aerospikeNamespace(config));
+        db.dropDatabase();
+        db.close();
     }
 }

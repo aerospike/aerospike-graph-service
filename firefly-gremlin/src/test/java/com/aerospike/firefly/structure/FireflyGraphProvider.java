@@ -120,9 +120,10 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
     }
 
     @Override
-    public void clear(Graph graph, Configuration configuration) throws Exception {
+    public void clear(Graph graph, Configuration configuration) {
         AerospikeConnection db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(configuration), ConfigurationHelper.aerospikePort(configuration), ConfigurationHelper.aerospikeNamespace(configuration));
         db.dropDatabase();
+        db.close();
     }
 
     @Override

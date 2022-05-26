@@ -742,7 +742,7 @@ public class AerospikeConnection {
 
     @Override
     public final String toString() {
-        return String.format("%s %s %s", host, port, namespace);
+        return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }
 
     public void close() {

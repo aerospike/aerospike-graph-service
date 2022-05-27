@@ -33,33 +33,33 @@ public class AerospikeConnection {
 
     final EventLoops eventLoops;
 
-    private final String host;
-    private final int port;
-    private final AerospikeClient client;
-    private final String namespace;
+    protected final String host;
+    protected final int port;
+    protected final AerospikeClient client;
+    protected final String namespace;
 
 
-    private static final String GRAPH_VARIABLES_AERO_SET = "_GVST";
-    private static final String GRAPH_VARIABLES_RECORD = "_GVR";
-    private static final String GRAPH_VARIABLES_MAP = "_GVM";
-    private static final String EDGE_AERO_SET = "_EDST";
-    private static final String VERTEX_AERO_SET = "_VXST";
-    private static final String VERTEX_EDGELIST_AERO_SET = "_VXEL";
-    private static final String PROPERTY_AERO_SET = "_PRST";
-    private static final String VERTEX_PROPERTY_AERO_SET = "_VPST";
-    private static final String EDGE_ID_KEY = "_EDIDST";
-    private static final String EDGE_ID_BIN = "_EDIDBN";
-    private static final String VERTEX_ID_KEY = "_VXIDST";
-    private static final String VERTEX_ID_BIN = "_VXIDBN";
-    private static final String VERTEX_PROPERTY_ID_KEY = "_VPIDST";
-    private static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
-    private static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
-    private static final String ELEMENT_PROPERTIES = "_EP";
-    private static final String TYPE_HINTS = "_EPT";
-    private static final String KEY_VALUE = "_KV";
-    private static final String COUNTER = "_CT";
-    private static final String ID_MANAGER_SET = "_IDMGR";
-    private static final String LABEL_EDGES = "_LBLED";
+    protected static final String GRAPH_VARIABLES_AERO_SET = "_GVST";
+    protected static final String GRAPH_VARIABLES_RECORD = "_GVR";
+    protected static final String GRAPH_VARIABLES_MAP = "_GVM";
+    protected static final String EDGE_AERO_SET = "_EDST";
+    protected static final String VERTEX_AERO_SET = "_VXST";
+    protected static final String VERTEX_EDGELIST_AERO_SET = "_VXEL";
+    protected static final String PROPERTY_AERO_SET = "_PRST";
+    protected static final String VERTEX_PROPERTY_AERO_SET = "_VPST";
+    protected static final String EDGE_ID_KEY = "_EDIDST";
+    protected static final String EDGE_ID_BIN = "_EDIDBN";
+    protected static final String VERTEX_ID_KEY = "_VXIDST";
+    protected static final String VERTEX_ID_BIN = "_VXIDBN";
+    protected static final String VERTEX_PROPERTY_ID_KEY = "_VPIDST";
+    protected static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
+    protected static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
+    protected static final String ELEMENT_PROPERTIES = "_EP";
+    protected static final String TYPE_HINTS = "_EPT";
+    protected static final String KEY_VALUE = "_KV";
+    protected static final String COUNTER = "_CT";
+    protected static final String ID_MANAGER_SET = "_IDMGR";
+    protected static final String LABEL_EDGES = "_LBLED";
     protected static final String KEY = "_K";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
@@ -188,10 +188,11 @@ public class AerospikeConnection {
         //@todo performance
 
         Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, null);
-        return IteratorUtils.map(i,keyRecordEntry -> {
+        return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getValue().getLong(KEY);
         });
     }
+
     protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName) {
         return scanAllRecordsInSet(setName, null);
     }
@@ -472,7 +473,6 @@ public class AerospikeConnection {
     public void removeVertexProperty(FireflyVertexProperty property) {
         final Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) property.id());
         Vertex parent = property.element();
-        removeElementId(FireflyVertexProperty.class, property.id());
         removeIdFromVertexPropertyList((FireflyVertex) parent, property);
         delete(key);
     }
@@ -575,8 +575,9 @@ public class AerospikeConnection {
      */
     public void writeVertex(final FireflyGraph graph, final Object id, final String label) {
         final Key key = new Key(namespace, VERTEX_AERO_SET, (Long) id);
+        final Bin keyBin = new Bin(KEY, id);
         final Bin lbin = new Bin("label", Value.get(label));
-        write(key, lbin);
+        write(key, keyBin, lbin);
     }
 
     /**
@@ -587,7 +588,6 @@ public class AerospikeConnection {
      */
     public void removeVertex(FireflyGraph graph, Object id) {
         final Key key = new Key(namespace, VERTEX_AERO_SET, (Long) id);
-        removeElementId(FireflyVertex.class, id);
         delete(key);
     }
 
@@ -632,34 +632,6 @@ public class AerospikeConnection {
     }
 
     /**
-     * update the list of currently valid ids
-     *
-     * @param type
-     * @param id
-     */
-    public void writeElementId(final Class<? extends FireflyElement> type, final Object id) {
-        final id_config cfg = new id_config(type);
-        final Key key = new Key(namespace, cfg.getAeroSet(), cfg.getIdKey());
-        client.operate(client.writePolicyDefault, key,
-                ListOperation.append(cfg.getIdBin(), Value.get(((Number) id).longValue())));
-    }
-
-    /**
-     * update the list of currently valid ids
-     *
-     * @param type
-     * @param id
-     */
-    public void removeElementId(final Class<? extends FireflyElement> type, final Object id) {
-        final id_config cfg = new id_config(type);
-        final Key key = new Key(namespace, cfg.getAeroSet(), cfg.getIdKey());
-        client.operate(client.writePolicyDefault, key,
-                ListOperation.removeByValue(cfg.getIdBin(),
-                        Value.get(((Number) id).longValue()), ListReturnType.NONE));
-
-    }
-
-    /**
      * get a list of currently valid ids
      *
      * @param type
@@ -667,14 +639,7 @@ public class AerospikeConnection {
      */
     public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
         final id_config cfg = new id_config(type);
-        final Key key = new Key(namespace, cfg.getAeroSet(), cfg.getIdKey());
-        final Record r = read(key);
-        if (r == null || r.getList(cfg.getIdBin()).isEmpty())
-            return EmptyIterator.instance();
-        client.operate(client.writePolicyDefault, key,
-                ListOperation.sort(cfg.getIdBin(), ListSortFlags.DROP_DUPLICATES)
-        );
-        return (Iterator<Object>) read(key).getList(cfg.getIdBin()).iterator();
+        return scanAllIdsInSet(cfg.getAeroSet());
     }
 
     /**
@@ -778,7 +743,6 @@ public class AerospikeConnection {
 
     public void removeEdge(final FireflyGraph graph, final Object id) {
         final Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
-        removeElementId(FireflyEdge.class, id);
         delete(key);
     }
 

@@ -16,6 +16,7 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 
+
 @RunWith(ProcessStandardSuite.class)
 @GraphProviderClass(provider = FireflyGraphProvider.class, graph = FireflyGraph.class)
 public class FireflyGraphProcessStandardTest {

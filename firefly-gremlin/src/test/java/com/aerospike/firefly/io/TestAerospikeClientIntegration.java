@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class TestAerospikeClientIntegration {
         db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(c),
                 ConfigurationHelper.aerospikePort(c),
                 ConfigurationHelper.aerospikeNamespace(c));
+        db.dropDatabase();
     }
 
     @AfterEach
@@ -85,27 +87,27 @@ public class TestAerospikeClientIntegration {
         assertNull(db.read(key));
     }
 
-    @Test
-    void testAddRemoveIterateVertexIdList() {
-        db.writeElementId(FireflyVertex.class, 1L);
-        db.writeElementId(FireflyVertex.class, 2L);
-        Iterator<Long> i = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-        assertEquals(1L, i.next());
-        assertEquals(2L, i.next());
-        db.removeElementId(FireflyVertex.class, 2L);
-        Iterator<Long> i2 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-        assertEquals(1L, i2.next());
-        assertFalse(i2.hasNext());
-        db.writeElementId(FireflyVertex.class, 3L);
-        db.writeElementId(FireflyVertex.class, 2L);
-        Iterator<Long> i3 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-        long last = 0L;
-        while (i3.hasNext()) {
-            long current = ((Number) i3.next()).longValue();
-            assertTrue(current > last);
-            last = current;
-        }
-    }
+//    @Test
+//    void testAddRemoveIterateVertexIdList() {
+//        db.writeElementId(FireflyVertex.class, 1L);
+//        db.writeElementId(FireflyVertex.class, 2L);
+//        Iterator<Long> i = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
+//        assertEquals(1L, i.next());
+//        assertEquals(2L, i.next());
+//        db.removeElementId(FireflyVertex.class, 2L);
+//        Iterator<Long> i2 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
+//        assertEquals(1L, i2.next());
+//        assertFalse(i2.hasNext());
+//        db.writeElementId(FireflyVertex.class, 3L);
+//        db.writeElementId(FireflyVertex.class, 2L);
+//        Iterator<Long> i3 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
+//        long last = 0L;
+//        while (i3.hasNext()) {
+//            long current = ((Number) i3.next()).longValue();
+//            assertTrue(current > last);
+//            last = current;
+//        }
+//    }
 
     @Test
     void testCounterOps() {
@@ -121,6 +123,55 @@ public class TestAerospikeClientIntegration {
         assertEquals(0, db.getIdCounter(GLOBAL));
     }
 
+    @Test
+    void testScanVertexIds() {
+        FireflyGraph graph = FireflyGraph.open(c);
+        ArrayList<Long> ids = new ArrayList<>() {{
+            add(0L);
+            add(1L);
+        }};
+        db.writeVertex(graph, ids.get(0), "a");
+        db.writeVertex(graph, ids.get(1), "b");
+        Iterator<Long> i = db.scanAllIdsInSet(VERTEX_AERO_SET);
+        assertTrue(i.hasNext());
+        Long a = i.next();
+        assertTrue(ids.contains(a));
+        Long b = i.next();
+        assertTrue(ids.contains(b));
+    }
+
+    @Test
+    void testScanEdgeIds() {
+        FireflyGraph graph = FireflyGraph.open(c);
+        ArrayList<Long> vertexIds = new ArrayList<>() {{
+            add(0L);
+            add(1L);
+        }};
+        ArrayList<Long> edgeIds = new ArrayList<>() {{
+            add(2L);
+            add(3L);
+        }};
+        db.writeVertex(graph, vertexIds.get(0), "a");
+        FireflyVertex va = db.readVertex(graph, vertexIds.get(0));
+        db.writeVertex(graph, vertexIds.get(1), "b");
+        FireflyVertex vb = db.readVertex(graph, vertexIds.get(1));
+        Iterator<Long> i = db.scanAllIdsInSet(VERTEX_AERO_SET);
+        assertTrue(i.hasNext());
+        Long a = i.next();
+        assertTrue(vertexIds.contains(a));
+        Long b = i.next();
+        assertTrue(vertexIds.contains(b));
+
+        db.writeEdge(graph,edgeIds.get(0),"anything",va,vb,new Object[]{});
+        db.writeEdge(graph,edgeIds.get(1),"anything",vb,va,new Object[]{});
+
+        Iterator<Long> ie = db.scanAllIdsInSet(EDGE_AERO_SET);
+        assertTrue(ie.hasNext());
+        Long ae = ie.next();
+        assertTrue(edgeIds.contains(ae));
+        Long be = ie.next();
+        assertTrue(edgeIds.contains(be));
+    }
     @Test
     void testScanQuery() {
         long key1value = 1L;

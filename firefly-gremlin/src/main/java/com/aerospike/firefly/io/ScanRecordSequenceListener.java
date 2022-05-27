@@ -43,20 +43,10 @@ class ScanRecordSequenceListener implements RecordSequenceListener {
 
     public void onRecord(Key key, Record record) throws AerospikeException {
         ++scanCount;
-        if (progressFreq > 0 && scanCount % progressFreq == 0) {
-            System.out.format("Scan returned %s records.\n", scanCount);
-        }
         results.add(new AbstractMap.SimpleEntry<>(key, record));
     }
 
     public void onSuccess() {
-        if (scanCount != writeCount.get()) {   // give the last write some time to finish
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
         scanMonitor.notifyComplete();
     }
 

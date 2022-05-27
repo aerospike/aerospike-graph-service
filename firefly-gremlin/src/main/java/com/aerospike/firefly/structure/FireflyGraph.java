@@ -220,9 +220,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public Long getNextId(FireflyGraph graph) {
-            long val = graph.db.incrementIdCounter(GLOBAL);
-            graph.db.writeElementId(type, val);
-            return val;
+            return graph.db.incrementIdCounter(GLOBAL);
         }
 
         @Override

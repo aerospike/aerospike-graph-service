@@ -1,15 +1,18 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.*;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.async.EventLoop;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.Throttles;
 import com.aerospike.client.listener.RecordSequenceListener;
-import com.aerospike.client.listener.WriteListener;
-import com.aerospike.client.policy.WritePolicy;
 
+import java.util.AbstractMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -18,10 +21,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 class ScanRecordSequenceListener implements RecordSequenceListener {
     private final AerospikeClient client;
-    private EventLoops eventLoops;
-    private Throttles throttles;
-    private Monitor scanMonitor;
-    private AtomicInteger writeCount = new AtomicInteger();
+    private final EventLoops eventLoops;
+    private final Throttles throttles;
+    private final Monitor scanMonitor;
+    private final AtomicInteger writeCount = new AtomicInteger();
+    private final ConcurrentLinkedQueue<Map.Entry<Key, Record>> results = new ConcurrentLinkedQueue<>();
     private int scanCount = 0;
     private final int progressFreq;
 
@@ -42,40 +46,7 @@ class ScanRecordSequenceListener implements RecordSequenceListener {
         if (progressFreq > 0 && scanCount % progressFreq == 0) {
             System.out.format("Scan returned %s records.\n", scanCount);
         }
-        // submit async update operation with throttle
-        EventLoop eventLoop = eventLoops.next();
-        int eventLoopIndex = eventLoop.getIndex();
-        if (throttles.waitForSlot(eventLoopIndex, 1)) {      // throttle by waiting for an available slot
-            try {
-                WritePolicy policy = new WritePolicy();
-                Bin bin2 = new Bin(new String("bin2"), 1);
-
-                client.add(eventLoop, new WriteListener() {  // inline write listener
-
-                            public void onSuccess(final Key key) {
-                                // Write succeeded.
-                                throttles.addSlot(eventLoopIndex, 1);
-                                int currentCount = writeCount.incrementAndGet();
-                                if (progressFreq > 0 && currentCount % progressFreq == 0) {
-                                    System.out.format("Processed %s records.\n", currentCount);
-                                }
-                            }
-
-                            public void onFailure(AerospikeException e) {
-                                System.out.format("Put failed: namespace=%s set=%s key=%s exception=%s\n",
-                                        key.namespace, key.setName, key.userKey, e.getMessage());
-                                throttles.addSlot(eventLoopIndex, 1);
-                                int currentCount = writeCount.incrementAndGet();
-                                if (progressFreq > 0 && currentCount % progressFreq == 0) {
-                                    System.out.format("Processed %s records.\n", currentCount);
-                                }
-                            }
-                        },
-                        policy, key, bin2);
-            } catch (Exception e) {
-                System.out.format("Error: exception in write listener - %s", e.getMessage());
-            }
-        }
+        results.add(new AbstractMap.SimpleEntry<>(key, record));
     }
 
     public void onSuccess() {
@@ -83,7 +54,7 @@ class ScanRecordSequenceListener implements RecordSequenceListener {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
-                System.out.format("Error: exception - %s", e);
+                throw new RuntimeException(e);
             }
         }
         scanMonitor.notifyComplete();
@@ -92,5 +63,9 @@ class ScanRecordSequenceListener implements RecordSequenceListener {
     public void onFailure(AerospikeException e) {
         System.out.format("Error: scan failed with exception - %s", e);
         scanMonitor.notifyComplete();
+    }
+
+    public Iterator<Map.Entry<Key, Record>> iterator() {
+        return results.iterator();
     }
 }

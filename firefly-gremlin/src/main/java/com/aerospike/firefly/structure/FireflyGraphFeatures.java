@@ -426,7 +426,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsIntegerValues() {
-            return false;
+            return true;
         }
 
         @Override

@@ -6,7 +6,8 @@ import com.aerospike.client.async.*;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.ListSortFlags;
-import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.structure.*;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -59,6 +60,7 @@ public class AerospikeConnection {
     private static final String COUNTER = "_CT";
     private static final String ID_MANAGER_SET = "_IDMGR";
     private static final String LABEL_EDGES = "_LBLED";
+    protected static final String KEY = "_K";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
     public static final Map<Class<? extends Serializable>, Long> SupportedTypes = new HashMap<>() {{
@@ -71,6 +73,7 @@ public class AerospikeConnection {
         put(byte[].class, 7L);
     }};
     private final int commandsPerLoop = 25;
+    private final ClientPolicy clientPolicy;
 
     private Long getSupportedType(Class clazz) {
         if (!SupportedTypes.containsKey(clazz))
@@ -82,7 +85,10 @@ public class AerospikeConnection {
         this.host = host;
         this.port = port;
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
-        this.client = new AerospikeClient(host, port);
+        Host[] hosts = Host.parseHosts(host, port);
+        this.clientPolicy = new ClientPolicy();
+        this.clientPolicy.eventLoops = this.eventLoops;
+        this.client = new AerospikeClient(clientPolicy, hosts);
         this.namespace = namespace;
     }
 
@@ -178,20 +184,37 @@ public class AerospikeConnection {
 
     }
 
+    protected Iterator<Long> scanAllIdsInSet(final String setName) {
+        //@todo performance
 
-    private Iterator<Object> scanAllIdsInSet(final String setName) {
+        Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, null);
+        return IteratorUtils.map(i,keyRecordEntry -> {
+            return keyRecordEntry.getValue().getLong(KEY);
+        });
+    }
+    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName) {
+        return scanAllRecordsInSet(setName, null);
+    }
+
+    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, Expression exp) {
         Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
         Monitor scanMonitor = new Monitor();
         int progressFreq = 100;
         ScanPolicy policy = new ScanPolicy();
-        policy.filterExp = Exp.build(
-                Exp.and(
-                        Exp.le(Exp.intBin("bin1"), Exp.val(1000)),
-                        Exp.ge(Exp.intBin("bin1"), Exp.val(1))));
-        ScanRecordSequenceListener listener = new ScanRecordSequenceListener(eventLoops, throttles, scanMonitor, client, progressFreq);
+        if (exp != null)
+            policy.filterExp = exp;
+        ScanRecordSequenceListener listener = new ScanRecordSequenceListener(eventLoops,
+                throttles,
+                scanMonitor,
+                client,
+                progressFreq);
         client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName);
+        //@todo performance
+        // should return custom iterator that produces results while query is running
+        // custom iterator .hasNext() should return false once query is complete
         scanMonitor.waitTillComplete();
-        return null;
+
+        return listener.iterator();
     }
 
     private <V> V readTypeHintedValueFromMap(final String aeroSet,
@@ -418,7 +441,8 @@ public class AerospikeConnection {
         propertyKeys.put(k, Arrays.asList(uniqueIds.toArray()));
 
         final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
-        write(vertexKey, vertexPropertyIds);
+        final Bin keyBin = new Bin(KEY, vertex.id());
+        write(vertexKey, keyBin, vertexPropertyIds);
     }
 
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, VertexProperty vp) {
@@ -736,10 +760,11 @@ public class AerospikeConnection {
                           final Object[] keyValues) {
 
         final Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);
+        final Bin keyBin = new Bin(KEY, id);
         final Bin lbin = new Bin("label", Value.get(label));
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id()));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id()));
-        write(key, lbin, inVbin, outVBin);
+        write(key, keyBin, lbin, inVbin, outVBin);
         FireflyEdge edge = readEdge(graph, id);
         addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
         addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);

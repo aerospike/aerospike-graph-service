@@ -40,6 +40,7 @@ public class TestAerospikeGraphIntegration {
     static {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
+
     private AerospikeConnection db;
     private FireflyGraph graph;
 
@@ -282,7 +283,8 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    @Disabled // requires user supplied ids
+    @Disabled
+        // requires user supplied ids
     void testGrateful() throws IOException {
 
         GraphTraversalSource g = graph.traversal();
@@ -353,6 +355,7 @@ public class TestAerospikeGraphIntegration {
             }
         }
     }
+
 
 
 }

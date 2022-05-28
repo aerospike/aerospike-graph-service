@@ -600,45 +600,6 @@ public class AerospikeConnection {
         delete(key);
     }
 
-    /**
-     * return the inbound edges for a FireflyVertex
-     *
-     * @param v
-     * @return
-     */
-    public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex v) {
-        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.IN.name(), (Long) v.id()));
-        final Record r = read(key);
-        if (r == null) {
-            return EmptyIterator.instance();
-        }
-        Map<String, List<Object>> labelEdges = (Map<String, List<Object>>) r.getMap(LABEL_EDGES);
-        if (labelEdges == null) {
-            labelEdges = new HashMap<>();
-        }
-
-        return IteratorUtils.flatMap(labelEdges.entrySet().iterator(), mapEntry ->
-                mapEntry.getValue().iterator());
-    }
-
-    /**
-     * return the outbound edges for a FireflyVertex
-     *
-     * @param v
-     * @return
-     */
-    public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
-        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.OUT.name(), (Long) v.id()));
-        final Record r = read(key);
-        if (r == null) {
-            return EmptyIterator.instance();
-        }
-        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
-        if (labelEdges == null) {
-            labelEdges = new HashMap<>();
-        }
-        return IteratorUtils.flatMap(IteratorUtils.asIterator(labelEdges.entrySet()), e -> IteratorUtils.asIterator(((AbstractMap.Entry) e).getValue()));
-    }
 
     public Iterator<Object> getOutEdgeIdsFromVertexByScan(final FireflyVertex v) {
         final Expression exp = Exp.build(
@@ -670,58 +631,6 @@ public class AerospikeConnection {
         return scanAllIdsInSet(cfg.getAeroSet());
     }
 
-    /**
-     * Add an edge to a vertex
-     * each vertex contains a list named for the edge direction
-     *
-     * @param graph
-     * @param vertexId
-     * @param edge
-     * @param direction
-     */
-    public void addEdgeToVertex(final FireflyGraph graph, final Object vertexId, final FireflyEdge edge, final Direction direction) {
-        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", direction.name(), (Long) vertexId));
-        final Record r = read(key);
-        Map<String, List<Long>> labelEdges;
-        if (r == null) {
-            labelEdges = new HashMap<>();
-        } else {
-            labelEdges = (Map<String, List<Long>>) Optional.ofNullable(r.getMap(LABEL_EDGES)).orElse(new HashMap<>());
-        }
-        if (labelEdges == null) {
-            labelEdges = new HashMap<>();
-        }
-        List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
-        edges.add(((Number) edge.id()).longValue());
-        labelEdges.put(edge.label(), edges);
-        final Bin deb = new Bin(LABEL_EDGES, Value.get(labelEdges));
-        write(key, deb);
-    }
-
-    /**
-     * remove an edge from a vertex
-     * each vertex contains a list named for the edge direction
-     *
-     * @param graph
-     * @param vertexId
-     * @param edge
-     * @param direction
-     */
-    public void removeEdgeFromVertex(final FireflyGraph graph, final Object vertexId, final FireflyEdge edge, final Direction direction) {
-        final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", direction.name(), (Long) vertexId));
-        final Record r = read(key);
-        if (r == null)
-            return;
-        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
-        if (labelEdges == null) {
-            labelEdges = new HashMap<>();
-        }
-        List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
-        edges.remove(((Number) edge.id()).longValue());
-        labelEdges.put(edge.label(), edges);
-        final Bin deb = new Bin(LABEL_EDGES, Value.get(labelEdges));
-        write(key, deb);
-    }
 
 
     public FireflyEdge readEdge(final FireflyGraph graph, final Object id) {
@@ -759,8 +668,8 @@ public class AerospikeConnection {
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id()));
         write(key, keyBin, lbin, inVbin, outVBin);
         FireflyEdge edge = readEdge(graph, id);
-        addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
-        addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
+//        addEdgeToVertex(graph, inVertex.id(), edge, Direction.IN);
+//        addEdgeToVertex(graph, outVertex.id(), edge, Direction.OUT);
         Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
             Object propKey = propIter.next();

@@ -13,7 +13,6 @@ import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -25,7 +24,6 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static java.lang.Thread.sleep;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
@@ -283,10 +281,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    @Disabled
-        // requires user supplied ids
     void testGrateful() throws IOException {
-
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
 
@@ -295,7 +290,13 @@ public class TestAerospikeGraphIntegration {
         tempPath.toFile().deleteOnExit();
         Util.copyResourceToDirectory(resourceName, tempPath);
         String kryoGratefulPath = tempPath.resolve(resourceName).toAbsolutePath().toString();
-        g.io(kryoGratefulPath).read();
+        g.io(kryoGratefulPath).read().iterate();
+        Long x1 = g.V().count().next();
+        Long x2 = g2.V().count().next();
+        assertEquals(x2,x1);
+        Long x = g.V().has("name", "CANT COME DOWN").outE().count().next();
+        Long y = g2.V().has("name", "CANT COME DOWN").outE().count().next();
+        assertEquals(x,y);
         assertEquals(
                 g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
                 g.V().has("name", "CANT COME DOWN").outE().inV().count().next());

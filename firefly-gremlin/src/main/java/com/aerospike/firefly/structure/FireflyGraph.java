@@ -121,8 +121,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
         if (null != idValue) { //@todo performance
-            if (readVertex(this, idValue) != null)
-                throw Exceptions.vertexWithIdAlreadyExists(idValue);
+//            if (readVertex(this, idValue) != null)
+//                throw Exceptions.vertexWithIdAlreadyExists(idValue);
         } else {
             idValue = vertexIdManager.getNextId(this);
         }
@@ -244,7 +244,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public boolean allow(Object id) {
-            return id instanceof Long || id instanceof String;
+            return id instanceof Long;
         }
     }
 

@@ -112,12 +112,12 @@ public class TestAerospikeClientIntegration {
     @Test
     void testCounterOps() {
         db.zeroIdCounter(GLOBAL);
-        db.incrementIdCounter(GLOBAL);
+        db.incrementAndGetIdCounter(GLOBAL);
         assertEquals(1, db.getIdCounter(GLOBAL));
         db.decrementIdCounter(GLOBAL);
         assertEquals(0, db.getIdCounter(GLOBAL));
-        db.incrementIdCounter(GLOBAL);
-        db.incrementIdCounter(GLOBAL);
+        db.incrementAndGetIdCounter(GLOBAL);
+        db.incrementAndGetIdCounter(GLOBAL);
         assertEquals(2, db.getIdCounter(GLOBAL));
         db.zeroIdCounter(GLOBAL);
         assertEquals(0, db.getIdCounter(GLOBAL));

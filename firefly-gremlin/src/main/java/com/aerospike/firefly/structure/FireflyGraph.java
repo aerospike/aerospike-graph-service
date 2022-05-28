@@ -17,10 +17,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
 import static com.aerospike.firefly.structure.FireflyHelper.readVertex;
 import static com.aerospike.firefly.structure.FireflyHelper.writeVertex;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
+import static com.aerospike.firefly.util.Tokens.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -69,9 +68,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Integer aerospikePort = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
         final String aerospikeNamespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
         this.db = AerospikeConnection.connect(aerospikeHost, aerospikePort, aerospikeNamespace);
-        vertexPropertyIdManager = new LongIdManager<>(FireflyVertexProperty.class, GLOBAL);
-        vertexIdManager = new LongIdManager<>(FireflyVertex.class, GLOBAL);
-        edgeIdManager = new LongIdManager<>(FireflyEdge.class, GLOBAL);
+        vertexPropertyIdManager = new LongIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
+        vertexIdManager = new LongIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
+        edgeIdManager = new LongIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
         variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
     }
@@ -205,11 +204,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
          * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
          * {@link Long} and will also attempt to convert {@code String} values
          */
-        private final String counterNamespace;
+        private final String counterName;
         private final Class<? extends FireflyElement> type;
 
-        public LongIdManager(Class<? extends FireflyElement> type, String counterNamespace) {
-            this.counterNamespace = counterNamespace;
+        public LongIdManager(Class<? extends FireflyElement> type, String counterName) {
+            this.counterName = counterName;
             this.type = type;
         }
 
@@ -219,7 +218,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public Long getNextId(FireflyGraph graph) {
-            return graph.db.incrementIdCounter(GLOBAL);
+            return graph.db.incrementAndGetIdCounter(this.counterName);
         }
 
         @Override

@@ -3,9 +3,6 @@ package com.aerospike.firefly.io;
 import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.async.*;
-import com.aerospike.client.cdt.ListOperation;
-import com.aerospike.client.cdt.ListReturnType;
-import com.aerospike.client.cdt.ListSortFlags;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
@@ -17,7 +14,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
@@ -690,7 +686,7 @@ public class AerospikeConnection {
         return r.getLong(COUNTER);
     }
 
-    public long incrementIdCounter(final String name) {
+    public long incrementAndGetIdCounter(final String name) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, 1);
         Record r = client.operate(null, key,

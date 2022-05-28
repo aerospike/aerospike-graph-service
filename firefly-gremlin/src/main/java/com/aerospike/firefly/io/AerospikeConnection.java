@@ -36,6 +36,7 @@ public class AerospikeConnection {
     protected final String namespace;
 
 
+    protected static final String GRAPH_METADATA_AERO_SET = "_GMST";
     protected static final String GRAPH_VARIABLES_AERO_SET = "_GVST";
     protected static final String GRAPH_VARIABLES_RECORD = "_GVR";
     protected static final String GRAPH_VARIABLES_MAP = "_GVM";
@@ -51,12 +52,16 @@ public class AerospikeConnection {
     protected static final String VERTEX_PROPERTY_ID_KEY = "_VPIDST";
     protected static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
     protected static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
+    protected static final String VERTEX_PROPERTY_NAME = "_VPN";
+    protected static final String PARENT_VERTEX_ID = "_PVI";
+
+
     protected static final String ELEMENT_PROPERTIES = "_EP";
     protected static final String TYPE_HINTS = "_EPT";
     protected static final String KEY_VALUE = "_KV";
     protected static final String COUNTER = "_CT";
     protected static final String ID_MANAGER_SET = "_IDMGR";
-    protected static final String LABEL_EDGES = "_LBLED";
+    protected static final String ID_TYPE = "_IT";
     protected static final String KEY = "_K";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
@@ -69,6 +74,22 @@ public class AerospikeConnection {
         put(Double.class, 6L);
         put(byte[].class, 7L);
     }};
+
+    private Class<?> readGraphIdType() {
+        Key key = new Key(namespace, GRAPH_METADATA_AERO_SET, KEY);
+        Record record = read(key);
+        if (record == null)
+            return null;
+        long type = record.getLong(ID_TYPE);
+        if (type == 0)
+            return null;
+        return SupportedTypes.entrySet().stream().filter(it -> it.getValue() == type).collect(Collectors.toList()).get(0).getKey();
+    }
+
+    private void writeGraphIdType() {
+
+    }
+
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
 
@@ -314,6 +335,14 @@ public class AerospikeConnection {
                                                final String mapName,
                                                final String mapKey,
                                                final V value) {
+        writeTypeHintedValueToMap(aeroSet, aeroKey, mapName, mapKey, value, null);
+    }
+
+    private <V> void writeTypeHintedValueToMap(final String aeroSet,
+                                               final Object aeroKey,
+                                               final String mapName,
+                                               final String mapKey,
+                                               final V value, Bin... additionalBins) {
 
         final Record r = read(getAeroKey(aeroSet, aeroKey));
         final Map<String, Object> data;
@@ -332,7 +361,15 @@ public class AerospikeConnection {
         data.put(mapKey, value);
         final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
         final Bin valueBin = new Bin(mapName, Value.get(data));
-        write(getAeroKey(aeroSet, aeroKey), valueBin, typeHintBin);
+        if (additionalBins == null)
+            write(getAeroKey(aeroSet, aeroKey), valueBin, typeHintBin);
+        else {
+            List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
+            listOfBins.add(valueBin);
+            listOfBins.add(typeHintBin);
+            write(getAeroKey(aeroSet, aeroKey), listOfBins.toArray(new Bin[0]));
+        }
+
     }
 
     public <V> V readGraphVariable(String k) {
@@ -416,19 +453,22 @@ public class AerospikeConnection {
      * @param v
      * @param <V>
      */
-    public <V> void writeVertexProperty(final FireflyVertex vertex, Object id, String k, V v) {
-        writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE, k, v);
+    public <V> void writeVertexProperty(final FireflyVertex vertex, Object id, String vpk, String k, V v) {
+        Bin idBin = new Bin(KEY, id);
+        Bin vpkBin = new Bin(VERTEX_PROPERTY_NAME, vpk);
+        Bin pviBin = new Bin(PARENT_VERTEX_ID, vertex.id());
+        writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE, k, v, idBin, vpkBin, pviBin);
     }
 
     /**
      * Write a new Key : List[VertexProperty] on the associated vertex
      *
      * @param vertex
-     * @param k
-     * @param v
+     * @param vpk
+     * @param listOfVP
      */
 
-    public void writeVertexPropertyList(final FireflyVertex vertex, final String k, final List<VertexProperty> v) {
+    public void writeVertexPropertyList(final FireflyVertex vertex, final String vpk, final List<VertexProperty> listOfVP) {
         final Key vertexKey = new Key(namespace, VERTEX_AERO_SET, (Long) vertex.id());
         final Record vertexRecord = read(vertexKey);
         if (vertexRecord == null)
@@ -436,19 +476,19 @@ public class AerospikeConnection {
         Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.getMap(VERTEX_PROPERTY_NAME_TO_ID);
         if (propertyKeys == null)
             propertyKeys = new HashMap<>();
-        final List<Object> ids = propertyKeys.getOrDefault(k, new ArrayList<>());
+        final List<Object> ids = propertyKeys.getOrDefault(vpk, new ArrayList<>());
 
-        v.forEach(vp -> {
-            writeVertexProperty(vertex, vp.id(), vp.key(), vp.value());
+        listOfVP.forEach(vp -> {
+            writeVertexProperty(vertex, vp.id(), vpk, vp.key(), vp.value());
             ids.add(vp.id());
         });
+
         final HashSet<Object> uniqueIds = new HashSet<>(ids);
 
-        propertyKeys.put(k, Arrays.asList(uniqueIds.toArray()));
+        propertyKeys.put(vpk, Arrays.asList(uniqueIds.toArray()));
 
         final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
-        final Bin keyBin = new Bin(KEY, vertex.id());
-        write(vertexKey, keyBin, vertexPropertyIds);
+        write(vertexKey, vertexPropertyIds);
     }
 
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, VertexProperty vp) {
@@ -606,11 +646,12 @@ public class AerospikeConnection {
 
         return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
     }
+
     public Iterator<Object> getInEdgeIdsFromVertexByScan(final FireflyVertex v) {
         final Expression exp = Exp.build(
-                        Exp.eq(
-                                Exp.intBin(Direction.IN.name()),
-                                Exp.val((Long) v.id()))
+                Exp.eq(
+                        Exp.intBin(Direction.IN.name()),
+                        Exp.val((Long) v.id()))
         );
 
         return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
@@ -626,7 +667,6 @@ public class AerospikeConnection {
         final id_config cfg = new id_config(type);
         return scanAllIdsInSet(cfg.getAeroSet());
     }
-
 
 
     public FireflyEdge readEdge(final FireflyGraph graph, final Object id) {

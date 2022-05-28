@@ -4,21 +4,27 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -373,6 +379,23 @@ public class TestAerospikeGraphIntegration {
         Object next = i.next();
         assertTrue(x.contains(next));
         assertTrue(x.contains(next));
+    }
+    @Test
+    @Disabled
+     void testDetached(){
+        GraphTraversalSource g = graph.traversal();
+        AtomicLong ctr = new AtomicLong(0);
+        Vertex starVertex = graph.addVertex(T.label, "person", "name", "stephen", "name", "spmallete");
+        starVertex.property("acl", true, "timestamp", ctr.addAndGet(1), "creator", "marko");
+//        for (int i = 0; i < 100; i++) {
+//            starVertex.addEdge("knows", graph.addVertex(T.label,"person", "name", new UUID(ctr.addAndGet(1), ctr.addAndGet(1)).toString(), "since", ctr.addAndGet(1)));
+//            graph.addVertex(T.label, "project").addEdge("developedBy", starVertex, "public", false);
+//        }
+        final DetachedVertex detachedVertex = DetachedFactory.detach(g.V(starVertex.id()).next(), true);
+        final Vertex createdVertex = detachedVertex.attach(Attachable.Method.create(graph));
+        TestHelper.validateVertexEquality(detachedVertex, createdVertex, false);
+        TestHelper.validateVertexEquality(detachedVertex, starVertex, false);
+
     }
 
 }

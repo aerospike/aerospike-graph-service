@@ -356,5 +356,22 @@ public class TestAerospikeGraphIntegration {
         }
     }
 
+    @Test
+    void testEdgeIdScan(){
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        Iterator<Object> i = db.getOutEdgeIdsFromVertexByScan((FireflyVertex) fruit);
+        assertTrue(i.hasNext());
+        List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
+        Object next = i.next();
+        assertTrue(x.contains(next));
+        assertTrue(x.contains(next));
+    }
 
 }

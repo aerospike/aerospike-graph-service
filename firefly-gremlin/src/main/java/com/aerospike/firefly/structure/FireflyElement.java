@@ -38,6 +38,7 @@ public abstract class FireflyElement implements Element {
     public boolean equals(final Object object) {
         return ElementHelper.areEqual(this, object);
     }
+
     @Override
     public int hashCode() {
         return ElementHelper.hashCode(this);

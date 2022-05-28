@@ -30,12 +30,15 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return readVertexProperties();
     }
 
-    protected Iterator<Long> getInEdgeIds() {
-        return this.graph.db.getInEdgeIdsFromVertex(this);
+    protected Iterator<Object> getInEdgeIds() {
+//        return this.graph.db.getInEdgeIdsFromVertex(this);
+        return this.graph.db.getInEdgeIdsFromVertexByScan(this);
+
     }
 
     protected Iterator<Object> getOutEdgeIds() {
-        return this.graph.db.getOutEdgeIdsFromVertex(this);
+//        return this.graph.db.getOutEdgeIdsFromVertex(this);
+        return this.graph.db.getOutEdgeIdsFromVertexByScan(this);
     }
 
     public FireflyVertex(final Record record, final Object id, final String label, final FireflyGraph graph) {
@@ -153,7 +156,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             }
         } else {
             return IteratorUtils.flatMap(IteratorUtils.filter(IteratorUtils.asIterator(allProperties.entrySet()),
-                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
+                            entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
                     entry -> IteratorUtils.asIterator(((AbstractMap.Entry) entry).getValue()));
         }
     }
@@ -167,5 +170,12 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     public String toString() {
         return StringFactory.vertexString(this);
     }
-
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode(this);
+    }
+    @Override
+    public boolean equals(Object o){
+        return ElementHelper.areEqual(this,o);
+    }
 }

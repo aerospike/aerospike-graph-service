@@ -88,8 +88,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void remove() {
-        graph.db.removeEdgeFromVertex(graph, this.outVid, this, Direction.BOTH);
-        graph.db.removeEdgeFromVertex(graph, this.inVid, this, Direction.BOTH);
         graph.db.removeEdge(graph, this.id);
     }
 

@@ -255,5 +255,4 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return StringFactory.graphString(this, db.toString());
     }
 
-
 }

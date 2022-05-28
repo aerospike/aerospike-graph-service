@@ -6,6 +6,7 @@ import com.aerospike.client.async.*;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.ListSortFlags;
+import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
@@ -188,6 +189,14 @@ public class AerospikeConnection {
         //@todo performance
 
         Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, null);
+        return IteratorUtils.map(i, keyRecordEntry -> {
+            return keyRecordEntry.getValue().getLong(KEY);
+        });
+    }
+
+    protected Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
+        //@todo performance can we filter out unnecessary bins?
+        Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, exp);
         return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getValue().getLong(KEY);
         });
@@ -597,13 +606,13 @@ public class AerospikeConnection {
      * @param v
      * @return
      */
-    public Iterator<Long> getInEdgeIdsFromVertex(final FireflyVertex v) {
+    public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex v) {
         final Key key = new Key(namespace, VERTEX_EDGELIST_AERO_SET, String.format("%s%d", Direction.IN.name(), (Long) v.id()));
         final Record r = read(key);
         if (r == null) {
             return EmptyIterator.instance();
         }
-        Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) r.getMap(LABEL_EDGES);
+        Map<String, List<Object>> labelEdges = (Map<String, List<Object>>) r.getMap(LABEL_EDGES);
         if (labelEdges == null) {
             labelEdges = new HashMap<>();
         }
@@ -629,6 +638,25 @@ public class AerospikeConnection {
             labelEdges = new HashMap<>();
         }
         return IteratorUtils.flatMap(IteratorUtils.asIterator(labelEdges.entrySet()), e -> IteratorUtils.asIterator(((AbstractMap.Entry) e).getValue()));
+    }
+
+    public Iterator<Object> getOutEdgeIdsFromVertexByScan(final FireflyVertex v) {
+        final Expression exp = Exp.build(
+                Exp.eq(
+                        Exp.intBin(Direction.OUT.name()),
+                        Exp.val((Long) v.id()))
+        );
+
+        return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
+    }
+    public Iterator<Object> getInEdgeIdsFromVertexByScan(final FireflyVertex v) {
+        final Expression exp = Exp.build(
+                        Exp.eq(
+                                Exp.intBin(Direction.IN.name()),
+                                Exp.val((Long) v.id()))
+        );
+
+        return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
     }
 
     /**

@@ -55,5 +55,8 @@ public class FireflyProperty<V> implements Property<V> {
     public String toString() {
         return StringFactory.propertyString(this);
     }
-
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode(this);
+    }
 }

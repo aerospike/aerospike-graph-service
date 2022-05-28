@@ -115,4 +115,14 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     public String toString() {
         return StringFactory.propertyString(this);
     }
+
+    @Override
+    public int hashCode() {
+        return ElementHelper.hashCode((FireflyElement) this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return ElementHelper.areEqual(this, o);
+    }
 }

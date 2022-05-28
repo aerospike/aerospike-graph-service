@@ -197,4 +197,5 @@ public class TestAerospikeClientIntegration {
         assertEquals(results.get(key2).getValue("name"), bin21.value.getObject());
     }
 
+
 }

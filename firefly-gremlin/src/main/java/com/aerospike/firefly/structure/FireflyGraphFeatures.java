@@ -201,7 +201,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return true;
         }
 
         @Override
@@ -257,7 +257,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return true;
         }
 
         @Override
@@ -374,7 +374,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return true;
         }
 
         @Override

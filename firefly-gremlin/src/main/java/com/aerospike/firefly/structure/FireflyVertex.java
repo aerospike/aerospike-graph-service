@@ -63,8 +63,6 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             return VertexProperty.empty();
         }
         final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
-        if (optionalId.isPresent())
-            throw new UnsupportedOperationException("user supplied ids not supported");
 
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
         if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();

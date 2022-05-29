@@ -102,7 +102,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
         } else{
             return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
-                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry -> ((AbstractMap.Entry)entry).getValue());
+                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry ->
+                    ((AbstractMap.Entry)entry).getValue());
         }
     }
 

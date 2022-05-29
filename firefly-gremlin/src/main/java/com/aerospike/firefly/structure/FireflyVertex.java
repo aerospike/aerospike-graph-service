@@ -77,7 +77,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             final List<VertexProperty> list = this.readVertexProperties().getOrDefault(key, new ArrayList());
             list.add(vertexProperty);
 
-            this.writeVertexPropertyList(key, list);
+            this.writeVertexPropertyList(key, new ArrayList(new HashSet(list)));
             //FireflyHelper.autoUpdateIndex(this, key, value, null);
             ElementHelper.attachProperties(vertexProperty, keyValues);
             return vertexProperty;

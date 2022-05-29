@@ -56,7 +56,9 @@ public class AerospikeConnection {
     protected static final String PARENT_VERTEX_ID = "_PVI";
 
 
-    protected static final String ELEMENT_PROPERTIES = "_EP";
+    protected static final String VERTEX_PROPERTIES = "_VXP";
+    protected static final String EDGE_PROPERTIES = "_EDP";
+    protected static final String VP_PROPERTIES = "_VPP";
     protected static final String TYPE_HINTS = "_EPT";
     protected static final String KEY_VALUE = "_KV";
     protected static final String COUNTER = "_CT";
@@ -74,7 +76,15 @@ public class AerospikeConnection {
         put(Double.class, 6L);
         put(byte[].class, 7L);
     }};
-
+    private String getElementPropertySet(FireflyElement ele){
+        if(ele.getClass().equals(FireflyVertex.class))
+            return VERTEX_PROPERTIES;
+        else if(ele.getClass().equals(FireflyEdge.class))
+            return EDGE_PROPERTIES;
+        else if(ele.getClass().equals(FireflyVertexProperty.class))
+            return VP_PROPERTIES;
+        throw new UnsupportedOperationException("ele not supported " + ele.getClass());
+    }
     private Class<?> readGraphIdType() {
         Key key = new Key(namespace, GRAPH_METADATA_AERO_SET, KEY);
         Record record = read(key);
@@ -537,7 +547,7 @@ public class AerospikeConnection {
             return new HashMap<>();
 
         final Map<String, Property> result = new HashMap<>();
-        final Map<String, V> data = (Map<String, V>) r.getMap(ELEMENT_PROPERTIES);
+        final Map<String, V> data = (Map<String, V>) r.getMap(getElementPropertySet(ele));
         if (data == null)
             return result;
         data.forEach((key1, value) -> {
@@ -557,7 +567,7 @@ public class AerospikeConnection {
      * @return
      */
     public <V> Property readProperty(final FireflyElement ele, final String k) {
-        return new FireflyProperty(ele, k, readTypeHintedValueFromMap(PROPERTY_AERO_SET, ele.id(), ELEMENT_PROPERTIES, k));
+        return new FireflyProperty(ele, k, readTypeHintedValueFromMap(PROPERTY_AERO_SET, ele.id(), getElementPropertySet(ele), k));
     }
 
 
@@ -571,26 +581,26 @@ public class AerospikeConnection {
      * write a new property into the property Record for element
      * 1 property record per element, a Map bin of name -> value
      *
-     * @param element
+     * @param ele
      * @param k
      * @param value
      * @param <V>
      */
-    public <V> void writeProperty(final FireflyElement element, final String k, final V value) {
+    public <V> void writeProperty(final FireflyElement ele, final String k, final V value) {
         FireflyHelper.validatePropertyValue(value);
-        writeTypeHintedValueToMap(PROPERTY_AERO_SET, element.id(), ELEMENT_PROPERTIES, k, value);
+        writeTypeHintedValueToMap(PROPERTY_AERO_SET, ele.id(), getElementPropertySet(ele), k, value);
     }
 
     /**
      * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
      * remove k from the ELEMENT_PROPERTIES map
      *
-     * @param element
+     * @param ele
      * @param k
      * @param <V>
      */
-    public <V> void removeProperty(final FireflyElement element, final String k) {
-        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, element.id(), ELEMENT_PROPERTIES, k);
+    public <V> void removeProperty(final FireflyElement ele, final String k) {
+        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, ele.id(), getElementPropertySet(ele), k);
     }
 
     /**
@@ -744,7 +754,7 @@ public class AerospikeConnection {
     }
 
     public long zeroIdCounter(final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Key key = new Key(namespace, ID_MANAGER_SET, GLOBAL);
         final Bin ctr = new Bin(COUNTER, 0);
         write(key, ctr);
         return 0L;

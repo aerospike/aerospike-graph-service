@@ -315,6 +315,32 @@ public class TestAerospikeGraphIntegration {
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
     }
 
+
+    @Test
+    public void g_V_both_properties_properties_dedup_count() {
+        GraphTraversalSource g = graph.traversal();
+        loadKryoData(g, "tinkerpop-crew.kryo");
+
+        TinkerGraph tg = TinkerFactory.createTheCrew();
+        GraphTraversalSource tgs = tg.traversal();
+
+        List<Vertex> tgeles = tgs.V().both().dedup().toList();
+        List<? extends Property<Object>> tgelesProps = tgs.V().both().dedup().properties().toList();
+        List<? extends Property<Object>> tgelesPropsProps = tgs.V().both().dedup().properties().properties().toList();
+
+        List<? extends Property<Object>> list2 = tgs.V().both().properties().properties().dedup().toList();
+        long nondedupCount2 = tgs.V().both().properties().properties().count().next();
+        long count2 = tgs.V().both().properties().properties().dedup().count().next();
+
+        List<Vertex> geles = g.V().both().dedup().toList();
+        List<? extends Property<Object>> gelesProps = g.V().both().dedup().properties().toList();
+        List<? extends Property<Object>> gelesPropsProps = g.V().both().dedup().properties().properties().toList();
+
+        List<? extends Property<Object>> list = g.V().both().properties().properties().dedup().toList();
+        long nondedupCount = g.V().both().properties().properties().count().next();
+        long count = g.V().both().properties().properties().dedup().count().next();
+        assertEquals(21L, count);
+    }
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         GraphTraversalSource g = graph.traversal();

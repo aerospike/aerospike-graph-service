@@ -75,28 +75,13 @@ public class FireflyHelper {
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).db;
         final List<Edge> edges = new ArrayList<>();
-        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
+
+        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(
-                            db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
+                    vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
                 } else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
-                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
-                        e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
-                            if (label.equals(edge.label()))
-                                edges.add(edge);
-                        }));
-                    });
-                }
-            }
-        }
-        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (vertex.getInEdgeIds().hasNext()) {
-                if (edgeLabels.length == 0) {
-                    vertex.getInEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
-                } else {
-                    vertex.getInEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
@@ -108,13 +93,29 @@ public class FireflyHelper {
                 }
             }
         }
+        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
+            if (vertex.getInEdgeIds().hasNext()) {
+                if (edgeLabels.length == 0) {
+                    vertex.getInEdgeIds().forEachRemaining(id -> Optional.ofNullable(
+                            db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
+                } else {
+                    vertex.getInEdgeIds().forEachRemaining(id -> {
+                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
+                        e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
+                            if (label.equals(edge.label()))
+                                edges.add(edge);
+                        }));
+                    });
+                }
+            }
+        }
         return edges.iterator();
     }
 
     public static Iterator<Vertex> getVertices(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).db;
         final List<Vertex> vertices = new ArrayList<>();
-        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
+        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
@@ -129,7 +130,7 @@ public class FireflyHelper {
                 }
             }
         }
-        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
+        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
             if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getInEdgeIds().forEachRemaining(id -> {

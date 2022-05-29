@@ -693,7 +693,7 @@ public class AerospikeConnection {
         if (r == null) {
             return null;
         }
-        return new FireflyEdge(r, id, r.getString("label"), r.getLong(Direction.IN.name()), r.getLong(Direction.OUT.name()), graph);
+        return new FireflyEdge(r, id, r.getString("label"), r.getLong(Direction.OUT.name()), r.getLong(Direction.IN.name()), graph);
     }
 
     /**
@@ -711,8 +711,8 @@ public class AerospikeConnection {
     public void writeEdge(final FireflyGraph graph,
                           final Object id,
                           final String label,
-                          final FireflyVertex inVertex,
                           final FireflyVertex outVertex,
+                          final FireflyVertex inVertex,
                           final Object[] keyValues) {
 
         final Key key = new Key(namespace, EDGE_AERO_SET, (Long) id);

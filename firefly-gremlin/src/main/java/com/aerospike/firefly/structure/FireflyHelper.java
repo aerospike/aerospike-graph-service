@@ -80,15 +80,13 @@ public class FireflyHelper {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
-                } else {
+                }else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
                                 edges.add(edge);
                         }));
-//                        if (e.isPresent() && IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.get().label()))
-//                            e.ifPresent(edges::add);
                     });
                 }
             }
@@ -124,7 +122,7 @@ public class FireflyHelper {
                 } else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
                         Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
-                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.label()))
+                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.inVertex());
                     });
                 }
@@ -139,7 +137,7 @@ public class FireflyHelper {
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
                         Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
-                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it == e.label()))
+                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.outVertex());
                     });
                 }

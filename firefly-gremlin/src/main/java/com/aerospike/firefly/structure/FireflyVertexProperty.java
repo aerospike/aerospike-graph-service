@@ -24,10 +24,10 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         return ((FireflyGraph) this.graph()).db.readProperties(this);
     }
 
-
-    private void writeProperty(String key, Property property) {
-        ((FireflyGraph) this.graph()).db.writeProperty(this, key, property.value());
+    private void writeProperty(String k, Object v) {
+        ((FireflyGraph) this.graph()).db.writeProperty(this, k, v);
     }
+
 
     public FireflyVertexProperty(final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key);
@@ -81,9 +81,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             return Property.empty();
         }
 
-        final Property<U> property = new FireflyProperty<>(this, key, value);
-        this.writeProperty(key, property);
-        return property;
+        this.writeProperty(key, value);
+        return this.readProperties().get(key);
     }
 
     @Override
@@ -91,23 +90,19 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         try {
             ((FireflyGraph) this.graph()).db.removeVertexProperty(this);
         } catch (AerospikeException e) {
-            //@todo
-            System.out.println("error removing, not present?");
+            throw new RuntimeException(e);
         }
     }
 
     @Override
-    public <U> Iterator<Property<U>> properties(String... propertyKeys) {
+    public <V> Iterator<Property<V>> properties(String... propertyKeys) {
         Map<String, Property> properties = this.readProperties();
         if (propertyKeys.length == 1) {
-            final Property<U> property = properties.get(propertyKeys[0]);
+            final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
-        } else {
-            return IteratorUtils.map(
-                    IteratorUtils.filter(
-                            IteratorUtils.asIterator(properties.entrySet()),
-                            entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
-                    entry -> ((AbstractMap.Entry) entry).getValue());
+        } else{
+            return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
+                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry -> ((AbstractMap.Entry)entry).getValue());
         }
     }
 

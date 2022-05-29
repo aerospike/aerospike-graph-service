@@ -25,7 +25,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return this.graph.db.readVertexProperties(this);
     }
 
-    private Map<String, List<VertexProperty>> writeVertexProperty(String k, List<VertexProperty> v) {
+    private Map<String, List<VertexProperty>> writeVertexPropertyList(String k, List<VertexProperty> v) {
         this.graph.db.writeVertexPropertyList(this, k, v);
         return readVertexProperties();
     }
@@ -63,8 +63,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         }
         final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
 
-        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
+//        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+//        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
 
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
@@ -77,7 +77,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             final List<VertexProperty> list = this.readVertexProperties().getOrDefault(key, new ArrayList());
             list.add(vertexProperty);
 
-            this.writeVertexProperty(key, list);
+            this.writeVertexPropertyList(key, list);
             //FireflyHelper.autoUpdateIndex(this, key, value, null);
             ElementHelper.attachProperties(vertexProperty, keyValues);
             return vertexProperty;

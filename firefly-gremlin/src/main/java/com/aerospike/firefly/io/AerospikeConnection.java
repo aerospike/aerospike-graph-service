@@ -83,7 +83,7 @@ public class AerospikeConnection {
         long type = record.getLong(ID_TYPE);
         if (type == 0)
             return null;
-        return SupportedTypes.entrySet().stream().filter(it -> it.getValue() == type).collect(Collectors.toList()).get(0).getKey();
+        return SupportedTypes.entrySet().stream().filter(it -> it.getValue().equals(type)).collect(Collectors.toList()).get(0).getKey();
     }
 
     private void writeGraphIdType() {
@@ -169,16 +169,17 @@ public class AerospikeConnection {
 
     public boolean vertexExists(Object idValue) {
         Key key = new Key(namespace, VERTEX_AERO_SET, (Long) idValue);
-        return client.exists(null, key);
+        return exists(key);
     }
 
     public boolean edgeExists(Object idValue) {
         Key key = new Key(namespace, EDGE_AERO_SET, (Long) idValue);
-        return client.exists(null, key);
+        return exists(key);
     }
 
     public Boolean vertexPropertyExists(Object id) {
-        return null;
+        Key key = new Key(namespace, VERTEX_PROPERTY_AERO_SET, (Long) id);
+        return exists(key);
     }
 
 
@@ -443,23 +444,20 @@ public class AerospikeConnection {
      * @return
      */
     public Map<String, List<VertexProperty>> readVertexProperties(final FireflyVertex vertex) {
-        final Key vertexKey = new Key(namespace, VERTEX_AERO_SET, (Long) vertex.id());
-        final Record vertexRecord = read(vertexKey);
-        if (vertexRecord == null)
-            return new HashMap<>();
-
-        final HashMap<String, List<VertexProperty>> result = new HashMap<>();
-        Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.getMap(VERTEX_PROPERTY_NAME_TO_ID);
-        if (propertyKeys == null)
-            propertyKeys = new HashMap<>();
-        propertyKeys.forEach((k, v) -> {
-            final List<VertexProperty> props = new ArrayList<>();
-            v.forEach(id -> {
-                props.add(readVertexProperty(vertex, id));
-            });
-            result.put(k, props);
+        final Expression exp = Exp.build(
+                Exp.eq(
+                        Exp.intBin(PARENT_VERTEX_ID),
+                        Exp.val((Long) vertex.id()))
+        );
+        Iterator<Object> ids = scanFilteredIdsInSet(VERTEX_PROPERTY_AERO_SET, exp);
+        Map<String,List<VertexProperty>> results = new HashMap<>();
+        ids.forEachRemaining( id -> {
+            VertexProperty<Object> vp = readVertexProperty(vertex, id);
+            List<VertexProperty> list = results.getOrDefault(vp.key(), new ArrayList<>());
+            list.add(vp);
+            results.put(vp.key(),list);
         });
-        return result;
+        return results;
     }
 
     /**
@@ -487,26 +485,9 @@ public class AerospikeConnection {
      */
 
     public void writeVertexPropertyList(final FireflyVertex vertex, final String vpk, final List<VertexProperty> listOfVP) {
-        final Key vertexKey = new Key(namespace, VERTEX_AERO_SET, (Long) vertex.id());
-        final Record vertexRecord = read(vertexKey);
-        if (vertexRecord == null)
-            throw new NoSuchElementException();
-        Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.getMap(VERTEX_PROPERTY_NAME_TO_ID);
-        if (propertyKeys == null)
-            propertyKeys = new HashMap<>();
-        final List<Object> ids = propertyKeys.getOrDefault(vpk, new ArrayList<>());
-
         listOfVP.forEach(vp -> {
-            writeVertexProperty(vertex, vp.id(), vpk, vp.key(), vp.value());
-            ids.add(vp.id());
+            writeVertexProperty(vertex, vp.id(), vp.key(), vp.key(), vp.value());
         });
-
-        final HashSet<Object> uniqueIds = new HashSet<>(ids);
-
-        propertyKeys.put(vpk, Arrays.asList(uniqueIds.toArray()));
-
-        final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
-        write(vertexKey, vertexPropertyIds);
     }
 
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, VertexProperty vp) {
@@ -739,13 +720,13 @@ public class AerospikeConnection {
 
 
     public long getIdCounter(final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Key key = new Key(namespace, ID_MANAGER_SET, GLOBAL);
         final Record r = read(key);
         return r.getLong(COUNTER);
     }
 
     public long incrementAndGetIdCounter(final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Key key = new Key(namespace, ID_MANAGER_SET, GLOBAL);
         final Bin ctr = new Bin(COUNTER, 1);
         Record r = client.operate(null, key,
                 Operation.add(ctr),
@@ -754,7 +735,7 @@ public class AerospikeConnection {
     }
 
     public long decrementIdCounter(final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Key key = new Key(namespace, ID_MANAGER_SET, GLOBAL);
         final Bin ctr = new Bin(COUNTER, -1);
         final Record r = client.operate(null, key,
                 Operation.add(ctr),

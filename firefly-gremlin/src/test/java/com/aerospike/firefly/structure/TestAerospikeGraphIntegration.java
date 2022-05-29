@@ -5,6 +5,8 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.TestHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
@@ -106,9 +108,9 @@ public class TestAerospikeGraphIntegration {
         db.writeVertex(graph, 2l, "aVertexLabel");
         FireflyVertex vertex = db.readVertex(graph, 2l);
         VertexProperty<String> p = new FireflyVertexProperty<>(graph.vertexPropertyIdManager.getNextId(graph), vertex, "a", "b");
-        db.writeVertexPropertyList(vertex, "aKey", List.of(p));
+        db.writeVertexPropertyList(vertex, "a", List.of(p));
         Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
-        List<VertexProperty> aValue = readBack.get("aKey");
+        List<VertexProperty> aValue = readBack.get("a");
         assertNotEquals(aValue, null);
         assertEquals(aValue.get(0), p);
     }
@@ -291,15 +293,58 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, g.V().has("color", "yellow").outE().count().next());
     }
+
     @Test
-    void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name(){
+    void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
-        loadKryoData(g,"tinkerpop-modern.kryo");
+        loadKryoData(g, "tinkerpop-modern.kryo");
+
+        TinkerGraph tg = TinkerFactory.createModern();
+        GraphTraversalSource tgs = tg.traversal();
+        List<Vertex> tgsimple = tgs.V().hasLabel("person").toList();
+        List<Vertex> simple = g.V().hasLabel("person").toList();
+
+        List<Vertex> tg2 = tgs.V().hasLabel("person").out("created").toList();
+        List<Vertex> g2 = g.V().hasLabel("person").out("created").toList();
+
+        List<Vertex> tgthing = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
+        List<Vertex> thing = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
+        GraphTraversal<Vertex, Object> tgtraversal = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
         GraphTraversal<Vertex, Object> traversal = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
+        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), tgtraversal);
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
     }
 
-    private void loadKryoData(GraphTraversalSource g, String resourceName){
+    @Test
+    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
+        GraphTraversalSource g = graph.traversal();
+        loadKryoData(g, "tinkerpop-crew.kryo");
+
+        TinkerGraph tg = TinkerFactory.createTheCrew();
+        GraphTraversalSource tgs = tg.traversal();
+
+        long c1 = g.V().count().next();
+        long c2 = tgs.V().count().next();
+        assertEquals(c1, c2);
+        Object mid = g.V().has("name", "marko").id().next();
+
+        Map<String, Object> pm1 = g.V(mid).propertyMap().next();
+        Map<String, Object> pm2 = tgs.V(mid).propertyMap().next();
+        ArrayList<VertexProperty> pml1 = (ArrayList<VertexProperty>) pm1.get("location");
+        ArrayList<VertexProperty> pml2 = (ArrayList<VertexProperty>) pm2.get("location");
+        assertEquals(pml2.size(), pml1.size());
+        List<? extends Property<Object>> gr1 = g.V().properties("location").toList();
+        List<? extends Property<Object>> tgr1 = tgs.V().properties("location").toList();
+        assertEquals(gr1.size(), tgr1.size());
+
+        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+        Traversal<Vertex, String> tgtraversal = tgs.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), tgtraversal);
+        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+    }
+
+
+    private void loadKryoData(GraphTraversalSource g, String resourceName) {
         final Path tempPath;
         try {
             tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
@@ -311,11 +356,12 @@ public class TestAerospikeGraphIntegration {
         String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
         g.io(resourcePath).read().iterate();
     }
+
     @Test
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-        loadKryoData(g,"grateful-dead.kryo");
+        loadKryoData(g, "grateful-dead.kryo");
         Long x1 = g.V().count().next();
         Long x2 = g2.V().count().next();
         assertEquals(x2, x1);
@@ -473,9 +519,10 @@ public class TestAerospikeGraphIntegration {
         String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
         graph.io(graphml()).readGraph(resourcePath);
     }
+
     @Test
     void airRoutesTest() throws IOException {
-        loadGraphmlFromResources(graph,"air-routes-small.graphml");
+        loadGraphmlFromResources(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
         Map<Object, Object> stuff = g.V().hasLabel("airport").
@@ -485,7 +532,6 @@ public class TestAerospikeGraphIntegration {
         System.out.println(stuff);
 
     }
-
 
 
 }

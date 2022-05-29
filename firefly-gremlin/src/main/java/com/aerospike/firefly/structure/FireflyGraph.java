@@ -119,9 +119,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
-        if (null != idValue) { //@todo performance
-//            if (readVertex(this, idValue) != null)
-//                throw Exceptions.vertexWithIdAlreadyExists(idValue);
+        if (null != idValue) {
+            if(db.vertexExists(idValue))
+                throw Exceptions.vertexWithIdAlreadyExists(idValue);
         } else {
             idValue = vertexIdManager.getNextId(this);
         }
@@ -149,9 +149,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         IteratorUtils.asIterator(vertexIdsOrVerticies).forEachRemaining(o -> {
             longs.add(vertexIdManager.convert(o));
         });
-        //@todo performance
         if (vertexIdsOrVerticies.length != 0)
-            if(!IteratorUtils.allMatch(longs.iterator(), it -> IteratorUtils.anyMatch(db.readElementIds(FireflyVertex.class), dbid -> dbid.equals(it))))
+            if(!IteratorUtils.allMatch(longs.iterator(), db::vertexExists))
                 throw new NoSuchElementException("vertex not found");
         if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();

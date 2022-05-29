@@ -14,31 +14,29 @@ import java.util.function.Function;
 public abstract class FireflyElementIterator<E> implements CloseableIterator<E> {
     private final AerospikeConnection db;
     private final Iterator<?> idIterator;
-    private final Function<Object,E> fn;
+    private final Function<Object, E> fn;
+    private final Function<Object, Boolean> existsFn;
 
-    protected FireflyElementIterator(AerospikeConnection db, Iterator<?> idIterator, Function<Object, E> fn) {
+    protected FireflyElementIterator(AerospikeConnection db, Iterator<?> idIterator,Function<Object, Boolean> existsFn, Function<Object, E> fn) {
         this.db = db;
         this.idIterator = idIterator;
         this.fn = fn;
+        this.existsFn = existsFn;
+
     }
 
     @Override
     public boolean hasNext() {
-        //@todo performance
-        //vertex ids should be in their own counter
         return this.idIterator.hasNext();
     }
 
     @Override
     public E next() {
-        //@todo performance
-        // we will not want to iterate thru removed ids
-        // if it can be avoided
-        E ele = null;
-        while (ele == null && this.hasNext())
-            ele = fn.apply(this.idIterator.next());
-        if (ele == null)
-            throw new NoSuchElementException();
-        return ele;
+        Object nextId = this.idIterator.next();
+//        if(!existsFn.apply(nextId)) throw new NoSuchElementException(nextId.toString());
+        E res = fn.apply(nextId);
+        if (res == null)
+            throw new NoSuchElementException(nextId.toString());
+        return res;
     }
 }

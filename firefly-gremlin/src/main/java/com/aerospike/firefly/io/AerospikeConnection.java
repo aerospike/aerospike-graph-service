@@ -150,17 +150,35 @@ public class AerospikeConnection {
         return client.get(null, key);
     }
 
-    public void write(final Key key, final Bin... bins) {
+    protected void write(final Key key, final Bin... bins) {
         try {
             client.put(null, key, bins);
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);
         }
-
     }
+
+    protected boolean exists(Key key) {
+        return client.exists(null, key);
+    }
+
 
     public void delete(final Key key) {
         client.delete(null, key);
+    }
+
+    public boolean vertexExists(Object idValue) {
+        Key key = new Key(namespace, VERTEX_AERO_SET, (Long) idValue);
+        return client.exists(null, key);
+    }
+
+    public boolean edgeExists(Object idValue) {
+        Key key = new Key(namespace, EDGE_AERO_SET, (Long) idValue);
+        return client.exists(null, key);
+    }
+
+    public Boolean vertexPropertyExists(Object id) {
+        return null;
     }
 
 

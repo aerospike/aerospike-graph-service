@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -30,6 +31,11 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
+import static org.apache.tinkerpop.gremlin.structure.T.key;
+import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
@@ -285,24 +291,37 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, g.V().has("color", "yellow").outE().count().next());
     }
+    @Test
+    void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name(){
+        GraphTraversalSource g = graph.traversal();
+        loadKryoData(g,"tinkerpop-modern.kryo");
+        GraphTraversal<Vertex, Object> traversal = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
+        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
+    }
 
+    private void loadKryoData(GraphTraversalSource g, String resourceName){
+        final Path tempPath;
+        try {
+            tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        tempPath.toFile().deleteOnExit();
+        Util.copyResourceToDirectory(resourceName, tempPath);
+        String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
+        g.io(resourcePath).read().iterate();
+    }
     @Test
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-
-        final String resourceName = "grateful-dead.kryo";
-        final Path tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
-        tempPath.toFile().deleteOnExit();
-        Util.copyResourceToDirectory(resourceName, tempPath);
-        String kryoGratefulPath = tempPath.resolve(resourceName).toAbsolutePath().toString();
-        g.io(kryoGratefulPath).read().iterate();
+        loadKryoData(g,"grateful-dead.kryo");
         Long x1 = g.V().count().next();
         Long x2 = g2.V().count().next();
-        assertEquals(x2,x1);
+        assertEquals(x2, x1);
         Long x = g.V().has("name", "CANT COME DOWN").outE().count().next();
         Long y = g2.V().has("name", "CANT COME DOWN").outE().count().next();
-        assertEquals(x,y);
+        assertEquals(x, y);
         assertEquals(
                 g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
                 g.V().has("name", "CANT COME DOWN").outE().inV().count().next());
@@ -364,7 +383,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testEdgeIdScan(){
+    void testEdgeIdScan() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -380,9 +399,31 @@ public class TestAerospikeGraphIntegration {
         assertTrue(x.contains(next));
         assertTrue(x.contains(next));
     }
+
     @Test
     @Disabled
-     void testDetached(){
+    void testDetached() {
+
+//        TinkerGraph graph2 = TinkerFactory.createModern();
+//        GraphTraversalSource g2 = graph2.traversal();
+//        AtomicLong ctr2 = new AtomicLong(0);
+//        Vertex starVertex2 = graph2.addVertex(T.label, "person", "name", "stephen", "name", "spmallete");
+//        starVertex2.property("acl", true, "timestamp", ctr2.addAndGet(1), "creator", "marko");
+////        for (int i = 0; i < 100; i++) {
+////            starVertex.addEdge("knows", graph.addVertex(T.label,"person", "name", new UUID(ctr.addAndGet(1), ctr.addAndGet(1)).toString(), "since", ctr.addAndGet(1)));
+////            graph.addVertex(T.label, "project").addEdge("developedBy", starVertex, "public", false);
+////        }
+//        final DetachedVertex detachedVertex2 = DetachedFactory.detach(g2.V(starVertex2.id()).next(), true);
+//        g2.V(starVertex2.id()).drop();
+//        final Vertex createdVertex2 = detachedVertex2.attach(Attachable.Method.create(graph2));
+//        List<VertexProperty<Object>> starVertexProperties2 = IteratorUtils.list(starVertex2.properties());
+//        List<VertexProperty<Object>> detachedVertexProperties2 = IteratorUtils.list(detachedVertex2.properties());
+//        List<VertexProperty<Object>> createdVertexProperties2 = IteratorUtils.list(createdVertex2.properties());
+//        assertEquals(starVertexProperties2.size(),detachedVertexProperties2.size());
+//        assertEquals(detachedVertexProperties2.size(),createdVertexProperties2.size());
+//
+
+
         GraphTraversalSource g = graph.traversal();
         AtomicLong ctr = new AtomicLong(0);
         Vertex starVertex = graph.addVertex(T.label, "person", "name", "stephen", "name", "spmallete");
@@ -393,9 +434,58 @@ public class TestAerospikeGraphIntegration {
 //        }
         final DetachedVertex detachedVertex = DetachedFactory.detach(g.V(starVertex.id()).next(), true);
         final Vertex createdVertex = detachedVertex.attach(Attachable.Method.create(graph));
+        List<VertexProperty<Object>> starVertexProperties = IteratorUtils.list(starVertex.properties());
+        List<VertexProperty<Object>> detachedVertexProperties = IteratorUtils.list(detachedVertex.properties());
+        List<VertexProperty<Object>> createdVertexProperties = IteratorUtils.list(createdVertex.properties());
+        assertEquals(starVertexProperties.size(), detachedVertexProperties.size());
+        assertEquals(detachedVertexProperties.size(), createdVertexProperties.size());
+
         TestHelper.validateVertexEquality(detachedVertex, createdVertex, false);
         TestHelper.validateVertexEquality(detachedVertex, starVertex, false);
 
     }
+
+    @Test
+    @Disabled
+    void testVertexPropertyComplex() {
+        GraphTraversalSource g = graph.traversal();
+        g.addV("human")
+                .property("name", "grant")
+                .property("age", 34)
+                .property("location", "ABQ").next();
+        List<VertexProperty<String>> list = IteratorUtils.list(g.V().has("name", "grant").next().properties());
+        assertEquals(3, list.size());
+        g.V().has("name", "grant").properties("age").drop();
+        List<VertexProperty<String>> list2 = IteratorUtils.list(g.V().has("name", "grant").next().properties());
+
+        assertEquals(2, list2.size());
+    }
+
+    private void loadGraphmlFromResources(Graph graph, String resourceName) throws IOException {
+        final Path tempPath;
+        try {
+            tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        tempPath.toFile().deleteOnExit();
+        Util.copyResourceToDirectory(resourceName, tempPath);
+        String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
+        graph.io(graphml()).readGraph(resourcePath);
+    }
+    @Test
+    void airRoutesTest() throws IOException {
+        loadGraphmlFromResources(graph,"air-routes-small.graphml");
+        GraphTraversalSource g = graph.traversal();
+        Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
+        Map<Object, Object> stuff = g.V().hasLabel("airport").
+                properties("runways", "longest").
+                group().by(key).by(value().sum()).next();
+        System.out.println(res);
+        System.out.println(stuff);
+
+    }
+
+
 
 }

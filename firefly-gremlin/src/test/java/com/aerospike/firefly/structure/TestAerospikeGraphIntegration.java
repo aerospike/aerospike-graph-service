@@ -24,20 +24,17 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 import static org.apache.tinkerpop.gremlin.structure.T.key;
-import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
@@ -297,7 +294,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
-        loadKryoData(g, "tinkerpop-modern.kryo");
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
 
         TinkerGraph tg = TinkerFactory.createModern();
         GraphTraversalSource tgs = tg.traversal();
@@ -319,7 +316,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     public void g_V_both_properties_properties_dedup_count() {
         GraphTraversalSource g = graph.traversal();
-        loadKryoData(g, "tinkerpop-crew.kryo");
+        loadKryoDataFromResources(g, "tinkerpop-crew.kryo");
 
         TinkerGraph tg = TinkerFactory.createTheCrew();
         GraphTraversalSource tgs = tg.traversal();
@@ -344,7 +341,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         GraphTraversalSource g = graph.traversal();
-        loadKryoData(g, "tinkerpop-crew.kryo");
+        loadKryoDataFromResources(g, "tinkerpop-crew.kryo");
 
         TinkerGraph tg = TinkerFactory.createTheCrew();
         GraphTraversalSource tgs = tg.traversal();
@@ -370,24 +367,13 @@ public class TestAerospikeGraphIntegration {
     }
 
 
-    private void loadKryoData(GraphTraversalSource g, String resourceName) {
-        final Path tempPath;
-        try {
-            tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        tempPath.toFile().deleteOnExit();
-        Util.copyResourceToDirectory(resourceName, tempPath);
-        String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
-        g.io(resourcePath).read().iterate();
-    }
+
 
     @Test
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-        loadKryoData(g, "grateful-dead.kryo");
+        loadKryoDataFromResources(g, "grateful-dead.kryo");
         Long x1 = g.V().count().next();
         Long x2 = g2.V().count().next();
         assertEquals(x2, x1);
@@ -533,22 +519,11 @@ public class TestAerospikeGraphIntegration {
         assertEquals(2, list2.size());
     }
 
-    private void loadGraphmlFromResources(Graph graph, String resourceName) throws IOException {
-        final Path tempPath;
-        try {
-            tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        tempPath.toFile().deleteOnExit();
-        Util.copyResourceToDirectory(resourceName, tempPath);
-        String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
-        graph.io(graphml()).readGraph(resourcePath);
-    }
+
 
     @Test
     void airRoutesTest() throws IOException {
-        loadGraphmlFromResources(graph, "air-routes-small.graphml");
+        Util.loadGraphmlFromResources(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
         Map<Object, Object> stuff = g.V().hasLabel("airport").
@@ -556,8 +531,6 @@ public class TestAerospikeGraphIntegration {
                 group().by(key).by(value().sum()).next();
         System.out.println(res);
         System.out.println(stuff);
-
     }
-
 
 }

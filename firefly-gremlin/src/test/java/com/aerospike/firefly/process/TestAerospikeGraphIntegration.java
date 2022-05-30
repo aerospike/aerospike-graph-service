@@ -5,26 +5,49 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.Path;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.TestHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
+import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.io.IoTest;
+import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONResourceAccess;
+import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoResourceAccess;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
+import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
+import static org.apache.tinkerpop.gremlin.util.tools.CollectionFactory.asMap;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.hamcrest.core.StringEndsWith.endsWith;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestAerospikeGraphIntegration  {
+public class TestAerospikeGraphIntegration {
     Logger logger = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
 
     private static final Configuration config;
@@ -35,7 +58,7 @@ public class TestAerospikeGraphIntegration  {
 
     private AerospikeConnection db;
     private FireflyGraph graph;
-
+    private GraphTraversalSource g;
 
     @BeforeEach
     void openGraph() {
@@ -44,24 +67,28 @@ public class TestAerospikeGraphIntegration  {
                 ConfigurationHelper.aerospikeNamespace(config));
         graph = FireflyGraph.open(config);
         db.dropDatabase();
+        g = graph.traversal();
+
     }
 
     @AfterEach
-    void closeGraphClearData() {
+    void closeGraphClearData() throws Exception {
         db.dropDatabase();
         graph.close();
     }
+
     public void printTraversalForm(final Traversal traversal) {
         logger.info("   pre-strategy:" + traversal);
         if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
         logger.info("  post-strategy:" + traversal);
     }
+
     @Test
     @Disabled //requires user supplied ids
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
 
-        GraphHelper.cloneElements(tg,graph);
+        GraphHelper.cloneElements(tg, graph);
         GraphTraversalSource g = graph.traversal();
         Traversal<Vertex, org.apache.tinkerpop.gremlin.process.traversal.Path> traversal =
                 g.V().out().out().path().by("name").by("age");
@@ -69,18 +96,588 @@ public class TestAerospikeGraphIntegration  {
         this.printTraversalForm(traversal);
         int counter = 0;
 
-        while(traversal.hasNext()) {
+        while (traversal.hasNext()) {
             ++counter;
-            org.apache.tinkerpop.gremlin.process.traversal.Path path = (Path)traversal.next();
-            Assert.assertEquals(3L, (long)path.size());
+            org.apache.tinkerpop.gremlin.process.traversal.Path path = (Path) traversal.next();
+            Assert.assertEquals(3L, (long) path.size());
             Assert.assertEquals("marko", path.get(0));
-            Assert.assertEquals(32, (int)path.get(1));
+            Assert.assertEquals(32, (int) path.get(1));
             Assert.assertTrue(path.get(2).equals("lop") || path.get(2).equals("ripple"));
         }
 
-        Assert.assertEquals(2L, (long)counter);
+        Assert.assertEquals(2L, (long) counter);
     }
 
+    @Test
+    public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenm_since_2010X() {
+        final Traversal<Vertex, Vertex> traversal = g.addV("person").property(VertexProperty.Cardinality.single, "name", "stephen").property(VertexProperty.Cardinality.single, "name", "stephenm", "since", 2010);
+        printTraversalForm(traversal);
+        final Vertex stephen = traversal.next();
+        assertFalse(traversal.hasNext());
+        assertEquals("person", stephen.label());
+        assertEquals("stephenm", stephen.value("name"));
+        assertEquals(2010, Integer.parseInt(stephen.property("name").value("since").toString()));
+        assertEquals(1, IteratorUtils.count(stephen.property("name").properties()));
+        assertEquals(1, IteratorUtils.count(stephen.properties()));
+        assertEquals(7, IteratorUtils.count(g.V()));
+    }
+
+    @Test
+    public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenmX() {
+        final Traversal<Vertex, Vertex> traversal = g.addV("person").property(VertexProperty.Cardinality.single, "name", "stephen").property(VertexProperty.Cardinality.single, "name", "stephenm");
+        printTraversalForm(traversal);
+        final Vertex stephen = traversal.next();
+        assertFalse(traversal.hasNext());
+        assertEquals("person", stephen.label());
+        assertEquals("stephenm", stephen.value("name"));
+        assertEquals(1, IteratorUtils.count(stephen.properties()));
+        assertEquals(7, IteratorUtils.count(g.V()));
+    }
+
+    @Test
+    public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated() {
+        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
+                addV("person").property(T.id, 101).property("name", "vadas").as("b").
+                addE("knows").from("a").to("b").property("created", "Y").iterate();
+        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
+                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
+                option(Merge.onMatch, asMap("created", "N"));
+        printTraversalForm(traversal);
+        final Edge edge = traversal.next();
+        assertEquals("knows", edge.label());
+        assertEquals(100, edge.outVertex().id());
+        assertEquals(101, edge.inVertex().id());
+        assertEquals("N", edge.<String>value("created"));
+        assertFalse(traversal.hasNext());
+        assertEquals(1, IteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX() {
+        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
+                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
+                option(Merge.onMatch, asMap("created", "N"));
+        printTraversalForm(traversal);
+        try {
+            traversal.next();
+            fail("Should have failed as vertices are not created");
+        } catch (Exception ex) {
+            assertThat(ex.getMessage(), endsWith("could not be found and edge could not be created"));
+        }
+        assertEquals(0, IteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void g_mergeEXlabel_knows_out_marko_in_vadas_weight_05X_exists() {
+        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
+                addV("person").property(T.id, 101).property("name", "vadas").as("b").
+                addE("knows").from("a").to("b").iterate();
+        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "weight", 0.5d));
+        printTraversalForm(traversal);
+        final Edge edge = traversal.next();
+        assertEquals("knows", edge.label());
+        assertEquals(100, edge.outVertex().id());
+        assertEquals(101, edge.inVertex().id());
+        assertEquals(0.5d, edge.<Double>value("weight").doubleValue(), 0.0001d);
+        assertFalse(traversal.hasNext());
+        assertEquals(2, IteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void g_mergeEXlabel_knows_out_marko_in_vadasX() {
+        g.addV("person").property(T.id, 100).property("name", "marko").
+                addV("person").property(T.id, 101).property("name", "vadas").iterate();
+        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100)));
+        printTraversalForm(traversal);
+        final Edge edge = traversal.next();
+        assertEquals("knows", edge.label());
+        assertEquals(100, edge.outVertex().id());
+        assertEquals(101, edge.inVertex().id());
+        assertFalse(traversal.hasNext());
+        assertEquals(1, IteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists() {
+        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
+                addV("person").property(T.id, 101).property("name", "vadas").as("b").
+                addE("knows").from("a").to("b").iterate();
+        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
+                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
+                option(Merge.onMatch, asMap("created", "N"));
+        printTraversalForm(traversal);
+        final Edge edge = traversal.next();
+        assertEquals("knows", edge.label());
+        assertEquals(100, edge.outVertex().id());
+        assertEquals(101, edge.inVertex().id());
+        assertEquals("N", edge.<String>value("created"));
+        assertFalse(traversal.hasNext());
+        assertEquals(1, IteratorUtils.count(g.E()));
+    }
+
+    @Test
+    public void g_injectXlabel_knows_out_marko_in_vadasX_mergeE() {
+        g.addV("person").property(T.id, 100).property("name", "marko").
+                addV("person").property(T.id, 101).property("name", "vadas").iterate();
+        final Traversal<Map<Object, Object>, Edge> traversal = g.inject((Map<Object, Object>) asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).mergeE();
+        printTraversalForm(traversal);
+
+        assertEquals(1, IteratorUtils.count(traversal));
+        assertEquals(2, IteratorUtils.count(g.V()));
+        assertEquals(1, IteratorUtils.count(g.E()));
+        assertEquals(1, IteratorUtils.count(g.V(100).out("knows").hasId(101)));
+    }
+
+    @Test
+    public void g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        final Traversal<Object, Vertex> traversal = g.withSideEffect("c", asMap(T.label, "person", "name", "marko")).
+                withSideEffect("m", asMap("age", 19)).
+                mergeV(__.select("c")).option(Merge.onMatch, __.select("m"));
+        printTraversalForm(traversal);
+        final Vertex vertex = traversal.next();
+        assertEquals("person", vertex.label());
+        assertEquals("marko", vertex.<String>value("name"));
+        assertEquals(19, vertex.<Integer>value("age").intValue());
+        assertFalse(traversal.hasNext());
+        assertEquals(6, IteratorUtils.count(g.V()));
+    }
+
+    @Test
+    public void g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        final Traversal<Vertex, Vertex> traversal = g.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19));
+        printTraversalForm(traversal);
+        final Vertex vertex = traversal.next();
+        assertEquals("person", vertex.label());
+        assertEquals("marko", vertex.<String>value("name"));
+        assertEquals(19, vertex.<Integer>value("age").intValue());
+        assertFalse(traversal.hasNext());
+        assertEquals(6, IteratorUtils.count(g.V()));
+    }
+
+    @Test
+    public void g_io_read_withXreader_graphsonX() throws IOException {
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3d0.json", "").getAbsolutePath().replace('\\', '/');
+        Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.graphson).read();
+        ;
+        this.printTraversalForm(traversal);
+        traversal.iterate();
+        IoTest.assertModernGraph(this.graph, false, true);
+    }
+
+    @Test
+    public void g_io_read_withXreader_gryoX() throws IOException {
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3d0.kryo", "").getAbsolutePath().replace('\\', '/');
+        Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.gryo).read();
+        this.printTraversalForm(traversal);
+        traversal.iterate();
+
+        IoTest.assertModernGraph(this.graph, false, true);
+
+    }
+
+    @Test
+    public void g_io_read_withXreader_graphmlX() throws IOException {
+        final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphMLResourceAccess.class, "tinkerpop-modern.xml", "").getAbsolutePath().replace('\\', '/');
+        final Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.graphml).read();
+        printTraversalForm(traversal);
+        traversal.iterate();
+
+        IoTest.assertModernGraph(graph, false, true);
+
+    }
+
+    @Test
+    public void g_io_readXjsonX() throws IOException {
+        final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3d0.json", "").getAbsolutePath().replace('\\', '/');
+        final Traversal<Object, Object> traversal = g.io(fileToRead).read();
+        printTraversalForm(traversal);
+        traversal.iterate();
+
+        IoTest.assertModernGraph(graph, false, true);
+
+    }
+
+    @Test
+    public void g_io_readXkryoX() throws IOException {
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3d0.kryo", "").getAbsolutePath().replace('\\', '/');
+        Traversal<Object, Object> traversal = g.io(fileToRead).read();
+        this.printTraversalForm(traversal);
+        traversal.iterate();
+
+        IoTest.assertModernGraph(this.graph, false, true);
+    }
+
+    @Test
+    public void g_io_readXxmlX() throws IOException {
+        final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphMLResourceAccess.class, "tinkerpop-modern.xml", "").getAbsolutePath().replace('\\', '/');
+        final Traversal<Object, Object> traversal = g.io(fileToRead).read();
+        printTraversalForm(traversal);
+        traversal.iterate();
+
+        IoTest.assertModernGraph(graph, false, true);
+
+    }
+
+    @Test
+    @Disabled
+    public void g_V_withSideEffectXsgX_repeatXbothEXcreatedX_subgraphXsgX_outVX_timesX5X_name_dedup() throws Exception {
+//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), MODERN);
+//        graphProvider.clear(config);
+//        Graph subgraph = graphProvider.openTestGraph(config);
+//        /////
+//        final Traversal<Vertex, String> traversal = get_g_V_withSideEffectXsgX_repeatXbothEXcreatedX_subgraphXsgX_outVX_timesX5X_name_dedup(subgraph);
+//        printTraversalForm(traversal);
+//        checkResults(Arrays.asList("marko", "josh", "peter"), traversal);
+//        subgraph = traversal.asAdmin().getSideEffects().<Graph>get("sg");
+//        assertVertexEdgeCounts(subgraph, 5, 4);
+//
+//        graphProvider.clear(subgraph, config);
+    }
+
+    @Test
+    @Disabled
+    public void g_withSideEffectXsgX_V_hasXname_danielXout_capXsgX() throws Exception {
+//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), CREW);
+//        graphProvider.clear(config);
+//        final Graph subgraph = graphProvider.openTestGraph(config);
+//        /////
+//        final Traversal<Vertex, Vertex> traversal = get_g_withSideEffectXsgX_V_hasXname_danielX_outE_subgraphXsgX_inV(subgraph);
+//        printTraversalForm(traversal);
+//        traversal.iterate();
+//        assertVertexEdgeCounts(subgraph, 3, 2);
+//
+//        final List<String> locations = subgraph.traversal().V().has("name", "daniel").<String>values("location").toList();
+//        assertThat(locations, contains("spremberg", "kaiserslautern", "aachen"));
+//
+//        graphProvider.clear(subgraph, config);
+    }
+
+    @Test
+    @Disabled
+    public void g_V_withSideEffectXsgX_outEXknowsX_subgraphXsgX_name_capXsgX() throws Exception {
+//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), MODERN);
+//        graphProvider.clear(config);
+//        Graph subgraph = graphProvider.openTestGraph(config);
+//        /////
+//        final Traversal<Vertex, Graph> traversal = get_g_V_withSideEffectXsgX_outEXknowsX_subgraphXsgX_name_capXsgX(convertToVertexId("marko"), subgraph);
+//        printTraversalForm(traversal);
+//        subgraph = traversal.next();
+//        assertVertexEdgeCounts(subgraph, 3, 2);
+//        subgraph.edges().forEachRemaining(e -> {
+//            assertEquals("knows", e.label());
+//            assertEquals("marko", g.E(e).outV().values("name").next());
+//            assertEquals(new Integer(29), g.E(e).outV().<Integer>values("age").next());
+//            assertEquals("person", g.E(e).outV().label().next());
+//
+//            final String name = g.E(e).inV().<String>values("name").next();
+//            if (name.equals("vadas"))
+//                assertEquals(0.5d, g.E(e).<Double>values("weight").next(), 0.0001d);
+//            else if (name.equals("josh"))
+//                assertEquals(1.0d, g.E(e).<Double>values("weight").next(), 0.0001d);
+//            else
+//                fail("There's a vertex present that should not be in the subgraph");
+//        });
+//        graphProvider.clear(subgraph, config);
+    }
+
+    //
+//    @Parameterized.Parameter(value = 0)
+//    public String name;
+//    @Parameterized.Parameter(value = 1)
+//    public Function<GraphTraversalSource,GraphTraversal<?,?>> traversalBeforePause;
+//    @Parameterized.Parameter(value = 2)
+//    public UnaryOperator<GraphTraversal<?,?>> traversalAfterPause;
+//    @Test
+//    public void shouldRespectThreadInterruptionInVertexStep() throws Exception {
+//        final AtomicBoolean exceptionThrown = new AtomicBoolean(false);
+//        final CountDownLatch startedIterating = new CountDownLatch(1);
+//        loadKryoDataFromResources(g,"tinkerpop-grateful.kryo");
+//        final Thread t = new Thread(() -> {
+//            final Traversal traversal = traversalAfterPause.apply(traversalBeforePause.apply(g).sideEffect(traverser -> {
+//                // let the first iteration flow through
+//                if (startedIterating.getCount() == 0) {
+//                    // ensure that the whole traversal doesn't iterate out before we get a chance to interrupt
+//                    // the next iteration should stop so we can force the interrupt to be handled by VertexStep
+//                    try {
+//                        Thread.sleep(3000);
+//                    } catch (Exception ignored) {
+//                        // make sure that the interrupt propagates in case the interrupt occurs during sleep.
+//                        // this should ensure VertexStep gets to try to throw the TraversalInterruptedException
+//                        Thread.currentThread().interrupt();
+//                    }
+//                } else {
+//                    startedIterating.countDown();
+//                }
+//            }));
+//            try {
+//                traversal.iterate();
+//            } catch (Exception ex) {
+//                exceptionThrown.set(ex instanceof TraversalInterruptedException);
+//
+//                try {
+//                    traversal.close();
+//                } catch (Exception iex) {
+//                    logger.error("Error closing traversal after interruption", iex);
+//                }
+//            }
+//
+//        }, name);
+//
+//        t.start();
+//
+//        // total time for test should not exceed 5 seconds - this prevents the test from just hanging and allows
+//        // it to finish with failure
+//        assertThat(startedIterating.await(5000, TimeUnit.MILLISECONDS), CoreMatchers.is(true));
+//
+//        t.interrupt();
+//        t.join();
+//
+//        // ensure that some but not all of the traversal was iterated and that the right exception was tossed
+//        assertThat(exceptionThrown.get(), CoreMatchers.is(true));
+//    }
+    /*
+    shouldRespectThreadInterruptionInVertexStep
+    shouldRespectThreadInterruptionInVertexStep
+
+     */
+    @Test
+    public void shouldDetachVertexPropertyWhenChanged() {
+        final AtomicBoolean triggered = new AtomicBoolean(false);
+        final Vertex v = graph.addVertex();
+        final String label = v.label();
+        final Object id = v.id();
+        v.property("to-change", "blah");
+
+        final MutationListener listener = new AbstractMutationListener() {
+            @Override
+            public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
+                assertThat(element, instanceOf(DetachedVertex.class));
+                assertEquals(label, element.label());
+                assertEquals(id, element.id());
+                assertEquals("to-change", oldValue.key());
+                assertEquals("blah", oldValue.value());
+                assertEquals("dah", setValue);
+                triggered.set(true);
+            }
+        };
+        final EventStrategy.Builder builder = EventStrategy.build().addListener(listener);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+        final GraphTraversalSource gts = create(eventStrategy);
+
+        gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
+        tryCommit(graph);
+
+        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertThat(triggered.get(), is(true));
+    }
+
+    @Test
+    public void shouldUseActualVertexPropertyWhenChanged() {
+        final AtomicBoolean triggered = new AtomicBoolean(false);
+        final Vertex v = graph.addVertex();
+        final String label = v.label();
+        final Object id = v.id();
+        v.property("to-change", "blah");
+
+        final MutationListener listener = new AbstractMutationListener() {
+            @Override
+            public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
+                assertEquals(v, element);
+                assertEquals(label, element.label());
+                assertEquals(id, element.id());
+                assertEquals("to-change", oldValue.key());
+                assertEquals("blah", oldValue.value());
+                assertEquals("dah", setValue);
+                triggered.set(true);
+            }
+        };
+        final EventStrategy.Builder builder = EventStrategy.build().addListener(listener).detach(EventStrategy.Detachment.REFERENCE);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+        final GraphTraversalSource gts = create(eventStrategy);
+
+        gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
+        tryCommit(graph);
+
+        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertThat(triggered.get(), is(true));
+    }
+
+    @Test
+    public void shouldReferenceVertexPropertyWhenChanged() {
+        final AtomicBoolean triggered = new AtomicBoolean(false);
+        final Vertex v = graph.addVertex();
+        final String label = v.label();
+        final Object id = v.id();
+        v.property("to-change", "blah");
+
+        final MutationListener listener = new AbstractMutationListener() {
 
 
+            @Override
+            public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
+                assertThat(element, instanceOf(ReferenceVertex.class));
+                assertEquals(label, element.label());
+                assertEquals(id, element.id());
+                assertEquals("to-change", oldValue.key());
+                assertEquals("blah", oldValue.value());
+                assertEquals("dah", setValue);
+                triggered.set(true);
+            }
+        };
+        final EventStrategy.Builder builder = EventStrategy.build().addListener(listener).detach(EventStrategy.Detachment.REFERENCE);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+        final GraphTraversalSource gts = create(eventStrategy);
+
+        gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
+        tryCommit(graph);
+
+        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertThat(triggered.get(), is(true));
+    }
+
+    @Test
+    public void g_V_out_outE_order_byXascX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        final Traversal traversal = g.V().out().outE().order().by(Order.asc);
+        printTraversalForm(traversal);
+        checkOrderedResults(Arrays.asList(
+                convertToEdge("josh", "created", "ripple"),      // eid = 10
+                convertToEdge("josh", "created", "lop")          // eid = 11
+        ), traversal);
+    }
+
+    @Test
+    public void g_V_out_outE_order_byXdescX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        final Traversal traversal = g.V().out().outE().order().by(Order.desc);
+        printTraversalForm(traversal);
+        checkOrderedResults(Arrays.asList(
+                convertToEdge("josh", "created", "lop"),        // eid = 11
+                convertToEdge("josh", "created", "ripple")      // eid = 10
+        ), traversal);
+    }
+
+    @Test
+    public void g_V_out_outE_asXheadX_path_order_byXascX_selectXheadX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        final Traversal traversal = g.V().out().outE().as("head").path().order().by(Order.asc).select("head");
+        printTraversalForm(traversal);
+        checkOrderedResults(Arrays.asList(
+                convertToEdge("josh", "created", "ripple"),      // eid = 10
+                convertToEdge("josh", "created", "lop")          // eid = 11
+        ), traversal);
+    }
+
+    @Test
+    public void g_V_out_outE_asXheadX_path_order_byXdescX_selectXheadX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        final Traversal traversal = g.V().out().outE().as("head").path().order().by(Order.desc).select("head");
+        printTraversalForm(traversal);
+        checkOrderedResults(Arrays.asList(
+                convertToEdge("josh", "created", "lop"),        // eid = 11
+                convertToEdge("josh", "created", "ripple")      // eid = 10
+        ), traversal);
+    }
+
+    public Edge convertToEdge(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
+        return graph.traversal().V().has("name", outVertexName).outE(edgeLabel).as("e").inV().has("name", inVertexName).<Edge>select("e").toList().get(0);
+    }
+
+    public Edge convertToEdge(final String outVertexName, String edgeLabel, final String inVertexName) {
+        return convertToEdge(graph, outVertexName, edgeLabel, inVertexName);
+    }
+
+    public static <T> void checkOrderedResults(final List<T> expectedResults, final Traversal<?, T> traversal) {
+        final List<T> results = traversal.toList();
+        assertFalse(traversal.hasNext());
+        if (expectedResults.size() != results.size()) {
+            assertEquals("Checking result size", expectedResults.size(), results.size());
+        }
+        for (int i = 0; i < expectedResults.size(); i++) {
+            assertEquals(expectedResults.get(i), results.get(i));
+        }
+    }
+
+    public void tryCommit(final Graph graph) {
+        if (graph.features().graph().supportsTransactions())
+            graph.tx().commit();
+    }
+
+    private GraphTraversalSource create(final EventStrategy strategy) {
+        return traversal(graph, strategy);
+    }
+
+    public GraphTraversalSource traversal(final Graph graph, final TraversalStrategy... strategies) {
+        return graph.traversal().withStrategies(strategies);
+    }
+
+    static abstract class AbstractMutationListener implements MutationListener {
+        @Override
+        public void vertexAdded(final Vertex vertex) {
+
+        }
+
+        @Override
+        public void vertexRemoved(final Vertex vertex) {
+
+        }
+
+        @Override
+        public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
+
+        }
+
+        @Override
+        public void vertexPropertyRemoved(final VertexProperty vertexProperty) {
+
+        }
+
+        @Override
+        public void edgeAdded(final Edge edge) {
+
+        }
+
+        @Override
+        public void edgeRemoved(final Edge edge) {
+
+        }
+
+        @Override
+        public void edgePropertyChanged(final Edge element, final Property oldValue, final Object setValue) {
+
+        }
+
+        @Override
+        public void edgePropertyRemoved(final Edge element, final Property property) {
+
+        }
+
+        @Override
+        public void vertexPropertyPropertyChanged(final VertexProperty element, final Property oldValue, final Object setValue) {
+
+        }
+
+        @Override
+        public void vertexPropertyPropertyRemoved(final VertexProperty element, final Property property) {
+
+        }
+    }
 }

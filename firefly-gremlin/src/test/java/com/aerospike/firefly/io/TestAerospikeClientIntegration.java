@@ -162,8 +162,8 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(vertexIds.contains(b));
 
-        db.writeEdge(graph,edgeIds.get(0),"anything",va,vb,new Object[]{});
-        db.writeEdge(graph,edgeIds.get(1),"anything",vb,va,new Object[]{});
+        db.writeEdge(graph, edgeIds.get(0), "anything", va, vb, new Object[]{});
+        db.writeEdge(graph, edgeIds.get(1), "anything", vb, va, new Object[]{});
 
         Iterator<Long> ie = db.scanAllIdsInSet(EDGE_AERO_SET);
         assertTrue(ie.hasNext());
@@ -172,18 +172,19 @@ public class TestAerospikeClientIntegration {
         Long be = ie.next();
         assertTrue(edgeIds.contains(be));
     }
+
     @Test
     void testScanQuery() {
         long key1value = 1L;
         Key key1 = new Key(ConfigurationHelper.aerospikeNamespace(c), TEST_SET, key1value);
-        Bin key1Bin = new Bin(KEY, key1value);
+        Bin key1Bin = new Bin(ID_BIN, key1value);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         db.write(key1, key1Bin, bin1, bin2, bin3);
         long key2value = 2L;
         Key key2 = new Key(ConfigurationHelper.aerospikeNamespace(c), TEST_SET, key2value);
-        Bin key2Bin = new Bin(KEY, key2value);
+        Bin key2Bin = new Bin(ID_BIN, key2value);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         Bin bin23 = new Bin("greeting", "Hello World!");
@@ -197,5 +198,26 @@ public class TestAerospikeClientIntegration {
         assertEquals(results.get(key2).getValue("name"), bin21.value.getObject());
     }
 
+    @Test
+    void testFireflyRecordIntegerId() {
+        final String ns = ConfigurationHelper.aerospikeNamespace(c);
+        Integer intId = 1;
+        Bin bin21 = new Bin("name", "Jane Doe");
+        Bin bin22 = new Bin("age", 32);
+        FireflyRecord.write(db, ns, TEST_SET, intId, bin21, bin22);
+        FireflyRecord record = FireflyRecord.read(db, ns, TEST_SET, intId);
+        assertEquals(record.id(), intId);
+    }
+
+    @Test
+    void testFireflyRecordLongId() {
+        final String ns = ConfigurationHelper.aerospikeNamespace(c);
+        Long longId = 1L;
+        Bin bin21 = new Bin("name", "Jane Doe");
+        Bin bin22 = new Bin("age", 32);
+        FireflyRecord.write(db, ns, TEST_SET, longId, bin21, bin22);
+        FireflyRecord record = FireflyRecord.read(db, ns, TEST_SET, longId);
+        assertEquals(record.id(), longId);
+    }
 
 }

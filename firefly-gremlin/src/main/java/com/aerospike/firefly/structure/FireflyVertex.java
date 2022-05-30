@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
+import com.aerospike.firefly.io.AerospikeConnection;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -19,16 +20,11 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 public class FireflyVertex extends FireflyElement implements WrappedVertex<Record>, Vertex {
 
     private final FireflyGraph graph;
-    private final Record record;
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
         return this.graph.db.readVertexProperties(this);
     }
 
-    private Map<String, List<VertexProperty>> writeVertexPropertyList(String k, List<VertexProperty> v) {
-        this.graph.db.writeVertexPropertyList(this, k, v);
-        return readVertexProperties();
-    }
 
     protected Iterator<Object> getInEdgeIds() {
 //        return this.graph.db.getInEdgeIdsFromVertex(this);
@@ -40,10 +36,9 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return this.graph.db.getOutEdgeIdsFromVertexByScan(this);
     }
 
-    public FireflyVertex(final Record record, final Object id, final String label, final FireflyGraph graph) {
-        super(id, label);
+    public FireflyVertex(final AerospikeConnection.FireflyRecord record, final Object id, final String label, final FireflyGraph graph) {
+        super(id, label, record);
         this.graph = graph;
-        this.record = record;
     }
 
 
@@ -69,18 +64,14 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         } else {
-            final Object idValue = optionalId.isPresent() ?
+            Object idValue = optionalId.isPresent() ?
                     graph.vertexPropertyIdManager.convert(optionalId.get()) :
                     graph.vertexPropertyIdManager.getNextId(graph);
-            final VertexProperty<V> vertexProperty = new FireflyVertexProperty<>(idValue, this, key, value);
 
-            final List<VertexProperty> list = this.readVertexProperties().getOrDefault(key, new ArrayList());
-            list.add(vertexProperty);
-
-            this.writeVertexPropertyList(key, new ArrayList(new HashSet(list)));
-            //FireflyHelper.autoUpdateIndex(this, key, value, null);
-            ElementHelper.attachProperties(vertexProperty, keyValues);
-            return vertexProperty;
+            this.graph.db.writeVertexProperty(this, graph.vertexIdManager.convert(idValue), key, key, value);
+            VertexProperty<Object> vp = this.graph.db.readVertexProperty(this, idValue);
+            ElementHelper.attachProperties(vp, keyValues);
+            return (VertexProperty<V>) vp;
         }
     }
 
@@ -160,19 +151,21 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
 
     @Override
     public Record getBaseVertex() {
-        return record;
+        return record.record;
     }
 
     @Override
     public String toString() {
         return StringFactory.vertexString(this);
     }
+
     @Override
     public int hashCode() {
         return ElementHelper.hashCode(this);
     }
+
     @Override
-    public boolean equals(Object o){
-        return ElementHelper.areEqual(this,o);
+    public boolean equals(Object o) {
+        return ElementHelper.areEqual(this, o);
     }
 }

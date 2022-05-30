@@ -8,7 +8,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.io.Serializable;
 import java.util.*;
 
-import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypes;
+import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -26,7 +26,7 @@ public class FireflyHelper {
     }
 
     protected static void writeVertex(FireflyGraph graph, Object id, String label) {
-        graph.db.writeVertex(graph, id, label);
+        graph.db.writeVertex(graph, graph.vertexIdManager.convert(id), label);
     }
 
     public static void removeVertex(FireflyGraph graph, Object id) {
@@ -36,21 +36,21 @@ public class FireflyHelper {
 
     protected static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         final Object id = ElementHelper.getIdValue(keyValues).orElse(graph.edgeIdManager.getNextId(graph));
-        graph.db.writeEdge(graph, id, label, outVertex, inVertex, new Object[]{});
+        graph.db.writeEdge(graph, graph.edgeIdManager.convert(id), label, outVertex, inVertex, new Object[]{});
         FireflyEdge e = graph.db.readEdge(graph, id);
         ElementHelper.attachProperties(e,keyValues);
         return e;
     }
 
     public static <V> V validateGraphVariableValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedTypes.keySet();
+        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
         if (v != null && !supported.contains(v.getClass()))
             throw Graph.Variables.Exceptions.dataTypeOfVariableValueNotSupported(v);
         return v;
     }
 
     public static <V> V validatePropertyValue(V v) {
-        Set<Class<? extends Serializable>> supported = SupportedTypes.keySet();
+        Set<Class<? extends Serializable>> supported = SupportedValueTypes.keySet();
         if (v != null && !supported.contains(v.getClass()))
             throw Property.Exceptions.dataTypeOfPropertyValueNotSupported(v);
         return v;

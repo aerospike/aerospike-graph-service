@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
+import com.aerospike.firefly.io.AerospikeConnection;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -32,8 +32,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
 
     //@todo out, in or in, out
-    public FireflyEdge(Record record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
-        super(id, label);
+    public FireflyEdge(AerospikeConnection.FireflyRecord record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
+        super(id, label, record);
         this.graph = graph;
         this.inVid = inVid;
         this.outVid = outVid;

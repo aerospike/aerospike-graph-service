@@ -84,7 +84,6 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    @Disabled //requires user supplied ids
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
 
@@ -110,7 +109,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenm_since_2010X() {
-        final Traversal<Vertex, Vertex> traversal = g.addV("person").property(VertexProperty.Cardinality.single, "name", "stephen").property(VertexProperty.Cardinality.single, "name", "stephenm", "since", 2010);
+        final Traversal<Vertex, Vertex> traversal = g.addV("person")
+                .property(VertexProperty.Cardinality.single, "name", "stephen")
+                .property(VertexProperty.Cardinality.single, "name", "stephenm", "since", 2010);
         printTraversalForm(traversal);
         final Vertex stephen = traversal.next();
         assertFalse(traversal.hasNext());

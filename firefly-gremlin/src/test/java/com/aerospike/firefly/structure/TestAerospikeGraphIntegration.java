@@ -71,7 +71,8 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testReadWriteRemovePropertyFromVertex() {
-        FireflyVertex vertex = new FireflyVertex(null, 1l, "label", graph);
+
+        FireflyVertex vertex = (FireflyVertex) graph.addVertex("label");
         String value = "b";
         String key = "bKey";
         FireflyProperty<String> p = new FireflyProperty<>(vertex, key, value);
@@ -104,8 +105,9 @@ public class TestAerospikeGraphIntegration {
     void testReadWriteVertexProperty() {
         db.writeVertex(graph, 2l, "aVertexLabel");
         FireflyVertex vertex = db.readVertex(graph, 2l);
-        VertexProperty<String> p = new FireflyVertexProperty<>(graph.vertexPropertyIdManager.getNextId(graph), vertex, "a", "b");
-        db.writeVertexPropertyList(vertex, "a", List.of(p));
+        Long vpid = graph.vertexPropertyIdManager.getNextId(graph);
+        db.writeVertexProperty(vertex, vpid, "a", "a", "b");
+        VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
         Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
         List<VertexProperty> aValue = readBack.get("a");
         assertNotEquals(aValue, null);
@@ -338,6 +340,7 @@ public class TestAerospikeGraphIntegration {
         long count = g.V().both().properties().properties().dedup().count().next();
         assertEquals(21L, count);
     }
+
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         GraphTraversalSource g = graph.traversal();
@@ -365,8 +368,6 @@ public class TestAerospikeGraphIntegration {
         checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), tgtraversal);
         checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
     }
-
-
 
 
     @Test
@@ -520,7 +521,6 @@ public class TestAerospikeGraphIntegration {
     }
 
 
-
     @Test
     void airRoutesTest() throws IOException {
         Util.loadGraphmlFromResources(graph, "air-routes-small.graphml");
@@ -531,6 +531,20 @@ public class TestAerospikeGraphIntegration {
                 group().by(key).by(value().sum()).next();
         System.out.println(res);
         System.out.println(stuff);
+    }
+
+    @Test
+    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaIterators() {
+        Vertex v = this.graph.addVertex(T.id, graph.vertexIdManager.convert("1"));
+        Vertex u = (Vertex) this.graph.vertices("1").next();
+        Assert.assertEquals(v, u);
+    }
+
+    @Test
+    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaTraversal() {
+        Vertex v = this.graph.addVertex(new Object[]{T.id, this.graph.vertexIdManager.convert("1")});
+        Vertex u = (Vertex) this.graph.vertices(new Object[]{this.graph.vertexIdManager.convert("1")}).next();
+        Assert.assertEquals(v, u);
     }
 
 }

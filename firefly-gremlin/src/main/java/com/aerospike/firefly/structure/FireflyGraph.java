@@ -117,17 +117,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
-        Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
+//        Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
+        Object idValue = ElementHelper.getIdValue(keyValues).orElse(null);
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
         if (null != idValue) {
-            if(db.vertexExists(idValue))
+            if (db.vertexExists(idValue))
                 throw Exceptions.vertexWithIdAlreadyExists(idValue);
         } else {
             idValue = vertexIdManager.getNextId(this);
         }
         //@todo performance: dont reread
-        writeVertex(this, idValue, label);
-        Vertex vertex = readVertex(this, idValue);
+        writeVertex(this, this.vertexIdManager.convert(idValue), label);
+        Vertex vertex = readVertex(this, this.vertexIdManager.convert(idValue));
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }
@@ -150,7 +151,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVerticies.length != 0)
-            if(!IteratorUtils.allMatch(longs.iterator(), db::vertexExists))
+            if (!IteratorUtils.allMatch(longs.iterator(), db::vertexExists))
                 throw new NoSuchElementException("vertex not found");
         if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();
@@ -222,12 +223,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public Long convert(Object id) {
+            if (id != null && Element.class.isAssignableFrom(id.getClass()))
+                id = ((Element) id).id();
             if (null == id)
                 return null;
-            else if (Element.class.isAssignableFrom(id.getClass()))
-                return (Long) ((Element) id).id();
-            else if (id instanceof Long)
-                return (Long) id;
             else if (id instanceof Number)
                 return ((Number) id).longValue();
             else if (id instanceof String) {
@@ -236,7 +235,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 } catch (NumberFormatException nfe) {
                     throw new IllegalArgumentException(createErrorMessage(Long.class, id));
                 }
-            } else
+            }
+            else
                 throw new IllegalArgumentException(createErrorMessage(Long.class, id));
         }
 

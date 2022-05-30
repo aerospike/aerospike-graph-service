@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
@@ -9,18 +10,20 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 public abstract class FireflyElement implements Element {
     protected final Object id;
     protected final String label;
+    protected final AerospikeConnection.FireflyRecord record;
     protected boolean removed = false;
     protected final boolean allowNullPropertyValues = true;
 
 
-    protected FireflyElement(final Object id, final String label) {
+    protected FireflyElement(final Object id, final String label, AerospikeConnection.FireflyRecord record) {
         this.id = id;
         this.label = label;
+        this.record = record;
     }
 
     @Override
     public Object id() {
-        return this.id;
+        return this.record.id();
     }
 
     @Override

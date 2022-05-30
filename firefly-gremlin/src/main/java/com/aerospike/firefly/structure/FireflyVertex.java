@@ -58,8 +58,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         }
         final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
 
-//        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-//        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
+        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
 
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);

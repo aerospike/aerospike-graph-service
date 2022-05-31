@@ -37,7 +37,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     }
 
     public FireflyVertex(final AerospikeConnection.FireflyRecord record, final Object id, final String label, final FireflyGraph graph) {
-        super(id, label, record);
+        super(record.id(), label, record);
         this.graph = graph;
     }
 
@@ -159,13 +159,4 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return StringFactory.vertexString(this);
     }
 
-    @Override
-    public int hashCode() {
-        return ElementHelper.hashCode(this);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return ElementHelper.areEqual(this, o);
-    }
 }

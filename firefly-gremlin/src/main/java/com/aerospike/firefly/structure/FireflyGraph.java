@@ -68,9 +68,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final Integer aerospikePort = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
         final String aerospikeNamespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
         this.db = AerospikeConnection.connect(aerospikeHost, aerospikePort, aerospikeNamespace);
-        vertexPropertyIdManager = new LongIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
-        vertexIdManager = new LongIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
-        edgeIdManager = new LongIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
+        vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
+        vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
+        edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
         variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
     }
@@ -117,18 +117,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
-//        Object idValue = vertexIdManager.convert(ElementHelper.getIdValue(keyValues).orElse(null));
-        Object idValue = ElementHelper.getIdValue(keyValues).orElse(null);
+        Object idValue = ElementHelper.getIdValue(keyValues).orElse(vertexIdManager.getNextId(this));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
-        if (null != idValue) {
-            if (db.vertexExists(idValue))
+        if (db.vertexExists(idValue))
                 throw Exceptions.vertexWithIdAlreadyExists(idValue);
-        } else {
-            idValue = vertexIdManager.getNextId(this);
-        }
+
         //@todo performance: dont reread
-        writeVertex(this, this.vertexIdManager.convert(idValue), label);
-        Vertex vertex = readVertex(this, this.vertexIdManager.convert(idValue));
+        writeVertex(this, idValue, label);
+        Vertex vertex = readVertex(this, idValue);
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }
@@ -152,7 +148,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         });
         if (vertexIdsOrVerticies.length != 0)
             if (!IteratorUtils.allMatch(longs.iterator(), db::vertexExists))
-                throw new NoSuchElementException("vertex not found");
+                throw new NoSuchElementException("vertex could not be found and edge could not be created");
         if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();
         else
@@ -198,7 +194,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
 
-    public static class LongIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
+    public static class NumericIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
 
         /**
          * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
@@ -207,7 +203,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         private final String counterName;
         private final Class<? extends FireflyElement> type;
 
-        public LongIdManager(Class<? extends FireflyElement> type, String counterName) {
+        public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
             this.counterName = counterName;
             this.type = type;
         }
@@ -218,7 +214,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public Long getNextId(FireflyGraph graph) {
-            return graph.db.incrementAndGetIdCounter(this.counterName);
+            long value = graph.db.incrementAndGetIdCounter(this.counterName);
+            return value;
         }
 
         @Override
@@ -242,7 +239,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         @Override
         public boolean allow(Object id) {
-            return id instanceof Long;
+            final boolean willAllow = AerospikeConnection.IdToDiskTypeMap.containsKey(id.getClass());
+            return willAllow;
         }
     }
 

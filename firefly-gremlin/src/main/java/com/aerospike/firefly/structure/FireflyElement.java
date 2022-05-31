@@ -44,6 +44,7 @@ public abstract class FireflyElement implements Element {
 
     @Override
     public int hashCode() {
-        return ElementHelper.hashCode(this);
+        int hashCode = ElementHelper.hashCode(this);
+        return hashCode;
     }
 }

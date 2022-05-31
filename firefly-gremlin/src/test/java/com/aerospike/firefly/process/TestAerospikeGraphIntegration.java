@@ -109,6 +109,8 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenm_since_2010X() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
         final Traversal<Vertex, Vertex> traversal = g.addV("person")
                 .property(VertexProperty.Cardinality.single, "name", "stephen")
                 .property(VertexProperty.Cardinality.single, "name", "stephenm", "since", 2010);
@@ -125,6 +127,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenmX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
         final Traversal<Vertex, Vertex> traversal = g.addV("person").property(VertexProperty.Cardinality.single, "name", "stephen").property(VertexProperty.Cardinality.single, "name", "stephenm");
         printTraversalForm(traversal);
         final Vertex stephen = traversal.next();
@@ -259,14 +262,232 @@ public class TestAerospikeGraphIntegration {
         assertEquals(6, IteratorUtils.count(g.V()));
     }
 
+    private static void assertId(final Graph g, final boolean lossyForId, final Element e, final Object expected) {
+        // it is possible that a Graph (e.g. elastic-gremlin) can supportUserSuppliedIds but internally
+        // represent them as a value other than Numeric (which is what's in all of the test/toy data).
+        // as we feature check for userSuppliedIds when asserting the identifier, we also ensure that
+        // the id can be properly asserted for that Element before attempting to do so.  By asserting
+        // at this level in this way, graphs can enjoy greater test coverage in IO.
+        if ((e instanceof Vertex && g.features().vertex().supportsUserSuppliedIds() && g.features().vertex().supportsNumericIds())
+                || (e instanceof Edge && g.features().edge().supportsUserSuppliedIds() && g.features().edge().supportsNumericIds())
+                || (e instanceof VertexProperty && g.features().vertex().properties().supportsUserSuppliedIds()) && g.features().vertex().properties().supportsNumericIds()) {
+            if (lossyForId)
+                assertEquals(expected.toString(), e.id().toString());
+            else
+                assertEquals(expected, e.id());
+        }
+    }
+    private static void assertWeightLoosely(final double expected, final Edge e) {
+        try {
+            assertEquals(expected, e.value("weight"), 0.0001d);
+        } catch (Exception ex) {
+            // for graphs that have strong typing via schema it is possible that a value that came across as graphson
+            // with lossiness will end up having a value expected to double to be coerced to float by the underlying
+            // graph.
+            assertEquals(new Double(expected).floatValue(), e.value("weight"), 0.0001f);
+        }
+    }
+
+    @Test void propertyTest(){
+        g.addV("something").property("a","b").property("c","d").next();
+        Vertex it = g.V().has("a", "b").next();
+        Map<String, Object> stuff = g.V().has("a", "b").propertyMap().next();
+        List<Map<String, Object>> bulkproperties = g.V().propertyMap().toList();
+        assertNotNull(it);
+    }
+    private static void assertToyGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId, final boolean assertSpecificLabel) {
+        assertEquals(6, IteratorUtils.count(g1.vertices()));
+        assertEquals(6, IteratorUtils.count(g1.edges()));
+        List<Vertex> stuff = g1.traversal().V().toList();
+        List<Map<String, Object>> stuff2 = g1.traversal().V().propertyMap().toList();
+        final Vertex v1 = g1.traversal().V().has("name", "marko").next();
+        assertEquals(29, v1.<Integer>value("age").intValue());
+        assertEquals(2, v1.keys().size());
+        assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v1.label());
+        assertId(g1, lossyForId, v1, 1);
+
+        final List<Edge> v1Edges = IteratorUtils.list(v1.edges(Direction.BOTH));
+        assertEquals(3, v1Edges.size());
+        v1Edges.forEach(e -> {
+            if (e.inVertex().value("name").equals("vadas")) {
+                assertEquals("knows", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.5d, e);
+                else
+                    assertWeightLoosely(0.5f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 7);
+            } else if (e.inVertex().value("name").equals("josh")) {
+                assertEquals("knows", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(1.0, e);
+                else
+                    assertWeightLoosely(1.0f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 8);
+            } else if (e.inVertex().value("name").equals("lop")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.4d, e);
+                else
+                    assertWeightLoosely(0.4f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 9);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+
+        final Vertex v2 = g1.traversal().V().has("name", "vadas").next();
+        assertEquals(27, v2.<Integer>value("age").intValue());
+        assertEquals(2, v2.keys().size());
+        assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v2.label());
+        assertId(g1, lossyForId, v2, 2);
+
+        final List<Edge> v2Edges = IteratorUtils.list(v2.edges(Direction.BOTH));
+        assertEquals(1, v2Edges.size());
+        v2Edges.forEach(e -> {
+            if (e.outVertex().value("name").equals("marko")) {
+                assertEquals("knows", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.5d, e);
+                else
+                    assertWeightLoosely(0.5f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 7);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+
+        final Vertex v3 = g1.traversal().V().has("name", "lop").next();
+        assertEquals("java", v3.<String>value("lang"));
+        assertEquals(2, v2.keys().size());
+        assertEquals(assertSpecificLabel ? "software" : Vertex.DEFAULT_LABEL, v3.label());
+        assertId(g1, lossyForId, v3, 3);
+
+        final List<Edge> v3Edges = IteratorUtils.list(v3.edges(Direction.BOTH));
+        assertEquals(3, v3Edges.size());
+        v3Edges.forEach(e -> {
+            if (e.outVertex().value("name").equals("peter")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.2d, e);
+                else
+                    assertWeightLoosely(0.2f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 12);
+            } else if (e.outVertex().value("name").equals("josh")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.4d, e);
+                else
+                    assertWeightLoosely(0.4f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 11);
+            } else if (e.outVertex().value("name").equals("marko")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.4d, e);
+                else
+                    assertWeightLoosely(0.4f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 9);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+
+        final Vertex v4 = g1.traversal().V().has("name", "josh").next();
+        assertEquals(32, v4.<Integer>value("age").intValue());
+        assertEquals(2, v4.keys().size());
+        assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v4.label());
+        assertId(g1, lossyForId, v4, 4);
+
+        final List<Edge> v4Edges = IteratorUtils.list(v4.edges(Direction.BOTH));
+        assertEquals(3, v4Edges.size());
+        v4Edges.forEach(e -> {
+            if (e.inVertex().value("name").equals("ripple")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(1.0d, e);
+                else
+                    assertWeightLoosely(1.0f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 10);
+            } else if (e.inVertex().value("name").equals("lop")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.4d, e);
+                else
+                    assertWeightLoosely(0.4f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 11);
+            } else if (e.outVertex().value("name").equals("marko")) {
+                assertEquals("knows", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(1.0d, e);
+                else
+                    assertWeightLoosely(1.0f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 8);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+
+        final Vertex v5 = g1.traversal().V().has("name", "ripple").next();
+        assertEquals("java", v5.<String>value("lang"));
+        assertEquals(2, v5.keys().size());
+        assertEquals(assertSpecificLabel ? "software" : Vertex.DEFAULT_LABEL, v5.label());
+        assertId(g1, lossyForId, v5, 5);
+
+        final List<Edge> v5Edges = IteratorUtils.list(v5.edges(Direction.BOTH));
+        assertEquals(1, v5Edges.size());
+        v5Edges.forEach(e -> {
+            if (e.outVertex().value("name").equals("josh")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(1.0d, e);
+                else
+                    assertWeightLoosely(1.0f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 10);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+
+        final Vertex v6 = g1.traversal().V().has("name", "peter").next();
+        assertEquals(35, v6.<Integer>value("age").intValue());
+        assertEquals(2, v6.keys().size());
+        assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v6.label());
+        assertId(g1, lossyForId, v6, 6);
+
+        final List<Edge> v6Edges = IteratorUtils.list(v6.edges(Direction.BOTH));
+        assertEquals(1, v6Edges.size());
+        v6Edges.forEach(e -> {
+            if (e.inVertex().value("name").equals("lop")) {
+                assertEquals("created", e.label());
+                if (assertDouble)
+                    assertWeightLoosely(0.2d, e);
+                else
+                    assertWeightLoosely(0.2f, e);
+                assertEquals(1, e.keys().size());
+                assertId(g1, lossyForId, e, 12);
+            } else {
+                fail("Edge not expected");
+            }
+        });
+    }
+
     @Test
     public void g_io_read_withXreader_graphsonX() throws IOException {
         String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3d0.json", "").getAbsolutePath().replace('\\', '/');
         Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.graphson).read();
-        ;
         this.printTraversalForm(traversal);
         traversal.iterate();
-        IoTest.assertModernGraph(this.graph, false, true);
+        assertToyGraph(this.graph, false, true, true);
     }
 
     @Test
@@ -312,6 +533,10 @@ public class TestAerospikeGraphIntegration {
         IoTest.assertModernGraph(this.graph, false, true);
     }
 
+
+    public static void assertModernGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId) {
+        assertToyGraph(g1, assertDouble, lossyForId, true);
+    }
     @Test
     public void g_io_readXxmlX() throws IOException {
         final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphMLResourceAccess.class, "tinkerpop-modern.xml", "").getAbsolutePath().replace('\\', '/');
@@ -319,7 +544,7 @@ public class TestAerospikeGraphIntegration {
         printTraversalForm(traversal);
         traversal.iterate();
 
-        IoTest.assertModernGraph(graph, false, true);
+        assertModernGraph(graph, false, true);
 
     }
 
@@ -577,7 +802,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     public void g_V_out_outE_asXheadX_path_order_byXascX_selectXheadX() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-
+        List<Path> list = g.V().out().outE().as("head").path().order().by(Order.asc).toList();
         final Traversal traversal = g.V().out().outE().as("head").path().order().by(Order.asc).select("head");
         printTraversalForm(traversal);
         checkOrderedResults(Arrays.asList(

@@ -16,6 +16,8 @@ import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +37,7 @@ import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.ch
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 import static org.apache.tinkerpop.gremlin.structure.T.key;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
@@ -542,9 +545,48 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaTraversal() {
-        Vertex v = this.graph.addVertex(new Object[]{T.id, this.graph.vertexIdManager.convert("1")});
+        Vertex v = this.graph.addVertex(new Object[]{T.id, "1"});
         Vertex u = (Vertex) this.graph.vertices(new Object[]{this.graph.vertexIdManager.convert("1")}).next();
         Assert.assertEquals(v, u);
     }
+
+    //    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaIterators() {
+//        Vertex v = this.graph.addVertex(new Object[]{T.id, this.graphProvider.convertId("1", Vertex.class)});
+//        Vertex u = (Vertex)this.graph.vertices(new Object[]{this.graphProvider.convertId("1", Vertex.class)}).next();
+//        Assert.assertEquals(v, u);
+//    }
+    public static void validateException(final Throwable expected, final Throwable actual) {
+        assertThat(actual, instanceOf(expected.getClass()));
+    }
+
+    @Test
+    public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnEdge() {
+        Vertex v = this.graph.addVertex(new Object[0]);
+        Object o = "1";
+        v.addEdge("self", v, new Object[]{T.id, o, "weight", 1});
+
+        try {
+            v.addEdge("self", v, new Object[]{T.id, o, "weight", 1});
+            Assert.fail("Assigning the same ID to an Element should throw an exception");
+        } catch (Exception var4) {
+            validateException(org.apache.tinkerpop.gremlin.structure.Graph.Exceptions.edgeWithIdAlreadyExists(o),var4);
+        }
+
+    }
+
+    @Test
+    public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnVertex() {
+        Object o = "1";
+        this.graph.addVertex(new Object[]{T.id, o, "name", "marko"});
+
+        try {
+            this.graph.addVertex(new Object[]{T.id, o, "name", "stephen"});
+            Assert.fail("Assigning the same ID to an Element should throw an exception");
+        } catch (Exception var3) {
+            MatcherAssert.assertThat(var3, CoreMatchers.instanceOf(Graph.Exceptions.vertexWithIdAlreadyExists(0).getClass()));
+        }
+
+    }
+
 
 }

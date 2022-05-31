@@ -79,15 +79,25 @@ public class AerospikeConnection {
         return origId;
     }
 
-    private static Object idStorageTypeToOriginalType(Object storedId, long originalTypeIdx) {
-        Class<? extends Serializable> origType = idTypeFromIdx(originalTypeIdx);
+    private static Object idToStorageType(Object origId) {
+        if (Integer.class.equals(origId.getClass()))
+            return ((Integer) origId).longValue();
+        if (String.class.equals(origId.getClass()))
+            return Long.parseLong((String) origId);
+        return origId;
+    }
+
+    public static Object idStorageTypeToOriginalType(Object storedId, long originalTypeIdx) {
+        return idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
+    }
+
+    public static Object idStorageTypeToOriginalType(Object storedId, Class<? extends Serializable> origType) {
         if (origType.equals(Long.class))
             return storedId;
         if (origType.equals(Integer.class))
             return Math.toIntExact((Long) storedId);
-        if(origType.equals(String.class)) //@todo separate string converted numeric from free string
-            if(storedId.getClass() == Long.class)
-                return storedId;
+        if (origType.equals(String.class)) //@todo separate string converted numeric from free string
+            return storedId.toString();
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
@@ -98,6 +108,12 @@ public class AerospikeConnection {
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
+    public static final Map<Class<? extends Serializable>, Long> SupportedIdTypes = new HashMap<>() {{
+        put(Long.class, 1L);
+        put(Integer.class, 2L);
+        put(Double.class, 3L);
+        put(String.class, 5L);
+    }};
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
         put(Integer.class, Long.class);
@@ -105,6 +121,13 @@ public class AerospikeConnection {
         put(byte[].class, byte[].class);
         put(String.class, String.class);
     }};
+    public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> IdToDiskTypeMap = new HashMap<>() {{
+        put(Long.class, Long.class);
+        put(Integer.class, Long.class);
+        put(Double.class, Double.class);
+        put(String.class, Long.class);
+    }};
+
     public static final Map<Class<? extends Serializable>, Long> SupportedValueTypes = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
@@ -147,6 +170,21 @@ public class AerospikeConnection {
             return key;
         }
 
+        public static Key getElementKey(String namespace, String set, Object id) {
+            final Key key;
+            if (id.getClass().equals(Long.class))
+                key = new Key(namespace, set, (Long) id);
+            else if (id.getClass().equals(Integer.class))
+                key = new Key(namespace, set, (Long) keyToStorageType(id));
+            else if (id.getClass().equals(String.class))
+                key = new Key(namespace, set, Long.parseLong((String) id));
+            else if (id.getClass().equals(byte[].class))
+                key = new Key(namespace, set, (byte[]) id);
+            else
+                throw new UnsupportedOperationException(id.getClass() + " unsuppored key type");
+            return key;
+        }
+
         public static FireflyRecord read(AerospikeConnection db, String namespace, String set, Object id) {
             final Key key = getKey(namespace, set, id);
             Record record = db.read(key);
@@ -160,10 +198,27 @@ public class AerospikeConnection {
         }
 
         public static void write(AerospikeConnection db, String ns, String set, Object idValue, Bin... bins) {
-            Long supportedIdTypeIdx = db.getSupportedIdTypeIdx(idValue.getClass());
+            Long supportedIdTypeIdx = db.getSupportedKeyTypeIdx(idValue.getClass());
             final Key key = getKey(ns, set, idValue);
 
             Bin idValueBin = new Bin(ID_BIN, Value.get(keyToStorageType(idValue)));
+            Bin idTypeBin = new Bin(ID_TYPE, Value.get(supportedIdTypeIdx));
+
+            List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
+            listOfBins.add(idValueBin);
+            listOfBins.add(idTypeBin);
+            try {
+                db.client.put(null, key, listOfBins.toArray(new Bin[0]));
+            } catch (com.aerospike.client.AerospikeException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public static void writeElement(AerospikeConnection db, String ns, String set, Object idValue, Bin... bins) {
+            Long supportedIdTypeIdx = db.getSupportedIdTypeIdx(idValue.getClass());
+            final Key key = getElementKey(ns, set, idValue);
+
+            Bin idValueBin = new Bin(ID_BIN, Value.get(idToStorageType(idValue)));
             Bin idTypeBin = new Bin(ID_TYPE, Value.get(supportedIdTypeIdx));
 
             List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
@@ -196,10 +251,16 @@ public class AerospikeConnection {
         return SupportedValueTypes.get(clazz);
     }
 
-    private Long getSupportedIdTypeIdx(Class clazz) {
+    private Long getSupportedKeyTypeIdx(Class clazz) {
         if (!KeyToDiskTypeMap.containsKey(clazz))
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
         return SupportedValueTypes.get(clazz);
+    }
+
+    private Long getSupportedIdTypeIdx(Class clazz) {
+        if (!IdToDiskTypeMap.containsKey(clazz))
+            throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
+        return SupportedKeyTypes.get(clazz);
     }
 
     private AerospikeConnection(final String host, final int port, final String namespace) {
@@ -271,18 +332,22 @@ public class AerospikeConnection {
     }
 
 
-    public boolean vertexExists(Object idValue) {
-        Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, idValue);
+    public boolean vertexExists(Object id) {
+        Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, idToStorageType(id));
         return exists(key);
     }
 
-    public boolean edgeExists(Object idValue) {
-        Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, idValue);
-        return exists(key);
+    public boolean edgeExists(Object id) {
+        Object storageId = idToStorageType(id);
+        Key okey = FireflyRecord.getKey(namespace, EDGE_AERO_SET, id);
+        boolean oexists = exists(okey);
+        Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, storageId);
+        boolean exists = exists(key);
+        return exists;
     }
 
     public Boolean vertexPropertyExists(Object id) {
-        Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, id);
+        Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, idToStorageType(id));
         return exists(key);
     }
 
@@ -528,17 +593,25 @@ public class AerospikeConnection {
      * @return
      */
     public Map<String, List<VertexProperty>> readVertexProperties(final FireflyVertex vertex) {
+        Object origId = vertex.id();
+        Long storageId = (Long) idToStorageType(origId);
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(PARENT_VERTEX_ID),
-                        Exp.val((Long) keyToStorageType(vertex.id())))
+                        Exp.val(storageId))
         );
         Iterator<Object> ids = scanFilteredIdsInSet(VERTEX_PROPERTY_AERO_SET, exp);
+        //all results, empty
         Map<String, List<VertexProperty>> results = new HashMap<>();
+        //for every vp id associated with vertex
         ids.forEachRemaining(id -> {
+            //load the vp
             VertexProperty<Object> vp = readVertexProperty(vertex, id);
+            //if there is a list for its key, get it, else, create it
             List<VertexProperty> list = results.getOrDefault(vp.key(), new ArrayList<>());
+            //add the vp to the list named for its key
             list.add(vp);
+            //put the list back
             results.put(vp.key(), list);
         });
         return results;
@@ -554,9 +627,9 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void writeVertexProperty(final FireflyVertex vertex, Object id, String vpk, String k, V v) {
-        Bin idBin = new Bin(ID_BIN, id);
+        Bin idBin = new Bin(ID_BIN, idToStorageType(id));
         Bin vpkBin = new Bin(VERTEX_PROPERTY_NAME, vpk);
-        Bin pviBin = new Bin(PARENT_VERTEX_ID, vertex.id());
+        Bin pviBin = new Bin(PARENT_VERTEX_ID, idToStorageType(vertex.id()));
         writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE, k, v, idBin, vpkBin, pviBin);
     }
 
@@ -671,7 +744,7 @@ public class AerospikeConnection {
      */
 
     public FireflyVertex readVertex(final FireflyGraph graph, final Object id) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, namespace, VERTEX_AERO_SET, id);
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, namespace, VERTEX_AERO_SET, idToStorageType(id));
         if (fireflyRecord == null) {
             return null;
         }
@@ -686,9 +759,8 @@ public class AerospikeConnection {
      * @param label
      */
     public void writeVertex(final FireflyGraph graph, final Object id, final String label) {
-        final Bin keyBin = new Bin(ID_BIN, id);
         final Bin labelBin = new Bin("label", Value.get(label));
-        FireflyRecord.write(this, namespace, VERTEX_AERO_SET, id, keyBin, labelBin);
+        FireflyRecord.writeElement(this, namespace, VERTEX_AERO_SET, id, labelBin);
     }
 
     /**
@@ -707,7 +779,7 @@ public class AerospikeConnection {
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(Direction.OUT.name()),
-                        Exp.val((Long) v.id()))
+                        Exp.val(v.getBaseVertex().getLong(ID_BIN))) //@todo on-disk format of id is always long
         );
 
         return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
@@ -717,7 +789,7 @@ public class AerospikeConnection {
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(Direction.IN.name()),
-                        Exp.val((Long) v.id()))
+                        Exp.val((Long) idToStorageType(v.id())))
         );
 
         return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
@@ -765,11 +837,10 @@ public class AerospikeConnection {
                           final FireflyVertex inVertex,
                           final Object[] keyValues) {
 
-        final Bin keyBin = new Bin(ID_BIN, id);
         final Bin labelBin = new Bin("label", Value.get(label));
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id()));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id()));
-        FireflyRecord.write(this, namespace, EDGE_AERO_SET, id, keyBin, labelBin, inVbin, outVBin);
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(idToStorageType(inVertex.id())));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(idToStorageType(outVertex.id())));
+        FireflyRecord.writeElement(this, namespace, EDGE_AERO_SET, id, labelBin, inVbin, outVBin);
         FireflyEdge edge = readEdge(graph, id);
         Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
@@ -786,12 +857,12 @@ public class AerospikeConnection {
 
 
     public long getIdCounter(final String name) {
-        final Record record = FireflyRecord.read(this, namespace, ID_MANAGER_SET, GLOBAL).record;
+        final Record record = FireflyRecord.read(this, namespace, ID_MANAGER_SET, name).record;
         return record.getLong(COUNTER);
     }
 
     public long incrementAndGetIdCounter(final String name) {
-        final Key key = FireflyRecord.getKey(namespace, ID_MANAGER_SET, GLOBAL);
+        final Key key = FireflyRecord.getKey(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, 1);
         Record record = client.operate(null, key,
                 Operation.add(ctr),
@@ -800,7 +871,7 @@ public class AerospikeConnection {
     }
 
     public long decrementIdCounter(final String name) {
-        final Key key = FireflyRecord.getKey(namespace, ID_MANAGER_SET, GLOBAL);
+        final Key key = FireflyRecord.getKey(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, -1);
         final Record record = client.operate(null, key,
                 Operation.add(ctr),
@@ -810,7 +881,7 @@ public class AerospikeConnection {
 
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, namespace, ID_MANAGER_SET, GLOBAL, ctr);
+        FireflyRecord.write(this, namespace, ID_MANAGER_SET, name, ctr);
         return 0L;
     }
 

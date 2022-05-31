@@ -424,6 +424,10 @@ public class FireflyGraphFeatures implements Graph.Features {
         public boolean supportsStringValues() {
             return true;
         }
+        @Override
+        public boolean supportsStringIds() {
+            return false;
+        }
 
         @Override
         public boolean supportsIntegerValues() {

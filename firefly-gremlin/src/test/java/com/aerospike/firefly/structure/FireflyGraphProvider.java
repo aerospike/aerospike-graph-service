@@ -17,7 +17,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
-import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
+import static com.aerospike.firefly.util.Tokens.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -61,9 +61,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyVertex>(FireflyVertex.class, GLOBAL);
+                return new FireflyGraph.NumericIdManager<FireflyVertex>(FireflyVertex.class, VERTEX_ID_COUNTER);
             else if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
+                return new FireflyGraph.NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
             else if (testsThatNeedUuidIdManager.contains(testMethodName))
                 throw new UnsupportedOperationException(UNIMPLEMENTED);
         } else if (test.equals(IoEdgeTest.class)) {
@@ -77,7 +77,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
+                return new FireflyGraph.NumericIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
         } else if (test.equals(IoVertexTest.class)) {
             final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteVertexWithBOTHEdges[graphson-v1]");
@@ -97,9 +97,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.LongIdManager(FireflyVertex.class, GLOBAL);
+                return new FireflyGraph.NumericIdManager(FireflyVertex.class, GLOBAL);
         }
-        return new FireflyGraph.LongIdManager(FireflyVertex.class, GLOBAL);
+        return new FireflyGraph.NumericIdManager(FireflyVertex.class, GLOBAL);
 
 //        return FireflyGraph.DefaultIdManager.ANY;
     }

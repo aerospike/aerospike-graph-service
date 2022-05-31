@@ -33,7 +33,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     //@todo out, in or in, out
     public FireflyEdge(AerospikeConnection.FireflyRecord record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
-        super(id, label, record);
+        super(record.id(), label, record);
         this.graph = graph;
         this.inVid = inVid;
         this.outVid = outVid;
@@ -77,7 +77,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
         FireflyHelper.legalPropertyKeyValueArray(key,value);
         if(isHidden(key))
             throw Edge.Exceptions.labelCanNotBeAHiddenKey(key);
-        if (this.removed) throw elementAlreadyRemoved(VertexProperty.class, id);
+        if (this.removed) throw elementAlreadyRemoved(Edge.class, id);
         if ((!allowNullPropertyValues && null == value)) {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
@@ -109,13 +109,4 @@ public class FireflyEdge extends FireflyElement implements Edge {
         return StringFactory.edgeString(this);
     }
 
-    @Override
-    public boolean equals(final Object object) {
-        return ElementHelper.areEqual(this, object);
-    }
-
-    @Override
-    public int hashCode() {
-        return ElementHelper.hashCode(this);
-    }
 }

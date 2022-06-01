@@ -1,12 +1,8 @@
 package com.aerospike.firefly.structure;
 
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.util.FeatureDescriptor;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-
-import java.util.UUID;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -170,9 +166,9 @@ public class FireflyGraphFeatures implements Graph.Features {
     }
 
     public class FireflyVertexFeatures implements Graph.Features.VertexFeatures {
-        private final FireflyGraph.IdManager vertexIdManager;
+        private final IdManager vertexIdManager;
 
-        public FireflyVertexFeatures(FireflyGraph.IdManager vertexIdManager) {
+        public FireflyVertexFeatures(IdManager vertexIdManager) {
             this.vertexIdManager = vertexIdManager;
         }
 
@@ -181,7 +177,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsNullPropertyValues() {
-            return true;
+            return false;
         }
 
         @Override
@@ -202,7 +198,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return true;
+            return false;
         }
 
         @Override
@@ -223,16 +219,16 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public VertexProperty.Cardinality getCardinality(final String key) {
-            return VertexProperty.Cardinality.list;
+            return VertexProperty.Cardinality.set;
         }
     }
 
     public class FireflyEdgeFeatures implements Graph.Features.EdgeFeatures {
 
         private final Graph.Features.EdgePropertyFeatures edgePropertyFeatures = new FireflyEdgePropertyFeatures();
-        private final FireflyGraph.IdManager<?> edgeIdManager;
+        private final IdManager<?> edgeIdManager;
 
-        private FireflyEdgeFeatures(FireflyGraph.IdManager<?> edgeIdManager) {
+        private FireflyEdgeFeatures(IdManager<?> edgeIdManager) {
             this.edgeIdManager = edgeIdManager;
         }
 
@@ -243,7 +239,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsNullPropertyValues() {
-            return true;
+            return false;
         }
 
         @Override
@@ -258,7 +254,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return true;
+            return false;
         }
 
         @Override
@@ -357,15 +353,15 @@ public class FireflyGraphFeatures implements Graph.Features {
 
     public class FireflyVertexPropertyFeatures implements Graph.Features.VertexPropertyFeatures {
 
-        private final FireflyGraph.IdManager vertexPropertyIdManager;
+        private final IdManager vertexPropertyIdManager;
 
-        private FireflyVertexPropertyFeatures(FireflyGraph.IdManager vertexPropertyIdManager) {
+        private FireflyVertexPropertyFeatures(IdManager vertexPropertyIdManager) {
             this.vertexPropertyIdManager = vertexPropertyIdManager;
         }
 
         @Override
         public boolean supportsNullPropertyValues() {
-            return true;
+            return false;
         }
 
         @Override
@@ -375,7 +371,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return true;
+            return false;
         }
 
         @Override

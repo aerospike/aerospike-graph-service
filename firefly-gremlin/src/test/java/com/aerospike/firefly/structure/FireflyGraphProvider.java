@@ -30,7 +30,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
 
-    protected FireflyGraph.IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {
+    protected IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {
         if (test.equals(GraphTest.class)) {
             final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldIterateVerticesWithNumericIdSupportUsingDoubleRepresentation");
@@ -61,9 +61,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.NumericIdManager<FireflyVertex>(FireflyVertex.class, VERTEX_ID_COUNTER);
+                return new NumericIdManager<FireflyVertex>(FireflyVertex.class, VERTEX_ID_COUNTER);
             else if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
+                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
             else if (testsThatNeedUuidIdManager.contains(testMethodName))
                 throw new UnsupportedOperationException(UNIMPLEMENTED);
         } else if (test.equals(IoEdgeTest.class)) {
@@ -77,7 +77,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.NumericIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
+                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
         } else if (test.equals(IoVertexTest.class)) {
             final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteVertexWithBOTHEdges[graphson-v1]");
@@ -97,9 +97,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new FireflyGraph.NumericIdManager(FireflyVertex.class, GLOBAL);
+                return new NumericIdManager(FireflyVertex.class, GLOBAL);
         }
-        return new FireflyGraph.NumericIdManager(FireflyVertex.class, GLOBAL);
+        return new NumericIdManager(FireflyVertex.class, GLOBAL);
 
 //        return FireflyGraph.DefaultIdManager.ANY;
     }

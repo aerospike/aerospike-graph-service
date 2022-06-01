@@ -20,6 +20,7 @@ import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoResourceAccess;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
@@ -30,13 +31,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
+import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
+import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
+import static org.apache.tinkerpop.gremlin.structure.Column.keys;
+import static org.apache.tinkerpop.gremlin.structure.Column.values;
 import static org.apache.tinkerpop.gremlin.util.tools.CollectionFactory.asMap;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -277,6 +282,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(expected, e.id());
         }
     }
+
     private static void assertWeightLoosely(final double expected, final Edge e) {
         try {
             assertEquals(expected, e.value("weight"), 0.0001d);
@@ -288,13 +294,15 @@ public class TestAerospikeGraphIntegration {
         }
     }
 
-    @Test void propertyTest(){
-        g.addV("something").property("a","b").property("c","d").next();
+    @Test
+    void propertyTest() {
+        g.addV("something").property("a", "b").property("c", "d").next();
         Vertex it = g.V().has("a", "b").next();
         Map<String, Object> stuff = g.V().has("a", "b").propertyMap().next();
         List<Map<String, Object>> bulkproperties = g.V().propertyMap().toList();
         assertNotNull(it);
     }
+
     private static void assertToyGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId, final boolean assertSpecificLabel) {
         assertEquals(6, IteratorUtils.count(g1.vertices()));
         assertEquals(6, IteratorUtils.count(g1.edges()));
@@ -537,6 +545,7 @@ public class TestAerospikeGraphIntegration {
     public static void assertModernGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId) {
         assertToyGraph(g1, assertDouble, lossyForId, true);
     }
+
     @Test
     public void g_io_readXxmlX() throws IOException {
         final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphMLResourceAccess.class, "tinkerpop-modern.xml", "").getAbsolutePath().replace('\\', '/');
@@ -906,4 +915,119 @@ public class TestAerospikeGraphIntegration {
 
         }
     }
+
+    public Vertex convertToVertex(final Graph graph, final String vertexName) {
+        // all test graphs have "name" as a unique id which makes it easy to hardcode this...works for now
+        return g.V().has("name", vertexName).toList().get(0);
+    }
+
+    public Object convertToVertexId(final Graph graph, final String vertexName) {
+        return convertToVertex(graph, vertexName).id();
+    }
+
+    @Test
+    public void g_addEXknowsX_fromXaX_toXbX_propertyXweight_0_1X() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        Vertex a = (Vertex) this.g.V(new Object[0]).has("name", "marko").next();
+        Vertex b = (Vertex) this.g.V(new Object[0]).has("name", "peter").next();
+        Traversal<Edge, Edge> traversal = g.addE("knows").from(a).to(b).property("weight", 0.1d);
+        this.printTraversalForm(traversal);
+        Edge edge = (Edge) traversal.next();
+        Assert.assertEquals(edge.outVertex(), convertToVertex(this.graph, "marko"));
+        Assert.assertEquals(edge.inVertex(), convertToVertex(this.graph, "peter"));
+        Assert.assertEquals("knows", edge.label());
+        Assert.assertEquals(1L, IteratorUtils.count(edge.properties(new String[0])));
+        Assert.assertEquals(0.1, (Double) edge.value("weight"), 0.1);
+        Assert.assertEquals(6L, this.g.V(new Object[0]).count().next().longValue());
+        Assert.assertEquals(7L, this.g.E(new Object[0]).count().next().longValue());
+    }
+
+    @Test
+    public void g_addEXV_outE_label_groupCount_orderXlocalX_byXvalues_descX_selectXkeysX_unfold_limitX1XX_fromXV_hasXname_vadasXX_toXV_hasXname_lopXX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        Traversal<Edge, Edge> traversal = g.addE(V().outE().label().groupCount().order(local).by(values, desc).select(keys).<String>unfold().limit(1)).from(V().has("name", "vadas")).to(V().has("name", "lop"));
+        this.printTraversalForm(traversal);
+        Edge edge = (Edge) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals("created", edge.label());
+        Assert.assertEquals(convertToVertexId(graph, "vadas"), edge.outVertex().id());
+        Assert.assertEquals(convertToVertexId(graph, "lop"), edge.inVertex().id());
+        Assert.assertEquals(6L, this.g.V(new Object[0]).count().next().longValue());
+        Assert.assertEquals(7L, this.g.E(new Object[0]).count().next().longValue());
+    }
+
+    @Test
+    public void g_withSideEffectXa_testX_V_hasLabelXsoftwareX_propertyXtemp_selectXaXX_valueMapXname_tempX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        TinkerGraph tgraph = TinkerFactory.createModern();
+        GraphTraversalSource tg = tgraph.traversal();
+
+        Traversal<Vertex, Map<Object, List<String>>> tgtraversal = tg.withSideEffect("a", "test")
+                .V().hasLabel("software")
+                .property("temp", select("a"))
+                .valueMap("name", "temp");
+
+        Traversal<Vertex, Map<Object, List<String>>> traversal = g.withSideEffect("a", "test")
+                .V().hasLabel("software")
+                .property("temp", select("a"))
+                .valueMap("name", "temp");
+        this.printTraversalForm(traversal);
+        int counter = 0;
+
+        while (traversal.hasNext()) {
+            ++counter;
+            Map<Object, List<String>> valueMap = (Map) traversal.next();
+            Assert.assertEquals(2L, (long) valueMap.size());
+            Assert.assertEquals(Collections.singletonList("test"), valueMap.get("temp"));
+            Assert.assertTrue(((List) valueMap.get("name")).equals(Collections.singletonList("ripple")) || ((List) valueMap.get("name")).equals(Collections.singletonList("lop")));
+        }
+        Assert.assertEquals(2L, (long) counter);
+        Assert.assertFalse(traversal.hasNext());
+    }
+
+    @Test
+    public void g_VX1X_addVXanimalX_propertyXage_selectXaX_byXageXX_propertyXname_puppyX() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        Traversal<Vertex, Vertex> traversal = g.V(convertToVertexId(this.graph, "marko"))
+                .as("a")
+                .addV("animal")
+                .property("age", select("a").by("age"))
+                .property("name", "puppy");
+        this.printTraversalForm(traversal);
+        List<Vertex> things = traversal.toList();
+        Vertex vertex = things.iterator().next();
+        List<VertexProperty<Object>> stuff = IteratorUtils.list(vertex.properties());
+
+        Assert.assertEquals("animal", vertex.label());
+        Assert.assertEquals(29L, (long) (Integer) vertex.value("age"));
+        Assert.assertEquals("puppy", vertex.value("name"));
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals(7L, IteratorUtils.count(this.g.V(new Object[0])));
+    }
+
+    @Test
+    public void g_addVXanimalX_propertyXname_mateoX_propertyXname_gateoX_propertyXname_cateoX_propertyXage_5X() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+
+        Traversal<Vertex, Vertex> traversal = g.addV("animal")
+                .property("name", "mateo")
+                .property("name", "gateo")
+                .property("name", "cateo")
+                .property("age", 5);
+        this.printTraversalForm(traversal);
+        Vertex mateo = (Vertex) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals("animal", mateo.label());
+        Iterator<VertexProperty<Object>> stuff = mateo.properties(new String[]{"name"});
+        List<VertexProperty<Object>> listOfStuff = IteratorUtils.list(stuff);
+        Assert.assertEquals(3L, IteratorUtils.count(mateo.properties(new String[]{"name"})));
+        mateo.values(new String[]{"name"}).forEachRemaining((name) -> {
+            Assert.assertTrue(name.equals("mateo") || name.equals("cateo") || name.equals("gateo"));
+        });
+        Assert.assertEquals(5L, (long) (Integer) mateo.value("age"));
+    }
+
 }

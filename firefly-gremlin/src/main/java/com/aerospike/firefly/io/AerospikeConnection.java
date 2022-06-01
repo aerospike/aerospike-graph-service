@@ -68,7 +68,9 @@ public class AerospikeConnection {
     public static final String TEST_SET = "_TEST";
 
 
-    private static Object idToStorageType(final Object origId) {
+    private static Object idToStorageType(Object origId) {
+        if(FireflyElement.class.isAssignableFrom(origId.getClass()))
+            origId = ((FireflyElement)origId).id();
         if (Integer.class.equals(origId.getClass()))
             return ((Integer) origId).longValue();
         if (String.class.equals(origId.getClass()))
@@ -607,7 +609,7 @@ public class AerospikeConnection {
      */
     public void writeVertex(final FireflyGraph graph, final Object id, final String label) {
         final Bin labelBin = new Bin("label", Value.get(label));
-        FireflyRecord.writeElement(this, namespace, VERTEX_AERO_SET, id, labelBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, id, labelBin);
     }
 
     /**
@@ -688,7 +690,7 @@ public class AerospikeConnection {
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(idToStorageType(inVertex.id())));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(idToStorageType(outVertex.id())));
 
-        FireflyRecord.writeElement(this, namespace, EDGE_AERO_SET, id, labelBin, inVbin, outVBin);
+        FireflyRecord.writeElement(this, EDGE_AERO_SET, id, labelBin, inVbin, outVBin);
         final FireflyEdge edge = readEdge(graph, id); //@todo avoid reread
 
         final Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
@@ -710,13 +712,21 @@ public class AerospikeConnection {
         return record.getLong(COUNTER);
     }
 
-    public long incrementAndGetIdCounter(final String name) {
+    public long incrementAndGetIdCounter(Class<? extends FireflyElement> type, final String name) {
         final Key key = FireflyRecord.getKey(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER, 1);
-        final Record record = client.operate(null, key,
-                Operation.add(ctr),
-                Operation.get(COUNTER));
-        return record.getLong(COUNTER);
+        while (true) { //@todo performance
+            final Bin ctr = new Bin(COUNTER, 1);
+            final Record record = client.operate(null, key,
+                    Operation.add(ctr),
+                    Operation.get(COUNTER));
+            final long candidate = record.getLong(COUNTER);
+            if (type.equals(FireflyVertex.class) && !vertexExists(candidate))
+                return candidate;
+            else if (type.equals(FireflyEdge.class) && !edgeExists(candidate))
+                return candidate;
+            else if (type.equals(FireflyVertexProperty.class) && !vertexPropertyExists(candidate))
+                return candidate;
+        }
     }
 
     public long decrementIdCounter(final String name) {

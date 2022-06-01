@@ -142,9 +142,7 @@ public class FireflyRecord {
                                 final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(idValue.getClass());
         final Key key = getKey(db.namespace, set, idValue);
-
         final Bin idTypeBin = new Bin(AerospikeConnection.ID_TYPE, Value.get(supportedIdTypeIdx));
-
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
 
@@ -156,12 +154,11 @@ public class FireflyRecord {
     }
 
     protected static void writeElement(final AerospikeConnection db,
-                                       final String ns,
                                        final String set,
                                        final Object idValue,
                                        final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(idValue.getClass());
-        final Key key = getElementKey(ns, set, idValue);
+        final Key key = getElementKey(db.namespace, set, idValue);
         final Bin idTypeBin = new Bin(AerospikeConnection.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);

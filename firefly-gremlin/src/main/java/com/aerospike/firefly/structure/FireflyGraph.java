@@ -53,10 +53,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     private final Configuration configuration;
 
-    protected final FireflyGraph.IdManager<Long> vertexIdManager;
-    protected final FireflyGraph.IdManager<Long> edgeIdManager;
+    protected final IdManager<Long> vertexIdManager;
+    protected final IdManager<Long> edgeIdManager;
 
-    protected final FireflyGraph.IdManager<Long> vertexPropertyIdManager;
+    protected final IdManager<Long> vertexPropertyIdManager;
     private final FireflyGraphVariables variables;
 
 
@@ -85,23 +85,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return db;
     }
 
-
-    public interface IdManager<T> {
-        /**
-         * Generate an identifier which should be unique to the {@link FireflyGraph} instance.
-         */
-        T getNextId(final FireflyGraph graph);
-
-        /**
-         * Convert an identifier to the type required by the manager.
-         */
-        T convert(final Object id);
-
-        /**
-         * Determine if an identifier is allowed by this manager given its type.
-         */
-        boolean allow(final Object id);
-    }
 
     @Override
     public Features features() {
@@ -191,57 +174,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Configuration configuration() {
         return configuration;
-    }
-
-
-    public static class NumericIdManager<T extends FireflyElement> implements FireflyGraph.IdManager<Long> {
-
-        /**
-         * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
-         * {@link Long} and will also attempt to convert {@code String} values
-         */
-        private final String counterName;
-        private final Class<? extends FireflyElement> type;
-
-        public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
-            this.counterName = counterName;
-            this.type = type;
-        }
-
-        private static String createErrorMessage(final Class<?> expectedType, final Object id) {
-            return String.format("Expected an id that is convertible to %s but received %s - [%s]", expectedType, id.getClass(), id);
-        }
-
-        @Override
-        public Long getNextId(FireflyGraph graph) {
-            long value = graph.db.incrementAndGetIdCounter(this.counterName);
-            return value;
-        }
-
-        @Override
-        public Long convert(Object id) {
-            if (id != null && Element.class.isAssignableFrom(id.getClass()))
-                id = ((Element) id).id();
-            if (null == id)
-                return null;
-            else if (id instanceof Number)
-                return ((Number) id).longValue();
-            else if (id instanceof String) {
-                try {
-                    return Long.parseLong((String) id);
-                } catch (NumberFormatException nfe) {
-                    throw new IllegalArgumentException(createErrorMessage(Long.class, id));
-                }
-            }
-            else
-                throw new IllegalArgumentException(createErrorMessage(Long.class, id));
-        }
-
-        @Override
-        public boolean allow(Object id) {
-            final boolean willAllow = AerospikeConnection.IdToDiskTypeMap.containsKey(id.getClass());
-            return willAllow;
-        }
     }
 
 

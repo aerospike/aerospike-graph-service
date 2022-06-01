@@ -1,8 +1,11 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Record;
+
 import com.aerospike.client.Key;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -18,11 +21,19 @@ public class FireflyID {
         this.value = value;
     }
 
-    public FireflyID from(Object id){
+    public FireflyID fromUser(Object id) {
         return null;
     }
 
-    public Key getKey(){
+    public FireflyID fromManager(Class<? extends FireflyElement> type) {
+        return null;
+    }
+
+    public FireflyID fromAerospike(Key key, Record record) {
+        return null;
+    }
+
+    public Key getKey() {
         return null;
     }
 

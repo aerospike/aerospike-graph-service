@@ -1,8 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.firefly.io.AerospikeConnection;
-import org.apache.tinkerpop.gremlin.structure.Element;
+import com.aerospike.firefly.io.FireflyRecord;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -31,7 +30,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
 
-    public FireflyVertexProperty(AerospikeConnection.FireflyRecord record, final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
+    public FireflyVertexProperty(FireflyRecord record, final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key, record);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
@@ -43,7 +42,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         ElementHelper.attachProperties(this, propertyKeyValues);
     }
 
-    public FireflyVertexProperty(AerospikeConnection.FireflyRecord record, final Object id, final FireflyVertex vertex, String key, V value) {
+    public FireflyVertexProperty(FireflyRecord record, final Object id, final FireflyVertex vertex, String key, V value) {
         super(record.id(), key, record);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");

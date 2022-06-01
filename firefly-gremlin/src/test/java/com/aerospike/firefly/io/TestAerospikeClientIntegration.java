@@ -4,7 +4,6 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;

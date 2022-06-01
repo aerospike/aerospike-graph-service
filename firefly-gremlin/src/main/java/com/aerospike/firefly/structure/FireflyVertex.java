@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyRecord;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -36,7 +36,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return this.graph.db.getOutEdgeIdsFromVertexByScan(this);
     }
 
-    public FireflyVertex(final AerospikeConnection.FireflyRecord record, final Object id, final String label, final FireflyGraph graph) {
+    public FireflyVertex(final FireflyRecord record, final Object id, final String label, final FireflyGraph graph) {
         super(record.id(), label, record);
         this.graph = graph;
     }

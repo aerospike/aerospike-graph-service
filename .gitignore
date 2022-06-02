@@ -1,6 +1,9 @@
 
+#project build artifacts
 firefly-gremlin/target/
 
+#Intellij
+**/.attach_*
 .idea/
 
 # Compiled class file

@@ -63,7 +63,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest",
         method = "*",
-        reason = "TODO",
+        reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS",
         computers = {"ALL"})
 
 

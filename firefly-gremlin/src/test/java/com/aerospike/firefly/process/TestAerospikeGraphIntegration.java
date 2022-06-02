@@ -7,6 +7,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
@@ -1015,32 +1016,47 @@ public class TestAerospikeGraphIntegration {
     }
 
 
+
+
+    @Test
+    public void g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option() {
+        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        TinkerGraph tgraph = TinkerFactory.createModern();
+        GraphTraversalSource tg = tgraph.traversal();
+        Map<String, Object> tgopm = tg.V().has("name", "marko").propertyMap().next();
+        Map<String, Object> opm = g.V().has("name", "marko").propertyMap().next();
+
+        Traversal<Vertex, Vertex> traversal =
+                g.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19));
+        this.printTraversalForm(traversal);
+        Vertex tgVertex = tg.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19)).next();
+
+        Vertex vertex = (Vertex)traversal.next();
+        Map<String, Object> npm = g.V().has("name", "marko").propertyMap().next();
+        Map<String, Object> tgnpm = tg.V().has("name", "marko").propertyMap().next();
+
+        Assert.assertEquals("person", vertex.label());
+        Assert.assertEquals("marko", vertex.value("name"));
+        Assert.assertEquals(19L, (long)(Integer)vertex.value("age"));
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
+    }
     @Test
     public void g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        Map<String, Object> opm = g.V().has("name", "marko").propertyMap().next();
 
         Traversal<Object, Vertex> traversal = g.withSideEffect("c", asMap(T.label, "person", "name", "marko")).
                 withSideEffect("m", asMap("age", 19)).
                 mergeV(__.select("c")).option(Merge.onMatch, __.select("m"));
         this.printTraversalForm(traversal);
         Vertex vertex = (Vertex)traversal.next();
+        Map<String, Object> npm = g.V().has("name", "marko").propertyMap().next();
+
         Assert.assertEquals("person", vertex.label());
         Assert.assertEquals("marko", vertex.value("name"));
         Assert.assertEquals(19L, (long)(Integer)vertex.value("age"));
         Assert.assertFalse(traversal.hasNext());
         Assert.assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
     }
-
-    @Test
-    public void g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option() {
-        Traversal<Vertex, Vertex> traversal = g.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19));
-        this.printTraversalForm(traversal);
-        Vertex vertex = (Vertex)traversal.next();
-        Assert.assertEquals("person", vertex.label());
-        Assert.assertEquals("marko", vertex.value("name"));
-        Assert.assertEquals(19L, (long)(Integer)vertex.value("age"));
-        Assert.assertFalse(traversal.hasNext());
-        Assert.assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
-    }
-
 }

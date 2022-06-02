@@ -34,16 +34,25 @@ import static com.aerospike.firefly.util.Tokens.*;
         method = "*",
         reason = "MAKE ACTIVE LATER",
         computers = {"ALL"})
+
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
         method = "*",
         reason = "MAKE ACTIVE LATER",
         computers = {"ALL"})
+
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.structure.TransactionTest",
         method = "*",
-        reason = "MAKE ACTIVE LATER",
+        reason = "MAKE ACTIVE WHEN TRANSACTIONS IMPLEMENTED",
         computers = {"ALL"})
+
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest",
+        method = "*",
+        reason = "MAKE ACTIVE WHEN PARALLEL SCAN ITERATOR IMPLEMENTED",
+        computers = {"ALL"})
+
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
@@ -103,7 +112,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         Object idValue = ElementHelper.getIdValue(keyValues).orElse(vertexIdManager.getNextId(this));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
         if (db.vertexExists(idValue))
-                throw Exceptions.vertexWithIdAlreadyExists(idValue);
+            throw Exceptions.vertexWithIdAlreadyExists(idValue);
 
         //@todo performance: dont reread
         writeVertex(this, idValue, label);

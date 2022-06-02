@@ -33,7 +33,9 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public boolean isPresent() {
-        return true;
+
+//        return true;
+        return null != this.value;
     }
 
     @Override
@@ -55,6 +57,7 @@ public class FireflyProperty<V> implements Property<V> {
     public String toString() {
         return StringFactory.propertyString(this);
     }
+
     @Override
     public int hashCode() {
         int hashCode = ElementHelper.hashCode(this);

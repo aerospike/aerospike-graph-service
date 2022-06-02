@@ -61,7 +61,7 @@ public class FireflyRecord {
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
-    private static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
+    public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
         return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
     }
 

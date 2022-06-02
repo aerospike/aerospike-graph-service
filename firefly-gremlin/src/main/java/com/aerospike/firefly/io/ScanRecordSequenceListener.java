@@ -8,6 +8,7 @@ import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.Throttles;
 import com.aerospike.client.listener.RecordSequenceListener;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
@@ -42,15 +43,19 @@ class ScanRecordSequenceListener implements RecordSequenceListener {
     }
 
     public void onRecord(Key key, Record record) throws AerospikeException {
+        if (Thread.interrupted()) throw new TraversalInterruptedException();
         ++scanCount;
         results.add(new AbstractMap.SimpleEntry<>(key, record));
     }
 
     public void onSuccess() {
+
+        if (Thread.interrupted()) throw new TraversalInterruptedException();
         scanMonitor.notifyComplete();
     }
 
     public void onFailure(AerospikeException e) {
+        if (Thread.interrupted()) throw new TraversalInterruptedException();
         System.out.format("Error: scan failed with exception - %s", e);
         scanMonitor.notifyComplete();
     }

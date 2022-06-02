@@ -63,7 +63,7 @@ public class AerospikeConnection {
     protected static final String KEY_VALUE = "_KV";
     protected static final String COUNTER = "_CT";
     protected static final String ID_MANAGER_SET = "_IDMGR";
-    protected static final String ID_TYPE = "_IT";
+    public static final String ID_TYPE = "_IT";
     public static final String GLOBAL = "_GLOBAL";
     public static final String TEST_SET = "_TEST";
 

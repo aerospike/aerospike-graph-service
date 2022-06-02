@@ -12,7 +12,7 @@ public abstract class FireflyElement implements Element {
     protected final String label;
     protected final FireflyRecord record;
     protected boolean removed = false;
-    protected final boolean allowNullPropertyValues = true;
+    protected final boolean allowNullPropertyValues = false;
 
 
     protected FireflyElement(final Object id, final String label, FireflyRecord record) {

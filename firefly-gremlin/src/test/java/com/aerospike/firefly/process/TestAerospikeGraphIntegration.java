@@ -146,26 +146,6 @@ public class TestAerospikeGraphIntegration {
         assertEquals(7, IteratorUtils.count(g.V()));
     }
 
-    //requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated() {
-        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
-                addV("person").property(T.id, 101).property("name", "vadas").as("b").
-                addE("knows").from("a").to("b").property("created", "Y").iterate();
-        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
-                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
-                option(Merge.onMatch, asMap("created", "N"));
-        printTraversalForm(traversal);
-        final Edge edge = traversal.next();
-        assertEquals("knows", edge.label());
-        assertEquals(100, edge.outVertex().id());
-        assertEquals(101, edge.inVertex().id());
-        assertEquals("N", edge.<String>value("created"));
-        assertFalse(traversal.hasNext());
-        assertEquals(1, IteratorUtils.count(g.E()));
-    }
-
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX() {
         final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
@@ -181,74 +161,6 @@ public class TestAerospikeGraphIntegration {
         assertEquals(0, IteratorUtils.count(g.E()));
     }
 
-    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void g_mergeEXlabel_knows_out_marko_in_vadas_weight_05X_exists() {
-        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
-                addV("person").property(T.id, 101).property("name", "vadas").as("b").
-                addE("knows").from("a").to("b").iterate();
-        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "weight", 0.5d));
-        printTraversalForm(traversal);
-        final Edge edge = traversal.next();
-        assertEquals("knows", edge.label());
-        assertEquals(100, edge.outVertex().id());
-        assertEquals(101, edge.inVertex().id());
-        assertEquals(0.5d, edge.<Double>value("weight").doubleValue(), 0.0001d);
-        assertFalse(traversal.hasNext());
-        assertEquals(2, IteratorUtils.count(g.E()));
-    }
-
-    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void g_mergeEXlabel_knows_out_marko_in_vadasX() {
-        g.addV("person").property(T.id, 100).property("name", "marko").
-                addV("person").property(T.id, 101).property("name", "vadas").iterate();
-        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100)));
-        printTraversalForm(traversal);
-        final Edge edge = traversal.next();
-        assertEquals("knows", edge.label());
-        assertEquals(100, edge.outVertex().id());
-        assertEquals(101, edge.inVertex().id());
-        assertFalse(traversal.hasNext());
-        assertEquals(1, IteratorUtils.count(g.E()));
-    }
-
-    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists() {
-        g.addV("person").property(T.id, 100).property("name", "marko").as("a").
-                addV("person").property(T.id, 101).property("name", "vadas").as("b").
-                addE("knows").from("a").to("b").iterate();
-        final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
-                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
-                option(Merge.onMatch, asMap("created", "N"));
-        printTraversalForm(traversal);
-        final Edge edge = traversal.next();
-        assertEquals("knows", edge.label());
-        assertEquals(100, edge.outVertex().id());
-        assertEquals(101, edge.inVertex().id());
-        assertEquals("N", edge.<String>value("created"));
-        assertFalse(traversal.hasNext());
-        assertEquals(1, IteratorUtils.count(g.E()));
-    }
-
-    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void g_injectXlabel_knows_out_marko_in_vadasX_mergeE() {
-        g.addV("person").property(T.id, 100).property("name", "marko").
-                addV("person").property(T.id, 101).property("name", "vadas").iterate();
-        final Traversal<Map<Object, Object>, Edge> traversal = g.inject((Map<Object, Object>) asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).mergeE();
-        printTraversalForm(traversal);
-
-        assertEquals(1, IteratorUtils.count(traversal));
-        assertEquals(2, IteratorUtils.count(g.V()));
-        assertEquals(1, IteratorUtils.count(g.E()));
-        assertEquals(1, IteratorUtils.count(g.V(100).out("knows").hasId(101)));
-    }
 
     private static void assertId(final Graph g, final boolean lossyForId, final Element e, final Object expected) {
         // it is possible that a Graph (e.g. elastic-gremlin) can supportUserSuppliedIds but internally
@@ -540,128 +452,7 @@ public class TestAerospikeGraphIntegration {
 
     }
 
-    @Test
-    @Disabled
-    public void g_V_withSideEffectXsgX_repeatXbothEXcreatedX_subgraphXsgX_outVX_timesX5X_name_dedup() throws Exception {
-//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), MODERN);
-//        graphProvider.clear(config);
-//        Graph subgraph = graphProvider.openTestGraph(config);
-//        /////
-//        final Traversal<Vertex, String> traversal = get_g_V_withSideEffectXsgX_repeatXbothEXcreatedX_subgraphXsgX_outVX_timesX5X_name_dedup(subgraph);
-//        printTraversalForm(traversal);
-//        checkResults(Arrays.asList("marko", "josh", "peter"), traversal);
-//        subgraph = traversal.asAdmin().getSideEffects().<Graph>get("sg");
-//        assertVertexEdgeCounts(subgraph, 5, 4);
-//
-//        graphProvider.clear(subgraph, config);
-    }
 
-    @Test
-    @Disabled
-    public void g_withSideEffectXsgX_V_hasXname_danielXout_capXsgX() throws Exception {
-//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), CREW);
-//        graphProvider.clear(config);
-//        final Graph subgraph = graphProvider.openTestGraph(config);
-//        /////
-//        final Traversal<Vertex, Vertex> traversal = get_g_withSideEffectXsgX_V_hasXname_danielX_outE_subgraphXsgX_inV(subgraph);
-//        printTraversalForm(traversal);
-//        traversal.iterate();
-//        assertVertexEdgeCounts(subgraph, 3, 2);
-//
-//        final List<String> locations = subgraph.traversal().V().has("name", "daniel").<String>values("location").toList();
-//        assertThat(locations, contains("spremberg", "kaiserslautern", "aachen"));
-//
-//        graphProvider.clear(subgraph, config);
-    }
-
-    @Test
-    @Disabled
-    public void g_V_withSideEffectXsgX_outEXknowsX_subgraphXsgX_name_capXsgX() throws Exception {
-//        final Configuration config = graphProvider.newGraphConfiguration("subgraph", this.getClass(), name.getMethodName(), MODERN);
-//        graphProvider.clear(config);
-//        Graph subgraph = graphProvider.openTestGraph(config);
-//        /////
-//        final Traversal<Vertex, Graph> traversal = get_g_V_withSideEffectXsgX_outEXknowsX_subgraphXsgX_name_capXsgX(convertToVertexId("marko"), subgraph);
-//        printTraversalForm(traversal);
-//        subgraph = traversal.next();
-//        assertVertexEdgeCounts(subgraph, 3, 2);
-//        subgraph.edges().forEachRemaining(e -> {
-//            assertEquals("knows", e.label());
-//            assertEquals("marko", g.E(e).outV().values("name").next());
-//            assertEquals(new Integer(29), g.E(e).outV().<Integer>values("age").next());
-//            assertEquals("person", g.E(e).outV().label().next());
-//
-//            final String name = g.E(e).inV().<String>values("name").next();
-//            if (name.equals("vadas"))
-//                assertEquals(0.5d, g.E(e).<Double>values("weight").next(), 0.0001d);
-//            else if (name.equals("josh"))
-//                assertEquals(1.0d, g.E(e).<Double>values("weight").next(), 0.0001d);
-//            else
-//                fail("There's a vertex present that should not be in the subgraph");
-//        });
-//        graphProvider.clear(subgraph, config);
-    }
-
-    //
-//    @Parameterized.Parameter(value = 0)
-//    public String name;
-//    @Parameterized.Parameter(value = 1)
-//    public Function<GraphTraversalSource,GraphTraversal<?,?>> traversalBeforePause;
-//    @Parameterized.Parameter(value = 2)
-//    public UnaryOperator<GraphTraversal<?,?>> traversalAfterPause;
-//    @Test
-//    public void shouldRespectThreadInterruptionInVertexStep() throws Exception {
-//        final AtomicBoolean exceptionThrown = new AtomicBoolean(false);
-//        final CountDownLatch startedIterating = new CountDownLatch(1);
-//        loadKryoDataFromResources(g,"tinkerpop-grateful.kryo");
-//        final Thread t = new Thread(() -> {
-//            final Traversal traversal = traversalAfterPause.apply(traversalBeforePause.apply(g).sideEffect(traverser -> {
-//                // let the first iteration flow through
-//                if (startedIterating.getCount() == 0) {
-//                    // ensure that the whole traversal doesn't iterate out before we get a chance to interrupt
-//                    // the next iteration should stop so we can force the interrupt to be handled by VertexStep
-//                    try {
-//                        Thread.sleep(3000);
-//                    } catch (Exception ignored) {
-//                        // make sure that the interrupt propagates in case the interrupt occurs during sleep.
-//                        // this should ensure VertexStep gets to try to throw the TraversalInterruptedException
-//                        Thread.currentThread().interrupt();
-//                    }
-//                } else {
-//                    startedIterating.countDown();
-//                }
-//            }));
-//            try {
-//                traversal.iterate();
-//            } catch (Exception ex) {
-//                exceptionThrown.set(ex instanceof TraversalInterruptedException);
-//
-//                try {
-//                    traversal.close();
-//                } catch (Exception iex) {
-//                    logger.error("Error closing traversal after interruption", iex);
-//                }
-//            }
-//
-//        }, name);
-//
-//        t.start();
-//
-//        // total time for test should not exceed 5 seconds - this prevents the test from just hanging and allows
-//        // it to finish with failure
-//        assertThat(startedIterating.await(5000, TimeUnit.MILLISECONDS), CoreMatchers.is(true));
-//
-//        t.interrupt();
-//        t.join();
-//
-//        // ensure that some but not all of the traversal was iterated and that the right exception was tossed
-//        assertThat(exceptionThrown.get(), CoreMatchers.is(true));
-//    }
-    /*
-    shouldRespectThreadInterruptionInVertexStep
-    shouldRespectThreadInterruptionInVertexStep
-
-     */
     @Test
     public void shouldDetachVertexPropertyWhenChanged() {
         final AtomicBoolean triggered = new AtomicBoolean(false);
@@ -769,63 +560,7 @@ public class TestAerospikeGraphIntegration {
         assertThat(triggered.get(), is(true));
     }
 
-    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
-    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
-    @Test
-    @Disabled
-    public void g_V_out_outE_order_byXascX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-        final Traversal traversal = g.V().out().outE().order().by(Order.asc);
-        printTraversalForm(traversal);
-        checkOrderedResults(Arrays.asList(
-                convertToEdge("josh", "created", "ripple"),      // eid = 10
-                convertToEdge("josh", "created", "lop")          // eid = 11
-        ), traversal);
-    }
 
-    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
-    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
-    @Test
-    @Disabled
-    public void g_V_out_outE_order_byXdescX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-        final Traversal traversal = g.V().out().outE().order().by(Order.desc);
-        printTraversalForm(traversal);
-        checkOrderedResults(Arrays.asList(
-                convertToEdge("josh", "created", "lop"),        // eid = 11
-                convertToEdge("josh", "created", "ripple")      // eid = 10
-        ), traversal);
-    }
-
-    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
-    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
-    @Disabled
-    @Test
-    public void g_V_out_outE_asXheadX_path_order_byXascX_selectXheadX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-        List<Path> list = g.V().out().outE().as("head").path().order().by(Order.asc).toList();
-        final Traversal traversal = g.V().out().outE().as("head").path().order().by(Order.asc).select("head");
-        printTraversalForm(traversal);
-        checkOrderedResults(Arrays.asList(
-                convertToEdge("josh", "created", "ripple"),      // eid = 10
-                convertToEdge("josh", "created", "lop")          // eid = 11
-        ), traversal);
-    }
-
-    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
-    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
-    @Disabled
-    @Test
-    public void g_V_out_outE_asXheadX_path_order_byXdescX_selectXheadX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-
-        final Traversal traversal = g.V().out().outE().as("head").path().order().by(Order.desc).select("head");
-        printTraversalForm(traversal);
-        checkOrderedResults(Arrays.asList(
-                convertToEdge("josh", "created", "lop"),        // eid = 11
-                convertToEdge("josh", "created", "ripple")      // eid = 10
-        ), traversal);
-    }
 
     public Edge convertToEdge(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
         return graph.traversal().V().has("name", outVertexName).outE(edgeLabel).as("e").inV().has("name", inVertexName).<Edge>select("e").toList().get(0);
@@ -1003,29 +738,6 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(7L, IteratorUtils.count(this.g.V(new Object[0])));
     }
 
-    //Requires Graph.Features.VertexFeatures.FEATURE_MULTI_PROPERTIES
-    @Disabled
-    @Test
-    public void g_addVXanimalX_propertyXname_mateoX_propertyXname_gateoX_propertyXname_cateoX_propertyXage_5X() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
-
-        Traversal<Vertex, Vertex> traversal = g.addV("animal")
-                .property("name", "mateo")
-                .property("name", "gateo")
-                .property("name", "cateo")
-                .property("age", 5);
-        this.printTraversalForm(traversal);
-        Vertex mateo = (Vertex) traversal.next();
-        Assert.assertFalse(traversal.hasNext());
-        Assert.assertEquals("animal", mateo.label());
-        Iterator<VertexProperty<Object>> stuff = mateo.properties(new String[]{"name"});
-        List<VertexProperty<Object>> listOfStuff = IteratorUtils.list(stuff);
-        Assert.assertEquals(3L, IteratorUtils.count(mateo.properties(new String[]{"name"})));
-        mateo.values(new String[]{"name"}).forEachRemaining((name) -> {
-            Assert.assertTrue(name.equals("mateo") || name.equals("cateo") || name.equals("gateo"));
-        });
-        Assert.assertEquals(5L, (long) (Integer) mateo.value("age"));
-    }
 
 
         @Test

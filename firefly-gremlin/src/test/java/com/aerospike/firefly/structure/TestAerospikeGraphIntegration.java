@@ -323,66 +323,6 @@ public class TestAerospikeGraphIntegration {
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
     }
 
-    //Requires multi-properties?
-    @Disabled
-    @Test
-    public void g_V_both_properties_properties_dedup_count() {
-        GraphTraversalSource g = graph.traversal();
-        loadKryoDataFromResources(g, "tinkerpop-crew.kryo");
-
-        TinkerGraph tg = TinkerFactory.createTheCrew();
-        GraphTraversalSource tgs = tg.traversal();
-
-        List<Vertex> tgeles = tgs.V().both().dedup().toList();
-        List<? extends Property<Object>> tgelesProps = tgs.V().both().dedup().properties().toList();
-        List<? extends Property<Object>> tgelesPropsProps = tgs.V().both().dedup().properties().properties().toList();
-
-        List<? extends Property<Object>> list2 = tgs.V().both().properties().properties().dedup().toList();
-        long nondedupCount2 = tgs.V().both().properties().properties().count().next();
-        long count2 = tgs.V().both().properties().properties().dedup().count().next();
-
-        List<Vertex> geles = g.V().both().dedup().toList();
-        List<? extends Property<Object>> gelesProps = g.V().both().dedup().properties().toList();
-        List<? extends Property<Object>> gelesPropsProps = g.V().both().dedup().properties().properties().toList();
-
-        List<? extends Property<Object>> list = g.V().both().properties().properties().dedup().toList();
-        long nondedupCount = g.V().both().properties().properties().count().next();
-        long count = g.V().both().properties().properties().dedup().count().next();
-        assertEquals(21L, count);
-    }
-
-    //Requires multi-properties?
-
-    @Disabled
-    @Test
-    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
-        GraphTraversalSource g = graph.traversal();
-        loadKryoDataFromResources(g, "tinkerpop-crew.kryo");
-
-        TinkerGraph tg = TinkerFactory.createTheCrew();
-        GraphTraversalSource tgs = tg.traversal();
-
-        long c1 = g.V().count().next();
-        long c2 = tgs.V().count().next();
-        assertEquals(c1, c2);
-        Object mid = g.V().has("name", "marko").id().next();
-
-        Map<String, Object> pm1 = g.V(mid).propertyMap().next();
-        Map<String, Object> pm2 = tgs.V(mid).propertyMap().next();
-        ArrayList<VertexProperty> pml1 = (ArrayList<VertexProperty>) pm1.get("location");
-        ArrayList<VertexProperty> pml2 = (ArrayList<VertexProperty>) pm2.get("location");
-        assertEquals(pml2.size(), pml1.size());
-        List<? extends Property<Object>> gr1 = g.V().properties("location").toList();
-        List<? extends Property<Object>> tgr1 = tgs.V().properties("location").toList();
-        assertEquals(gr1.size(), tgr1.size());
-
-        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
-        Traversal<Vertex, String> tgtraversal = tgs.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
-        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), tgtraversal);
-        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
-    }
-
-
     @Test
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
@@ -472,67 +412,6 @@ public class TestAerospikeGraphIntegration {
         assertTrue(x.contains(next));
     }
 
-    @Test
-    @Disabled
-    void testDetached() {
-
-//        TinkerGraph graph2 = TinkerFactory.createModern();
-//        GraphTraversalSource g2 = graph2.traversal();
-//        AtomicLong ctr2 = new AtomicLong(0);
-//        Vertex starVertex2 = graph2.addVertex(T.label, "person", "name", "stephen", "name", "spmallete");
-//        starVertex2.property("acl", true, "timestamp", ctr2.addAndGet(1), "creator", "marko");
-////        for (int i = 0; i < 100; i++) {
-////            starVertex.addEdge("knows", graph.addVertex(T.label,"person", "name", new UUID(ctr.addAndGet(1), ctr.addAndGet(1)).toString(), "since", ctr.addAndGet(1)));
-////            graph.addVertex(T.label, "project").addEdge("developedBy", starVertex, "public", false);
-////        }
-//        final DetachedVertex detachedVertex2 = DetachedFactory.detach(g2.V(starVertex2.id()).next(), true);
-//        g2.V(starVertex2.id()).drop();
-//        final Vertex createdVertex2 = detachedVertex2.attach(Attachable.Method.create(graph2));
-//        List<VertexProperty<Object>> starVertexProperties2 = IteratorUtils.list(starVertex2.properties());
-//        List<VertexProperty<Object>> detachedVertexProperties2 = IteratorUtils.list(detachedVertex2.properties());
-//        List<VertexProperty<Object>> createdVertexProperties2 = IteratorUtils.list(createdVertex2.properties());
-//        assertEquals(starVertexProperties2.size(),detachedVertexProperties2.size());
-//        assertEquals(detachedVertexProperties2.size(),createdVertexProperties2.size());
-//
-
-
-        GraphTraversalSource g = graph.traversal();
-        AtomicLong ctr = new AtomicLong(0);
-        Vertex starVertex = graph.addVertex(T.label, "person", "name", "stephen", "name", "spmallete");
-        starVertex.property("acl", true, "timestamp", ctr.addAndGet(1), "creator", "marko");
-//        for (int i = 0; i < 100; i++) {
-//            starVertex.addEdge("knows", graph.addVertex(T.label,"person", "name", new UUID(ctr.addAndGet(1), ctr.addAndGet(1)).toString(), "since", ctr.addAndGet(1)));
-//            graph.addVertex(T.label, "project").addEdge("developedBy", starVertex, "public", false);
-//        }
-        final DetachedVertex detachedVertex = DetachedFactory.detach(g.V(starVertex.id()).next(), true);
-        final Vertex createdVertex = detachedVertex.attach(Attachable.Method.create(graph));
-        List<VertexProperty<Object>> starVertexProperties = IteratorUtils.list(starVertex.properties());
-        List<VertexProperty<Object>> detachedVertexProperties = IteratorUtils.list(detachedVertex.properties());
-        List<VertexProperty<Object>> createdVertexProperties = IteratorUtils.list(createdVertex.properties());
-        assertEquals(starVertexProperties.size(), detachedVertexProperties.size());
-        assertEquals(detachedVertexProperties.size(), createdVertexProperties.size());
-
-        TestHelper.validateVertexEquality(detachedVertex, createdVertex, false);
-        TestHelper.validateVertexEquality(detachedVertex, starVertex, false);
-
-    }
-
-    @Test
-    @Disabled
-    void testVertexPropertyComplex() {
-        GraphTraversalSource g = graph.traversal();
-        g.addV("human")
-                .property("name", "grant")
-                .property("age", 34)
-                .property("location", "ABQ").next();
-        List<VertexProperty<String>> list = IteratorUtils.list(g.V().has("name", "grant").next().properties());
-        assertEquals(3, list.size());
-        g.V().has("name", "grant").properties("age").drop();
-        List<VertexProperty<String>> list2 = IteratorUtils.list(g.V().has("name", "grant").next().properties());
-
-        assertEquals(2, list2.size());
-    }
-
 
     @Test
     void airRoutesTest() throws IOException {
@@ -546,61 +425,13 @@ public class TestAerospikeGraphIntegration {
         System.out.println(stuff);
     }
 
-    //@FeatureRequirement(featureClass = VertexFeatures.class, feature = FEATURE_USER_SUPPLIED_IDS)
-    @Disabled
-    @Test
-    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaIterators() {
-        Vertex v = this.graph.addVertex(T.id, graph.vertexIdManager.convert("1"));
-        Vertex u = (Vertex) this.graph.vertices("1").next();
-        Assert.assertEquals(v, u);
-    }
 
 
-    //@FeatureRequirement(featureClass = VertexFeatures.class, feature = FEATURE_USER_SUPPLIED_IDS)
-    @Disabled
-    @Test
-    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaTraversal() {
-        Vertex v = this.graph.addVertex(new Object[]{T.id, "1"});
-        Vertex u = (Vertex) this.graph.vertices(new Object[]{this.graph.vertexIdManager.convert("1")}).next();
-        Assert.assertEquals(v, u);
-    }
 
     public static void validateException(final Throwable expected, final Throwable actual) {
         assertThat(actual, instanceOf(expected.getClass()));
     }
 
-    //@FeatureRequirement(featureClass = Graph.Features.EdgeFeatures.class, feature = Graph.Features.EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
-    @Disabled
-    @Test
-    public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnEdge() {
-        Vertex v = this.graph.addVertex(new Object[0]);
-        Object o = "1";
-        v.addEdge("self", v, new Object[]{T.id, o, "weight", 1});
-
-        try {
-            v.addEdge("self", v, new Object[]{T.id, o, "weight", 1});
-            Assert.fail("Assigning the same ID to an Element should throw an exception");
-        } catch (Exception var4) {
-            validateException(org.apache.tinkerpop.gremlin.structure.Graph.Exceptions.edgeWithIdAlreadyExists(o), var4);
-        }
-
-    }
-
-    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
-    @Disabled
-    @Test
-    public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnVertex() {
-        Object o = "1";
-        this.graph.addVertex(new Object[]{T.id, o, "name", "marko"});
-
-        try {
-            this.graph.addVertex(new Object[]{T.id, o, "name", "stephen"});
-            Assert.fail("Assigning the same ID to an Element should throw an exception");
-        } catch (Exception var3) {
-            MatcherAssert.assertThat(var3, CoreMatchers.instanceOf(Graph.Exceptions.vertexWithIdAlreadyExists(0).getClass()));
-        }
-
-    }
 
     public void tryCommit(final Graph graph, final Consumer<Graph> assertFunction) {
         assertFunction.accept(graph);

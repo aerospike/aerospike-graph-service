@@ -146,6 +146,8 @@ public class TestAerospikeGraphIntegration {
         assertEquals(7, IteratorUtils.count(g.V()));
     }
 
+    //requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists_updated() {
         g.addV("person").property(T.id, 100).property("name", "marko").as("a").
@@ -179,6 +181,8 @@ public class TestAerospikeGraphIntegration {
         assertEquals(0, IteratorUtils.count(g.E()));
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadas_weight_05X_exists() {
         g.addV("person").property(T.id, 100).property("name", "marko").as("a").
@@ -195,6 +199,8 @@ public class TestAerospikeGraphIntegration {
         assertEquals(2, IteratorUtils.count(g.E()));
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadasX() {
         g.addV("person").property(T.id, 100).property("name", "marko").
@@ -209,6 +215,8 @@ public class TestAerospikeGraphIntegration {
         assertEquals(1, IteratorUtils.count(g.E()));
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX_exists() {
         g.addV("person").property(T.id, 100).property("name", "marko").as("a").
@@ -227,6 +235,8 @@ public class TestAerospikeGraphIntegration {
         assertEquals(1, IteratorUtils.count(g.E()));
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void g_injectXlabel_knows_out_marko_in_vadasX_mergeE() {
         g.addV("person").property(T.id, 100).property("name", "marko").
@@ -993,6 +1003,8 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(7L, IteratorUtils.count(this.g.V(new Object[0])));
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_MULTI_PROPERTIES
+    @Disabled
     @Test
     public void g_addVXanimalX_propertyXname_mateoX_propertyXname_gateoX_propertyXname_cateoX_propertyXage_5X() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");

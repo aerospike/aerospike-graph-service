@@ -47,15 +47,18 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         if (this.removed) throw elementAlreadyRemoved(Vertex.class, this.id);
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         ElementHelper.validateProperty(key, value);
-
+        if(ElementHelper.getIdValue(keyValues).isPresent())
+            if (!graph.features().vertex().properties().supportsUserSuppliedIds())
+                throw VertexProperty.Exceptions.userSuppliedIdsNotSupported();
         // if we don't allow null property values and the value is null then the key can be removed but only if the
         // cardinality is single. if it is list/set then we can just ignore the null.
+        final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
+        if (VertexProperty.Cardinality.single == card || graph.features().vertex().getCardinality(key) == VertexProperty.Cardinality.single)
+            properties(key).forEachRemaining(VertexProperty::remove);
         if (!allowNullPropertyValues && null == value) {
-            final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-            if (VertexProperty.Cardinality.single == card)
-                properties(key).forEachRemaining(VertexProperty::remove);
             return VertexProperty.empty();
         }
+
         final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
 
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
@@ -86,7 +89,9 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     @Override
     public Edge addEdge(final String label, final Vertex vertex, final Object... keyValues) {
         FireflyHelper.legalPropertyKeyValueArray(keyValues);
-
+        if(ElementHelper.getIdValue(keyValues).isPresent())
+            if (!graph.features().edge().supportsUserSuppliedIds())
+                throw Edge.Exceptions.userSuppliedIdsNotSupported();
         if (null == vertex) throw Graph.Exceptions.argumentCanNotBeNull("vertex");
         if (null == label || label.isEmpty()) throw Graph.Exceptions.argumentCanNotBeNull("label");
         if (isHidden(label)) throw Edge.Exceptions.labelCanNotBeAHiddenKey(label);

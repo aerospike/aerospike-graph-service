@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
@@ -317,7 +318,8 @@ public class TestAerospikeGraphIntegration {
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
     }
 
-
+    //Requires multi-properties?
+    @Disabled
     @Test
     public void g_V_both_properties_properties_dedup_count() {
         GraphTraversalSource g = graph.traversal();
@@ -344,6 +346,9 @@ public class TestAerospikeGraphIntegration {
         assertEquals(21L, count);
     }
 
+    //Requires multi-properties?
+
+    @Disabled
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
         GraphTraversalSource g = graph.traversal();
@@ -536,6 +541,8 @@ public class TestAerospikeGraphIntegration {
         System.out.println(stuff);
     }
 
+    //@FeatureRequirement(featureClass = VertexFeatures.class, feature = FEATURE_USER_SUPPLIED_IDS)
+    @Disabled
     @Test
     public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaIterators() {
         Vertex v = this.graph.addVertex(T.id, graph.vertexIdManager.convert("1"));
@@ -543,6 +550,9 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(v, u);
     }
 
+
+    //@FeatureRequirement(featureClass = VertexFeatures.class, feature = FEATURE_USER_SUPPLIED_IDS)
+    @Disabled
     @Test
     public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaTraversal() {
         Vertex v = this.graph.addVertex(new Object[]{T.id, "1"});
@@ -550,15 +560,12 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(v, u);
     }
 
-    //    public void shouldEvaluateVerticesEquivalentWithSuppliedIdsViaIterators() {
-//        Vertex v = this.graph.addVertex(new Object[]{T.id, this.graphProvider.convertId("1", Vertex.class)});
-//        Vertex u = (Vertex)this.graph.vertices(new Object[]{this.graphProvider.convertId("1", Vertex.class)}).next();
-//        Assert.assertEquals(v, u);
-//    }
     public static void validateException(final Throwable expected, final Throwable actual) {
         assertThat(actual, instanceOf(expected.getClass()));
     }
 
+    //@FeatureRequirement(featureClass = Graph.Features.EdgeFeatures.class, feature = Graph.Features.EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
+    @Disabled
     @Test
     public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnEdge() {
         Vertex v = this.graph.addVertex(new Object[0]);
@@ -569,11 +576,13 @@ public class TestAerospikeGraphIntegration {
             v.addEdge("self", v, new Object[]{T.id, o, "weight", 1});
             Assert.fail("Assigning the same ID to an Element should throw an exception");
         } catch (Exception var4) {
-            validateException(org.apache.tinkerpop.gremlin.structure.Graph.Exceptions.edgeWithIdAlreadyExists(o),var4);
+            validateException(org.apache.tinkerpop.gremlin.structure.Graph.Exceptions.edgeWithIdAlreadyExists(o), var4);
         }
 
     }
 
+    //Requires Graph.Features.VertexFeatures.FEATURE_USER_SUPPLIED_IDS
+    @Disabled
     @Test
     public void shouldHaveExceptionConsistencyWhenAssigningSameIdOnVertex() {
         Object o = "1";
@@ -586,6 +595,25 @@ public class TestAerospikeGraphIntegration {
             MatcherAssert.assertThat(var3, CoreMatchers.instanceOf(Graph.Exceptions.vertexWithIdAlreadyExists(0).getClass()));
         }
 
+    }
+
+    public void tryCommit(final Graph graph, final Consumer<Graph> assertFunction) {
+        assertFunction.accept(graph);
+        if (graph.features().graph().supportsTransactions()) {
+            graph.tx().commit();
+            assertFunction.accept(graph);
+        }
+    }
+
+    @Test
+    public void shouldOverwriteEarlierKeyValuesWithLaterKeyValuesOnAddVertexIfNoMultiProperty() {
+        Vertex v = this.graph.addVertex(new Object[]{"test", "A", "test", "B", "test", "C"});
+        this.tryCommit(this.graph, (graph) -> {
+            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[]{"test"})));
+            Assert.assertTrue(IteratorUtils.stream(v.values(new String[]{"test"})).anyMatch((t) -> {
+                return t.equals("C");
+            }));
+        });
     }
 
 

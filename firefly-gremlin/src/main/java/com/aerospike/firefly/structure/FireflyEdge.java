@@ -31,7 +31,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
     }
 
 
-    //@todo out, in or in, out
     public FireflyEdge(FireflyRecord record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
         super(record.id(), label, record);
         this.graph = graph;

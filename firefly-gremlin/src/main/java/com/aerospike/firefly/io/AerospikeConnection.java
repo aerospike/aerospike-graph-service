@@ -483,7 +483,6 @@ public class AerospikeConnection {
         writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, id, KEY_VALUE, k, v, vpkBin, pviBin);
     }
 
-    //@todo review property
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, final VertexProperty vp) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, vertex.id());
         if (fireflyRecord == null)

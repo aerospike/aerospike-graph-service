@@ -27,9 +27,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
 
 
     protected Iterator<Object> getInEdgeIds() {
-//        return this.graph.db.getInEdgeIdsFromVertex(this);
         return this.graph.db.getInEdgeIdsFromVertexByScan(this);
-
     }
 
     protected Iterator<Object> getOutEdgeIds() {

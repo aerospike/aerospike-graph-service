@@ -28,18 +28,6 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 
-// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest",
-        method = "*",
-        reason = "MAKE ACTIVE LATER",
-        computers = {"ALL"})
-
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
-        method = "*",
-        reason = "MAKE ACTIVE LATER",
-        computers = {"ALL"})
 
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.structure.TransactionTest",
@@ -65,6 +53,22 @@ import static com.aerospike.firefly.util.Tokens.*;
         method = "*",
         reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS",
         computers = {"ALL"})
+
+
+
+// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest",
+        method = "*",
+        reason = "MAKE ACTIVE LATER",
+        computers = {"ALL"})
+
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
+        method = "*",
+        reason = "MAKE ACTIVE LATER",
+        computers = {"ALL"})
+
 
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {

@@ -2,6 +2,8 @@ Firefly
 -----------
 Firefly is an [Apache TinkerPop3®](http://tinkerpop.apache.org) compliant graph database, backed by [Aerospike Enterprise®](https://aerospike.com/products/features-and-editions/).
 
+<img src="https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/tinkerpop-character.png" alt="TinkerPop" width="100"/>
+
 Building Firefly
 -----------
 ```
@@ -64,12 +66,17 @@ Gremlin Traversals
 
 Gremlin is a concatenative language. There exists a set of approximately 25 'steps' can can be assembled to create complex queries of graph data. The most used 10 steps are presented below for reference.
 
-| step           | example 1                      | example 2                  | description                              |
-| -------------- | ------------------------------ | ---------------------------| -----------------------------------------|
-| `V`            | `g.V()`                        | `g.V(1,2)`                 |                                          |
-| `has`          | `g.V().has('name','gremlin')`  | `g.V().has('age',gt(25))`  |                                          |
-| `out`          | `g.V(1).out('knows')`          | `g.V(1).out().out()`       |                                          |
-| `in`           |                                |                            |                                          |
-| `count`        | `g.V().count()`                | `g.V().out().count()`      |                                          |
-| `groupCount`   | `g.V().groupCount().by(label)` | `g.V().out().count()`      |                                          |
-| `dedup`        | `g.V().values('age').dedup()`  | `g.V().dedup().by('age')`  |                                          |
+| step           | example 1                        | example 2                  | description                              |
+| -------------- | -------------------------------- | ---------------------------| -----------------------------------------|
+| `V`            | `g.V()`                          | `g.V(1,2)`                 |                                          |
+| `has`          | `g.V().has('name','gremlin')`    | `g.V().has('age',gt(25))`  |                                          |
+| `out`          | `g.V(1).out('knows')`            | `g.V(1).out().out()`       |                                          |
+| `in`           |                                  |                            |                                          |
+| `count`        | `g.V().count()`                  | `g.V().out().count()`      |                                          |
+| `groupCount`   | `g.V().groupCount().by(label)`   | `g.V().out().count()`      |                                          |
+| `dedup`        | `g.V().values('age').dedup()`    | `g.V().dedup().by('age')`  |                                          |
+| `path`         | `g.V(1).out().out().path()`      |                            |                                          |
+| `repeat`       | `g.V(1).repeat(out()).times(2)`  |                            |                                          |
+| `where`        |                                  |                            |                                          |
+| `select`       |                                  |                            |                                          |
+| `as`           |                                  |                            |                                          |

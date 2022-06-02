@@ -759,7 +759,10 @@ public class TestAerospikeGraphIntegration {
         assertThat(triggered.get(), is(true));
     }
 
+    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
+    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
     @Test
+    @Disabled
     public void g_V_out_outE_order_byXascX() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
         final Traversal traversal = g.V().out().outE().order().by(Order.asc);
@@ -770,7 +773,10 @@ public class TestAerospikeGraphIntegration {
         ), traversal);
     }
 
+    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
+    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
     @Test
+    @Disabled
     public void g_V_out_outE_order_byXdescX() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
         final Traversal traversal = g.V().out().outE().order().by(Order.desc);
@@ -781,6 +787,9 @@ public class TestAerospikeGraphIntegration {
         ), traversal);
     }
 
+    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
+    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
+    @Disabled
     @Test
     public void g_V_out_outE_asXheadX_path_order_byXascX_selectXheadX() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
@@ -793,6 +802,9 @@ public class TestAerospikeGraphIntegration {
         ), traversal);
     }
 
+    //    @FeatureRequirement(featureClass = GraphFeatures.class, feature = GraphFeatures.FEATURE_ORDERABILITY_SEMANTICS)
+    //    @FeatureRequirement(featureClass = EdgeFeatures.class, feature = EdgeFeatures.FEATURE_USER_SUPPLIED_IDS)
+    @Disabled
     @Test
     public void g_V_out_outE_asXheadX_path_order_byXdescX_selectXheadX() {
         loadKryoDataFromResources(g, "tinkerpop-modern.kryo");

@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
  */
 public class FireflyGraphFeatures implements Graph.Features {
 
-
+    private static final boolean USER_SUPPLIED_IDS = false;
     private final FireflyGraph fireflyGraph;
     private final FireflyEdgeFeatures edgeFeatures;
     private final FireflyVertexFeatures vertexFeatures;
@@ -65,6 +65,11 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsThreadedTransactions() {
+            return false;
+        }
+
+        @Override
+        public boolean supportsOrderabilitySemantics() {
             return false;
         }
 
@@ -181,8 +186,12 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
-        public Graph.Features.VertexPropertyFeatures properties() {
+        public VertexPropertyFeatures properties() {
             return vertexPropertyFeatures;
+        }
+        @Override
+        public boolean supportsMultiProperties() {
+            return false;
         }
 
         @Override
@@ -198,7 +207,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return FireflyGraphFeatures.USER_SUPPLIED_IDS;
         }
 
         @Override
@@ -254,7 +263,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return FireflyGraphFeatures.USER_SUPPLIED_IDS;
         }
 
         @Override
@@ -371,7 +380,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            return false;
+            return FireflyGraphFeatures.USER_SUPPLIED_IDS;
         }
 
         @Override

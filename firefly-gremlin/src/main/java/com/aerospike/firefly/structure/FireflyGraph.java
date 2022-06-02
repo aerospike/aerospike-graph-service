@@ -50,9 +50,14 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest",
         method = "*",
-        reason = "MAKE ACTIVE WHEN PARALLEL SCAN ITERATOR IMPLEMENTED",
+        reason = "MAKE ACTIVE WHEN PARALLEL SCAN RESULT ITERATOR IMPLEMENTED",
         computers = {"ALL"})
 
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.FeatureSupportTest",
+        method = "*",
+        reason = "THROW PROPER EXCEPTIONS WHEN DESIRED FINAL FEATURE SET IS DETERMINED",
+        computers = {"ALL"})
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     protected final AerospikeConnection db;
@@ -109,10 +114,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
+        if(ElementHelper.getIdValue(keyValues).isPresent())
+            if (db.vertexExists(ElementHelper.getIdValue(keyValues).get()))
+                throw Exceptions.vertexWithIdAlreadyExists(db.vertexExists(ElementHelper.getIdValue(keyValues).get()));
         Object idValue = ElementHelper.getIdValue(keyValues).orElse(vertexIdManager.getNextId(this));
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
-        if (db.vertexExists(idValue))
-            throw Exceptions.vertexWithIdAlreadyExists(idValue);
 
         //@todo performance: dont reread
         writeVertex(this, idValue, label);

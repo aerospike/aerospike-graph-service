@@ -54,6 +54,11 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
 
         @Override
+        public boolean supportsComputer() {
+            return false;
+        }
+
+        @Override
         public boolean supportsConcurrentAccess() {
             return false;
         }

@@ -32,7 +32,7 @@ $ mvn clean test
 
 Installing FireFly in the Gremlin-Console
 -----------
-copy `firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties` to `~/firefly-settings.properties`
+copy `firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties` to `~/firefly-settings.properties`  
 edit `~/firefly-settings.properties` to connect to your Aerospike instance.
 
 ```
@@ -89,7 +89,7 @@ To build the docker image for firefly-enabled gremlin-console
 docker build --build-arg ENTRYPOINT=gremlin.sh -t firefly-console .
 ```
 To use the firefly-gremlin enabled console with 1-touch startup, you may set environment variables to configure your connection,
-and pass the console-env-setup script: 
+and pass the console-env-startup script: 
 ```
 $ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console -i samples/console-env-startup.groovy
 ...

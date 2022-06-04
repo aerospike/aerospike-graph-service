@@ -88,9 +88,10 @@ To build the docker image for firefly-enabled gremlin-console
 ```
 docker build --build-arg ENTRYPOINT=gremlin.sh -t firefly-console .
 ```
-To use the firefly-gremlin enabled console, you may set environment variables to configure your connection:
+To use the firefly-gremlin enabled console with 1-touch startup, you may set environment variables to configure your connection,
+and pass the console-env-setup script: 
 ```
-$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console 
+$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console -i samples/console-env-startup.groovy
 ...
 Jun 04, 2022 4:03:56 AM java.util.prefs.FileSystemPreferences$1 run
 INFO: Created user preferences directory.

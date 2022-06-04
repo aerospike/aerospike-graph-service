@@ -16,12 +16,13 @@ RUN cd /tmp &&\
   tar -zxvf maven.tar.gz -C /opt/ &&\
   unzip gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
   unzip gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server
-ENV PATH="$PATH:/opt/apache-maven-3.8.5/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
+ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 RUN mvn -DskipTests clean install
-RUN /opt/gremlin-console/bin/gremlin.sh -e samples/console-setup.groovy &&\
-    /opt/gremlin-console/bin/gremlin.sh -e samples/console-plugin-enable.groovy
+RUN gremlin.sh -e samples/console-setup.groovy &&\
+    gremlin.sh -e samples/console-plugin-enable.groovy &&\
+    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.0.1-SNAPSHOT'
 RUN useradd -m firefly
 USER firefly
 

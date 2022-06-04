@@ -4,30 +4,17 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.LoadGraphWith;
-import org.apache.tinkerpop.gremlin.TestHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.Order;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
-import org.apache.tinkerpop.gremlin.structure.io.GraphMigrator;
-import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
-import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
-import org.apache.tinkerpop.gremlin.structure.io.IoTest;
-import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -305,7 +292,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         TinkerGraph tg = TinkerFactory.createModern();
         GraphTraversalSource tgs = tg.traversal();
@@ -327,7 +314,7 @@ public class TestAerospikeGraphIntegration {
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-        loadKryoDataFromResources(g, "grateful-dead.kryo");
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
         Long x1 = g.V().count().next();
         Long x2 = g2.V().count().next();
         assertEquals(x2, x1);
@@ -415,7 +402,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void airRoutesTest() throws IOException {
-        Util.loadGraphmlFromResources(graph, "air-routes-small.graphml");
+        Util.loadGraphmlFromData(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
         Map<Object, Object> stuff = g.V().hasLabel("airport").

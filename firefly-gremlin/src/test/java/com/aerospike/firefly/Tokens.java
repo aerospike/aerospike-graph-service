@@ -5,5 +5,5 @@ package com.aerospike.firefly;
  */
 public class Tokens {
     private Tokens(){}
-    public static final String INTEGRATION_TEST_PROPERTIES = "phaseshift-integration-settings.properties";
+    public static final String INTEGRATION_TEST_PROPERTIES = "docker-integration-settings.properties";
 }

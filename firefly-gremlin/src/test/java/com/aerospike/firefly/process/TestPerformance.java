@@ -4,11 +4,13 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
@@ -82,7 +84,7 @@ public class TestPerformance {
     @Test
     public void loadGratefulDataset() {
         startTimer(LOAD_TIMER);
-        loadKryoDataFromResources(g, "grateful-dead.kryo");
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
         long loadtime = stopTimer(LOAD_TIMER);
 
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));

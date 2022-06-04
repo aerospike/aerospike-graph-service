@@ -117,7 +117,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenm_since_2010X() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+        GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         final Traversal<Vertex, Vertex> traversal = g.addV("person")
                 .property(VertexProperty.Cardinality.single, "name", "stephen")
@@ -135,7 +135,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addVXpersonX_propertyXsingle_name_stephenX_propertyXsingle_name_stephenmX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
         final Traversal<Vertex, Vertex> traversal = g.addV("person").property(VertexProperty.Cardinality.single, "name", "stephen").property(VertexProperty.Cardinality.single, "name", "stephenm");
         printTraversalForm(traversal);
         final Vertex stephen = traversal.next();
@@ -657,7 +657,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addEXknowsX_fromXaX_toXbX_propertyXweight_0_1X() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         Vertex a = (Vertex) this.g.V(new Object[0]).has("name", "marko").next();
         Vertex b = (Vertex) this.g.V(new Object[0]).has("name", "peter").next();
@@ -675,7 +675,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_addEXV_outE_label_groupCount_orderXlocalX_byXvalues_descX_selectXkeysX_unfold_limitX1XX_fromXV_hasXname_vadasXX_toXV_hasXname_lopXX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         Traversal<Edge, Edge> traversal = g.addE(V().outE().label().groupCount().order(local).by(values, desc).select(keys).<String>unfold().limit(1)).from(V().has("name", "vadas")).to(V().has("name", "lop"));
         this.printTraversalForm(traversal);
@@ -690,7 +690,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_withSideEffectXa_testX_V_hasLabelXsoftwareX_propertyXtemp_selectXaXX_valueMapXname_tempX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
         TinkerGraph tgraph = TinkerFactory.createModern();
         GraphTraversalSource tg = tgraph.traversal();
 
@@ -719,7 +719,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_VX1X_addVXanimalX_propertyXage_selectXaX_byXageXX_propertyXname_puppyX() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         Traversal<Vertex, Vertex> traversal = g.V(convertToVertexId(this.graph, "marko"))
                 .as("a")
@@ -742,7 +742,7 @@ public class TestAerospikeGraphIntegration {
 
         @Test
         public void g_V_outE_propertyXweight_nullX() {
-                loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+               GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
 
         Traversal<Vertex, Edge> traversal = g.V().outE().property("weight", null);
         this.printTraversalForm(traversal);
@@ -756,7 +756,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
         TinkerGraph tgraph = TinkerFactory.createModern();
         GraphTraversalSource tg = tgraph.traversal();
         Map<String, Object> tgopm = tg.V().has("name", "marko").propertyMap().next();
@@ -779,7 +779,7 @@ public class TestAerospikeGraphIntegration {
     }
     @Test
     public void g_withSideEffectXc_label_person_name_markoX_withSideEffectXm_age_19X_mergeVXselectXcXX_optionXonMatch_selectXmXX_option() {
-        loadKryoDataFromResources(g, "tinkerpop-modern.kryo");
+       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
         Map<String, Object> opm = g.V().has("name", "marko").propertyMap().next();
 
         Traversal<Object, Vertex> traversal = g.withSideEffect("c", asMap(T.label, "person", "name", "marko")).

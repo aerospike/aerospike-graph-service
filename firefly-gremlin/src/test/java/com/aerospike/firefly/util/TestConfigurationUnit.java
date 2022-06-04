@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestConfigurationUnit {
     @Test
     void testLoadConfigurationFromResources() {
-        final Configuration c = ConfigurationHelper.loadFromResources("phaseshift-integration-settings.properties");
+        final Configuration c = ConfigurationHelper.loadFromResources("docker-integration-settings.properties");
         assertEquals(ConfigurationHelper.aerospikeHost(c).getClass(), String.class);
         assertNotEquals(ConfigurationHelper.aerospikePort(c), 0);
         assertEquals(ConfigurationHelper.aerospikeNamespace(c).getClass(), String.class);
@@ -29,7 +29,7 @@ public class TestConfigurationUnit {
     @Test
     void testLoadConfigurationFromFile() {
         String here = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-        Configuration c = ConfigurationHelper.loadFromFile(Paths.get(String.format("%s/%s", here, "phaseshift-integration-settings.properties")));
+        Configuration c = ConfigurationHelper.loadFromFile(Paths.get(String.format("%s/%s", here, "docker-integration-settings.properties")));
         assertEquals(ConfigurationHelper.aerospikePort(c), 3000);
         assertEquals(ConfigurationHelper.aerospikeNamespace(c), "test");
     }

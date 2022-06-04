@@ -33,16 +33,10 @@ public class Util {
         String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
         g.io(resourcePath).read().iterate();
     }
-    public static void loadGraphmlFromResources(Graph graph, String resourceName) throws IOException {
-        final Path tempPath;
-        try {
-            tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        tempPath.toFile().deleteOnExit();
-        copyResourceToDirectory(resourceName, tempPath);
-        String resourcePath = tempPath.resolve(resourceName).toAbsolutePath().toString();
+
+    public static void loadGraphmlFromData(Graph graph, String resourceName) throws IOException {
+        Path dataPath = Path.of("../data");
+        String resourcePath = dataPath.resolve(resourceName).toAbsolutePath().toString();
         graph.io(graphml()).readGraph(resourcePath);
     }
 }

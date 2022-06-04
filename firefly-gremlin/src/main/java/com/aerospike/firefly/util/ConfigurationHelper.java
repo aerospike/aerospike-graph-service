@@ -28,7 +28,6 @@ public class ConfigurationHelper {
 
     }
 
-
     public static Configuration loadFromFile(final Path path) {
         try {
             Properties props = new Properties();
@@ -74,7 +73,7 @@ public class ConfigurationHelper {
         if (System.getenv(Keys.AEROSPIKE_NAMESPACE) == null || System.getenv(Keys.AEROSPIKE_NAMESPACE).isEmpty())
             missingVariables.add(Keys.AEROSPIKE_NAMESPACE);
         if (!missingVariables.isEmpty())
-            throw new RuntimeException("Required variable not set: " + missingVariables);
+            throw new RuntimeException("Required environment variable(s) not set: " + missingVariables);
         return new MapConfiguration(new HashMap<>() {{
             put(Keys.AEROSPIKE_HOST, System.getenv(Keys.AEROSPIKE_HOST));
             put(Keys.AEROSPIKE_PORT, Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));
@@ -93,6 +92,5 @@ public class ConfigurationHelper {
     public static String aerospikeHost(Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_HOST);
     }
-
 
 }

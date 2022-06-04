@@ -25,5 +25,5 @@ RUN gremlin.sh -e samples/console-setup.groovy &&\
     gremlin-server.sh install 'com.aerospike firefly-gremlin 0.0.1-SNAPSHOT'
 RUN useradd -m firefly
 USER firefly
-
-ENTRYPOINT $ENTRYPOINT
+ENTRYPOINT ["gremlin.sh"]
+CMD ["-i","samples/console-env-startup.groovy"]

@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -28,7 +29,6 @@ public class ConfigurationHelper {
     }
 
 
-
     public static Configuration loadFromFile(final Path path) {
         try {
             Properties props = new Properties();
@@ -42,9 +42,11 @@ public class ConfigurationHelper {
             throw new RuntimeException(e);
         }
     }
+
     public static Configuration loadFromFile(final String path) {
         return loadFromFile(Paths.get(path));
     }
+
     public static Configuration loadFromResources(final String name) {
         try (InputStream is = FireflyGraph.class.getClassLoader().getResourceAsStream(name)) {
             if (is == null) throw new RuntimeException("unable to find resource " + name);
@@ -64,6 +66,15 @@ public class ConfigurationHelper {
     }
 
     public static Configuration loadFromEnv() {
+        ArrayList<String> missingVariables = new ArrayList<>();
+        if (System.getenv(Keys.AEROSPIKE_HOST) == null || System.getenv(Keys.AEROSPIKE_HOST).isEmpty())
+            missingVariables.add(Keys.AEROSPIKE_HOST);
+        if (System.getenv(Keys.AEROSPIKE_PORT) == null || System.getenv(Keys.AEROSPIKE_PORT).isEmpty())
+            missingVariables.add(Keys.AEROSPIKE_PORT);
+        if (System.getenv(Keys.AEROSPIKE_NAMESPACE) == null || System.getenv(Keys.AEROSPIKE_NAMESPACE).isEmpty())
+            missingVariables.add(Keys.AEROSPIKE_NAMESPACE);
+        if (!missingVariables.isEmpty())
+            throw new RuntimeException("Required variable not set: " + missingVariables);
         return new MapConfiguration(new HashMap<>() {{
             put(Keys.AEROSPIKE_HOST, System.getenv(Keys.AEROSPIKE_HOST));
             put(Keys.AEROSPIKE_PORT, Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));

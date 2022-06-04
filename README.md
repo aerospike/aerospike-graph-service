@@ -80,3 +80,37 @@ Gremlin is a concatenative language. There exists a set of approximately 25 'ste
 | `where`        |                                  |                            |                                          |
 | `select`       |                                  |                            |                                          |
 | `as`           |                                  |                            |                                          |
+
+Docker
+-----------
+
+To build the docker image for firefly-enabled gremlin-console
+```
+docker build --build-arg ENTRYPOINT=gremlin.sh -t firefly-console .
+```
+To use the firefly-gremlin enabled console, you may set environment variables to configure your connection:
+```
+$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console 
+...
+Jun 04, 2022 4:03:56 AM java.util.prefs.FileSystemPreferences$1 run
+INFO: Created user preferences directory.
+
+         \,,,/
+         (o o)
+-----oOOo-(3)-oOOo-----
+plugin activated: tinkerpop.server
+plugin activated: tinkerpop.utilities
+plugin activated: aerospike.firefly
+plugin activated: tinkerpop.tinkergraph
+gremlin> graph
+==>fireflygraph[aerospike://172.17.0.1:3000/test]
+gremlin> g
+==>graphtraversalsource[fireflygraph[aerospike://172.17.0.1:3000/test], standard]
+gremlin> 
+
+```
+
+To build the docker image for firefly-enabled gremlin-server
+```
+docker build --build-arg ENTRYPOINT=gremlin-server.sh -t firefly-server .
+```

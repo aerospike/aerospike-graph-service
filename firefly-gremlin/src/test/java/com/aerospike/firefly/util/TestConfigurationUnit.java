@@ -15,8 +15,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestConfigurationUnit {
-
-
     @Test
     void testLoadConfigurationFromResources() {
         final Configuration c = ConfigurationHelper.loadFromResources("phaseshift-integration-settings.properties");
@@ -48,7 +46,8 @@ public class TestConfigurationUnit {
     }
 
     @Test
-    @Disabled // some JVM distributions may not allow getModifiableEnvironment to succeed
+    @Disabled
+        // some JVM distributions may not allow getModifiableEnvironment to succeed
     void testLoadConfigurationFromEnv() throws Exception {
         Map<String, String> env = getModifiableEnvironment();
         env.put(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, "test");
@@ -57,5 +56,25 @@ public class TestConfigurationUnit {
         final Configuration c = ConfigurationHelper.loadFromEnv();
         assertEquals(ConfigurationHelper.aerospikePort(c), 3000);
         assertEquals(ConfigurationHelper.aerospikeNamespace(c), "test");
+    }
+
+    @Test
+    @Disabled
+        // some JVM distributions may not allow getModifiableEnvironment to succeed
+    void testLoadConfigurationFromEnvNegative() throws Exception {
+        boolean success = false;
+        Map<String, String> env = getModifiableEnvironment();
+        env.remove(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
+        env.remove(ConfigurationHelper.Keys.AEROSPIKE_HOST);
+        env.remove(ConfigurationHelper.Keys.AEROSPIKE_PORT);
+        try {
+            ConfigurationHelper.loadFromEnv();
+        } catch (RuntimeException re) {
+            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_HOST));
+            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_PORT));
+            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+            success = true;
+        }
+        assertTrue(success);
     }
 }

@@ -20,8 +20,8 @@ ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/o
 ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 RUN mvn -DskipTests clean install
-RUN gremlin.sh -e samples/console-setup.groovy &&\
-    gremlin.sh -e samples/console-plugin-enable.groovy &&\
+RUN gremlin.sh -e scripts/console-setup.groovy &&\
+    gremlin.sh -e scripts/console-plugin-enable.groovy &&\
     gremlin-server.sh install 'com.aerospike firefly-gremlin 0.0.1-SNAPSHOT'
 RUN useradd -m firefly
 USER firefly

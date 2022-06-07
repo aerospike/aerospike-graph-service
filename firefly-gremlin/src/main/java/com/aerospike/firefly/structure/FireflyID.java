@@ -11,7 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import java.io.Serializable;
 import java.util.Optional;
 
-import static com.aerospike.firefly.io.AerospikeConnection.ID_TYPE;
+
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -61,7 +61,7 @@ public class FireflyID {
 
     public FireflyID fromAerospike(FireflyGraph graph, Class<? extends FireflyElement> type, Key key, Record record) {
         long dbId = key.userKey.toLong();
-        long dbTypeIdx = record.getLong(ID_TYPE);
+        long dbTypeIdx = record.getLong(graph.db.ID_TYPE);
         Object id = FireflyRecord.idStorageTypeToOriginalType(dbId, dbTypeIdx);
         return new FireflyID(graph, type, id);
     }

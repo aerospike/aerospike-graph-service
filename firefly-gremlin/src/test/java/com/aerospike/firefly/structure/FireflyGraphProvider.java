@@ -10,13 +10,13 @@ import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoVertexTest;
 
+import java.io.ObjectInputFilter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.AerospikeConnection.GLOBAL;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -77,7 +77,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, GLOBAL);
+                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
         } else if (test.equals(IoVertexTest.class)) {
             final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteVertexWithBOTHEdges[graphson-v1]");
@@ -97,9 +97,10 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager(FireflyVertex.class, GLOBAL);
+                return new NumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER);
         }
-        return new NumericIdManager(FireflyVertex.class, GLOBAL);
+        //@todo review this default
+        return new NumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER);
 
 //        return FireflyGraph.DefaultIdManager.ANY;
     }

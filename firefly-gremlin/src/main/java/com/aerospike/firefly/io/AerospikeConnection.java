@@ -37,42 +37,42 @@ public class AerospikeConnection {
     protected final AerospikeClient client;
     protected final String namespace;
 
-    protected static final String GRAPH_METADATA_SET = "G_METADATA";
-    protected static final String GRAPH_VARIABLES_SET = "G_VARIABLES";
-    protected static final String GRAPH_VARIABLES_RECORD = "G_VARIABLES_REC";
-    protected static final String GRAPH_VARIABLES_MAP = "G_VARIABLES_MAP";
-    protected static final String EDGE_AERO_SET = "EDGE";
-    protected static final String VERTEX_AERO_SET = "VERTEX";
-    protected static final String VERTEX_EDGELIST_AERO_SET = "EDGELIST";
-    protected static final String PROPERTY_AERO_SET = "PROPERTY";
-    protected static final String VERTEX_PROPERTY_AERO_SET = "V_PROPERTY";
-    protected static final String EDGE_ID_KEY = "EDGE_ID_KEY";
-    protected static final String EDGE_ID_BIN = "EDGE_ID_BIN";
-    protected static final String VERTEX_ID_KEY = "VERTEX_ID_KEY";
-    protected static final String VERTEX_ID_BIN = "VERTEX_ID_BIN";
-    protected static final String VERTEX_PROPERTY_ID_KEY = "VP_ID_KEY";
-    protected static final String VERTEX_PROPERTY_ID_BIN = "VP_PROPERTY_ID_BIN";
-    protected static final String VERTEX_PROPERTY_NAME_TO_ID = "VP_NAME_ID";
-    protected static final String VERTEX_PROPERTY_NAME = "VP_NAME";
-    protected static final String PARENT_VERTEX_ID = "PARENT_V_ID";
+    protected final String GRAPH_METADATA_SET;
+    protected final String GRAPH_VARIABLES_SET;
+    protected final String GRAPH_VARIABLES_RECORD;
+    protected final String GRAPH_VARIABLES_MAP;
+    protected final String EDGE_AERO_SET;
+    protected final String VERTEX_AERO_SET;
+    protected final String VERTEX_EDGELIST_AERO_SET;
+    protected final String PROPERTY_AERO_SET;
+    protected final String VERTEX_PROPERTY_AERO_SET;
+    protected final String EDGE_ID_KEY;
+    protected final String EDGE_ID_BIN;
+    protected final String VERTEX_ID_KEY;
+    protected final String VERTEX_ID_BIN;
+    protected final String VERTEX_PROPERTY_ID_KEY;
+    protected final String VERTEX_PROPERTY_ID_BIN;
+    protected final String VERTEX_PROPERTY_NAME_TO_ID;
+    protected final String VERTEX_PROPERTY_NAME;
+    protected final String PARENT_VERTEX_ID;
 
 
-    protected static final String VERTEX_PROPERTY_SET = "V_PROPERTIES";
-    protected static final String EDGE_PROPERTIES = "E_PROPERTIES";
-    protected static final String VP_PROPERTIES = "VP_PROPERTIES";
-    protected static final String TYPE_HINTS = "TYPE_HINTS";
-    protected static final String KEY_VALUE = "KEY_VALUE";
-    protected static final String COUNTER = "COUNTER";
-    protected static final String ID_MANAGER_SET = "ID_MGR";
-    public static final String ID_TYPE = "ID_TYPE";
-    public static final String GLOBAL = "GLOBAL";
-    public static final String TEST_SET = "TEST";
+    protected final String VERTEX_PROPERTY_SET;
+    protected final String EDGE_PROPERTIES;
+    protected final String VP_PROPERTIES;
+    protected final String TYPE_HINTS;
+    protected final String KEY_VALUE;
+    protected final String COUNTER;
+    protected final String ID_MANAGER_SET;
+    public final String ID_TYPE;
+    public final String GLOBAL;
+    public final String TEST_SET;
     private final Configuration conf;
 
 
     private static Object idToStorageType(Object origId) {
-        if(FireflyElement.class.isAssignableFrom(origId.getClass()))
-            origId = ((FireflyElement)origId).id();
+        if (FireflyElement.class.isAssignableFrom(origId.getClass()))
+            origId = ((FireflyElement) origId).id();
         if (Integer.class.equals(origId.getClass()))
             return ((Integer) origId).longValue();
         if (String.class.equals(origId.getClass()))
@@ -124,6 +124,7 @@ public class AerospikeConnection {
     }
 
     public AerospikeConnection(final Configuration conf) {
+
         this.conf = conf;
         final String host = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST);
         final Integer port = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
@@ -136,10 +137,42 @@ public class AerospikeConnection {
         this.clientPolicy.eventLoops = this.eventLoops;
         this.client = new AerospikeClient(clientPolicy, hosts);
         this.namespace = namespace;
+
+        VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_AERO_SET, conf);
+        VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_EDGELIST_AERO_SET, conf);
+        PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_AERO_SET, conf);
+        VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_AERO_SET, conf);
+        EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
+        EDGE_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BIN, conf);
+        VERTEX_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_KEY, conf);
+        VERTEX_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BIN, conf);
+        VERTEX_PROPERTY_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_KEY, conf);
+        VERTEX_PROPERTY_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_BIN, conf);
+        VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
+        VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
+        PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
+        VERTEX_PROPERTY_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_SET, conf);
+        EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
+        VP_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_PROPERTIES, conf);
+        TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TYPE_HINTS, conf);
+        KEY_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.KEY_VALUE, conf);
+        COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.COUNTER, conf);
+        ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_MANAGER_SET, conf);
+        ID_TYPE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE, conf);
+        GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
+        TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TEST_SET, conf);
+        EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_AERO_SET, conf);
+        GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_METADATA_SET, conf);
+        GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_SET, conf);
+        GRAPH_VARIABLES_RECORD = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD, conf);
+        GRAPH_VARIABLES_MAP = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_MAP, conf);
+
     }
+
     public static AerospikeConnection connect(final Configuration conf) {
         return new AerospikeConnection(conf);
     }
+
     Throttles initializeThrottles(final int numLoops, final int commandsPerEventLoop) {
         final Throttles throttles = new Throttles(numLoops, commandsPerEventLoop);
         return throttles;
@@ -171,7 +204,6 @@ public class AerospikeConnection {
         }
         return eventLoops;
     }
-
 
 
     protected Record read(final Key key) {
@@ -215,20 +247,20 @@ public class AerospikeConnection {
         private final String ID_KEY;
         private final String ID_BIN;
 
-        id_config(final Class<? extends FireflyElement> type) {
+        id_config(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
             this.type = type;
             if (type == FireflyVertex.class) {
-                AERO_SET = VERTEX_AERO_SET;
-                ID_KEY = VERTEX_ID_KEY;
-                ID_BIN = VERTEX_ID_BIN;
+                AERO_SET = ac.VERTEX_AERO_SET;
+                ID_KEY = ac.VERTEX_ID_KEY;
+                ID_BIN = ac.VERTEX_ID_BIN;
             } else if (type == FireflyEdge.class) {
-                AERO_SET = EDGE_AERO_SET;
-                ID_KEY = EDGE_ID_KEY;
-                ID_BIN = EDGE_ID_BIN;
+                AERO_SET = ac.EDGE_AERO_SET;
+                ID_KEY = ac.EDGE_ID_KEY;
+                ID_BIN = ac.EDGE_ID_BIN;
             } else if (type == FireflyVertexProperty.class) {
-                AERO_SET = VERTEX_PROPERTY_AERO_SET;
-                ID_KEY = VERTEX_PROPERTY_ID_KEY;
-                ID_BIN = VERTEX_PROPERTY_ID_BIN;
+                AERO_SET = ac.VERTEX_PROPERTY_AERO_SET;
+                ID_KEY = ac.VERTEX_PROPERTY_ID_KEY;
+                ID_BIN = ac.VERTEX_PROPERTY_ID_BIN;
             } else
                 throw new RuntimeException("unknown id type: " + type);
         }
@@ -660,7 +692,7 @@ public class AerospikeConnection {
      * @return
      */
     public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
-        final id_config cfg = new id_config(type);
+        final id_config cfg = new id_config(this,type);
         return scanAllIdsInSet(cfg.getAeroSet());
     }
 

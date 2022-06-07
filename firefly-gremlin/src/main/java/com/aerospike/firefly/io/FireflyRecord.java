@@ -40,11 +40,15 @@ public class FireflyRecord {
         sendKeyWritePolicy.sendKey = true;
     }
 
+    private final AerospikeConnection ac;
 
-    private FireflyRecord(final Key key,
+
+    private FireflyRecord(AerospikeConnection ac,
+                          final Key key,
                           final Record record,
                           final Class<? extends Serializable> userClass,
                           final Class<? extends Serializable> storageClass) {
+        this.ac = ac;
         this.key = key;
         this.record = record;
         this.userClass = userClass;
@@ -89,7 +93,7 @@ public class FireflyRecord {
 
     public Object id() {
         final long idval = key.userKey.toLong();
-        final long idtypidx = record.getLong(AerospikeConnection.ID_TYPE);
+        final long idtypidx = record.getLong(this.ac.ID_TYPE);
         return idStorageTypeToOriginalType(idval, idtypidx);
     }
 
@@ -129,11 +133,11 @@ public class FireflyRecord {
         final Record record = db.read(key);
         if (record == null)
             return null;
-        final long idTypeIdx = record.getLong(AerospikeConnection.ID_TYPE);
+        final long idTypeIdx = record.getLong(db.ID_TYPE);
         final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
         final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(key, record, userClass, storageClass);
+        return new FireflyRecord(db,key, record, userClass, storageClass);
     }
 
     protected static void write(final AerospikeConnection db,
@@ -142,7 +146,7 @@ public class FireflyRecord {
                                 final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(idValue.getClass());
         final Key key = getKey(db.namespace, set, idValue);
-        final Bin idTypeBin = new Bin(AerospikeConnection.ID_TYPE, Value.get(supportedIdTypeIdx));
+        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
 
@@ -159,7 +163,7 @@ public class FireflyRecord {
                                        final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(idValue.getClass());
         final Key key = getElementKey(db.namespace, set, idValue);
-        final Bin idTypeBin = new Bin(AerospikeConnection.ID_TYPE, Value.get(supportedIdTypeIdx));
+        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         try {

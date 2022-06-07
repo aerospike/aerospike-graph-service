@@ -14,8 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.AerospikeConnection.*;
-import static java.lang.Thread.sleep;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -52,8 +51,8 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, TEST_SET, id, bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, TEST_SET, id)).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, id)).record.getInt("age"), 32);
     }
 
     @Test
@@ -66,9 +65,9 @@ public class TestAerospikeClientIntegration {
 
         Policy rp = new Policy();
         rp.sendKey = true;
-        FireflyRecord.write(db, TEST_SET, id, bin1, bin2, bin3);
-        Key key = db.scanAllRecordsInSet(TEST_SET).next().getKey();
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, TEST_SET, id)).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
+        Key key = db.scanAllRecordsInSet(db.TEST_SET).next().getKey();
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, id)).record.getInt("age"), 32);
     }
 
     @Test
@@ -77,10 +76,10 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, TEST_SET, id, bin1, bin2, bin3);
-        assertNotEquals(null, db.read(FireflyRecord.getKey(db.namespace, TEST_SET, id)));
-        db.delete(FireflyRecord.getKey(db.namespace, TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKey(db.namespace, TEST_SET, id)));
+        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
+        assertNotEquals(null, db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
+        db.delete(FireflyRecord.getKey(db.namespace, db.TEST_SET, id));
+        assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
     @Test
@@ -89,10 +88,10 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, TEST_SET, id, bin1, bin2, bin3);
+        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
         db.dropDatabase();
 
-        assertNull(db.read(FireflyRecord.getKey(db.namespace, TEST_SET, id)));
+        assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
 //    @Test
@@ -119,16 +118,16 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testCounterOps() {
-        db.zeroIdCounter(GLOBAL);
-        db.incrementAndGetIdCounter(FireflyVertex.class, GLOBAL);
-        assertEquals(1, db.getIdCounter(GLOBAL));
-        db.decrementIdCounter(GLOBAL);
-        assertEquals(0, db.getIdCounter(GLOBAL));
-        db.incrementAndGetIdCounter(FireflyVertex.class, GLOBAL);
-        db.incrementAndGetIdCounter(FireflyVertex.class, GLOBAL);
-        assertEquals(2, db.getIdCounter(GLOBAL));
-        db.zeroIdCounter(GLOBAL);
-        assertEquals(0, db.getIdCounter(GLOBAL));
+        db.zeroIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(FireflyVertex.class,db.GLOBAL);
+        assertEquals(1, db.getIdCounter(db.GLOBAL));
+        db.decrementIdCounter(db.GLOBAL);
+        assertEquals(0, db.getIdCounter(db.GLOBAL));
+        db.incrementAndGetIdCounter(FireflyVertex.class, db.GLOBAL);
+        db.incrementAndGetIdCounter(FireflyVertex.class, db.GLOBAL);
+        assertEquals(2, db.getIdCounter(db.GLOBAL));
+        db.zeroIdCounter(db.GLOBAL);
+        assertEquals(0, db.getIdCounter(db.GLOBAL));
     }
 
     @Test
@@ -140,7 +139,7 @@ public class TestAerospikeClientIntegration {
         }};
         db.writeVertex(graph, ids.get(0), "a");
         db.writeVertex(graph, ids.get(1), "b");
-        Iterator<Long> i = db.scanAllIdsInSet(VERTEX_AERO_SET);
+        Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
         assertTrue(i.hasNext());
         Long a = i.next();
         assertTrue(ids.contains(a));
@@ -163,7 +162,7 @@ public class TestAerospikeClientIntegration {
         FireflyVertex va = db.readVertex(graph, vertexIds.get(0));
         db.writeVertex(graph, vertexIds.get(1), "b");
         FireflyVertex vb = db.readVertex(graph, vertexIds.get(1));
-        Iterator<Long> i = db.scanAllIdsInSet(VERTEX_AERO_SET);
+        Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
         assertTrue(i.hasNext());
         Long a = i.next();
         assertTrue(vertexIds.contains(a));
@@ -173,7 +172,7 @@ public class TestAerospikeClientIntegration {
         db.writeEdge(graph, edgeIds.get(0), "anything", va, vb, new Object[]{});
         db.writeEdge(graph, edgeIds.get(1), "anything", vb, va, new Object[]{});
 
-        Iterator<Long> ie = db.scanAllIdsInSet(EDGE_AERO_SET);
+        Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
         assertTrue(ie.hasNext());
         Long ae = ie.next();
         assertTrue(edgeIds.contains(ae));
@@ -187,13 +186,13 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, TEST_SET, id1, bin1, bin2, bin3);
+        FireflyRecord.write(db, db.TEST_SET, id1, bin1, bin2, bin3);
         long id2 = 2L;
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         Bin bin23 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, TEST_SET, id2, bin21, bin22, bin23);
-        Iterator<Map.Entry<Key, Record>> i = db.scanAllRecordsInSet(TEST_SET);
+        FireflyRecord.write(db, db.TEST_SET, id2, bin21, bin22, bin23);
+        Iterator<Map.Entry<Key, Record>> i = db.scanAllRecordsInSet(db.TEST_SET);
         HashMap<Key, Record> results = new HashMap<>();
         i.forEachRemaining(entry -> {
             results.put(entry.getKey(), entry.getValue());
@@ -210,8 +209,8 @@ public class TestAerospikeClientIntegration {
         Integer intId = 1;
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
-        FireflyRecord.write(db, TEST_SET, intId, bin21, bin22);
-        FireflyRecord record = FireflyRecord.read(db, TEST_SET, intId);
+        FireflyRecord.write(db, db.TEST_SET, intId, bin21, bin22);
+        FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
         assertEquals(record.id(), intId);
     }
 
@@ -221,8 +220,8 @@ public class TestAerospikeClientIntegration {
         Long longId = 1L;
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
-        FireflyRecord.write(db, TEST_SET, longId, bin21, bin22);
-        FireflyRecord record = FireflyRecord.read(db, TEST_SET, longId);
+        FireflyRecord.write(db, db.TEST_SET, longId, bin21, bin22);
+        FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, longId);
         assertEquals(record.id(), longId);
     }
 

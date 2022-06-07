@@ -8,8 +8,10 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -35,37 +37,37 @@ public class AerospikeConnection {
     protected final AerospikeClient client;
     protected final String namespace;
 
+    protected static final String GRAPH_METADATA_SET = "G_METADATA";
+    protected static final String GRAPH_VARIABLES_SET = "G_VARIABLES";
+    protected static final String GRAPH_VARIABLES_RECORD = "G_VARIABLES_REC";
+    protected static final String GRAPH_VARIABLES_MAP = "G_VARIABLES_MAP";
+    protected static final String EDGE_AERO_SET = "EDGE";
+    protected static final String VERTEX_AERO_SET = "VERTEX";
+    protected static final String VERTEX_EDGELIST_AERO_SET = "EDGELIST";
+    protected static final String PROPERTY_AERO_SET = "PROPERTY";
+    protected static final String VERTEX_PROPERTY_AERO_SET = "V_PROPERTY";
+    protected static final String EDGE_ID_KEY = "EDGE_ID_KEY";
+    protected static final String EDGE_ID_BIN = "EDGE_ID_BIN";
+    protected static final String VERTEX_ID_KEY = "VERTEX_ID_KEY";
+    protected static final String VERTEX_ID_BIN = "VERTEX_ID_BIN";
+    protected static final String VERTEX_PROPERTY_ID_KEY = "VP_ID_KEY";
+    protected static final String VERTEX_PROPERTY_ID_BIN = "VP_PROPERTY_ID_BIN";
+    protected static final String VERTEX_PROPERTY_NAME_TO_ID = "VP_NAME_ID";
+    protected static final String VERTEX_PROPERTY_NAME = "VP_NAME";
+    protected static final String PARENT_VERTEX_ID = "PARENT_V_ID";
 
-    protected static final String GRAPH_METADATA_AERO_SET = "_GMST";
-    protected static final String GRAPH_VARIABLES_AERO_SET = "_GVST";
-    protected static final String GRAPH_VARIABLES_RECORD = "_GVR";
-    protected static final String GRAPH_VARIABLES_MAP = "_GVM";
-    protected static final String EDGE_AERO_SET = "_EDST";
-    protected static final String VERTEX_AERO_SET = "_VXST";
-    protected static final String VERTEX_EDGELIST_AERO_SET = "_VXEL";
-    protected static final String PROPERTY_AERO_SET = "_PRST";
-    protected static final String VERTEX_PROPERTY_AERO_SET = "_VPST";
-    protected static final String EDGE_ID_KEY = "_EDIDST";
-    protected static final String EDGE_ID_BIN = "_EDIDBN";
-    protected static final String VERTEX_ID_KEY = "_VXIDST";
-    protected static final String VERTEX_ID_BIN = "_VXIDBN";
-    protected static final String VERTEX_PROPERTY_ID_KEY = "_VPIDST";
-    protected static final String VERTEX_PROPERTY_ID_BIN = "_VPIDBN";
-    protected static final String VERTEX_PROPERTY_NAME_TO_ID = "_VPK";
-    protected static final String VERTEX_PROPERTY_NAME = "_VPN";
-    protected static final String PARENT_VERTEX_ID = "_PVI";
 
-
-    protected static final String VERTEX_PROPERTIES = "_VXP";
-    protected static final String EDGE_PROPERTIES = "_EDP";
-    protected static final String VP_PROPERTIES = "_VPP";
-    protected static final String TYPE_HINTS = "_EPT";
-    protected static final String KEY_VALUE = "_KV";
-    protected static final String COUNTER = "_CT";
-    protected static final String ID_MANAGER_SET = "_IDMGR";
-    public static final String ID_TYPE = "_IT";
-    public static final String GLOBAL = "_GLOBAL";
-    public static final String TEST_SET = "_TEST";
+    protected static final String VERTEX_PROPERTY_SET = "V_PROPERTIES";
+    protected static final String EDGE_PROPERTIES = "E_PROPERTIES";
+    protected static final String VP_PROPERTIES = "VP_PROPERTIES";
+    protected static final String TYPE_HINTS = "TYPE_HINTS";
+    protected static final String KEY_VALUE = "KEY_VALUE";
+    protected static final String COUNTER = "COUNTER";
+    protected static final String ID_MANAGER_SET = "ID_MGR";
+    public static final String ID_TYPE = "ID_TYPE";
+    public static final String GLOBAL = "GLOBAL";
+    public static final String TEST_SET = "TEST";
+    private final Configuration conf;
 
 
     private static Object idToStorageType(Object origId) {
@@ -104,7 +106,7 @@ public class AerospikeConnection {
 
     private String getElementPropertySet(final FireflyElement ele) {
         if (ele.getClass().equals(FireflyVertex.class))
-            return VERTEX_PROPERTIES;
+            return VERTEX_PROPERTY_SET;
         else if (ele.getClass().equals(FireflyEdge.class))
             return EDGE_PROPERTIES;
         else if (ele.getClass().equals(FireflyVertexProperty.class))
@@ -121,7 +123,11 @@ public class AerospikeConnection {
         return SupportedValueTypes.get(clazz);
     }
 
-    private AerospikeConnection(final String host, final int port, final String namespace) {
+    public AerospikeConnection(final Configuration conf) {
+        this.conf = conf;
+        final String host = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST);
+        final Integer port = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
+        final String namespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
         this.host = host;
         this.port = port;
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
@@ -131,7 +137,9 @@ public class AerospikeConnection {
         this.client = new AerospikeClient(clientPolicy, hosts);
         this.namespace = namespace;
     }
-
+    public static AerospikeConnection connect(final Configuration conf) {
+        return new AerospikeConnection(conf);
+    }
     Throttles initializeThrottles(final int numLoops, final int commandsPerEventLoop) {
         final Throttles throttles = new Throttles(numLoops, commandsPerEventLoop);
         return throttles;
@@ -164,9 +172,7 @@ public class AerospikeConnection {
         return eventLoops;
     }
 
-    public static AerospikeConnection connect(final String host, final int port, final String namespace) {
-        return new AerospikeConnection(host, port, namespace);
-    }
+
 
     protected Record read(final Key key) {
         return client.get(null, key);
@@ -394,11 +400,11 @@ public class AerospikeConnection {
     }
 
     public <V> V readGraphVariable(final String k) {
-        return readTypeHintedValueFromMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
+        return readTypeHintedValueFromMap(GRAPH_VARIABLES_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
     }
 
     public Set<String> readGraphVariableKeys() {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD);
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_SET, GRAPH_VARIABLES_RECORD);
         if (fireflyRecord == null)
             return new HashSet<>();
         final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(GRAPH_VARIABLES_MAP);
@@ -406,11 +412,11 @@ public class AerospikeConnection {
     }
 
     public <V> void writeGraphVariable(final String k, final V v) {
-        writeTypeHintedValueToMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k, v);
+        writeTypeHintedValueToMap(GRAPH_VARIABLES_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k, v);
     }
 
     public <V> void removeGraphVariable(final String k) {
-        removeTypeHintedValueFromMap(GRAPH_VARIABLES_AERO_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
+        removeTypeHintedValueFromMap(GRAPH_VARIABLES_SET, GRAPH_VARIABLES_RECORD, GRAPH_VARIABLES_MAP, k);
     }
 
 
@@ -756,7 +762,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, GRAPH_VARIABLES_AERO_SET, Calendar.getInstance());
+        client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
     }
 
     @Override

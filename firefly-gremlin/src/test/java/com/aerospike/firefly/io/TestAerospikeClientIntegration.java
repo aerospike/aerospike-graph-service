@@ -23,15 +23,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class TestAerospikeClientIntegration {
 
-    private Configuration c;
+    private Configuration configuration;
     private AerospikeConnection db;
 
     @BeforeEach
     void setup() {
-        c = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(c),
-                ConfigurationHelper.aerospikePort(c),
-                ConfigurationHelper.aerospikeNamespace(c));
+        configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        db = AerospikeConnection.connect(configuration);
         db.dropDatabase();
     }
 
@@ -43,11 +41,8 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testConnectToAerospike() {
-        Configuration test_c = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        AerospikeConnection test_db = AerospikeConnection.connect(
-                ConfigurationHelper.aerospikeHost(test_c),
-                ConfigurationHelper.aerospikePort(test_c),
-                ConfigurationHelper.aerospikeNamespace(test_c));
+        Configuration configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        AerospikeConnection test_db = AerospikeConnection.connect(configuration);
         test_db.close();
     }
 
@@ -138,7 +133,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testScanVertexIds() {
-        FireflyGraph graph = FireflyGraph.open(c);
+        FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Long> ids = new ArrayList<>() {{
             add(0L);
             add(1L);
@@ -155,7 +150,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testScanEdgeIds() {
-        FireflyGraph graph = FireflyGraph.open(c);
+        FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Long> vertexIds = new ArrayList<>() {{
             add(0L);
             add(1L);
@@ -211,7 +206,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testFireflyRecordIntegerId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(c);
+        final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
         Integer intId = 1;
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
@@ -222,7 +217,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     void testFireflyRecordLongId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(c);
+        final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
         Long longId = 1L;
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);

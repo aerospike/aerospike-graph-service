@@ -58,9 +58,7 @@ public class TestAirRoutes50k {
 
     @BeforeEach
     void openGraph() {
-        this.db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(config),
-                ConfigurationHelper.aerospikePort(config),
-                ConfigurationHelper.aerospikeNamespace(config));
+        this.db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         db.dropDatabase();
         g = graph.traversal();
@@ -75,6 +73,6 @@ public class TestAirRoutes50k {
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = date.getTime();
         long delta = finish - start;
-        System.out.println(String.format("%d ms total", delta));
+        System.out.println(String.format("%d milliseconds elapsed", delta));
     }
 }

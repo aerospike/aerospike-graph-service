@@ -90,14 +90,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     protected FireflyGraph(final Configuration conf) {
         this.configuration = conf;
-        final String aerospikeHost = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST);
-        final Integer aerospikePort = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
-        final String aerospikeNamespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
-        this.db = AerospikeConnection.connect(aerospikeHost, aerospikePort, aerospikeNamespace);
-        vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
-        vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
-        edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
-        variables = new FireflyGraphVariables(this);
+        this.db = AerospikeConnection.connect(conf);
+        this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
+        this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
+        this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
+        this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
     }
 

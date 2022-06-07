@@ -52,9 +52,7 @@ public class TestAerospikeGraphIntegration {
 
     @BeforeEach
     void openGraph() {
-        this.db = AerospikeConnection.connect(ConfigurationHelper.aerospikeHost(config),
-                ConfigurationHelper.aerospikePort(config),
-                ConfigurationHelper.aerospikeNamespace(config));
+        this.db = AerospikeConnection.connect(config);
         graph = new FireflyGraph(config);
         db.dropDatabase();
     }

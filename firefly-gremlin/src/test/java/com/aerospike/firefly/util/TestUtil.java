@@ -17,7 +17,7 @@ public class TestUtil {
     void canCopyFileFromResources() {
 
         try {
-            final String resourceName = "docker-integration-settings.properties";
+            final String resourceName = "integration-test-settings.properties";
             final Path tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
             tempPath.toFile().deleteOnExit();
             Util.copyResourceToDirectory(resourceName, tempPath);

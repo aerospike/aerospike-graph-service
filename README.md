@@ -16,7 +16,7 @@ firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT.jar
 
 Testing Firefly
 ----------
-The integration tests use the configuration at [firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties](url). Update these setting to point to your Aerospike instance.
+The integration tests use the configuration at [firefly-gremlin/src/test/resources/integration-test-settings.properties](url). Update these setting to point to your Aerospike instance.
 
 ```
 aerospike_host = aerospike-ee.server.domain
@@ -32,7 +32,7 @@ $ mvn clean test
 
 Installing FireFly in the Gremlin-Console
 -----------
-copy `firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties` to `~/firefly-settings.properties`  
+copy `firefly-gremlin/src/test/resources/integration-test-settings.properties` to `~/firefly-settings.properties`  
 edit `~/firefly-settings.properties` to connect to your Aerospike instance.
 
 ```

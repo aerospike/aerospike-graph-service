@@ -75,6 +75,6 @@ public class TestAirRoutes50k {
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = date.getTime();
         long delta = finish - start;
-        logger.info(String.format("%d ms total", delta));
+        System.out.println(String.format("%d ms total", delta));
     }
 }

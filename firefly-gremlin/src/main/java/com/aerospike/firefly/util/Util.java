@@ -3,8 +3,8 @@ package com.aerospike.firefly.util;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -21,6 +21,7 @@ public class Util {
             throw new RuntimeException(e);
         }
     }
+
     public static void loadKryoDataFromResources(GraphTraversalSource g, String resourceName) {
         final Path tempPath;
         try {
@@ -38,5 +39,18 @@ public class Util {
         Path dataPath = Path.of("../data");
         String resourcePath = dataPath.resolve(resourceName).toAbsolutePath().toString();
         graph.io(graphml()).readGraph(resourcePath);
+    }
+
+    public static void downloadFileFromURL(URL source, File dest) {
+        try (BufferedInputStream in = new BufferedInputStream(source.openStream());
+             FileOutputStream fileOutputStream = new FileOutputStream(dest)) {
+            byte dataBuffer[] = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
+                fileOutputStream.write(dataBuffer, 0, bytesRead);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

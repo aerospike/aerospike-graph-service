@@ -198,6 +198,10 @@ public class AerospikeConnection {
         return exists(key);
     }
 
+    public boolean aerospikeEnterprise() {
+        return true; //@todo
+    }
+
 
     private static class id_config {
         private final Class<? extends FireflyElement> type;

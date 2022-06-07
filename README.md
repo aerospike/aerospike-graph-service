@@ -19,7 +19,7 @@ Testing Firefly
 The integration tests use the configuration at [firefly-gremlin/src/test/resources/phaseshift-integration-settings.properties](url). Update these setting to point to your Aerospike instance.
 
 ```
-aerospike_host = aerospike-dev.phaseshift.internal
+aerospike_host = aerospike-ee.server.domain
 aerospike_port = 3000
 aerospike_namespace = firefly_graph
 ```
@@ -39,7 +39,7 @@ edit `~/firefly-settings.properties` to connect to your Aerospike instance.
 #install to maven local  
 $ mvn -DskipTests clean install  
 #allow gremlin console environment to install from maven local  
-$ mkdir -p ~/.groovy/ && cp samples/grapeConfig.xml ~/.groovy/
+$ mkdir -p ~/.groovy/ && cp conf/grapeConfig.xml ~/.groovy/
 ```
 
 ![Gremlin-Console](https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/gremlin-console.png)
@@ -91,7 +91,7 @@ docker build --build-arg ENTRYPOINT=gremlin.sh -t firefly-console .
 To use the firefly-gremlin enabled console with 1-touch startup, you may set environment variables to configure your connection,
 and pass the console-env-startup script: 
 ```
-$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console -i samples/console-env-startup.groovy
+$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console -i scripts/console-env-startup.groovy
 ...
 Jun 04, 2022 4:03:56 AM java.util.prefs.FileSystemPreferences$1 run
 INFO: Created user preferences directory.

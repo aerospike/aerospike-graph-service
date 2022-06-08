@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -84,6 +85,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
 
     protected FireflyGraphComputerView graphComputerView = null;
+
+
+    static {
+        TraversalStrategies.GlobalCache.registerStrategies(
+                FireflyGraph.class,
+                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone());
+    }
+
 
     protected FireflyGraph(final Configuration conf) {
         this.configuration = conf;

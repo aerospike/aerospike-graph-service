@@ -197,10 +197,6 @@ public class TestAerospikeClientIntegration {
         i.forEachRemaining(entry -> {
             results.put(entry.getKey(), entry.getValue());
         });
-
-
-//        assertEquals(results.get(id1).getValue("name"), bin1.value.getObject());
-//        assertEquals(results.get(id2).getValue("name"), bin21.value.getObject());
     }
 
     @Test

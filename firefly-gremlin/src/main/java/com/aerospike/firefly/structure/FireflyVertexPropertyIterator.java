@@ -10,6 +10,8 @@ import java.util.Iterator;
  */
 public class FireflyVertexPropertyIterator extends FireflyElementIterator<Property> {
     protected FireflyVertexPropertyIterator(FireflyVertex vertex, AerospikeConnection db, Iterator<?> idIterator) {
-        super(db, idIterator, id -> db.vertexPropertyExists(id), id -> db.readVertexProperty(vertex, id.toString()));
+        super(db, idIterator,
+                id -> db.vertexPropertyExists(FireflyId.of(FireflyVertexProperty.class, id)),
+                id -> db.readVertexProperty(vertex, FireflyId.of(FireflyVertexProperty.class, id)));
     }
 }

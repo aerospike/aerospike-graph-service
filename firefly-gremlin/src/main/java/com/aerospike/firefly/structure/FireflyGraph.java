@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.structure.*;
@@ -55,7 +54,6 @@ import static com.aerospike.firefly.util.Tokens.*;
         computers = {"ALL"})
 
 
-
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest",
@@ -68,7 +66,6 @@ import static com.aerospike.firefly.util.Tokens.*;
         method = "*",
         reason = "MAKE ACTIVE LATER",
         computers = {"ALL"})
-
 
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
@@ -123,13 +120,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
-        if(ElementHelper.getIdValue(keyValues).isPresent())
+        if (ElementHelper.getIdValue(keyValues).isPresent())
             if (!features.vertex().supportsUserSuppliedIds())
                 throw Vertex.Exceptions.userSuppliedIdsNotSupported();
-        if(ElementHelper.getIdValue(keyValues).isPresent())
-            if (db.vertexExists(ElementHelper.getIdValue(keyValues).get()))
-                throw Exceptions.vertexWithIdAlreadyExists(db.vertexExists(ElementHelper.getIdValue(keyValues).get()));
-        Object idValue = ElementHelper.getIdValue(keyValues).orElse(vertexIdManager.getNextId(this));
+        if (ElementHelper.getIdValue(keyValues).isPresent())
+            if (db.vertexExists(FireflyId.fromKeyValues(keyValues)))
+                throw Exceptions.vertexWithIdAlreadyExists(db.vertexExists(FireflyId.fromKeyValues(keyValues)));
+        FireflyId idValue = FireflyId.fromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         //@todo performance: dont reread
@@ -157,7 +154,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVerticies.length != 0)
-            if (!IteratorUtils.allMatch(longs.iterator(), db::vertexExists))
+            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(FireflyVertex.class, longId)), db::vertexExists))
                 throw new NoSuchElementException("vertex could not be found and edge could not be created");
         if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();

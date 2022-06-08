@@ -5,6 +5,9 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyId;
+import com.aerospike.firefly.structure.FireflyVertex;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -65,6 +68,9 @@ public class FireflyRecord {
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
+    public Key key(){
+        return this.key;
+    }
     public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
         return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
     }
@@ -91,6 +97,7 @@ public class FireflyRecord {
         return AerospikeConnection.SupportedValueTypes.get(clazz);
     }
 
+
     public Object id() {
         final long idval = key.userKey.toLong();
         final long idtypidx = record.getLong(this.ac.ID_TYPE);
@@ -98,37 +105,37 @@ public class FireflyRecord {
     }
 
 
-    public static Key getKey(final String namespace, final String set, final Object id) {
+    public static Key getKey(final String namespace, final String set, final FireflyId id) {
         final Key key;
-        if (id.getClass().equals(Long.class))
-            key = new Key(namespace, set, (Long) id);
-        else if (id.getClass().equals(Integer.class))
-            key = new Key(namespace, set, (Long) keyToStorageType(id));
-        else if (id.getClass().equals(String.class))
-            key = new Key(namespace, set, (String) id);
-        else if (id.getClass().equals(byte[].class))
-            key = new Key(namespace, set, (byte[]) id);
+        if (id.value().getClass().equals(Long.class))
+            key = new Key(namespace, set, (Long) id.value());
+        else if (id.value().getClass().equals(Integer.class))
+            key = new Key(namespace, set, (Long) keyToStorageType(id.value()));
+        else if (id.value().getClass().equals(String.class))
+            key = new Key(namespace, set, (String) id.value());
+        else if (id.value().getClass().equals(byte[].class))
+            key = new Key(namespace, set, (byte[]) id.value());
         else
-            throw new UnsupportedOperationException(id.getClass() + " unsuppored key type");
+            throw new UnsupportedOperationException(id.value().getClass() + " unsuppored key type");
         return key;
     }
 
-    private static Key getElementKey(final String namespace, final String set, final Object id) {
+    private static Key getElementKey(final String namespace, final String set, final FireflyId id) {
         final Key key;
-        if (id.getClass().equals(Long.class))
-            key = new Key(namespace, set, (Long) id);
-        else if (id.getClass().equals(Integer.class))
-            key = new Key(namespace, set, (Long) keyToStorageType(id));
-        else if (id.getClass().equals(String.class))
-            key = new Key(namespace, set, Long.parseLong((String) id));
-        else if (id.getClass().equals(byte[].class))
-            key = new Key(namespace, set, (byte[]) id);
+        if (id.value().getClass().equals(Long.class))
+            key = new Key(namespace, set, (Long) id.value());
+        else if (id.value().getClass().equals(Integer.class))
+            key = new Key(namespace, set, (Long) keyToStorageType(id.value()));
+        else if (id.value().getClass().equals(String.class))
+            key = new Key(namespace, set, Long.parseLong((String) id.value()));
+        else if (id.value().getClass().equals(byte[].class))
+            key = new Key(namespace, set, (byte[]) id.value());
         else
-            throw new UnsupportedOperationException(id.getClass() + " unsuppored key type");
+            throw new UnsupportedOperationException(id.value().getClass() + " unsuppored key type");
         return key;
     }
 
-    protected static FireflyRecord read(final AerospikeConnection db, final String set, final Object id) {
+    protected static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
         final Key key = getKey(db.namespace, set, id);
         final Record record = db.read(key);
         if (record == null)
@@ -142,10 +149,10 @@ public class FireflyRecord {
 
     protected static void write(final AerospikeConnection db,
                                 final String set,
-                                final Object idValue,
+                                final FireflyId id,
                                 final Bin... bins) {
-        final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(idValue.getClass());
-        final Key key = getKey(db.namespace, set, idValue);
+        final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(id.value().getClass());
+        final Key key = getKey(db.namespace, set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
@@ -159,10 +166,10 @@ public class FireflyRecord {
 
     protected static void writeElement(final AerospikeConnection db,
                                        final String set,
-                                       final Object idValue,
+                                       final FireflyId id,
                                        final Bin... bins) {
-        final Long supportedIdTypeIdx = getSupportedIdTypeIdx(idValue.getClass());
-        final Key key = getElementKey(db.namespace, set, idValue);
+        final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.getClass());
+        final Key key = getElementKey(db.namespace, set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);

@@ -19,8 +19,8 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 public class FireflyEdge extends FireflyElement implements Edge {
     protected boolean removed;
     private final FireflyGraph graph;
-    private final Object inVid;
-    private final Object outVid;
+    private final FireflyId inVid;
+    private final FireflyId outVid;
 
     private void writeProperty(String k, Object v) {
         this.graph.db.writeProperty(this, k, v);
@@ -31,8 +31,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
     }
 
 
-    public FireflyEdge(FireflyRecord record, Object id, String label, long outVid, long inVid, FireflyGraph graph) {
-        super(record.id(), label, record);
+    public FireflyEdge(FireflyRecord record, FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
+        super(id, label, record);
         this.graph = graph;
         this.inVid = inVid;
         this.outVid = outVid;

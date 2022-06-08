@@ -34,8 +34,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         return this.graph.db.getOutEdgeIdsFromVertexByScan(this);
     }
 
-    public FireflyVertex(final FireflyRecord record, final Object id, final String label, final FireflyGraph graph) {
-        super(record.id(), label, record);
+    public FireflyVertex(final FireflyRecord record, final FireflyId fid, final String label, final FireflyGraph graph) {
+        super(fid, label, record);
         this.graph = graph;
     }
 
@@ -57,7 +57,6 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
             return VertexProperty.empty();
         }
 
-        final Optional<Object> optionalId = ElementHelper.getIdValue(keyValues);
 
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
         if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
@@ -65,12 +64,10 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         } else {
-            Object idValue = optionalId.isPresent() ?
-                    graph.vertexPropertyIdManager.convert(optionalId.get()) :
-                    graph.vertexPropertyIdManager.getNextId(graph);
+            FireflyId fid = FireflyId.fromKeyValuesOrManager(graph,FireflyVertexProperty.class,keyValues);
 
-            this.graph.db.writeVertexProperty(this, graph.vertexIdManager.convert(idValue), key, key, value);
-            VertexProperty<Object> vp = this.graph.db.readVertexProperty(this, idValue);
+            this.graph.db.writeVertexProperty(this, fid, key, key, value);
+            VertexProperty<Object> vp = this.graph.db.readVertexProperty(this, fid);
             ElementHelper.attachProperties(vp, keyValues);
             return (VertexProperty<V>) vp;
         }

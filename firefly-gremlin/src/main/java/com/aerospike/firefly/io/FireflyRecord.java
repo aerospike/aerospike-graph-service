@@ -137,7 +137,7 @@ public class FireflyRecord {
         final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
         final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(db,key, record, userClass, storageClass);
+        return new FireflyRecord(db, key, record, userClass, storageClass);
     }
 
     protected static void write(final AerospikeConnection db,

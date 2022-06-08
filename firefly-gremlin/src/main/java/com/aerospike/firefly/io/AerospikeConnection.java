@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class AerospikeConnection {
+    public static final String ID_VALUE = "ID";
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
@@ -281,15 +282,14 @@ public class AerospikeConnection {
 
     protected Iterator<Long> scanAllIdsInSet(final String setName) {
         //@todo performance
-        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, null);
+        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
         return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getKey().userKey.toLong();
         });
     }
 
     protected Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
-        //@todo performance can we filter out unnecessary bins?
-        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(setName, exp);
+        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, exp);
         return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getKey().userKey.getObject();
         });
@@ -299,11 +299,20 @@ public class AerospikeConnection {
         return scanAllRecordsInSet(setName, null);
     }
 
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp) {
+    protected Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
+        ScanPolicy policy = new ScanPolicy();
+        policy.includeBinData = false;
+        return scanAllRecordsInSet(setName, exp, policy, binNames);
+    }
+
+    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, String... binNames) {
+        return scanAllRecordsInSet(setName, exp, new ScanPolicy(), binNames);
+    }
+
+    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
         final Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;
-        final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
@@ -312,7 +321,7 @@ public class AerospikeConnection {
                 scanMonitor,
                 client,
                 progressFreq);
-        client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName);
+        client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
         //@todo performance
         // should return custom iterator that produces results while query is running
         // custom iterator .hasNext() should return false once query is complete
@@ -692,7 +701,7 @@ public class AerospikeConnection {
      * @return
      */
     public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
-        final id_config cfg = new id_config(this,type);
+        final id_config cfg = new id_config(this, type);
         return scanAllIdsInSet(cfg.getAeroSet());
     }
 

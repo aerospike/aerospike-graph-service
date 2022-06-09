@@ -9,6 +9,8 @@ import java.util.Iterator;
  */
 public class FireflyVertexIterator<T> extends FireflyElementIterator<Vertex> {
     protected FireflyVertexIterator(FireflyGraph graph, Iterator<T> idIterator) {
-        super(graph.db, idIterator, graph.db::vertexExists, id -> graph.db.readVertex(graph, id));
+        super(graph.db, idIterator,
+                id -> graph.db.vertexExists(FireflyId.of(FireflyVertex.class, id)),
+                id -> graph.db.readVertex(graph, FireflyId.of(FireflyVertex.class, id)));
     }
 }

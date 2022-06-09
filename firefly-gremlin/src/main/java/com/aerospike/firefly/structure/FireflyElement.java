@@ -8,14 +8,14 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public abstract class FireflyElement implements Element {
-    protected final Object id;
+    protected final FireflyId id;
     protected final String label;
     protected final FireflyRecord record;
     protected boolean removed = false;
     protected final boolean allowNullPropertyValues = false;
 
 
-    protected FireflyElement(final Object id, final String label, FireflyRecord record) {
+    protected FireflyElement(final FireflyId id, final String label, FireflyRecord record) {
         this.id = id;
         this.label = label;
         this.record = record;
@@ -23,7 +23,7 @@ public abstract class FireflyElement implements Element {
 
     @Override
     public Object id() {
-        return this.record.id();
+        return this.id.value();
     }
 
     @Override

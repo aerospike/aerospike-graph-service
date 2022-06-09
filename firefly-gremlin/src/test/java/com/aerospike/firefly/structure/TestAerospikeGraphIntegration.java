@@ -25,7 +25,6 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
@@ -97,9 +96,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testReadWriteVertexProperty() {
-        db.writeVertex(graph, 2l, "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, 2l);
-        Long vpid = graph.vertexPropertyIdManager.getNextId(graph);
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class,2l), "aVertexLabel");
+        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(FireflyVertex.class,2l));
+        FireflyId vpid = FireflyId.createFromManager(graph,FireflyVertexProperty.class);
         db.writeVertexProperty(vertex, vpid, "a", "a", "b");
         VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
         Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
@@ -125,8 +124,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testReadWriteVertex() {
-        db.writeVertex(graph, 2l, "aVertexLabel");
-        FireflyVertex v = db.readVertex(graph, 2l);
+        FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
+        db.writeVertex(graph, id, "aVertexLabel");
+        FireflyVertex v = db.readVertex(graph, id);
         assertEquals(v.label(), "aVertexLabel");
     }
 
@@ -134,8 +134,8 @@ public class TestAerospikeGraphIntegration {
     void testVertexIterator() {
         List<Long> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
-            Long next = (Long) graph.vertexIdManager.getNextId(graph);
-            usedIds.add(next);
+            FireflyId next = FireflyId.createFromManager(graph,FireflyVertex.class);
+            usedIds.add((Long) next.value());
             db.writeVertex(graph, next, "aVertexLabel");
         });
         final AtomicLong ctr = new AtomicLong(0);
@@ -290,7 +290,7 @@ public class TestAerospikeGraphIntegration {
     @Test
     void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
-       GraphHelper.cloneElements(TinkerFactory.createModern(),graph);
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
 
         TinkerGraph tg = TinkerFactory.createModern();
         GraphTraversalSource tgs = tg.traversal();
@@ -312,7 +312,7 @@ public class TestAerospikeGraphIntegration {
     void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
         Long x1 = g.V().count().next();
         Long x2 = g2.V().count().next();
         assertEquals(x2, x1);
@@ -409,8 +409,6 @@ public class TestAerospikeGraphIntegration {
         System.out.println(res);
         System.out.println(stuff);
     }
-
-
 
 
     public static void validateException(final Throwable expected, final Throwable actual) {

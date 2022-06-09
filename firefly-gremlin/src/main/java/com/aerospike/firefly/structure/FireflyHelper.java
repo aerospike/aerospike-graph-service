@@ -21,25 +21,25 @@ public class FireflyHelper {
         return false;
     }
 
-    protected static FireflyVertex readVertex(FireflyGraph graph, Object id) {
+    protected static FireflyVertex readVertex(FireflyGraph graph, FireflyId id) {
         return graph.db.readVertex(graph, id);
     }
 
-    protected static void writeVertex(FireflyGraph graph, Object id, String label) {
+    protected static void writeVertex(FireflyGraph graph, FireflyId id, String label) {
         graph.db.writeVertex(graph, id, label);
     }
 
-    public static void removeVertex(FireflyGraph graph, Object id) {
+    public static void removeVertex(FireflyGraph graph, FireflyId id) {
         graph.db.removeVertex(graph, id);
     }
 
 
     protected static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
-        final Object id = ElementHelper.getIdValue(keyValues).orElse(graph.edgeIdManager.getNextId(graph));
-        if(graph.db.edgeExists(id))
-            throw Graph.Exceptions.edgeWithIdAlreadyExists(id);
-        graph.db.writeEdge(graph, graph.edgeIdManager.convert(id), label, outVertex, inVertex, new Object[]{});
-        FireflyEdge edge = graph.db.readEdge(graph, graph.edgeIdManager.convert(id));
+        final FireflyId fid = FireflyId.fromKeyValuesOrManager(graph,FireflyEdge.class,keyValues);
+        if(graph.db.edgeExists(fid))
+            throw Graph.Exceptions.edgeWithIdAlreadyExists(fid);
+        graph.db.writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
+        FireflyEdge edge = graph.db.readEdge(graph, fid);
         ElementHelper.attachProperties(edge, keyValues);
         return edge;
     }
@@ -81,10 +81,10 @@ public class FireflyHelper {
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
-                    vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id)).ifPresent(edges::add));
+                    vertex.getOutEdgeIds().forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class,id))).ifPresent(edges::add));
                 } else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
-                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), id));
+                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class,id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
                                 edges.add(edge);
@@ -97,10 +97,10 @@ public class FireflyHelper {
             if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getInEdgeIds().forEachRemaining(id -> Optional.ofNullable(
-                            db.readEdge((FireflyGraph) vertex.graph(), ((FireflyGraph) vertex.graph()).vertexIdManager.convert(id))).ifPresent(edges::add));
+                            db.readEdge((FireflyGraph) vertex.graph(),FireflyId.of(FireflyVertex.class,id))).ifPresent(edges::add));
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
-                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), ((FireflyGraph) vertex.graph()).vertexIdManager.convert(id)));
+                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class,id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
                                 edges.add(edge);
@@ -119,11 +119,11 @@ public class FireflyHelper {
             if (vertex.getOutEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
-                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), ((FireflyGraph) vertex.graph()).vertexIdManager.convert(id)).inVertex());
+                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class,id)).inVertex());
                     });
                 } else {
                     vertex.getOutEdgeIds().forEachRemaining(id -> {
-                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), ((FireflyGraph) vertex.graph()).vertexIdManager.convert(id));
+                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class,id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.inVertex());
                     });
@@ -134,11 +134,11 @@ public class FireflyHelper {
             if (vertex.getInEdgeIds().hasNext()) {
                 if (edgeLabels.length == 0) {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
-                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), ((FireflyGraph) vertex.graph()).vertexIdManager.convert(id)).outVertex());
+                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class,id)).outVertex());
                     });
                 } else {
                     vertex.getInEdgeIds().forEachRemaining(id -> {
-                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), id);
+                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class,id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.outVertex());
                     });

@@ -30,7 +30,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
 
-    public FireflyVertexProperty(FireflyRecord record, final Object id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
+    public FireflyVertexProperty(FireflyRecord record, final FireflyId id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key, record);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
@@ -42,8 +42,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         ElementHelper.attachProperties(this, propertyKeyValues);
     }
 
-    public FireflyVertexProperty(FireflyRecord record, final Object id, final FireflyVertex vertex, String key, V value) {
-        super(record.id(), key, record);
+    public FireflyVertexProperty(FireflyRecord record, final FireflyId fid, final FireflyVertex vertex, String key, V value) {
+        super(fid, key, record);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
 

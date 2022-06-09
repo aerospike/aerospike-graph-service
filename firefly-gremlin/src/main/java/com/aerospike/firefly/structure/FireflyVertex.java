@@ -64,7 +64,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         } else {
-            FireflyId fid = FireflyId.fromKeyValuesOrManager(graph,FireflyVertexProperty.class,keyValues);
+            FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph,FireflyVertexProperty.class,keyValues);
 
             this.graph.db.writeVertexProperty(this, fid, key, key, value);
             VertexProperty<Object> vp = this.graph.db.readVertexProperty(this, fid);

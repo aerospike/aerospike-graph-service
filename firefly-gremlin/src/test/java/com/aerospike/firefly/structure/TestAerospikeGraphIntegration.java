@@ -96,8 +96,8 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void testReadWriteVertexProperty() {
-        db.writeVertex(graph, FireflyId.of(FireflyVertex.class,2l), "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(FireflyVertex.class,2l));
+        db.writeVertex(graph, FireflyId.of(db,FireflyVertex.class,2l), "aVertexLabel");
+        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(db,FireflyVertex.class,2l));
         FireflyId vpid = FireflyId.createFromManager(graph,FireflyVertexProperty.class);
         db.writeVertexProperty(vertex, vpid, "a", "a", "b");
         VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);

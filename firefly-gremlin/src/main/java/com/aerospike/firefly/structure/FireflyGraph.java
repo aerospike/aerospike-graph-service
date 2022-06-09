@@ -132,10 +132,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (ElementHelper.getIdValue(keyValues).isPresent())
             if (!features.vertex().supportsUserSuppliedIds())
                 throw Vertex.Exceptions.userSuppliedIdsNotSupported();
-        if (ElementHelper.getIdValue(keyValues).isPresent())
-            if (db.vertexExists(FireflyId.fromKeyValues(keyValues)))
-                throw Exceptions.vertexWithIdAlreadyExists(db.vertexExists(FireflyId.fromKeyValues(keyValues)));
-        FireflyId idValue = FireflyId.fromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+        FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         //@todo performance: dont reread
@@ -163,7 +160,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVerticies.length != 0)
-            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(FireflyVertex.class, longId)), db::vertexExists))
+            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db,FireflyVertex.class, longId)), db::vertexExists))
                 throw new NoSuchElementException("vertex could not be found and edge could not be created");
         if (vertexIdsOrVerticies.length != 0)
             itr = longs.iterator();

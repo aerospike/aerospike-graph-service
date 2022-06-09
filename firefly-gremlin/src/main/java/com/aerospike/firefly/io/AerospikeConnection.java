@@ -4,6 +4,8 @@ import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.async.*;
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
@@ -36,7 +38,7 @@ public class AerospikeConnection {
     protected final String host;
     protected final int port;
     protected final AerospikeClient client;
-    protected final String namespace;
+    public final String namespace;
 
     protected final String GRAPH_METADATA_SET;
     protected final String GRAPH_VARIABLES_SET;
@@ -242,7 +244,7 @@ public class AerospikeConnection {
     }
 
 
-    private static class id_config {
+    public static class id_config {
         private final Class<? extends FireflyElement> type;
         private final String AERO_SET;
         private final String ID_KEY;
@@ -441,11 +443,11 @@ public class AerospikeConnection {
     }
 
     public <V> V readGraphVariable(final String k) {
-        return readTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.fromUser(null, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k);
+        return readTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k);
     }
 
     public Set<String> readGraphVariableKeys() {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_SET, FireflyId.fromUser(null, null, GRAPH_VARIABLES_RECORD));
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD));
         if (fireflyRecord == null)
             return new HashSet<>();
         final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(GRAPH_VARIABLES_MAP);
@@ -453,11 +455,11 @@ public class AerospikeConnection {
     }
 
     public <V> void writeGraphVariable(final String k, final V v) {
-        writeTypeHintedValueToMap(GRAPH_VARIABLES_SET, FireflyId.fromUser(null, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k, v);
+        writeTypeHintedValueToMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k, v);
     }
 
     public <V> void removeGraphVariable(final String k) {
-        removeTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.fromUser(null, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k);
+        removeTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, k);
     }
 
 
@@ -504,7 +506,7 @@ public class AerospikeConnection {
         //for every vp id associated with vertex
         ids.forEachRemaining(id -> {
             //load the vp
-            final VertexProperty<Object> vp = readVertexProperty(vertex, FireflyId.of(FireflyVertexProperty.class, id));
+            final VertexProperty<Object> vp = readVertexProperty(vertex, FireflyId.of(this, FireflyVertexProperty.class, id));
             //if there is a list for its key, get it, else, create it
             final List<VertexProperty> list = results.getOrDefault(vp.key(), new ArrayList<>());
             //add the vp to the list named for its key
@@ -647,14 +649,14 @@ public class AerospikeConnection {
         if (fireflyRecord == null) {
             return null;
         }
-        return new FireflyVertex(fireflyRecord, FireflyId.fromAerospike(this, FireflyVertex.class, fireflyRecord), fireflyRecord.record.getString("label"), graph);
+        return new FireflyVertex(fireflyRecord, FireflyId.loadFromAerospike(this, FireflyVertex.class, fireflyRecord), fireflyRecord.record.getString("label"), graph);
     }
 
     /**
      * write a labeled Vertex record
      *
      * @param graph
-     * @param id
+     * @param fid
      * @param label
      */
     public void writeVertex(final FireflyGraph graph, final FireflyId fid, final String label) {
@@ -713,8 +715,8 @@ public class AerospikeConnection {
         }
         return new FireflyEdge(fireflyRecord, fid,
                 fireflyRecord.record.getString("label"),
-                FireflyId.of(FireflyVertex.class, fireflyRecord.record.getLong(Direction.OUT.name())),
-                FireflyId.of(FireflyVertex.class, fireflyRecord.record.getLong(Direction.IN.name())), graph);
+                FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.OUT.name())),
+                FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.IN.name())), graph);
     }
 
     /**
@@ -723,7 +725,7 @@ public class AerospikeConnection {
      * properties are written to the property record associated with this edge ID in the property set
      *
      * @param graph
-     * @param id
+     * @param fid
      * @param label
      * @param inVertex
      * @param outVertex
@@ -758,25 +760,21 @@ public class AerospikeConnection {
 
 
     public long getIdCounter(final String name) {
-        final Record record = read(new Key(namespace,ID_MANAGER_SET, name));
+        final Record record = read(new Key(namespace, ID_MANAGER_SET, name));
         return record.getLong(COUNTER);
     }
 
-    public long incrementAndGetIdCounter(Class<? extends FireflyElement> type, final String name) {
+    public long incrementAndGetIdCounter(final String name, long increment) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        while (true) { //@todo performance
-            final Bin ctr = new Bin(COUNTER, 1);
-            final Record record = client.operate(null, key,
-                    Operation.add(ctr),
-                    Operation.get(COUNTER));
-            final long candidate = record.getLong(COUNTER);
-            if (type.equals(FireflyVertex.class) && !vertexExists(FireflyId.of(FireflyVertex.class,candidate)))
-                return candidate;
-            else if (type.equals(FireflyEdge.class) && !edgeExists(FireflyId.of(FireflyEdge.class,candidate)))
-                return candidate;
-            else if (type.equals(FireflyVertexProperty.class) && !vertexPropertyExists(FireflyId.of(FireflyVertexProperty.class,candidate)))
-                return candidate;
-        }
+        final Bin ctr = new Bin(COUNTER, increment);
+        final Record record = client.operate(null, key,
+                Operation.add(ctr),
+                Operation.get(COUNTER));
+        return record.getLong(COUNTER);
+    }
+
+    public long incrementAndGetIdCounter(final String name) {
+        return incrementAndGetIdCounter(name, 1);
     }
 
     public long decrementIdCounter(final String name) {
@@ -790,10 +788,42 @@ public class AerospikeConnection {
 
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null,name), ctr);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(this, null, name), ctr);
         return 0L;
     }
 
+    //Offer a value, compare it to the current counter value.
+    // if the offered value is greater then the current counter value
+    // set the counter to the offered value, and return it.
+    // otherwise, increment the counter by 1, and return that.
+    public long greaterOrIncrement(final long offer, final String name) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        Expression gtexp = Exp.build(Exp.cond(
+                Exp.gt(
+                        Exp.val(offer),
+                        Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+                ),
+                Exp.val(offer),
+                Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+        ));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
+        return (long) ret.get(1);
+    }
+    public long greaterOrExisting(final long offer, final String name) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        Expression gtexp = Exp.build(Exp.cond(
+                Exp.gt(
+                        Exp.val(offer),
+                        Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+                ),
+                Exp.val(offer),
+                Exp.intBin(COUNTER)
+        ));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
+        return (long) ret.get(1);
+    }
 
     public void dropDatabase() {
         client.truncate(null, namespace, EDGE_AERO_SET, Calendar.getInstance());

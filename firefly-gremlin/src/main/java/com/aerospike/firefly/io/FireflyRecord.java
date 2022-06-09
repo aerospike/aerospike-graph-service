@@ -168,7 +168,7 @@ public class FireflyRecord {
                                        final String set,
                                        final FireflyId id,
                                        final Bin... bins) {
-        final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.getClass());
+        final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
         final Key key = getElementKey(db.namespace, set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());

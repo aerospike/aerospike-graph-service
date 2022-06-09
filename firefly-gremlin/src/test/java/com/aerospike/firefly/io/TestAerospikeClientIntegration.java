@@ -207,7 +207,7 @@ public class TestAerospikeClientIntegration {
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, intId, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
-        assertEquals(record.id(), intId);
+        assertEquals(record.id(), intId.value());
     }
 
     @Test

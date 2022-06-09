@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestProfiler {
     @Test
     public void testCallCounter(){
+        Profile.reset();
         Profile.increment(TestProfiler.class,"testCallCounter");
         Profile.increment(TestProfiler.class,"testCallCounter");
         Profile.increment(TestProfiler.class,"testCallCounter");

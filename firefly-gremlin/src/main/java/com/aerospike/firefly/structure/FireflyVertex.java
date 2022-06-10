@@ -21,7 +21,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
     private final FireflyGraph graph;
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
-        return this.graph.db.readVertexPropertiesByScan(this);
+        return this.graph.db.readVertexProperties(this);
     }
 
 

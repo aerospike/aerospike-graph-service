@@ -23,7 +23,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final FireflyId outVid;
 
     private void writeProperty(String k, Object v) {
-        this.graph.db.writeProperty(this.id, this.getClass(),k, v);
+        this.graph.db.writeProperty(this.id, this.getClass(), k, v);
     }
 
     private Map<String, Property> readProperties() {
@@ -73,8 +73,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public <V> Property<V> property(String key, V value) {
-        FireflyHelper.legalPropertyKeyValueArray(key,value);
-        if(isHidden(key))
+        FireflyHelper.legalPropertyKeyValueArray(key, value);
+        if (isHidden(key))
             throw Edge.Exceptions.labelCanNotBeAHiddenKey(key);
         if (this.removed) throw elementAlreadyRemoved(Edge.class, id);
         if ((!allowNullPropertyValues && null == value)) {
@@ -87,6 +87,10 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void remove() {
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
         graph.db.removeEdge(graph, this.id);
     }
 
@@ -96,9 +100,9 @@ public class FireflyEdge extends FireflyElement implements Edge {
         if (propertyKeys.length == 1) {
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
-        } else{
+        } else {
             return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
-                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry -> ((AbstractMap.Entry)entry).getValue());
+                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)), entry -> ((AbstractMap.Entry) entry).getValue());
         }
     }
 

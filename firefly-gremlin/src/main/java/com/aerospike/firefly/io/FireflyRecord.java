@@ -103,6 +103,9 @@ public class FireflyRecord {
         final long idtypidx = record.getLong(this.ac.ID_TYPE);
         return idStorageTypeToOriginalType(idval, idtypidx);
     }
+    public Record record(){
+        return record;
+    }
 
 
     public static Key getKey(final String namespace, final String set, final FireflyId id) {

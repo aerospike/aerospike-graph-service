@@ -27,11 +27,11 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
 
 
     protected Iterator<Object> getInEdgeIds() {
-        return this.graph.db.getInEdgeIdsFromVertexByScan(this);
+        return this.graph.db.getInEdgeIdsFromVertex(this);
     }
 
     protected Iterator<Object> getOutEdgeIds() {
-        return this.graph.db.getOutEdgeIdsFromVertexByScan(this);
+        return this.graph.db.getOutEdgeIdsFromVertex(this);
     }
 
     public FireflyVertex(final FireflyRecord record, final FireflyId fid, final String label, final FireflyGraph graph) {

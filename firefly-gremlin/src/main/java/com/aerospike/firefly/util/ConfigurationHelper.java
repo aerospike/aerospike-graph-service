@@ -53,6 +53,10 @@ public class ConfigurationHelper {
         public static final String ID_TYPE = "ID_TYPE";
         public static final String GLOBAL = "GLOBAL";
         public static final String TEST_SET = "TEST_SET";
+        public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
+        public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
+
+        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -84,6 +88,10 @@ public class ConfigurationHelper {
         put(Keys.ID_MANAGER_SET,"ID_MGR_SET");
         put(Keys.GLOBAL,"GLOBAL");
         put(Keys.TEST_SET,"TEST_SET");
+        put(Keys.IN_EDGE_COUNTER,"IN_EDGE_CTR");
+        put(Keys.OUT_EDGE_COUNTER,"OUT_EDGE_CTR");
+        put(Keys.ON_RECORD_ID_LIMIT,"100000");
+
     }};
 
     public static Configuration loadFromFile(final Path path) {

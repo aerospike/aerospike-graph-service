@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -22,7 +21,7 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
     private final FireflyGraph graph;
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
-        return this.graph.db.readVertexProperties(this);
+        return this.graph.db.readVertexPropertiesByScan(this);
     }
 
 

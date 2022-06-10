@@ -149,6 +149,15 @@ public class FireflyRecord {
 
         return new FireflyRecord(db, key, record, userClass, storageClass);
     }
+    protected static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
+        if (record == null)
+            return null;
+        final long idTypeIdx = record.getLong(db.ID_TYPE);
+        final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
+        final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
+
+        return new FireflyRecord(db, key, record, userClass, storageClass);
+    }
 
     protected static void write(final AerospikeConnection db,
                                 final String set,

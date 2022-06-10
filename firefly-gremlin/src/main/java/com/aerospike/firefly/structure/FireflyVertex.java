@@ -17,7 +17,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyVertex extends FireflyElement implements WrappedVertex<Record>, Vertex {
+public class FireflyVertex extends FireflyElement implements WrappedVertex<FireflyRecord>, Vertex {
 
     private final FireflyGraph graph;
 
@@ -150,8 +150,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Recor
     }
 
     @Override
-    public Record getBaseVertex() {
-        return record.record;
+    public FireflyRecord getBaseVertex() {
+        return record;
     }
 
     @Override

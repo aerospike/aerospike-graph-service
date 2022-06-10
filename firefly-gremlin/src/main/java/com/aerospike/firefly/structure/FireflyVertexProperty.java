@@ -26,7 +26,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
     private void writeProperty(String k, Object v) {
-        ((FireflyGraph) this.graph()).db.writeProperty(this, k, v);
+        ((FireflyGraph) this.graph()).db.writeProperty(this.id,this.getClass(), k, v);
     }
 
 

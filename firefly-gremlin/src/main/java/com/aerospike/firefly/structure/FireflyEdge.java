@@ -23,7 +23,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final FireflyId outVid;
 
     private void writeProperty(String k, Object v) {
-        this.graph.db.writeProperty(this, k, v);
+        this.graph.db.writeProperty(this.id, this.getClass(),k, v);
     }
 
     private Map<String, Property> readProperties() {

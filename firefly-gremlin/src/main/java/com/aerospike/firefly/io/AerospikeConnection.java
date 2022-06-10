@@ -107,7 +107,7 @@ public class AerospikeConnection {
         put(ArrayList.class, 7L);
     }};
 
-    private String getElementPropertySet(final FireflyElement ele) {
+    private String getElementPropertySet(final Class<? extends FireflyElement> ele) {
         if (ele.getClass().equals(FireflyVertex.class))
             return VERTEX_PROPERTY_SET;
         else if (ele.getClass().equals(FireflyEdge.class))
@@ -580,7 +580,7 @@ public class AerospikeConnection {
             return new HashMap<>();
 
         final Map<String, Property> result = new HashMap<>();
-        final Map<String, V> data = (Map<String, V>) fireflyRecord.record.getMap(getElementPropertySet(ele));
+        final Map<String, V> data = (Map<String, V>) fireflyRecord.record.getMap(getElementPropertySet(ele.getClass()));
         if (data == null)
             return result;
         data.forEach((key1, value) -> {
@@ -600,7 +600,7 @@ public class AerospikeConnection {
      * @return
      */
     public <V> Property readProperty(final FireflyElement ele, final String k) {
-        return new FireflyProperty(ele, k, readTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(ele), getElementPropertySet(ele), k));
+        return new FireflyProperty(ele, k, readTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(ele), getElementPropertySet(ele.getClass()), k));
     }
 
 
@@ -614,14 +614,14 @@ public class AerospikeConnection {
      * write a new property into the property Record for element
      * 1 property record per element, a Map bin of name -> value
      *
-     * @param ele
+     * @param id
      * @param k
      * @param value
      * @param <V>
      */
-    public <V> void writeProperty(final FireflyElement ele, final String k, final V value) {
+    public <V> void writeProperty(final FireflyId id, final Class<? extends FireflyElement> clazz, final String k, final V value) {
         FireflyHelper.validatePropertyValue(value);
-        writeTypeHintedValueToMap(PROPERTY_AERO_SET, FireflyId.fromElement(ele), getElementPropertySet(ele), k, value);
+        writeTypeHintedValueToMap(PROPERTY_AERO_SET, id, getElementPropertySet(clazz), k, value);
     }
 
     /**
@@ -633,7 +633,7 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void removeProperty(final FireflyElement ele, final String k) {
-        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(ele), getElementPropertySet(ele), k);
+        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(ele), getElementPropertySet(ele.getClass()), k);
     }
 
     /**
@@ -743,14 +743,22 @@ public class AerospikeConnection {
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(idToStorageType(outVertex.id())));
 
         FireflyRecord.writeElement(this, EDGE_AERO_SET, fid, labelBin, inVbin, outVBin);
-        final FireflyEdge edge = readEdge(graph, fid); //@todo avoid reread
+        addEdgeToVertex(outVertex,fid,Direction.OUT);
+        addEdgeToVertex(inVertex,fid,Direction.IN);
 
         final Iterator<Object> propIter = IteratorUtils.asIterator(keyValues);
         while (propIter.hasNext()) {
             final Object propKey = propIter.next();
             final Object propVal = propIter.next();
-            writeProperty(edge, (String) propKey, propVal);
+            writeProperty(fid, FireflyEdge.class, (String) propKey, propVal);
         }
+    }
+
+    private void addEdgeToVertex(FireflyVertex vertex, FireflyId edgeId, Direction direction) {
+        FireflyRecord rec = vertex.getBaseVertex();
+        Key vKey = rec.key;
+
+
     }
 
     public void removeEdge(final FireflyGraph graph, final FireflyId fid) {

@@ -135,8 +135,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
-        //@todo performance: dont reread
         writeVertex(this, idValue, label);
+        //@todo performance: avoid reread
         Vertex vertex = readVertex(this, idValue);
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;

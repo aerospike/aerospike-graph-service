@@ -69,7 +69,7 @@ public class TestAerospikeGraphIntegration {
         String value = "b";
         String key = "bKey";
         FireflyProperty<String> p = new FireflyProperty<>(vertex, key, value);
-        db.writeProperty(vertex, key, value);
+        db.writeProperty(vertex.id,vertex.getClass(), key, value);
 
         Property<String> readback = db.readProperty(vertex, key);
         assertEquals(p.key(), readback.key());

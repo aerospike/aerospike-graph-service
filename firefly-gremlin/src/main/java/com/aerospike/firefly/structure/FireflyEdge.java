@@ -87,10 +87,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void remove() {
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
+        if (this.outVertex() != null) {
+            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
+            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
+        }
+        if (this.inVertex() != null) {
+            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
+            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
+        }
         graph.db.removeEdge(graph, this.id);
     }
 

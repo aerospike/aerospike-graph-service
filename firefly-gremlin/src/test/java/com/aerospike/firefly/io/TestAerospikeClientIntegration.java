@@ -7,11 +7,15 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -162,6 +166,32 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(ids.contains(b));
     }
+    @Test
+    void testSyntheticSupernode() {
+        configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE,"5");
+        FireflyGraph graph = FireflyGraph.open(configuration);
+        ArrayList<Long> ids = new ArrayList<>() {{
+            add(0L);
+            add(1L);
+        }};
+        Vertex root = graph.addVertex("root");
+        List<Vertex> stuff = new ArrayList<>();
+        IntStream.range(0,6).forEach( i -> {
+            Vertex nu = graph.addVertex("leaf");
+            stuff.add(nu);
+            graph.traversal().V(root).addE("edge").to(nu).next();
+        });
+        List<Edge> list = graph.traversal().V(root).bothE().toList();
+        assertEquals(6,graph.traversal().V(root).bothE().count().next());
+        final Iterator<Vertex> iter = stuff.iterator();
+        IntStream.range(0,1).forEach( i -> {
+
+            graph.traversal().E(iter.next()).drop().tryNext();
+
+        });
+        assertEquals(4,graph.traversal().V(root).bothE().count().next());
+    }
+
 
     @Test
     void testScanEdgeIds() {

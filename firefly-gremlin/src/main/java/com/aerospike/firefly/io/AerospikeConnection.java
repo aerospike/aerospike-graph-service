@@ -817,6 +817,11 @@ public class AerospikeConnection {
         long vpCounter = vertexRecord.record().getLong(VP_COUNTER);
         if (vpCounter > 0)
             vpCounter--;
+        if (vpCounter == ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
+            propertyKeys = readVertexPropertiesByScan(vertex).entrySet().stream().map(entry -> {
+                return new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue().stream().map(vxp -> vxp.id()));
+            }).collect(Collectors.toMap(it -> (String) it.getKey(), it -> (List<Object>) it.getValue()));
+
         final Bin vpCounterBin = new Bin(VP_COUNTER, Value.get(vpCounter));
         final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
         FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), vertexPropertyIds, vpCounterBin);
@@ -1183,6 +1188,8 @@ public class AerospikeConnection {
      * @param direction
      */
     public void removeEdgeFromVertex(final FireflyGraph graph, final FireflyVertex vertex, final FireflyEdge edge, final Direction direction) {
+        if(vertex == null)
+            throw new NoSuchElementException();
         FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
         final String directionKey = direction == Direction.IN ? IN_EDGES : OUT_EDGES;
         final String counterKey = direction == Direction.IN ? IN_EDGE_COUNTER : OUT_EDGE_COUNTER;
@@ -1195,7 +1202,8 @@ public class AerospikeConnection {
         long edgeCounter = r.record.getLong(counterKey);
         if (edgeCounter > 0)
             edgeCounter--;
-
+        if (edgeCounter == ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
+            labelEdges = getXXXIdsFromVertexLabelMap(vertex, directionKey);
         List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
         edges.remove(((Number) edge.id()).longValue());
         labelEdges.put(edge.label(), edges);
@@ -1212,6 +1220,15 @@ public class AerospikeConnection {
      */
     public void removeEdge(final FireflyGraph graph, final FireflyId edgeId) {
         final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId);
+        FireflyEdge e = readEdge(graph, edgeId);
+        if (e != null) { //@todo transactions for edge removal
+            try {
+                removeEdgeFromVertex(graph, (FireflyVertex) e.inVertex(), e, Direction.IN);
+                removeEdgeFromVertex(graph, (FireflyVertex) e.outVertex(), e, Direction.OUT);
+            } catch (NoSuchElementException nse) { //@todo transactions for edge removal
+                nse.printStackTrace();
+            }
+        }
         delete(key);
     }
 

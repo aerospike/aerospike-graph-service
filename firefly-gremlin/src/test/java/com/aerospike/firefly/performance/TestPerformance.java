@@ -1,6 +1,7 @@
-package com.aerospike.firefly.process;
+package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -23,6 +24,7 @@ import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
@@ -84,7 +86,6 @@ public class TestPerformance {
         startTimer(LOAD_TIMER);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
         long loadtime = stopTimer(LOAD_TIMER);
-
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
 
@@ -116,8 +117,10 @@ public class TestPerformance {
         assertEquals(0L, IteratorUtils.count(start.edges(Direction.IN, new String[0])));
         assertEquals((long) branchSize, IteratorUtils.count(start.edges(Direction.OUT, new String[0])));
         Iterator var9 = IteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
+        AtomicLong iterCtr = new AtomicLong(0);
         startTimer(ITERATE_ELEMENTS);
         while (var9.hasNext()) {
+            iterCtr.incrementAndGet();
             Edge a = (Edge) var9.next();
             Assert.assertEquals("test1", a.label());
 
@@ -126,6 +129,7 @@ public class TestPerformance {
             Iterator var12 = IteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
 
             while (var12.hasNext()) {
+                iterCtr.incrementAndGet();
                 Edge b = (Edge) var12.next();
                 Assert.assertEquals("test2", b.label());
                 Assert.assertEquals((long) branchSize, IteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
@@ -133,6 +137,7 @@ public class TestPerformance {
                 Iterator var14 = IteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
 
                 while (var14.hasNext()) {
+                    iterCtr.incrementAndGet();
                     Edge c = (Edge) var14.next();
                     Assert.assertEquals("test3", c.label());
                     Assert.assertEquals(0L, IteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
@@ -143,6 +148,8 @@ public class TestPerformance {
         long iterateTime = stopTimer(ITERATE_ELEMENTS);
         System.out.println(String.format("add %d elements time: %d ms", elements, addElementsTime));
         System.out.println(String.format("iterate time: %d ms", iterateTime));
+        System.out.println(String.format("iterate count: %d", iterCtr.get()));
+
     }
 
 }

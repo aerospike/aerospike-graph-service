@@ -42,7 +42,7 @@ public class AerospikeConnection {
 
     private static final String IN_EDGES = "IN_EDGES";
     private static final String OUT_EDGES = "OUT_EDGES";
-
+    private static final String CACHE_DISABLED = "CACHE_DISABLED";
 
     protected final String GRAPH_METADATA_SET;
     protected final String GRAPH_VARIABLES_SET;
@@ -966,7 +966,8 @@ public class AerospikeConnection {
     public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex v) {
         FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(v));
         long edge_count = r.record.getLong(IN_EDGE_COUNTER);
-        if (edge_count < ID_CACHE_SIZE)
+        boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
+        if (edge_count < ID_CACHE_SIZE && !cacheDisabled)
             return getXXXIdsFromVertexByListIterator(v, IN_EDGES);
         else
             return getInEdgeIdsFromVertexByScan(v);
@@ -982,8 +983,9 @@ public class AerospikeConnection {
      */
     public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex v) {
         FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(v));
-        long edge_count = r.record.getLong(OUT_EDGE_COUNTER);
-        if (edge_count < ID_CACHE_SIZE)
+        long edgeCount = r.record.getLong(OUT_EDGE_COUNTER);
+        boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
+        if (edgeCount < ID_CACHE_SIZE && !cacheDisabled)
             return getXXXIdsFromVertexByListIterator(v, OUT_EDGES);
         else
             return getOutEdgeIdsFromVertexByScan(v);
@@ -1169,14 +1171,19 @@ public class AerospikeConnection {
         }
         long edgeCounter = r.getLong(counterKey);
         final List<Long> edges = labelEdges.getOrDefault(label, new ArrayList<>());
+        boolean cacheDisabled = r.getBoolean(CACHE_DISABLED);
         if (edgeCounter < ID_CACHE_SIZE)
             edges.add(((Number) edgeId.value()).longValue());
+        else
+            cacheDisabled = true;
         edgeCounter++;
 
         labelEdges.put(label, edges);
-        final Bin edgeData = new Bin(directionKey, Value.get(labelEdges));
+        final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), edgeData, edgeCounterBin);
+        final Bin cacheDisabledBin = new Bin(CACHE_DISABLED, Value.get(cacheDisabled));
+        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex),
+                edgeDataBin, edgeCounterBin, cacheDisabledBin);
     }
 
     /**
@@ -1188,8 +1195,8 @@ public class AerospikeConnection {
      * @param direction
      */
     public void removeEdgeFromVertex(final FireflyGraph graph, final FireflyVertex vertex, final FireflyEdge edge, final Direction direction) {
-        if(vertex == null)
-            throw new NoSuchElementException();
+        if (vertex == null)
+            throw new NoSuchElementException(); //@todo transactions for edge removal
         FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
         final String directionKey = direction == Direction.IN ? IN_EDGES : OUT_EDGES;
         final String counterKey = direction == Direction.IN ? IN_EDGE_COUNTER : OUT_EDGE_COUNTER;
@@ -1221,14 +1228,11 @@ public class AerospikeConnection {
     public void removeEdge(final FireflyGraph graph, final FireflyId edgeId) {
         final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId);
         FireflyEdge e = readEdge(graph, edgeId);
-        if (e != null) { //@todo transactions for edge removal
-            try {
-                removeEdgeFromVertex(graph, (FireflyVertex) e.inVertex(), e, Direction.IN);
-                removeEdgeFromVertex(graph, (FireflyVertex) e.outVertex(), e, Direction.OUT);
-            } catch (NoSuchElementException nse) { //@todo transactions for edge removal
-                nse.printStackTrace();
-            }
-        }
+        if (e == null) //@todo transactions for edge removal
+            return;
+//            throw new NoSuchElementException();
+        removeEdgeFromVertex(graph, (FireflyVertex) e.inVertex(), e, Direction.IN);
+        removeEdgeFromVertex(graph, (FireflyVertex) e.outVertex(), e, Direction.OUT);
         delete(key);
     }
 

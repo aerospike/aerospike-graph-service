@@ -31,6 +31,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identi
 import static org.apache.tinkerpop.gremlin.structure.T.key;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -220,7 +221,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).inE().count().next());
+        assertEquals(2, (long)g.V(fruit.id()).inE().count().next());
     }
 
     @Test
@@ -235,7 +236,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).inE().count().next());
+        assertEquals(2, (long)g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
         if (g.V(fruit.id()).outE().count().next() > 0) {
             Edge a = g.V(fruit.id()).outE().next();
@@ -255,7 +256,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, g.V(fruit.id()).inE().count().next());
+        assertEquals(2,(long) g.V(fruit.id()).inE().count().next());
         Property<Object> prop = g.V(fruit.id()).inE().next().properties("this").next();
         assertEquals("that", prop.value());
     }
@@ -270,8 +271,8 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        assertEquals(2, g.E().hasLabel("IsA").count().next());
-        assertEquals(2, g.V().outE().hasLabel("IsA").count().next());
+        assertEquals(2, (long)g.E().hasLabel("IsA").count().next());
+        assertEquals(2, (long)g.V().outE().hasLabel("IsA").count().next());
     }
 
     @Test
@@ -284,7 +285,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        assertEquals(1, g.V().has("color", "yellow").outE().count().next());
+        assertEquals(1,(long) g.V().has("color", "yellow").outE().count().next());
     }
 
     @Test
@@ -433,6 +434,40 @@ public class TestAerospikeGraphIntegration {
                 return t.equals("C");
             }));
         });
+    }
+    public static Consumer<Graph> sngcme_getAssertVertexEdgeCounts(final int expectedVertexCount, final int expectedEdgeCount) {
+        return (g) -> {
+            assertEquals(expectedVertexCount, IteratorUtils.count(g.vertices()));
+            assertEquals(expectedEdgeCount, IteratorUtils.count(g.edges()));
+        };
+    }
+    public void sngcme_tryCommit(final Graph graph) {
+        if (graph.features().graph().supportsTransactions())
+            graph.tx().commit();
+    }
+    @Test
+    public void shouldNotGetConcurrentModificationException() {
+        for(int i = 0; i < 25; ++i) {
+            this.graph.addVertex(new Object[]{"myId", i});
+        }
+
+        this.graph.vertices(new Object[0]).forEachRemaining((vx) -> {
+            this.graph.vertices(new Object[0]).forEachRemaining((u) -> {
+                vx.addEdge("knows", u, new Object[]{"myEdgeId", 12});
+            });
+        });
+        this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(25, 625));
+        List<Vertex> vertices = new ArrayList();
+        IteratorUtils.fill(this.graph.vertices(new Object[0]), vertices);
+        Iterator var2 = vertices.iterator();
+
+        while(var2.hasNext()) {
+            Vertex v = (Vertex)var2.next();
+            v.remove();
+            this.sngcme_tryCommit(this.graph);
+        }
+
+        this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(0, 0));
     }
 
 }

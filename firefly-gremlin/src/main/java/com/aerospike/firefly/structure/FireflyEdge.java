@@ -6,10 +6,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.AbstractMap;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -87,14 +84,11 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public void remove() {
-        if (this.outVertex() != null) {
-            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
-            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
-        }
-        if (this.inVertex() != null) {
-            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
-            graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
-        }
+        //@todo multi record transactions
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
+        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
         graph.db.removeEdge(graph, this.id);
     }
 

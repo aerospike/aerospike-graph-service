@@ -16,7 +16,7 @@ firefly-gremlin/target/firefly-gremlin-0.0.1-SNAPSHOT.jar
 
 Testing Firefly
 ----------
-The integration tests use the configuration at [firefly-gremlin/src/test/resources/integration-test-settings.properties](url). Update these setting to point to your Aerospike instance.
+The integration tests use the configuration at [firefly-gremlin/src/test/resources/integration-test-settings.properties](https://github.com/citrusleaf/firefly/blob/main/firefly-gremlin/src/test/resources/integration-test-settings.properties). Update these setting to point to your Aerospike instance.
 
 ```
 aerospike_host = aerospike-ee.server.domain

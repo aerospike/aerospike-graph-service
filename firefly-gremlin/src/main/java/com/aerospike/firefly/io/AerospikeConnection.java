@@ -111,8 +111,8 @@ public class AerospikeConnection {
     /**
      * Cast an Id to its on-disk storage type
      *
-     * @param origId
-     * @return
+     * @param origId raw id
+     * @return id cast to on-disk type
      */
     private static Object idToStorageType(Object origId) {
         if (FireflyElement.class.isAssignableFrom(origId.getClass()))
@@ -127,25 +127,25 @@ public class AerospikeConnection {
     /**
      * return the set name for an elements properties
      *
-     * @param ele
-     * @return
+     * @param elementClass class of element
+     * @return name of Aerospike set
      */
-    private String getElementPropertySet(final Class<? extends FireflyElement> ele) {
-        if (ele.equals(FireflyVertex.class))
+    private String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
+        if (elementClass.equals(FireflyVertex.class))
             return VERTEX_PROPERTY_SET;
-        else if (ele.equals(FireflyEdge.class))
+        else if (elementClass.equals(FireflyEdge.class))
             return EDGE_PROPERTIES;
-        else if (ele.equals(FireflyVertexProperty.class))
+        else if (elementClass.equals(FireflyVertexProperty.class))
             return VP_PROPERTIES;
-        throw new UnsupportedOperationException("ele not supported " + ele.getClass());
+        throw new UnsupportedOperationException("ele not supported " + elementClass.getClass());
     }
 
 
     /**
      * Return the numeric id of the on-disk type
      *
-     * @param clazz
-     * @return
+     * @param clazz class to lookup
+     * @return index of supported type
      */
     private Long getSupportedType(final Class clazz) {
         if (!SupportedValueTypes.containsKey(clazz))

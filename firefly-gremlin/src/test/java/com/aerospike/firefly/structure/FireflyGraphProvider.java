@@ -28,7 +28,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
 
     static {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE,"100");
+
+        // Adjust here to test transition from caches to scans
+        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE,"100000");
     }
 
     protected IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {

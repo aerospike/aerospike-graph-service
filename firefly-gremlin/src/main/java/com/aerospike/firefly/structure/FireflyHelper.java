@@ -37,7 +37,7 @@ public class FireflyHelper {
     protected static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         final FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph,FireflyEdge.class,keyValues);
         graph.db.writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
-        FireflyEdge edge = graph.db.readEdge(graph, fid);
+        FireflyEdge edge = graph.db.readEdge(graph, fid);//@todo performance avoid reread
         ElementHelper.attachProperties(edge, keyValues);
         return edge;
     }

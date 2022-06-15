@@ -71,7 +71,6 @@ public class TestAerospikeGraphIntegration {
         String key = "bKey";
         FireflyProperty<String> p = new FireflyProperty<>(vertex, key, value);
         db.writeProperty(vertex.id,vertex.getClass(), key, value);
-
         Property<String> readback = db.readProperty(vertex, key);
         assertEquals(p.key(), readback.key());
         assertEquals(p.value(), readback.value());
@@ -159,7 +158,7 @@ public class TestAerospikeGraphIntegration {
     void testGraphTraversal() {
         GraphTraversalSource g = graph.traversal();
         g.addV("herring").property("color", "white").next();
-        Vertex thing = g.V().next();
+        assertNotNull(g.V().next());
         assertEquals("white", g.V().hasLabel("herring").values("color").next());
         GraphTraversal<Vertex, Vertex> i = g.V();
         while (i.hasNext()) {

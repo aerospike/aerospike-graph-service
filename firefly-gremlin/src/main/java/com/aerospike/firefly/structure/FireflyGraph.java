@@ -153,16 +153,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     @Override
-    public Iterator<Vertex> vertices(Object... vertexIdsOrVerticies) {
+    public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
         Iterator<Long> itr;
         List<Long> longs = new ArrayList<>();
-        IteratorUtils.asIterator(vertexIdsOrVerticies).forEachRemaining(o -> {
+        IteratorUtils.asIterator(vertexIdsOrVertices).forEachRemaining(o -> {
             longs.add(vertexIdManager.convert(o));
         });
-        if (vertexIdsOrVerticies.length != 0)
+        if (vertexIdsOrVertices.length != 0)
             if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db,FireflyVertex.class, longId)), db::vertexExists))
                 throw new NoSuchElementException("vertex could not be found and edge could not be created");
-        if (vertexIdsOrVerticies.length != 0)
+        if (vertexIdsOrVertices.length != 0)
             itr = longs.iterator();
         else
             itr = (Iterator<Long>) db.readElementIds(FireflyVertex.class);

@@ -179,7 +179,11 @@ public class TestAerospikeClientIntegration {
         });
         assertEquals(6,graph.traversal().V(root).bothE().count().next());
         final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0,2).forEach( i -> graph.traversal().E(iter.next()).drop().tryNext());
+        IntStream.range(0,2).forEach( i -> {
+            graph.traversal().E(iter.next()).drop().tryNext();
+        });
+        List<Edge> list2 = graph.traversal().V(root).bothE().toList();
+
         assertEquals(4,graph.traversal().V(root).bothE().count().next());
     }
 

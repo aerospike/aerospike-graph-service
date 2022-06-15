@@ -184,11 +184,11 @@ public class TestAerospikeClientIntegration {
         List<Edge> list = graph.traversal().V(root).bothE().toList();
         assertEquals(6,graph.traversal().V(root).bothE().count().next());
         final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0,1).forEach( i -> {
-
+        IntStream.range(0,2).forEach( i -> {
             graph.traversal().E(iter.next()).drop().tryNext();
-
         });
+        List<Edge> list2 = graph.traversal().V(root).bothE().toList();
+
         assertEquals(4,graph.traversal().V(root).bothE().count().next());
     }
 

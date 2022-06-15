@@ -4,7 +4,7 @@ ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
 ENV TINKERPOP_VERSION='3.6.0'
-ENV MAVEN_VERSION='3.8.5'
+ENV MAVEN_VERSION='3.8.6'
 ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"

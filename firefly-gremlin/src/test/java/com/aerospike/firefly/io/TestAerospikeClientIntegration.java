@@ -168,12 +168,8 @@ public class TestAerospikeClientIntegration {
     }
     @Test
     void testSyntheticSupernode() {
-        configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE,"5");
+        configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
         FireflyGraph graph = FireflyGraph.open(configuration);
-        ArrayList<Long> ids = new ArrayList<>() {{
-            add(0L);
-            add(1L);
-        }};
         Vertex root = graph.addVertex("root");
         List<Vertex> stuff = new ArrayList<>();
         IntStream.range(0,6).forEach( i -> {
@@ -181,14 +177,9 @@ public class TestAerospikeClientIntegration {
             stuff.add(nu);
             graph.traversal().V(root).addE("edge").to(nu).next();
         });
-        List<Edge> list = graph.traversal().V(root).bothE().toList();
         assertEquals(6,graph.traversal().V(root).bothE().count().next());
         final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0,1).forEach( i -> {
-
-            graph.traversal().E(iter.next()).drop().tryNext();
-
-        });
+        IntStream.range(0,2).forEach( i -> graph.traversal().E(iter.next()).drop().tryNext());
         assertEquals(4,graph.traversal().V(root).bothE().count().next());
     }
 

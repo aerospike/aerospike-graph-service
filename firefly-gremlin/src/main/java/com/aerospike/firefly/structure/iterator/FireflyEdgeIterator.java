@@ -1,5 +1,9 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.structure.iterator;
 
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyElementIterator;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 
 import java.util.Iterator;
@@ -10,7 +14,7 @@ import java.util.Iterator;
 public class FireflyEdgeIterator<T> extends FireflyElementIterator<Edge> {
     protected FireflyEdgeIterator(FireflyGraph graph, Iterator<T> idIterator) {
         super(graph.db, idIterator,
-                id -> graph.getBaseGraph().edgeExists(FireflyId.of(graph.db,FireflyEdge.class, id)),
+                id -> graph.getBaseGraph().edgeExists(FireflyId.of(graph.db, FireflyEdge.class, id)),
                 id -> graph.getBaseGraph().readEdge(graph, FireflyId.of(graph.db,FireflyEdge.class, id)));
     }
 }

@@ -9,10 +9,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class Profile {
-    protected static Map<String, Map<String, AtomicLong>> metrics = new HashMap<>();
+public final class ProfileUtil {
+    static Map<String, Map<String, AtomicLong>> metrics = new HashMap<>();
 
-    private Profile() {
+    private ProfileUtil() {
     }
 
     public static void increment(Class<?> clazz, String functionName) {

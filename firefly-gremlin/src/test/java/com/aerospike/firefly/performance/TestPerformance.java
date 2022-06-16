@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.Util.loadKryoDataFromResources;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**

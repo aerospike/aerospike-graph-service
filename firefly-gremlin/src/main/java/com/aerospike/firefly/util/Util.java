@@ -13,7 +13,8 @@ import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class Util {
+public final class Util {
+    private Util(){}
     public static void copyResourceToDirectory(String resourceName, Path filePath) {
         try (InputStream is = Util.class.getClassLoader().getResourceAsStream(resourceName)) {
             Files.copy(is, filePath.resolve(resourceName));

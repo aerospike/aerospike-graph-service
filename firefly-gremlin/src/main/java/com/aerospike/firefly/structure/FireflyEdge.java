@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -20,11 +21,11 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final FireflyId outVid;
 
     private void writeProperty(String k, Object v) {
-        this.graph.db.writeProperty(this.id, this.getClass(), k, v);
+        this.graph.getBaseGraph().writeProperty(this.id, this.getClass(), k, v);
     }
 
     private Map<String, Property> readProperties() {
-        return this.graph.db.readProperties(this);
+        return this.graph.getBaseGraph().readProperties(this);
     }
 
 
@@ -37,12 +38,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.db.readVertex(graph, this.outVid);
+        return graph.getBaseGraph().readVertex(graph, this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.db.readVertex(graph, this.inVid);
+        return graph.getBaseGraph().readVertex(graph, this.inVid);
     }
 
     @Override
@@ -85,11 +86,11 @@ public class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public void remove() {
         //@todo multi record transactions
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
-        graph.db.removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
-        graph.db.removeEdge(graph, this.id);
+        graph.getBaseGraph().removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.IN);
+        graph.getBaseGraph().removeEdgeFromVertex(graph, (FireflyVertex) this.outVertex(), this, Direction.OUT);
+        graph.getBaseGraph().removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.IN);
+        graph.getBaseGraph().removeEdgeFromVertex(graph, (FireflyVertex) this.inVertex(), this, Direction.OUT);
+        graph.getBaseGraph().removeEdge(graph, this.id);
     }
 
     @Override

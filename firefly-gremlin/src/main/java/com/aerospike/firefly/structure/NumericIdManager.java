@@ -26,7 +26,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
 
     @Override
     public Long getNextId(FireflyGraph graph) {
-        long value = graph.db.incrementAndGetIdCounter( this.counterName);
+        long value = graph.getBaseGraph().incrementAndGetIdCounter( this.counterName);
         return value;
     }
 

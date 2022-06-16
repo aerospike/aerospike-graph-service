@@ -1,6 +1,9 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.IdManager;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
 /**

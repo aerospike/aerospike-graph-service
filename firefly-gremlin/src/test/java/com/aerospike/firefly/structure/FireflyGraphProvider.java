@@ -1,6 +1,8 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
@@ -10,7 +12,6 @@ import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoVertexTest;
 
-import java.io.ObjectInputFilter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;

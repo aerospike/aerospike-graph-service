@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.structure.id.IdManager;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;

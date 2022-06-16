@@ -1,7 +1,8 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.*;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;

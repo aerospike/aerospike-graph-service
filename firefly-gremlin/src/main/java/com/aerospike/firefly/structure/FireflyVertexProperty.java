@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -22,11 +23,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     private final V value;
 
     private Map<String, Property> readProperties() {
-        return ((FireflyGraph) this.graph()).db.readProperties(this);
+        return ((FireflyGraph) this.graph()).getBaseGraph().readProperties(this);
     }
 
     private void writeProperty(String k, Object v) {
-        ((FireflyGraph) this.graph()).db.writeProperty(this.id,this.getClass(), k, v);
+        ((FireflyGraph) this.graph()).getBaseGraph().writeProperty(this.id, this.getClass(), k, v);
     }
 
 
@@ -89,7 +90,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     @Override
     public void remove() {
         try {
-            ((FireflyGraph) this.graph()).db.removeVertexProperty(this);
+            ((FireflyGraph) this.graph()).getBaseGraph().removeVertexProperty(this);
         } catch (AerospikeException e) {
             throw new RuntimeException(e);
         }
@@ -101,10 +102,10 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         if (propertyKeys.length == 1) {
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
-        } else{
+        } else {
             return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
-                    entry -> ElementHelper.keyExists((String)((AbstractMap.Entry) entry).getKey(), propertyKeys)),entry ->
-                    ((AbstractMap.Entry)entry).getValue());
+                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)), entry ->
+                    ((AbstractMap.Entry) entry).getValue());
         }
     }
 

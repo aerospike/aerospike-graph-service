@@ -1,9 +1,8 @@
 package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.iterator.FireflyElementIterator;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.Iterator;

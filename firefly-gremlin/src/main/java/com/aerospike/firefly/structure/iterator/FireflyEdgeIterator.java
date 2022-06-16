@@ -2,8 +2,7 @@ package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyId;
-import com.aerospike.firefly.structure.iterator.FireflyElementIterator;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 
 import java.util.Iterator;

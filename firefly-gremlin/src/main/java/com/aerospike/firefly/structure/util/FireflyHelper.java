@@ -3,7 +3,7 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;

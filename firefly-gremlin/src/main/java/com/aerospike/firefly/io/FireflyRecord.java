@@ -5,9 +5,7 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.structure.FireflyElement;
-import com.aerospike.firefly.structure.FireflyId;
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
 import java.util.Arrays;

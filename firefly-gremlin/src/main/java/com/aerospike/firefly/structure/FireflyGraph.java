@@ -75,7 +75,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
-    protected final AerospikeConnection db;
+    private final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
     private final FireflyGraphFeatures features;

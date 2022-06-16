@@ -9,7 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public abstract class FireflyElement implements Element {
-    protected final FireflyId id;
+    public final FireflyId id;
     protected final String label;
     protected final FireflyRecord record;
     protected boolean removed = false;

@@ -49,29 +49,29 @@ public class FireflyId {
 
     public static FireflyId createFromUser(FireflyGraph graph, Class<? extends FireflyElement> type, Object id) {
         if (type == null)//@todo better verification for free-form
-            return new FireflyId(graph.db,type, id);
+            return new FireflyId(graph.getBaseGraph(),type, id);
         if (FireflyVertex.class.isAssignableFrom(type)) {
             if (!graph.vertexIdManager.allow(id))
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return new FireflyId(graph.db,type, id);
+            return new FireflyId(graph.getBaseGraph(),type, id);
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
             if (!graph.edgeIdManager.allow(id))
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return new FireflyId(graph.db,type, id);
+            return new FireflyId(graph.getBaseGraph(),type, id);
         } else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
             if (!graph.vertexPropertyIdManager.allow(id))
                 throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return new FireflyId(graph.db,type, id);
+            return new FireflyId(graph.getBaseGraph(),type, id);
         } else throw new UnsupportedOperationException(type + " not a Firefly Element ");
     }
 
     public static FireflyId createFromManager(FireflyGraph graph, Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type))
-            return new FireflyId(graph.db, type, graph.vertexIdManager.getNextId(graph));
+            return new FireflyId(graph.getBaseGraph(), type, graph.vertexIdManager.getNextId(graph));
         if (FireflyEdge.class.isAssignableFrom(type))
-            return new FireflyId(graph.db, type, graph.edgeIdManager.getNextId(graph));
+            return new FireflyId(graph.getBaseGraph(), type, graph.edgeIdManager.getNextId(graph));
         if (FireflyVertexProperty.class.isAssignableFrom(type))
-            return new FireflyId(graph.db, type, graph.vertexPropertyIdManager.getNextId(graph));
+            return new FireflyId(graph.getBaseGraph(), type, graph.vertexPropertyIdManager.getNextId(graph));
         else throw new UnsupportedOperationException(type + " not a Firefly Element ");
     }
 

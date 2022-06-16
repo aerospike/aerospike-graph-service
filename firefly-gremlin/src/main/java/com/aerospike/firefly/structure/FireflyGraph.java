@@ -83,10 +83,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     private final Configuration configuration;
 
-    protected final IdManager<Long> vertexIdManager;
-    protected final IdManager<Long> edgeIdManager;
+    public final IdManager<Long> vertexIdManager;
+    public final IdManager<Long> edgeIdManager;
 
-    protected final IdManager<Long> vertexPropertyIdManager;
+    public final IdManager<Long> vertexPropertyIdManager;
     private final FireflyGraphVariables variables;
 
 

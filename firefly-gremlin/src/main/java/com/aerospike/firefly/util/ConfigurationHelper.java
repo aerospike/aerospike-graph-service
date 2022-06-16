@@ -21,6 +21,7 @@ import java.util.Properties;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ConfigurationHelper {
+    private ConfigurationHelper(){}
     public static class Keys {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.Optional;
@@ -19,12 +19,12 @@ public class FireflyGraphVariables implements Graph.Variables {
 
     @Override
     public Set<String> keys() {
-        return graph.db.readGraphVariableKeys();
+        return graph.getBaseGraph().readGraphVariableKeys();
     }
 
     @Override
     public <R> Optional<R> get(String key) {
-        return Optional.ofNullable(graph.db.readGraphVariable(key));
+        return Optional.ofNullable(graph.getBaseGraph().readGraphVariable(key));
     }
 
     @Override
@@ -34,12 +34,12 @@ public class FireflyGraphVariables implements Graph.Variables {
         if (null == key || key.isEmpty())
             throw Graph.Variables.Exceptions.variableKeyCanNotBeEmpty();
         FireflyHelper.validateGraphVariableValue(value);
-        graph.db.writeGraphVariable(key, value);
+        graph.getBaseGraph().writeGraphVariable(key, value);
     }
 
     @Override
     public void remove(String key) {
-        graph.db.removeGraphVariable(key);
+        graph.getBaseGraph().removeGraphVariable(key);
     }
 
     @Override

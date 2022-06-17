@@ -1,4 +1,6 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.structure.id;
+
+import com.aerospike.firefly.structure.FireflyGraph;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

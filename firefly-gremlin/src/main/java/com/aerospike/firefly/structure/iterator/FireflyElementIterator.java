@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import org.apache.tinkerpop.gremlin.structure.Graph;

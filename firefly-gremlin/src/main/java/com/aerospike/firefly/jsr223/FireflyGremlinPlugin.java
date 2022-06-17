@@ -3,14 +3,12 @@ package com.aerospike.firefly.jsr223;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.Tokens;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.DefaultImportCustomizer;
 import org.apache.tinkerpop.gremlin.jsr223.GremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.ImportCustomizer;
-
-import java.io.ObjectInputFilter;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

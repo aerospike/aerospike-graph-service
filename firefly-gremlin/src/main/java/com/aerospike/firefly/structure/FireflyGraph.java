@@ -2,6 +2,12 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.id.NumericIdManager;
+import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
+import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
@@ -17,8 +23,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.aerospike.firefly.structure.FireflyHelper.readVertex;
-import static com.aerospike.firefly.structure.FireflyHelper.writeVertex;
+import static com.aerospike.firefly.structure.util.FireflyHelper.readVertex;
+import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -70,17 +76,17 @@ import static com.aerospike.firefly.util.Tokens.*;
 
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
-    protected final AerospikeConnection db;
+    private final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
     private final FireflyGraphFeatures features;
 
     private final Configuration configuration;
 
-    protected final IdManager<Long> vertexIdManager;
-    protected final IdManager<Long> edgeIdManager;
+    public final IdManager<Long> vertexIdManager;
+    public final IdManager<Long> edgeIdManager;
 
-    protected final IdManager<Long> vertexPropertyIdManager;
+    public final IdManager<Long> vertexPropertyIdManager;
     private final FireflyGraphVariables variables;
 
 

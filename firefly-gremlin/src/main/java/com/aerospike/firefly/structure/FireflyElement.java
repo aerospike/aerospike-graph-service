@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
@@ -8,7 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public abstract class FireflyElement implements Element {
-    protected final FireflyId id;
+    public final FireflyId id;
     protected final String label;
     protected final FireflyRecord record;
     protected boolean removed = false;

@@ -1,6 +1,8 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -9,7 +11,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
 
-import static com.aerospike.firefly.structure.FireflyHelper.removeVertex;
+import static com.aerospike.firefly.structure.util.FireflyHelper.removeVertex;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -21,16 +23,16 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
     private final FireflyGraph graph;
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
-        return this.graph.db.readVertexProperties(this);
+        return this.graph.getBaseGraph().readVertexProperties(this);
     }
 
 
     protected Iterator<Object> getInEdgeIds() {
-        return this.graph.db.getInEdgeIdsFromVertex(this);
+        return this.graph.getBaseGraph().getInEdgeIdsFromVertex(this);
     }
 
     protected Iterator<Object> getOutEdgeIds() {
-        return this.graph.db.getOutEdgeIdsFromVertex(this);
+        return this.graph.getBaseGraph().getOutEdgeIdsFromVertex(this);
     }
 
     public FireflyVertex(final FireflyRecord record, final FireflyId fid, final String label, final FireflyGraph graph) {
@@ -65,8 +67,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
         } else {
             FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph,FireflyVertexProperty.class,keyValues);
 
-            this.graph.db.writeVertexProperty(this, fid, key, key, value);
-            VertexProperty<Object> vp = this.graph.db.readVertexProperty(this, fid);
+            this.graph.getBaseGraph().writeVertexProperty(this, fid, key, key, value);
+            VertexProperty<Object> vp = this.graph.getBaseGraph().readVertexProperty(this, fid);
             ElementHelper.attachProperties(vp, keyValues);
             return (VertexProperty<V>) vp;
         }

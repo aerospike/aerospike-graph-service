@@ -8,14 +8,12 @@ import java.util.List;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class Preflight {
+public class PreflightCheckHelper {
+    private PreflightCheckHelper() {}
     private static final Integer JAVA_ELEVEN = 11;
     private static final List<Integer> supportedJVMVersions = new ArrayList<>() {{
         add(JAVA_ELEVEN);
     }};
-
-    private Preflight() {
-    }
 
     public static void checkSupportedJVM() {
         String version = System.getProperty("java.version");

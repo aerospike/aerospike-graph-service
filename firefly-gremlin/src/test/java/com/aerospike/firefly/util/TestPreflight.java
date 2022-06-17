@@ -9,6 +9,6 @@ public class TestPreflight {
 
     @Test
     void testCheckJavaVersion(){
-       Preflight.checkSupportedJVM();
+       PreflightCheckHelper.checkSupportedJVM();
     }
 }

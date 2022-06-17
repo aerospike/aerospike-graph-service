@@ -4,7 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.Util;
+import com.aerospike.firefly.util.IOUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.jupiter.api.BeforeAll;
@@ -53,7 +53,7 @@ public class TestAirRoutes50k {
 
     @BeforeAll
     static void fetchAirRoutes50k() {
-        if (!tempFile.exists()) Util.downloadFileFromURL(airRoutesUrl, tempFile);
+        if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
     }
 
     @BeforeEach

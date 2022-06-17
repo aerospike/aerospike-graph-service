@@ -11,26 +11,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestProfiler {
     @Test
     public void testCallCounter(){
-        Profile.reset();
-        Profile.increment(TestProfiler.class,"testCallCounter");
-        Profile.increment(TestProfiler.class,"testCallCounter");
-        Profile.increment(TestProfiler.class,"testCallCounter");
-        assertEquals(3,Profile.metrics.get(TestProfiler.class.getName()).get("testCallCounter").get());
+        ProfileUtil.reset();
+        ProfileUtil.increment(TestProfiler.class,"testCallCounter");
+        ProfileUtil.increment(TestProfiler.class,"testCallCounter");
+        ProfileUtil.increment(TestProfiler.class,"testCallCounter");
+        assertEquals(3, ProfileUtil.metrics.get(TestProfiler.class.getName()).get("testCallCounter").get());
     }
     @Test
     public void testReset(){
-        Profile.increment(TestProfiler.class,"testCallCounter");
-        Profile.reset();
-        assertTrue(Profile.metrics.isEmpty());
+        ProfileUtil.increment(TestProfiler.class,"testCallCounter");
+        ProfileUtil.reset();
+        assertTrue(ProfileUtil.metrics.isEmpty());
     }
 
     @Test
     public void testToString(){
-        Profile.increment(TestProfiler.class,"testCallCounter");
-        Profile.increment(String.class,"someStringFn");
-        Profile.increment(String.class,"someStringFn");
+        ProfileUtil.increment(TestProfiler.class,"testCallCounter");
+        ProfileUtil.increment(String.class,"someStringFn");
+        ProfileUtil.increment(String.class,"someStringFn");
 
-        String output = Profile.report();
+        String output = ProfileUtil.report();
         System.out.println(output);
     }
 }

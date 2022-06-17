@@ -1,1 +1,1 @@
-:install com.aerospike firefly-gremlin 0.0.1-SNAPSHOT
+:install com.aerospike firefly-gremlin 0.1.0-SNAPSHOT

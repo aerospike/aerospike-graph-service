@@ -20,7 +20,7 @@ public class TestUtil {
             final String resourceName = "integration-test-settings.properties";
             final Path tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
             tempPath.toFile().deleteOnExit();
-            Util.copyResourceToDirectory(resourceName, tempPath);
+            IOUtil.copyResourceToDirectory(resourceName, tempPath);
             assertTrue(Files.list(tempPath).anyMatch( it -> it.getFileName().toString().equals(resourceName)));
         } catch (IOException e) {
             throw new RuntimeException(e);

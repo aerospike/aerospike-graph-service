@@ -4,7 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.Util;
+import com.aerospike.firefly.util.IOUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -402,7 +402,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     void airRoutesTest() throws IOException {
-        Util.loadGraphmlFromData(graph, "air-routes-small.graphml");
+        IOUtil.loadGraphmlFromData(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
         Map<Object, Object> stuff = g.V().hasLabel("airport").

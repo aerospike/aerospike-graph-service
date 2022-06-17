@@ -10,10 +10,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ProfileUtil {
+    private ProfileUtil() {}
+
     static Map<String, Map<String, AtomicLong>> metrics = new HashMap<>();
 
-    private ProfileUtil() {
-    }
 
     public static void increment(Class<?> clazz, String functionName) {
         Map<String, AtomicLong> clazzMetrics = metrics.getOrDefault(clazz.getName(), new HashMap<>());

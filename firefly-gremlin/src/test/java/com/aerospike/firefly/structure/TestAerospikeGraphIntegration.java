@@ -66,21 +66,23 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteRemovePropertyFromVertex() {
-
-        FireflyVertex vertex = (FireflyVertex) graph.addVertex("label");
+    void testReadWriteRemovePropertyFromEdge() {
+        FireflyVertex vertexA = (FireflyVertex) graph.addVertex("label");
+        FireflyVertex vertexB = (FireflyVertex) graph.addVertex("label");
         String value = "b";
         String key = "bKey";
-        FireflyProperty<String> p = new FireflyProperty<>(vertex, key, value);
-        db.writeProperty(vertex.id,vertex.getClass(), key, value);
-        Property<String> readback = db.readProperty(vertex, key);
+        FireflyEdge edge = (FireflyEdge)vertexA.addEdge("label",vertexB,key,value);
+        String value2 = "c";
+        String key2 = "cKey";
+        FireflyProperty<String> p = new FireflyProperty<>(edge, key2, value2);
+        db.writeProperty(edge.id,edge.getClass(), key2, value2);
+        Property<String> readback = db.readProperty(edge, key2);
         assertEquals(p.key(), readback.key());
         assertEquals(p.value(), readback.value());
-
-        db.removeProperty(vertex, key);
+        db.removeProperty(edge, key);
         boolean success = false;
         try {
-            Property<String> gone = db.readProperty(vertex, key);
+            Property<String> gone = db.readProperty(edge, key);
         } catch (NoSuchElementException nse) {
             success = true;
         }

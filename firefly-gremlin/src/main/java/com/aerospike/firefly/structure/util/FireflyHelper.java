@@ -3,8 +3,8 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -148,5 +148,13 @@ public final class FireflyHelper {
             }
         }
         return vertices.iterator();
+    }
+
+    public static List<FireflyEdge>  queryEdgeIndex(FireflyGraph graph, String key, Object value) {
+        return null;
+    }
+
+    public static List<FireflyVertex>  queryVertexIndex(FireflyGraph graph, String key, Object value) {
+        return null;
     }
 }

@@ -338,6 +338,10 @@ public class AerospikeConnection {
         return true; //@todo
     }
 
+    public Set<String> getIndexedKeys() {
+        return null;
+    }
+
     /**
      * manage the set names for an element type
      */

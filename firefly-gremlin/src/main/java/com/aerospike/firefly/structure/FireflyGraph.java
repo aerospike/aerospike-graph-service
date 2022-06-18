@@ -17,10 +17,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.structure.util.FireflyHelper.readVertex;
@@ -112,6 +109,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public static FireflyGraph open(Configuration conf) {
         return new FireflyGraph(conf);
+    }
+
+
+
+    public <E extends Element> Set<String> getIndexedKeys(final Class<E> elementClass) {
+        if (Vertex.class.isAssignableFrom(elementClass)) {
+            return null == null ? Collections.emptySet() : this.db.getIndexedKeys();
+        } else if (Edge.class.isAssignableFrom(elementClass)) {
+            return null == null ? Collections.emptySet() : this.db.getIndexedKeys();
+        } else {
+            throw new IllegalArgumentException("Class is not indexable: " + elementClass);
+        }
     }
 
 

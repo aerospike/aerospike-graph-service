@@ -19,7 +19,7 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 @RunWith(ProcessStandardSuite.class)
 @GraphProviderClass(provider = FireflyGraphProvider.class, graph = FireflyGraph.class)
-public class TestFireflyGraphProcessStandard {
+public class FireflyGraphProcessStandardTest {
     private static final Configuration config;
 
     static {

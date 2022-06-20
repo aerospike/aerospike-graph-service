@@ -398,7 +398,7 @@ public class TestAerospikeGraphIntegration {
         Object next = i.next();
         assertTrue(x.contains(next));
         assertTrue(x.contains(next));
-    }
+    }git
 
 
     @Test

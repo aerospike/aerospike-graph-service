@@ -4,6 +4,8 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.Policy;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -146,8 +148,8 @@ public class TestAerospikeClientIntegration {
         assertEquals(5, db.getIdCounter(db.GLOBAL));
         assertEquals(5, res2);
         assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3,db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3,db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
     }
 
     @Test
@@ -166,25 +168,26 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(ids.contains(b));
     }
+
     @Test
     void testSyntheticSupernode() {
         configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
         FireflyGraph graph = FireflyGraph.open(configuration);
         Vertex root = graph.addVertex("root");
         List<Vertex> stuff = new ArrayList<>();
-        IntStream.range(0,6).forEach( i -> {
+        IntStream.range(0, 6).forEach(i -> {
             Vertex nu = graph.addVertex("leaf");
             stuff.add(nu);
             graph.traversal().V(root).addE("edge").to(nu).next();
         });
-        assertEquals(6,graph.traversal().V(root).bothE().count().next());
+        assertEquals(6, graph.traversal().V(root).bothE().count().next());
         final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0,2).forEach( i -> {
+        IntStream.range(0, 2).forEach(i -> {
             graph.traversal().E(iter.next()).drop().tryNext();
         });
         List<Edge> list2 = graph.traversal().V(root).bothE().toList();
 
-        assertEquals(4,graph.traversal().V(root).bothE().count().next());
+        assertEquals(4, graph.traversal().V(root).bothE().count().next());
     }
 
 
@@ -260,6 +263,13 @@ public class TestAerospikeClientIntegration {
         FireflyRecord.write(db, db.TEST_SET, fid, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
         assertEquals(record.id(), fid.value());
+    }
+
+    @Test
+    void testCreateDropIndex() {
+        String binName = "aBin";
+        db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
+        db.dropIndex(db.TEST_SET, "testIndex");
     }
 
 }

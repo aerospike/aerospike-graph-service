@@ -8,7 +8,11 @@ import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
+import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -338,9 +342,6 @@ public class AerospikeConnection {
         return true; //@todo
     }
 
-    public Set<String> getIndexedKeys() {
-        return null;
-    }
 
     /**
      * manage the set names for an element type
@@ -1374,6 +1375,53 @@ public class AerospikeConnection {
     public final String toString() {
         return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }
+
+
+
+    public Set<String> getIndexedKeys() {
+        return null;
+    }
+
+    public void dropIndex(
+            final String set,
+            final String indexName
+    ) {
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
+            task.waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+    public void createIndex(
+            final String set,
+            final String indexName,
+            final String binName,
+            final IndexType type,
+            final IndexCollectionType indexCollectionType
+    ) {
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
+            task.waitTillComplete();
+        }
+        catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+
+
+
+
 
     /**
      * close the connection to Aerospike

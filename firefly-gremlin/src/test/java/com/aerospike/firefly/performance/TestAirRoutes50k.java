@@ -51,7 +51,7 @@ public class TestAirRoutes50k {
     }
 
     @Before
-    static void fetchAirRoutes50k() {
+    public void fetchAirRoutes50k() {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
     }
 

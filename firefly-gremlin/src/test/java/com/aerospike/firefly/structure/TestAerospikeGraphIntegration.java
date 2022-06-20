@@ -402,7 +402,7 @@ public class TestAerospikeGraphIntegration {
 
 
     @Test
-    void airRoutesTest() throws IOException {
+    public void airRoutesTest() throws IOException {
         IOUtil.loadGraphmlFromData(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();

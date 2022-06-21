@@ -14,10 +14,11 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.*;
@@ -35,7 +36,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -52,21 +53,21 @@ public class TestAerospikeGraphIntegration {
     private FireflyGraph graph;
 
 
-    @BeforeEach
-    void openGraph() {
+    @Before
+    public void openGraph() {
         this.db = AerospikeConnection.connect(config);
         graph = new FireflyGraph(config);
         db.dropDatabase();
     }
 
-    @AfterEach
-    void closeGraphClearData() throws Exception {
+    @After
+    public void closeGraphClearData() throws Exception {
         db.dropDatabase();
         graph.close();
     }
 
     @Test
-    void testReadWriteRemovePropertyFromVertex() {
+    public void testReadWriteRemovePropertyFromVertex() {
 
         FireflyVertex vertex = (FireflyVertex) graph.addVertex("label");
         String value = "b";
@@ -88,7 +89,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteRemoveGraphVariables() throws InterruptedException {
+    public void testReadWriteRemoveGraphVariables() throws InterruptedException {
         graph.variables().set("this", "that");
         assertEquals("that", graph.variables().get("this").get().toString());
         assertEquals("this", graph.variables().keys().iterator().next());
@@ -97,7 +98,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteVertexProperty() {
+    public void testReadWriteVertexProperty() {
         db.writeVertex(graph, FireflyId.of(db,FireflyVertex.class,2l), "aVertexLabel");
         FireflyVertex vertex = db.readVertex(graph, FireflyId.of(db,FireflyVertex.class,2l));
         FireflyId vpid = FireflyId.createFromManager(graph,FireflyVertexProperty.class);
@@ -110,7 +111,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteRemoveVertexPropertyTraversal() {
+    public void testReadWriteRemoveVertexPropertyTraversal() {
         GraphTraversalSource g = graph.traversal();
         Vertex v = g.addV().property("a", "b").next();
         assertEquals("b", g.V(v.id()).properties("a").value().next());
@@ -125,7 +126,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteVertex() {
+    public void testReadWriteVertex() {
         FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
         db.writeVertex(graph, id, "aVertexLabel");
         FireflyVertex v = db.readVertex(graph, id);
@@ -133,7 +134,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testVertexIterator() {
+    public void testVertexIterator() {
         List<Long> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
             FireflyId next = FireflyId.createFromManager(graph,FireflyVertex.class);
@@ -149,7 +150,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testGraph() {
+    public void testGraph() {
         Vertex v = graph.addVertex();
         v.property("this", "that");
         Vertex thing = graph.vertices(v.id()).next();
@@ -157,7 +158,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testGraphTraversal() {
+    public void testGraphTraversal() {
         GraphTraversalSource g = graph.traversal();
         g.addV("herring").property("color", "white").next();
         assertNotNull(g.V().next());
@@ -169,7 +170,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testTraversalIterator() {
+    public void testTraversalIterator() {
         GraphTraversalSource g = graph.traversal();
         g.addV("puppy").property("color", "red").next();
         Vertex thing = g.V().next();
@@ -180,7 +181,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testRemoveVertexTraversal() {
+    public void testRemoveVertexTraversal() {
         GraphTraversalSource g = graph.traversal();
         g.addV("puppy").property("color", "brown").next();
         assertTrue(g.V().hasNext());
@@ -192,14 +193,14 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testWriteMultipleThenIterate() {
+    public void testWriteMultipleThenIterate() {
         GraphTraversalSource g = graph.traversal();
         g.addV("penguin").property("color", "red").next();
         assertEquals("red", g.V().hasLabel("penguin").next().values("color").next());
     }
 
     @Test
-    void testWriteThenDrop() {
+    public void testWriteThenDrop() {
         GraphTraversalSource g = graph.traversal();
         IntStream.range(0, 10).forEach(i -> {
             g.addV().next();
@@ -211,7 +212,7 @@ public class TestAerospikeGraphIntegration {
 
 
     @Test
-    void testWrite2VertexWithEdge() {
+    public void testWrite2VertexWithEdge() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -226,7 +227,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testWrite2VertexWithEdgeThenRemove() {
+    public void testWrite2VertexWithEdgeThenRemove() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -246,7 +247,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testReadWriteRemoveEdgeProperty() {
+    public void testReadWriteRemoveEdgeProperty() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -263,7 +264,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testEdgeLabel() {
+    public void testEdgeLabel() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -277,7 +278,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testEdgeLabel2() {
+    public void testEdgeLabel2() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -290,7 +291,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
+    public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
 
@@ -311,7 +312,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testGrateful() throws IOException {
+    public void testGrateful() throws IOException {
         GraphTraversalSource g = graph.traversal();
         GraphTraversalSource g2 = TinkerFactory.createGratefulDead().traversal();
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
@@ -327,7 +328,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void noNext() {
+    public void noNext() {
         try {
             graph.edges(10000l).next();
             fail("Call to g.edges(10000l) should throw an exception");
@@ -337,7 +338,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testTree() {
+    public void testTree() {
         int branchSize = 11;
         final Vertex start = graph.addVertex();
         for (int i = 0; i < branchSize; i++) {
@@ -382,7 +383,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void testEdgeIdScan() {
+    public void testEdgeIdScan() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
@@ -401,7 +402,7 @@ public class TestAerospikeGraphIntegration {
 
 
     @Test
-    void airRoutesTest() throws IOException {
+    public void airRoutesTest() throws IOException {
         IOUtil.loadGraphmlFromData(graph, "air-routes-small.graphml");
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();

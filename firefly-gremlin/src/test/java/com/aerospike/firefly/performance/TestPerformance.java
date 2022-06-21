@@ -1,13 +1,8 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
@@ -19,24 +14,24 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
 import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -54,8 +49,8 @@ public class TestPerformance {
     private FireflyGraph graph;
     private GraphTraversalSource g;
 
-    @BeforeEach
-    void openGraph() {
+    @Before
+    public void openGraph() {
         this.db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         db.dropDatabase();
@@ -63,8 +58,8 @@ public class TestPerformance {
 
     }
 
-    @AfterEach
-    void closeGraphClearData() throws Exception {
+    @After
+    public void closeGraphClearData() throws Exception {
         db.dropDatabase();
         graph.close();
     }
@@ -98,7 +93,7 @@ public class TestPerformance {
 
 
     @Test
-    void createAndIterateTree() {
+    public void createAndIterateTree() {
         final String ADD_ELEMENTS = "addElements";
         final String ITERATE_ELEMENTS = "iterateElements";
         startTimer(ADD_ELEMENTS);

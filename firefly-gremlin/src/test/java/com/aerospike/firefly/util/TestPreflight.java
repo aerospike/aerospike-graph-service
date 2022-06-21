@@ -1,6 +1,6 @@
 package com.aerospike.firefly.util;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 public class TestPreflight {
 
     @Test
-    void testCheckJavaVersion(){
-       PreflightCheckHelper.checkSupportedJVM();
+    public void testCheckJavaVersion(){
+        PreflightCheckHelper.checkSupportedJVM();
     }
 }

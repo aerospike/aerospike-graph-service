@@ -9,11 +9,17 @@ import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+<<<<<<< HEAD
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+=======
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+>>>>>>> main
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,13 +66,13 @@ public class TestAirRoutes50k {
         }
     }
 
-    @BeforeAll
-    static void fetchAirRoutes50k() {
+    @Before
+    public void fetchAirRoutes50k() {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
     }
 
-    @BeforeEach
-    void openGraph() {
+    @Before
+    public void openGraph() {
         this.db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         db.dropDatabase();
@@ -75,8 +81,15 @@ public class TestAirRoutes50k {
 
 
     @Test
+<<<<<<< HEAD
     void testLoadAirRoutes50K() throws IOException {
         long start = System.currentTimeMillis();
+=======
+    @Ignore
+    public void testLoadAirRoutes50K() throws IOException {
+        Date date = new Date();
+        long start = date.getTime();
+>>>>>>> main
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = System.currentTimeMillis();
         long delta = finish - start;

@@ -1,12 +1,12 @@
 package com.aerospike.firefly.util;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestUtil {
 
     @Test
-    void canCopyFileFromResources() {
+    public void canCopyFileFromResources() {
 
         try {
             final String resourceName = "integration-test-settings.properties";

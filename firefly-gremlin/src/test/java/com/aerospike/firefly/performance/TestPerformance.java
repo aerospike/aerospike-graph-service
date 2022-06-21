@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -23,11 +24,14 @@ import org.slf4j.LoggerFactory;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static org.junit.Assert.*;
+import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -82,7 +86,7 @@ public class TestPerformance {
     @Test
     public void loadGratefulDataset() {
         startTimer(LOAD_TIMER);
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
         long loadtime = stopTimer(LOAD_TIMER);
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
@@ -148,6 +152,25 @@ public class TestPerformance {
         System.out.println(String.format("iterate time: %d ms", iterateTime));
         System.out.println(String.format("iterate count: %d", iterCtr.get()));
 
+    }
+
+    @Test
+    public void test2hopRepeat1() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
+            assert data.size() == 3;
+        });
+        System.out.println(results);
+    }
+
+    @Test
+    public void test2hopRepeat2() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Object> thing = g.V().as("a").out().as("b").out().as("c").<Map<String, String>>select("a", "b", "c").by("name").range(local, 1, 2).toList();
+        });
+        System.out.println(results);
     }
 
 }

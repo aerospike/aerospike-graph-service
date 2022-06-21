@@ -67,21 +67,23 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    public void testReadWriteRemovePropertyFromVertex() {
-
-        FireflyVertex vertex = (FireflyVertex) graph.addVertex("label");
+    public void testReadWriteRemovePropertyFromEdge() {
+        FireflyVertex vertexA = (FireflyVertex) graph.addVertex("label");
+        FireflyVertex vertexB = (FireflyVertex) graph.addVertex("label");
         String value = "b";
         String key = "bKey";
-        FireflyProperty<String> p = new FireflyProperty<>(vertex, key, value);
-        db.writeProperty(vertex.id,vertex.getClass(), key, value);
-        Property<String> readback = db.readProperty(vertex, key);
+        FireflyEdge edge = (FireflyEdge) vertexA.addEdge("label", vertexB, key, value);
+        String value2 = "c";
+        String key2 = "cKey";
+        FireflyProperty<String> p = new FireflyProperty<>(edge, key2, value2);
+        db.writeProperty(edge.id, edge.getClass(), key2, value2);
+        Property<String> readback = db.readProperty(edge, key2);
         assertEquals(p.key(), readback.key());
         assertEquals(p.value(), readback.value());
-
-        db.removeProperty(vertex, key);
+        db.removeProperty(edge, key);
         boolean success = false;
         try {
-            Property<String> gone = db.readProperty(vertex, key);
+            Property<String> gone = db.readProperty(edge, key);
         } catch (NoSuchElementException nse) {
             success = true;
         }
@@ -99,9 +101,9 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void testReadWriteVertexProperty() {
-        db.writeVertex(graph, FireflyId.of(db,FireflyVertex.class,2l), "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(db,FireflyVertex.class,2l));
-        FireflyId vpid = FireflyId.createFromManager(graph,FireflyVertexProperty.class);
+        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, 2l), "aVertexLabel");
+        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, 2l));
+        FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
         db.writeVertexProperty(vertex, vpid, "a", "a", "b");
         VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
         Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
@@ -137,7 +139,7 @@ public class TestAerospikeGraphIntegration {
     public void testVertexIterator() {
         List<Long> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
-            FireflyId next = FireflyId.createFromManager(graph,FireflyVertex.class);
+            FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
             usedIds.add((Long) next.value());
             db.writeVertex(graph, next, "aVertexLabel");
         });
@@ -223,7 +225,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, (long)g.V(fruit.id()).inE().count().next());
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
     }
 
     @Test
@@ -238,7 +240,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2, (long)g.V(fruit.id()).inE().count().next());
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
         if (g.V(fruit.id()).outE().count().next() > 0) {
             Edge a = g.V(fruit.id()).outE().next();
@@ -258,7 +260,7 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
-        assertEquals(2,(long) g.V(fruit.id()).inE().count().next());
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         Property<Object> prop = g.V(fruit.id()).inE().next().properties("this").next();
         assertEquals("that", prop.value());
     }
@@ -273,8 +275,8 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        assertEquals(2, (long)g.E().hasLabel("IsA").count().next());
-        assertEquals(2, (long)g.V().outE().hasLabel("IsA").count().next());
+        assertEquals(2, (long) g.E().hasLabel("IsA").count().next());
+        assertEquals(2, (long) g.V().outE().hasLabel("IsA").count().next());
     }
 
     @Test
@@ -287,7 +289,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        assertEquals(1,(long) g.V().has("color", "yellow").outE().count().next());
+        assertEquals(1, (long) g.V().has("color", "yellow").outE().count().next());
     }
 
     @Test
@@ -437,19 +439,22 @@ public class TestAerospikeGraphIntegration {
             }));
         });
     }
+
     public static Consumer<Graph> sngcme_getAssertVertexEdgeCounts(final int expectedVertexCount, final int expectedEdgeCount) {
         return (g) -> {
             assertEquals(expectedVertexCount, IteratorUtils.count(g.vertices()));
             assertEquals(expectedEdgeCount, IteratorUtils.count(g.edges()));
         };
     }
+
     public void sngcme_tryCommit(final Graph graph) {
         if (graph.features().graph().supportsTransactions())
             graph.tx().commit();
     }
+
     @Test
     public void shouldNotGetConcurrentModificationException() {
-        for(int i = 0; i < 25; ++i) {
+        for (int i = 0; i < 25; ++i) {
             this.graph.addVertex(new Object[]{"myId", i});
         }
 
@@ -463,8 +468,8 @@ public class TestAerospikeGraphIntegration {
         IteratorUtils.fill(this.graph.vertices(new Object[0]), vertices);
         Iterator var2 = vertices.iterator();
 
-        while(var2.hasNext()) {
-            Vertex v = (Vertex)var2.next();
+        while (var2.hasNext()) {
+            Vertex v = (Vertex) var2.next();
             v.remove();
             this.sngcme_tryCommit(this.graph);
         }

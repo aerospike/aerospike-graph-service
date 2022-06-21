@@ -103,27 +103,6 @@ public class TestAerospikeClientIntegration {
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
-//    @Test
-//    void testAddRemoveIterateVertexIdList() {
-//        db.writeElementId(FireflyVertex.class, 1L);
-//        db.writeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        assertEquals(1L, i.next());
-//        assertEquals(2L, i.next());
-//        db.removeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i2 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        assertEquals(1L, i2.next());
-//        assertFalse(i2.hasNext());
-//        db.writeElementId(FireflyVertex.class, 3L);
-//        db.writeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i3 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        long last = 0L;
-//        while (i3.hasNext()) {
-//            long current = ((Number) i3.next()).longValue();
-//            assertTrue(current > last);
-//            last = current;
-//        }
-//    }
 
     @Test
     public void testCounterOps() {
@@ -270,7 +249,7 @@ public class TestAerospikeClientIntegration {
 
 
     @Test
-    void testAerospikeReadLatency() {
+    public void testAerospikeReadLatency() {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");

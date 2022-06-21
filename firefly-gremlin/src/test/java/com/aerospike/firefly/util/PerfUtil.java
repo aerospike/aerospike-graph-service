@@ -18,8 +18,10 @@ public class PerfUtil {
         public final long max;
         public final long avg;
         public final Map<Double, Long> percentiles;
+        private final long runCount;
 
-        private Results(long min, long max, long avg, Map<Double, Long> percentiles) {
+        private Results(long runCount, long min, long max, long avg, Map<Double, Long> percentiles) {
+            this.runCount = runCount;
             this.min = min;
             this.max = max;
             this.avg = avg;
@@ -28,15 +30,17 @@ public class PerfUtil {
 
         @Override
         public String toString() {
-            return String.format("avg: %f\n" +
-                            "min: %f\n" +
-                            "max: %f\n" +
-                            "85th: %f\n" +
-                            "90th: %f\n" +
-                            "99th: %f\n" +
-                            "99.9th: %f\n" +
-                            "99.99th: %f\n" +
-                            "99.999th: %f\n",
+            return String.format("run count: %d\n" +
+                            "avg: %f\n" +
+                            "min: %f ms\n" +
+                            "max: %f ms\n" +
+                            "85th: %f ms\n" +
+                            "90th: %f ms\n" +
+                            "99th: %f ms\n" +
+                            "99.9th: %f ms\n" +
+                            "99.99th: %f ms\n" +
+                            "99.999th: %f ms\n",
+                    runCount,
                     nsToMs(avg), nsToMs(min), nsToMs(max),
                     nsToMs(percentiles.get(85.)),
                     nsToMs(percentiles.get(90.)),
@@ -81,7 +85,7 @@ public class PerfUtil {
                 return o1.compareTo(o2);
             }
         });
-        return new Results(min, max, average, new HashMap<>() {{
+        return new Results(runCount, min, max, average, new HashMap<>() {{
             put(85., PerfUtil.percentile(results, 85));
             put(90., PerfUtil.percentile(results, 90));
             put(95., PerfUtil.percentile(results, 95));

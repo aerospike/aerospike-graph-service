@@ -68,7 +68,7 @@ public class TestAirRoutes50k {
     }
 
     @Test
-    void testLoadAirRoutes50K() throws IOException {
+    public void testLoadAirRoutes50K() throws IOException {
         long start = System.currentTimeMillis();
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = System.currentTimeMillis();
@@ -77,7 +77,7 @@ public class TestAirRoutes50k {
     }
 
     @Test
-    void testAirRoutes50KQueryLatency1() throws IOException {
+    public void testAirRoutes50KQueryLatency1() throws IOException {
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         PerfUtil.Results results = PerfUtil.runTestBatch(200, () -> {
             long start = System.nanoTime();

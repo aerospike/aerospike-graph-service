@@ -155,7 +155,7 @@ public class TestPerformance {
     }
 
     @Test
-    void test2hopRepeat1() {
+    public void test2hopRepeat1() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
         PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
             List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
@@ -165,7 +165,7 @@ public class TestPerformance {
     }
 
     @Test
-    void test2hopRepeat2() {
+    public void test2hopRepeat2() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
         PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
             List<Object> thing = g.V().as("a").out().as("b").out().as("c").<Map<String, String>>select("a", "b", "c").by("name").range(local, 1, 2).toList();

@@ -21,8 +21,8 @@ public interface IdManager<T> {
     T convert(final Object id);
 
     /**
-     * Determine if an identifier is allowed by this manager given its type.
-     * @param id id to check
+     * Determine if an identifier's class is allowed by this manager given its type.
+     * @param id class of id to check
      * @return is value allowed
      */
     boolean allow(final Class<?> id);

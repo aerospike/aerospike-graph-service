@@ -1,7 +1,6 @@
 package com.aerospike.firefly.util;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,8 +11,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -54,8 +51,6 @@ public class ExternalTest {
         }
     }
 
-    @Test
-    @Disabled
     public void benchmarkExternalEchoServer() throws IOException {
         List<Long> results = new ArrayList<>();
         final TCPClient client = TCPClient.startConnection("localhost", 1919);

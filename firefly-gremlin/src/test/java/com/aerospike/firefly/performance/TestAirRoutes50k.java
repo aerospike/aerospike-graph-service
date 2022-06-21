@@ -80,7 +80,6 @@ public class TestAirRoutes50k {
     public void testAirRoutes50KQueryLatency1() throws IOException {
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         PerfUtil.Results results = PerfUtil.runTestBatch(200, () -> {
-            long start = System.nanoTime();
             List<List<Object>> data = g.withSack(0).
                     V().has("code", "SAF").
                     repeat(outE().sack(sum).by("dist").inV()).times(2).limit(10).

@@ -3,14 +3,16 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.IdManager;
 import org.apache.tinkerpop.gremlin.structure.Element;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class NumericIdManager<T extends FireflyElement> implements IdManager<Long> {
-
+    private final Set<Long> ids = new HashSet<>();
     /**
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values
@@ -29,14 +31,33 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
 
     @Override
     public Long getNextId(FireflyGraph graph) {
-        long value = graph.getBaseGraph().incrementAndGetIdCounter( this.counterName);
+        Long value = graph.getBaseGraph().incrementAndGetIdCounter(this.counterName);
+        while (ids.contains(value)) {
+            value = graph.getBaseGraph().incrementAndGetIdCounter(this.counterName);
+        }
+        ids.add(value);
         return value;
+    }
+
+    public void addToCache(Object id) {
+        Long longId = convert(id);
+        if (ids.contains(longId)) {
+            throw new IllegalArgumentException("Cannot add id " + longId + " because it already exists");
+        }
+        ids.add(convert(id));
+    }
+
+    public void removeFromCache(Object id) {
+        ids.remove(convert(id));
     }
 
     @Override
     public Long convert(Object id) {
-        if (id != null && Element.class.isAssignableFrom(id.getClass()))
-            id = ((Element) id).id();
+        if (id != null)
+            if (Element.class.isAssignableFrom(id.getClass()))
+                id = ((Element) id).id();
+            else if (FireflyId.class.isAssignableFrom(id.getClass()))
+                id = ((FireflyId) id).value();
         if (null == id)
             return null;
         else if (id instanceof Number)

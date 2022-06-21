@@ -26,4 +26,10 @@ public interface IdManager<T> {
      * @return is value allowed
      */
     boolean allow(final Object id);
+
+    /**
+     * Remove id from cache.
+     * @param id id to remove
+     */
+    void removeFromCache(final Object id);
 }

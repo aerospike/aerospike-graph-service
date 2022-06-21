@@ -90,7 +90,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     @Override
     public void remove() {
         try {
-            ((FireflyGraph) this.graph()).getBaseGraph().removeVertexProperty(this);
+            ((FireflyGraph) this.graph()).getBaseGraph().removeVertexProperty((FireflyGraph) this.graph(), this);
         } catch (AerospikeException e) {
             throw new RuntimeException(e);
         }

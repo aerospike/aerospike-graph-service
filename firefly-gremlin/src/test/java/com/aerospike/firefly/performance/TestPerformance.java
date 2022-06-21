@@ -34,6 +34,7 @@ import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
+import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -172,7 +173,7 @@ public class TestPerformance {
     void test2hopRepeat2() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
         PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
-            List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
+            List<Object> thing = g.V().as("a").out().as("b").out().as("c").<Map<String, String>>select("a", "b", "c").by("name").range(local, 1, 2).toList();
         });
         System.out.println(results);
     }

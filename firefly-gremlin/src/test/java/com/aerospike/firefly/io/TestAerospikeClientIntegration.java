@@ -7,18 +7,25 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.ExternalTest;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.sql.Array;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -146,8 +153,8 @@ public class TestAerospikeClientIntegration {
         assertEquals(5, db.getIdCounter(db.GLOBAL));
         assertEquals(5, res2);
         assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3,db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3,db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
     }
 
     @Test
@@ -166,25 +173,26 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(ids.contains(b));
     }
+
     @Test
     void testSyntheticSupernode() {
         configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
         FireflyGraph graph = FireflyGraph.open(configuration);
         Vertex root = graph.addVertex("root");
         List<Vertex> stuff = new ArrayList<>();
-        IntStream.range(0,6).forEach( i -> {
+        IntStream.range(0, 6).forEach(i -> {
             Vertex nu = graph.addVertex("leaf");
             stuff.add(nu);
             graph.traversal().V(root).addE("edge").to(nu).next();
         });
-        assertEquals(6,graph.traversal().V(root).bothE().count().next());
+        assertEquals(6, graph.traversal().V(root).bothE().count().next());
         final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0,2).forEach( i -> {
+        IntStream.range(0, 2).forEach(i -> {
             graph.traversal().E(iter.next()).drop().tryNext();
         });
         List<Edge> list2 = graph.traversal().V(root).bothE().toList();
 
-        assertEquals(4,graph.traversal().V(root).bothE().count().next());
+        assertEquals(4, graph.traversal().V(root).bothE().count().next());
     }
 
 
@@ -261,5 +269,32 @@ public class TestAerospikeClientIntegration {
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
         assertEquals(record.id(), fid.value());
     }
+
+
+    @Test
+    @Disabled
+    public void benchmarkExternalEchoServer() throws IOException {
+
+    }
+
+    @Test
+    void testAerospikeReadLatency() {
+        Bin bin1 = new Bin("name", "John Doe");
+        Bin bin2 = new Bin("age", 32);
+        Bin bin3 = new Bin("greeting", "Hello World!");
+        IntStream.range(0, 10000).forEach(i -> {
+            final Key key = new Key(db.namespace, TEST_SET, i);
+            db.client.put(null, key, bin1, bin2, bin3);
+        });
+
+        PerfUtil.Results results = PerfUtil.runTestBatch(10000, () -> {
+            ThreadLocalRandom tlr = ThreadLocalRandom.current();
+            final Key key = new Key(db.namespace, TEST_SET,tlr.nextInt(0,10000));
+            final Record data = db.client.get(null, key);
+            assert data.getLong("age") == 32;
+        });
+        System.out.println(results);
+    }
+
 
 }

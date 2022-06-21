@@ -1,9 +1,15 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.client.Bin;
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -21,12 +27,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -82,7 +90,7 @@ public class TestPerformance {
     @Test
     public void loadGratefulDataset() {
         startTimer(LOAD_TIMER);
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
         long loadtime = stopTimer(LOAD_TIMER);
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
@@ -148,6 +156,25 @@ public class TestPerformance {
         System.out.println(String.format("iterate time: %d ms", iterateTime));
         System.out.println(String.format("iterate count: %d", iterCtr.get()));
 
+    }
+
+    @Test
+    void test2hopRepeat1() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
+            assert data.size() == 3;
+        });
+        System.out.println(results);
+    }
+
+    @Test
+    void test2hopRepeat2() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
+        });
+        System.out.println(results);
     }
 
 }

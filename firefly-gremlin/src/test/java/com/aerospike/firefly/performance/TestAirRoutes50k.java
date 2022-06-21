@@ -5,8 +5,11 @@ import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -17,10 +20,16 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static org.apache.tinkerpop.gremlin.process.traversal.Operator.sum;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 /**
@@ -66,13 +75,27 @@ public class TestAirRoutes50k {
 
 
     @Test
-    @Disabled
     void testLoadAirRoutes50K() throws IOException {
-        Date date = new Date();
-        long start = date.getTime();
+        long start = System.currentTimeMillis();
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
-        long finish = date.getTime();
+        long finish = System.currentTimeMillis();
         long delta = finish - start;
         System.out.println(String.format("%d milliseconds elapsed", delta));
+    }
+
+    @Test
+    void testAirRoutes50KQueryLatency1() throws IOException {
+        graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
+        PerfUtil.Results results = PerfUtil.runTestBatch(200,() -> {
+            long start = System.nanoTime();
+            List<List<Object>> data = g.withSack(0).
+                    V().has("code", "SAF").
+                    repeat(outE().sack(sum).by("dist").inV()).times(2).limit(10).
+                    order().by(sack()).
+                    local(union(path().by("code").by("dist"),
+                            sack()).fold()).
+                    local(unfold().unfold().fold()).toList();
+        });
+        System.out.println(results);
     }
 }

@@ -12,12 +12,12 @@ import java.util.Set;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class NumericIdManager<T extends FireflyElement> implements IdManager<Long> {
-    private final Set<Long> ids = new HashSet<>();
     /**
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values
      */
     private final String counterName;
+    private final Set<Object> ids = new HashSet<>();
     private final Class<? extends FireflyElement> type;
 
     public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
@@ -37,14 +37,6 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
         }
         ids.add(value);
         return value;
-    }
-
-    public void addToCache(Object id) {
-        Long longId = convert(id);
-        if (ids.contains(longId)) {
-            throw new IllegalArgumentException("Cannot add id " + longId + " because it already exists");
-        }
-        ids.add(convert(id));
     }
 
     public void removeFromCache(Object id) {

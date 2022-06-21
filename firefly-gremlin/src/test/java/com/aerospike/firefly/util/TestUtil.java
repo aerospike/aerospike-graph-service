@@ -3,7 +3,6 @@ package com.aerospike.firefly.util;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Executable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -22,7 +21,7 @@ public class TestUtil {
             final Path tempPath = Files.createTempDirectory("firefly-test").toAbsolutePath();
             tempPath.toFile().deleteOnExit();
             IOUtil.copyResourceToDirectory(resourceName, tempPath);
-            assertTrue(Files.list(tempPath).anyMatch(it -> it.getFileName().toString().equals(resourceName)));
+            assertTrue(Files.list(tempPath).anyMatch( it -> it.getFileName().toString().equals(resourceName)));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

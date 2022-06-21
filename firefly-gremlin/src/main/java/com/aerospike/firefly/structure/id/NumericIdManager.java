@@ -10,6 +10,7 @@ import java.util.Set;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class NumericIdManager<T extends FireflyElement> implements IdManager<Long> {
     /**
@@ -17,7 +18,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
      * {@link Long} and will also attempt to convert {@code String} values
      */
     private final String counterName;
-    private final Set<Object> ids = new HashSet<>();
+    private final Set<Long> ids = new HashSet<>();
     private final Class<? extends FireflyElement> type;
 
     public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
@@ -65,8 +66,16 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public boolean allow(Object id) {
-        final boolean willAllow = AerospikeConnection.IdToDiskTypeMap.containsKey(id.getClass());
-        return willAllow;
+    public boolean allow(Class<?> id) {
+        return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
+    }
+
+    @Override
+    public void addToCache(Object id) {
+        Long longId = convert(id);
+        if (ids.contains(longId)) {
+            throw new IllegalArgumentException("User supplied id " + longId.toString() + " already exists.");
+        }
+        ids.add(longId);
     }
 }

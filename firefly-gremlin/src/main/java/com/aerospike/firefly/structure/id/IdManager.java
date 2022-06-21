@@ -25,7 +25,13 @@ public interface IdManager<T> {
      * @param id id to check
      * @return is value allowed
      */
-    boolean allow(final Object id);
+    boolean allow(final Class<?> id);
+
+    /**
+     * Add id to cache. Only used in user supplied ids.
+     * @param id id to add
+     */
+    void addToCache(final Object id);
 
     /**
      * Remove id from cache.

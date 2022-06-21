@@ -51,15 +51,15 @@ public class FireflyId {
         if (type == null)//@todo better verification for free-form
             return new FireflyId(graph.getBaseGraph(),type, id);
         if (FireflyVertex.class.isAssignableFrom(type)) {
-            if (!graph.vertexIdManager.allow(id))
+            if (!graph.vertexIdManager.allow(id.getClass()))
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             return new FireflyId(graph.getBaseGraph(),type, id);
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
-            if (!graph.edgeIdManager.allow(id))
+            if (!graph.edgeIdManager.allow(id.getClass()))
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             return new FireflyId(graph.getBaseGraph(),type, id);
         } else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
-            if (!graph.vertexPropertyIdManager.allow(id))
+            if (!graph.vertexPropertyIdManager.allow(id.getClass()))
                 throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             return new FireflyId(graph.getBaseGraph(),type, id);
         } else throw new UnsupportedOperationException(type + " not a Firefly Element ");

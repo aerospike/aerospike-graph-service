@@ -229,7 +229,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexIdManager.allow(id.getClass());
         }
 
         @Override
@@ -285,7 +285,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && edgeIdManager.allow(id);
+            return supportsUserSuppliedIds() && edgeIdManager.allow(id.getClass());
         }
     }
 
@@ -472,7 +472,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id.getClass());
         }
     }
 }

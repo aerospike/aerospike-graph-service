@@ -31,7 +31,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     }
 
 
-    public FireflyEdge( FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
+    public FireflyEdge(FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;

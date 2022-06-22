@@ -4,8 +4,8 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.Policy;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.client.query.IndexType;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.query.*;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -254,6 +254,34 @@ public class TestAerospikeClientIntegration {
     public void testCreateDropIndex() {
         String binName = "aBin";
         db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
+        db.dropIndex(db.TEST_SET, "testIndex");
+    }
+
+    @Test
+    public void testWriteReadUsingIndex() {
+        final String binName = "age";
+        final String testIndex = "testIndex";
+        db.createIndex(db.TEST_SET, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+        Bin bin1 = new Bin("name", "John Doe");
+        Bin bin3 = new Bin("greeting", "Hello World!");
+        IntStream.range(0, 10000).forEach(i -> {
+            final Key key = new Key(db.namespace, TEST_SET, i);
+            db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+        });
+
+        Statement stmt = new Statement();
+        stmt.setNamespace(db.namespace);
+        stmt.setSetName(TEST_SET);
+        stmt.setFilter(Filter.range("age", 34, 99));
+        QueryPolicy p = new QueryPolicy();
+        RecordSet rs = db.client.query(null, stmt);
+        Iterator<KeyRecord> i = rs.iterator();
+        int count = 0;
+        while (i.hasNext()) {
+            count++;
+            i.next();
+        }
+        System.out.println(count);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
 

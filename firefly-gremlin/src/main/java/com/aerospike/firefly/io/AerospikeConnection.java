@@ -20,10 +20,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
@@ -49,6 +46,7 @@ public class AerospikeConnection {
     private static final String IN_EDGES = "IN_EDGES";
     private static final String OUT_EDGES = "OUT_EDGES";
     private static final String CACHE_DISABLED = "CACHE_DISABLED";
+    private static final String INDEX_METADATA = "INDEX_META";
 
     protected final String GRAPH_METADATA_SET;
     protected final String GRAPH_VARIABLES_SET;
@@ -1370,9 +1368,12 @@ public class AerospikeConnection {
     }
 
 
-
-    public Set<String> getIndexedKeys() {
-        return null;
+    public Set<String> getIndexedKeys(Class<? extends FireflyElement> elementType) {
+        //@todo getElementPropertySet is providing a string as the record key
+        Key key = new Key(namespace, INDEX_METADATA, getElementPropertySet(elementType));
+        Record rec = read(key);
+        List<String> keys = (List<String>) rec.getList("indexedKeys");
+        return new HashSet<>(keys);
     }
 
     public void dropIndex(
@@ -1384,13 +1385,13 @@ public class AerospikeConnection {
         try {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
             task.waitTillComplete();
-        }
-        catch (AerospikeException ae) {
+        } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw new RuntimeException(ae);
             }
         }
     }
+
     public void createIndex(
             final String set,
             final String indexName,
@@ -1403,17 +1404,35 @@ public class AerospikeConnection {
         try {
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
             task.waitTillComplete();
-        }
-        catch (AerospikeException ae) {
+        } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw new RuntimeException(ae);
             }
         }
     }
 
+    public <T extends Element> void createKeyIndex(Class<? extends FireflyElement> indexClass,
+                                                   String key,
+                                                   IndexType idxType,
+                                                   IndexCollectionType idxColTypee) {
+        Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
+        Record rec = read(mKey);
+        List<String> keys = (List<String>) rec.getList("indexedKeys");
+        keys.add(key);
+        Bin keysBin = new Bin("indexedKeys", new ArrayList<>(new HashSet<>(keys)));
+        client.put(null, mKey, keysBin);
+        createIndex(getElementPropertySet(indexClass), key, key, idxType, idxColTypee);
+    }
 
-
-
+    public <T extends Element> void dropKeyIndex(Class<? extends FireflyElement> indexClass, String key) {
+        Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
+        Record rec = read(mKey);
+        List<String> keys = (List<String>) rec.getList("indexedKeys");
+        keys.remove(key);
+        Bin keysBin = new Bin("indexedKeys", new ArrayList<>(new HashSet<>(keys)));
+        client.put(null, mKey, keysBin);
+        dropIndex(getElementPropertySet(indexClass), key);
+    }
 
 
     /**

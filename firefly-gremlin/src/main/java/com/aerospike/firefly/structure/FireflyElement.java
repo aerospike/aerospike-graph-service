@@ -1,25 +1,25 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedElement;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public abstract class FireflyElement implements Element {
+public abstract class FireflyElement implements WrappedElement<Record>, Element {
     public final FireflyId id;
     protected final String label;
-    protected final FireflyRecord record;
     protected boolean removed = false;
     protected final boolean allowNullPropertyValues = false;
 
 
-    protected FireflyElement(final FireflyId id, final String label, FireflyRecord record) {
+    protected FireflyElement(final FireflyId id, final String label) {
         this.id = id;
         this.label = label;
-        this.record = record;
     }
 
     @Override
@@ -47,4 +47,5 @@ public abstract class FireflyElement implements Element {
         int hashCode = ElementHelper.hashCode(this);
         return hashCode;
     }
+
 }

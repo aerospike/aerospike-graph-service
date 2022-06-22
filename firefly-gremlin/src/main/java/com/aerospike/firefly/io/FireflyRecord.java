@@ -136,7 +136,7 @@ public class FireflyRecord {
         return key;
     }
 
-    protected static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
+    public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
         final Key key = getKey(db.namespace, set, id);
         final Record record = db.read(key);
         if (record == null)

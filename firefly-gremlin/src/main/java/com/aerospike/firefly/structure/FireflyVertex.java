@@ -1,12 +1,12 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedVertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
@@ -18,7 +18,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyVertex extends FireflyElement implements WrappedVertex<FireflyRecord>, Vertex {
+public class FireflyVertex extends FireflyElement implements Vertex {
 
     private final FireflyGraph graph;
 
@@ -35,8 +35,8 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
         return this.graph.getBaseGraph().getOutEdgeIdsFromVertex(this);
     }
 
-    public FireflyVertex(final FireflyRecord record, final FireflyId fid, final String label, final FireflyGraph graph) {
-        super(fid, label, record);
+    public FireflyVertex(final FireflyId fid, final String label, final FireflyGraph graph) {
+        super(fid, label);
         this.graph = graph;
     }
 
@@ -152,13 +152,13 @@ public class FireflyVertex extends FireflyElement implements WrappedVertex<Firef
     }
 
     @Override
-    public FireflyRecord getBaseVertex() {
-        return record;
+    public String toString() {
+        return StringFactory.vertexString(this);
     }
 
     @Override
-    public String toString() {
-        return StringFactory.vertexString(this);
+    public Record getBaseElement() {
+        return FireflyRecord.read(graph.getBaseGraph(),graph.getBaseGraph().VERTEX_AERO_SET,FireflyId.fromElement(this)).record();
     }
 
 }

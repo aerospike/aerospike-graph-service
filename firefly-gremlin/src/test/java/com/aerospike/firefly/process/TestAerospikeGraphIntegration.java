@@ -24,10 +24,10 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +65,8 @@ public class TestAerospikeGraphIntegration {
     private FireflyGraph graph;
     private GraphTraversalSource g;
 
-    @BeforeEach
-    void openGraph() {
+    @Before
+    public void openGraph() {
         this.db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         db.dropDatabase();
@@ -74,8 +74,8 @@ public class TestAerospikeGraphIntegration {
 
     }
 
-    @AfterEach
-    void closeGraphClearData() throws Exception {
+    @After
+    public void closeGraphClearData() throws Exception {
         db.dropDatabase();
         graph.close();
     }
@@ -185,7 +185,7 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    void propertyTest() {
+    public void propertyTest() {
         g.addV("something").property("a", "b").property("c", "d").next();
         Vertex it = g.V().has("a", "b").next();
         Map<String, Object> stuff = g.V().has("a", "b").propertyMap().next();

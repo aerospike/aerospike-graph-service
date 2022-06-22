@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -13,21 +14,24 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -45,8 +49,8 @@ public class TestPerformance {
     private FireflyGraph graph;
     private GraphTraversalSource g;
 
-    @BeforeEach
-    void openGraph() {
+    @Before
+    public void openGraph() {
         this.db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         db.dropDatabase();
@@ -54,8 +58,8 @@ public class TestPerformance {
 
     }
 
-    @AfterEach
-    void closeGraphClearData() throws Exception {
+    @After
+    public void closeGraphClearData() throws Exception {
         db.dropDatabase();
         graph.close();
     }
@@ -82,14 +86,14 @@ public class TestPerformance {
     @Test
     public void loadGratefulDataset() {
         startTimer(LOAD_TIMER);
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(),graph);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
         long loadtime = stopTimer(LOAD_TIMER);
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
 
 
     @Test
-    void createAndIterateTree() {
+    public void createAndIterateTree() {
         final String ADD_ELEMENTS = "addElements";
         final String ITERATE_ELEMENTS = "iterateElements";
         startTimer(ADD_ELEMENTS);
@@ -148,6 +152,25 @@ public class TestPerformance {
         System.out.println(String.format("iterate time: %d ms", iterateTime));
         System.out.println(String.format("iterate count: %d", iterCtr.get()));
 
+    }
+
+    @Test
+    public void test2hopRepeat1() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Vertex> data = g.V().local(outE().limit(1)).inV().limit(3).toList();
+            assert data.size() == 3;
+        });
+        System.out.println(results);
+    }
+
+    @Test
+    public void test2hopRepeat2() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            List<Object> thing = g.V().as("a").out().as("b").out().as("c").<Map<String, String>>select("a", "b", "c").by("name").range(local, 1, 2).toList();
+        });
+        System.out.println(results);
     }
 
 }

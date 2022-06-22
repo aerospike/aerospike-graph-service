@@ -33,7 +33,6 @@ public final class ConfigurationHelper {
         public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
         public static final String VERTEX_AERO_SET = "VERTEX_AERO_SET";
         public static final String VERTEX_EDGELIST_AERO_SET = "VERTEX_EDGELIST_AERO_SET";
-        public static final String PROPERTY_AERO_SET = "PROPERTY_AERO_SET";
         public static final String VERTEX_PROPERTY_AERO_SET = "VERTEX_PROPERTY_AERO_SET";
         public static final String EDGE_ID_KEY = "EDGE_ID_KEY";
         public static final String EDGE_ID_BIN = "EDGE_ID_BIN";
@@ -56,7 +55,6 @@ public final class ConfigurationHelper {
         public static final String TEST_SET = "TEST_SET";
         public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
-
         public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
         public static final String VP_COUNTER = "VP_COUNTER";
     }
@@ -70,7 +68,6 @@ public final class ConfigurationHelper {
         put(Keys.EDGE_PROPERTIES, "E_PROPERTIES");
         put(Keys.VERTEX_AERO_SET, "VERTEX");
         put(Keys.VERTEX_EDGELIST_AERO_SET, "EDGELIST");
-        put(Keys.PROPERTY_AERO_SET, "PROPERTY");
         put(Keys.VERTEX_PROPERTY_AERO_SET, "V_PROPERTY");
         put(Keys.EDGE_ID_KEY, "EDGE_ID_KEY");
         put(Keys.EDGE_ID_BIN, "EDGE_ID_BIN");

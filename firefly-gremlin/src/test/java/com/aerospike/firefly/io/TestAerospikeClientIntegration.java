@@ -6,22 +6,26 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
-import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -31,28 +35,28 @@ public class TestAerospikeClientIntegration {
     private Configuration configuration;
     private AerospikeConnection db;
 
-    @BeforeEach
-    void setup() {
+    @Before
+    public void setup() {
         configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
         db.dropDatabase();
     }
 
-    @AfterEach
-    void cleanup() {
+    @After
+    public void cleanup() {
         db.dropDatabase();
         db.close();
     }
 
     @Test
-    void testConnectToAerospike() {
+    public void testConnectToAerospike() {
         Configuration configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection test_db = AerospikeConnection.connect(configuration);
         test_db.close();
     }
 
     @Test
-    void testBasicReadWrite() {
+    public void testBasicReadWrite() {
         Object id = "foo";
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -62,7 +66,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testBasicReadWriteGetValueOfKey() {
+    public void testBasicReadWriteGetValueOfKey() {
         FireflyId id = FireflyId.of(db, null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -77,7 +81,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testBasicDelete() {
+    public void testBasicDelete() {
         FireflyId id = FireflyId.of(db, null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -89,7 +93,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testDropDatabase() throws InterruptedException {
+    public void testDropDatabase() throws InterruptedException {
         FireflyId id = FireflyId.of(db, null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -100,30 +104,9 @@ public class TestAerospikeClientIntegration {
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
-//    @Test
-//    void testAddRemoveIterateVertexIdList() {
-//        db.writeElementId(FireflyVertex.class, 1L);
-//        db.writeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        assertEquals(1L, i.next());
-//        assertEquals(2L, i.next());
-//        db.removeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i2 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        assertEquals(1L, i2.next());
-//        assertFalse(i2.hasNext());
-//        db.writeElementId(FireflyVertex.class, 3L);
-//        db.writeElementId(FireflyVertex.class, 2L);
-//        Iterator<Long> i3 = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
-//        long last = 0L;
-//        while (i3.hasNext()) {
-//            long current = ((Number) i3.next()).longValue();
-//            assertTrue(current > last);
-//            last = current;
-//        }
-//    }
 
     @Test
-    void testCounterOps() {
+    public void testCounterOps() {
         db.zeroIdCounter(db.GLOBAL);
         db.incrementAndGetIdCounter(db.GLOBAL);
         assertEquals(1, db.getIdCounter(db.GLOBAL));
@@ -153,7 +136,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testScanVertexIds() {
+    public void testScanVertexIds() {
         FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Long> ids = new ArrayList<>() {{
             add(0L);
@@ -170,7 +153,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testSyntheticSupernode() {
+    public void testSyntheticSupernode() {
         configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
         FireflyGraph graph = FireflyGraph.open(configuration);
         Vertex root = graph.addVertex("root");
@@ -180,19 +163,21 @@ public class TestAerospikeClientIntegration {
             stuff.add(nu);
             graph.traversal().V(root).addE("edge").to(nu).next();
         });
-        assertEquals(6, graph.traversal().V(root).bothE().count().next());
+
+        assertEquals(6L, graph.traversal().V(root).bothE().count().next().longValue());
         final Iterator<Vertex> iter = stuff.iterator();
         IntStream.range(0, 2).forEach(i -> {
             graph.traversal().E(iter.next()).drop().tryNext();
         });
         List<Edge> list2 = graph.traversal().V(root).bothE().toList();
 
-        assertEquals(4, graph.traversal().V(root).bothE().count().next());
+
+        assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
     }
 
 
     @Test
-    void testScanEdgeIds() {
+    public void testScanEdgeIds() {
         FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Long> vertexIds = new ArrayList<>() {{
             add(0L);
@@ -225,7 +210,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testScanQuery() {
+    public void testScanQuery() {
         FireflyId id1 = FireflyId.of(db, null, 1L);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -244,7 +229,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testFireflyRecordIntegerId() {
+    public void testFireflyRecordIntegerId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
         FireflyId intId = FireflyId.of(db, null, 1);
         Bin bin21 = new Bin("name", "Jane Doe");
@@ -255,7 +240,7 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testFireflyRecordLongId() {
+    public void testFireflyRecordLongId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
         FireflyId fid = FireflyId.of(db, null, 1L);
         Bin bin21 = new Bin("name", "Jane Doe");
@@ -266,10 +251,31 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    void testCreateDropIndex() {
+    public void testCreateDropIndex() {
         String binName = "aBin";
         db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
+
+
+    @Test
+    public void testAerospikeReadLatency() {
+        Bin bin1 = new Bin("name", "John Doe");
+        Bin bin2 = new Bin("age", 32);
+        Bin bin3 = new Bin("greeting", "Hello World!");
+        IntStream.range(0, 10000).forEach(i -> {
+            final Key key = new Key(db.namespace, TEST_SET, i);
+            db.client.put(null, key, bin1, bin2, bin3);
+        });
+
+        PerfUtil.Results results = PerfUtil.runTestBatch(10000, () -> {
+            ThreadLocalRandom tlr = ThreadLocalRandom.current();
+            final Key key = new Key(db.namespace, TEST_SET, tlr.nextInt(0, 10000));
+            final Record data = db.client.get(null, key);
+            assert data.getLong("age") == 32;
+        });
+        System.out.println(results);
+    }
+
 
 }

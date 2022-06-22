@@ -57,7 +57,6 @@ public class AerospikeConnection {
     protected final String EDGE_AERO_SET;
     protected final String VERTEX_AERO_SET;
     protected final String VERTEX_EDGELIST_AERO_SET;
-    protected final String PROPERTY_AERO_SET;
     protected final String VERTEX_PROPERTY_AERO_SET;
     protected final String EDGE_ID_KEY;
     protected final String EDGE_ID_BIN;
@@ -73,7 +72,6 @@ public class AerospikeConnection {
     protected final String OUT_EDGE_COUNTER;
     protected final String VP_COUNTER;
     protected final long ID_CACHE_SIZE;
-    protected final String VERTEX_PROPERTY_SET;
     protected final String EDGE_PROPERTIES;
     protected final String VP_PROPERTIES;
     protected final String TYPE_HINTS;
@@ -137,12 +135,10 @@ public class AerospikeConnection {
      * @return name of Aerospike set
      */
     private String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
-        if (elementClass.equals(FireflyVertex.class))
-            return VERTEX_PROPERTY_SET;
-        else if (elementClass.equals(FireflyEdge.class))
-            return EDGE_PROPERTIES;
+        if (elementClass.equals(FireflyEdge.class))
+            return EDGE_AERO_SET;
         else if (elementClass.equals(FireflyVertexProperty.class))
-            return VP_PROPERTIES;
+            return VERTEX_PROPERTY_AERO_SET;
         throw new UnsupportedOperationException("ele not supported " + elementClass.getClass());
     }
 
@@ -181,7 +177,6 @@ public class AerospikeConnection {
 
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_AERO_SET, conf);
         VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_EDGELIST_AERO_SET, conf);
-        PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_AERO_SET, conf);
         VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_AERO_SET, conf);
         EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
         EDGE_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BIN, conf);
@@ -192,7 +187,6 @@ public class AerospikeConnection {
         VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
         PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
-        VERTEX_PROPERTY_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_SET, conf);
         EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
         VP_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_PROPERTIES, conf);
         TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TYPE_HINTS, conf);
@@ -857,7 +851,7 @@ public class AerospikeConnection {
      */
 
     public <V> Map<String, Property> readProperties(final FireflyElement element) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, PROPERTY_AERO_SET, FireflyId.fromElement(element));
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, getElementPropertySet(element.getClass()), FireflyId.fromElement(element));
         if (fireflyRecord == null)
             return new HashMap<>();
 
@@ -882,7 +876,7 @@ public class AerospikeConnection {
      * @return Property
      */
     public <V> Property readProperty(final FireflyElement element, final String key) {
-        return new FireflyProperty(element, key, readTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key));
+        return new FireflyProperty(element, key, readTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key));
     }
 
     /**
@@ -910,7 +904,7 @@ public class AerospikeConnection {
      */
     public <V> void writeProperty(final FireflyId id, final Class<? extends FireflyElement> clazz, final String key, final V value) {
         FireflyHelper.validatePropertyValue(value);
-        writeTypeHintedValueToMap(PROPERTY_AERO_SET, id, getElementPropertySet(clazz), key, value);
+        writeTypeHintedValueToMap(getElementPropertySet(clazz), id, getElementPropertySet(clazz), key, value);
     }
 
     /**
@@ -922,7 +916,7 @@ public class AerospikeConnection {
      * @param <V> type
      */
     public <V> void removeProperty(final FireflyElement element, final String key) {
-        removeTypeHintedValueFromMap(PROPERTY_AERO_SET, FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key);
+        removeTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key);
     }
 
     /**
@@ -1363,7 +1357,6 @@ public class AerospikeConnection {
     public void dropDatabase() {
         client.truncate(null, namespace, EDGE_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, PROPERTY_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());

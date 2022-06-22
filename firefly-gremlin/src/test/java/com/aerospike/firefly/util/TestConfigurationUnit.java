@@ -1,22 +1,22 @@
 package com.aerospike.firefly.util;
 
 import org.apache.commons.configuration2.Configuration;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestConfigurationUnit {
     @Test
-    void testLoadConfigurationFromResources() {
+    public void testLoadConfigurationFromResources() {
         final Configuration c = ConfigurationHelper.loadFromResources("integration-test-settings.properties");
         assertEquals(ConfigurationHelper.aerospikeHost(c).getClass(), String.class);
         assertNotEquals(ConfigurationHelper.aerospikePort(c), 0);
@@ -27,7 +27,7 @@ public class TestConfigurationUnit {
 
     //this test only works if executed from project source code root
     @Test
-    void testLoadConfigurationFromFile() {
+    public void testLoadConfigurationFromFile() {
         String here = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
         Configuration c = ConfigurationHelper.loadFromFile(Paths.get(String.format("%s/%s", here, "integration-test-settings.properties")));
         assertEquals(ConfigurationHelper.aerospikePort(c), 3000);
@@ -46,9 +46,9 @@ public class TestConfigurationUnit {
     }
 
     @Test
-    @Disabled
+    @Ignore
         // some JVM distributions may not allow getModifiableEnvironment to succeed
-    void testLoadConfigurationFromEnv() throws Exception {
+    public void testLoadConfigurationFromEnv() throws Exception {
         Map<String, String> env = getModifiableEnvironment();
         env.put(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, "test");
         env.put(ConfigurationHelper.Keys.AEROSPIKE_HOST, "aerospike-dev.phaseshift.internal");
@@ -59,9 +59,9 @@ public class TestConfigurationUnit {
     }
 
     @Test
-    @Disabled
+    @Ignore
         // some JVM distributions may not allow getModifiableEnvironment to succeed
-    void testLoadConfigurationFromEnvNegative() throws Exception {
+    public void testLoadConfigurationFromEnvNegative() throws Exception {
         boolean success = false;
         Map<String, String> env = getModifiableEnvironment();
         env.remove(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);

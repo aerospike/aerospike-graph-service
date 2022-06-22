@@ -5,7 +5,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.structure.StructureStandardSuite;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.After;
 import org.junit.runner.RunWith;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -23,8 +23,8 @@ public class FireflyGraphStructureStandardTest {
     }
 
 
-    @AfterEach
-    void closeGraphClearData() {
+    @After
+    public void closeGraphClearData() {
         AerospikeConnection db = AerospikeConnection.connect(config);
         db.dropDatabase();
         db.close();

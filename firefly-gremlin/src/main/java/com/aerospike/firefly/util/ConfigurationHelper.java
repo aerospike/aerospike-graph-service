@@ -21,7 +21,9 @@ import java.util.Properties;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ConfigurationHelper {
-    private ConfigurationHelper(){}
+    private ConfigurationHelper() {
+    }
+
     public static class Keys {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
@@ -57,6 +59,11 @@ public final class ConfigurationHelper {
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
         public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
         public static final String VP_COUNTER = "VP_COUNTER";
+
+        // User supplied id cache
+        public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
+        public static final String USER_SUPPLIED_ID_START = "USER_SUPPLIED_ID_START";
+        public static final String USER_SUPPLIED_ID_END = "USER_SUPPLIED_ID_END";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -79,18 +86,23 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_NAME_ID");
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
         put(Keys.VP_PROPERTIES, "VP_PROPERTIES");
-        put(Keys.TYPE_HINTS,"TYPE_HINTS");
-        put(Keys.KEY_VALUE,"KEY_VALUE");
+        put(Keys.TYPE_HINTS, "TYPE_HINTS");
+        put(Keys.KEY_VALUE, "KEY_VALUE");
         put(Keys.PARENT_VERTEX_ID, "PARENT_V_ID");
-        put(Keys.COUNTER,"COUNTER");
-        put(Keys.ID_TYPE,"ID_TYPE");
-        put(Keys.ID_MANAGER_SET,"ID_MGR_SET");
-        put(Keys.GLOBAL,"GLOBAL");
-        put(Keys.TEST_SET,"TEST_SET");
-        put(Keys.IN_EDGE_COUNTER,"IN_EDGE_CTR");
-        put(Keys.OUT_EDGE_COUNTER,"OUT_EDGE_CTR");
-        put(Keys.ID_CACHE_SIZE,"100000");
-        put(Keys.VP_COUNTER,"VP_COUNTER");
+        put(Keys.COUNTER, "COUNTER");
+        put(Keys.ID_TYPE, "ID_TYPE");
+        put(Keys.ID_MANAGER_SET, "ID_MGR_SET");
+        put(Keys.GLOBAL, "GLOBAL");
+        put(Keys.TEST_SET, "TEST_SET");
+        put(Keys.IN_EDGE_COUNTER, "IN_EDGE_CTR");
+        put(Keys.OUT_EDGE_COUNTER, "OUT_EDGE_CTR");
+        put(Keys.ID_CACHE_SIZE, "100000");
+        put(Keys.VP_COUNTER, "VP_COUNTER");
+
+        // User supplied
+        put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
+        put(Keys.USER_SUPPLIED_ID_START, "0");
+        put(Keys.USER_SUPPLIED_ID_END, "1000000");
     }};
 
     public static Configuration loadFromFile(final Path path) {

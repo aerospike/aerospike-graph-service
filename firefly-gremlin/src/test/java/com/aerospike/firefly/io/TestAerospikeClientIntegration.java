@@ -17,7 +17,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
@@ -101,37 +100,6 @@ public class TestAerospikeClientIntegration {
         db.dropDatabase();
 
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
-    }
-
-
-    @Test
-    public void testCounterOps() {
-        db.zeroIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(1, db.getIdCounter(db.GLOBAL));
-        db.decrementIdCounter(db.GLOBAL);
-        assertEquals(0, db.getIdCounter(db.GLOBAL));
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(2, db.getIdCounter(db.GLOBAL));
-
-        long res = db.greaterOrIncrement(36, db.GLOBAL);
-        assertEquals(db.getIdCounter(db.GLOBAL), res);
-        assertEquals(36, res);
-
-        db.zeroIdCounter(db.GLOBAL);
-        assertEquals(0, db.getIdCounter(db.GLOBAL));
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(4, db.getIdCounter(db.GLOBAL));
-        long res2 = db.greaterOrIncrement(3, db.GLOBAL);
-        assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, res2);
-        assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
     }
 
     @Test
@@ -266,6 +234,4 @@ public class TestAerospikeClientIntegration {
         });
         System.out.println(results);
     }
-
-
 }

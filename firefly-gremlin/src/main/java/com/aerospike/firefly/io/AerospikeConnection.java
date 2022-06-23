@@ -135,6 +135,8 @@ public class AerospikeConnection {
     private String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
         if (elementClass.equals(FireflyEdge.class))
             return EDGE_AERO_SET;
+        else if (elementClass.equals(FireflyVertex.class))
+            return VERTEX_AERO_SET;
         else if (elementClass.equals(FireflyVertexProperty.class))
             return VERTEX_PROPERTY_AERO_SET;
         throw new UnsupportedOperationException("ele not supported " + elementClass.getClass());
@@ -212,7 +214,12 @@ public class AerospikeConnection {
      * @return Database connection handle
      */
     public static AerospikeConnection connect(final Configuration conf) {
-        return new AerospikeConnection(conf);
+        final AerospikeConnection ac = new AerospikeConnection(conf);
+        ac.createKeyIndex(FireflyVertex.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
+        ac.createKeyIndex(FireflyEdge.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
+        ac.createKeyIndex(FireflyVertexProperty.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
+        return ac;
+
     }
 
     /**
@@ -1417,7 +1424,8 @@ public class AerospikeConnection {
                                                    IndexCollectionType idxColTypee) {
         Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
         Record rec = read(mKey);
-        List<String> keys = (List<String>) rec.getList("indexedKeys");
+
+        List<String> keys = rec == null ? new ArrayList<String>() : (List<String>) rec.getList("indexedKeys");
         keys.add(key);
         Bin keysBin = new Bin("indexedKeys", new ArrayList<>(new HashSet<>(keys)));
         client.put(null, mKey, keysBin);

@@ -114,7 +114,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
 
-
     public <E extends Element> Set<String> getIndexedKeys(final Class<E> elementClass) {
         if (Vertex.class.isAssignableFrom(elementClass)) {
             return this.db.getIndexedKeys((Class<? extends FireflyElement>) elementClass);
@@ -153,7 +152,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         writeVertex(this, idValue, label);
-        Vertex vertex = new FireflyVertex(idValue,label,this);
+        Vertex vertex = new FireflyVertex(idValue, label, this);
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }
@@ -176,7 +175,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVertices.length != 0)
-            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db,FireflyVertex.class, longId)), db::vertexExists))
+            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db, FireflyVertex.class, longId)), db::vertexExists))
                 throw new NoSuchElementException("vertex could not be found and edge could not be created");
         if (vertexIdsOrVertices.length != 0)
             itr = longs.iterator();

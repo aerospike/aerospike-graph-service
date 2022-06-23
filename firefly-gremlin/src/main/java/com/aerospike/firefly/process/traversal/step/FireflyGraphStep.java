@@ -1,6 +1,9 @@
 package com.aerospike.firefly.process.traversal.step;
 
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -36,7 +39,7 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
         //                                    do we have an index over edges
-        final HasContainer indexedContainer = getIndexKey(Edge.class);
+        final HasContainer indexedContainer = getIndexKey(FireflyEdge.class);
         Iterator<Edge> iterator;
         // ids are present, filter on them first
         if (null == this.ids)
@@ -57,7 +60,7 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
     }
     private Iterator<? extends Vertex> vertices() {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-        final HasContainer indexedContainer = getIndexKey(Vertex.class);
+        final HasContainer indexedContainer = getIndexKey(FireflyVertex.class);
         Iterator<? extends Vertex> iterator;
         if (null == this.ids)
             iterator = Collections.emptyIterator();
@@ -74,7 +77,7 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
         return iterator;
     }
 
-    private HasContainer getIndexKey(final Class<? extends Element> indexedClass) {
+    private HasContainer getIndexKey(final Class<? extends FireflyElement> indexedClass) {
         final Set<String> indexedKeys = ((FireflyGraph) this.getTraversal().getGraph().get()).getIndexedKeys(indexedClass);
 
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(),

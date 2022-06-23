@@ -103,6 +103,36 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
+    public void testCounterOps() {
+        db.zeroIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        assertEquals(1, db.getIdCounter(db.GLOBAL));
+        db.decrementIdCounter(db.GLOBAL);
+        assertEquals(0, db.getIdCounter(db.GLOBAL));
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        assertEquals(2, db.getIdCounter(db.GLOBAL));
+
+        long res = db.greaterOrIncrement(36, db.GLOBAL);
+        assertEquals(db.getIdCounter(db.GLOBAL), res);
+        assertEquals(36, res);
+
+        db.zeroIdCounter(db.GLOBAL);
+        assertEquals(0, db.getIdCounter(db.GLOBAL));
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        db.incrementAndGetIdCounter(db.GLOBAL);
+        assertEquals(4, db.getIdCounter(db.GLOBAL));
+        long res2 = db.greaterOrIncrement(3, db.GLOBAL);
+        assertEquals(5, db.getIdCounter(db.GLOBAL));
+        assertEquals(5, res2);
+        assertEquals(5, db.getIdCounter(db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
+        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
+    }
+
+    @Test
     public void testScanVertexIds() {
         FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Long> ids = new ArrayList<>() {{

@@ -62,8 +62,6 @@ public final class ConfigurationHelper {
 
         // User supplied id cache
         public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
-        public static final String USER_SUPPLIED_ID_START = "USER_SUPPLIED_ID_START";
-        public static final String USER_SUPPLIED_ID_END = "USER_SUPPLIED_ID_END";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -101,8 +99,6 @@ public final class ConfigurationHelper {
 
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
-        put(Keys.USER_SUPPLIED_ID_START, "0");
-        put(Keys.USER_SUPPLIED_ID_END, "1000000");
     }};
 
     public static Configuration loadFromFile(final Path path) {

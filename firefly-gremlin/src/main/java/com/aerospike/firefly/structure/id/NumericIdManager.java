@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.utils.IdCounter;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -29,7 +28,8 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
 
     @Override
     public Long getNextId(FireflyGraph graph) {
-        return IdCounter.incrementAndGetIdCounter(this.counterName, graph.getBaseGraph().namespace, graph.getBaseGraph().getClient());
+        long value = graph.getBaseGraph().incrementAndGetIdCounter( this.counterName);
+        return value;
     }
 
     @Override

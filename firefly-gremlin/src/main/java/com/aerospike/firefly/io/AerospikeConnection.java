@@ -4,6 +4,8 @@ import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.async.*;
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
@@ -79,8 +81,6 @@ public class AerospikeConnection {
 
     // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
-    protected final long USER_SUPPLIED_ID_START;
-    protected final long USER_SUPPLIED_ID_END;
 
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
@@ -204,15 +204,8 @@ public class AerospikeConnection {
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
 
-
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
-        USER_SUPPLIED_ID_START = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_START, conf));
-        USER_SUPPLIED_ID_END = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_END, conf));
-        if (USER_SUPPLIED_ID_START >= USER_SUPPLIED_ID_END) {
-            throw new IllegalArgumentException("USER_SUPPLIED_ID_START (" + USER_SUPPLIED_ID_START + ") " +
-                    "should be less than USER_SUPPLIED_ID_END (" + USER_SUPPLIED_ID_END + ").");
-        }
     }
 
     /**
@@ -1248,6 +1241,118 @@ public class AerospikeConnection {
         removeEdgeFromVertex(graph, (FireflyVertex) e.inVertex(), e, Direction.IN);
         removeEdgeFromVertex(graph, (FireflyVertex) e.outVertex(), e, Direction.OUT);
         delete(key);
+    }
+
+    /**
+     * get the current value of an Id counter
+     *
+     * @param name name of Counter
+     * @return value of counter
+     */
+    public long getIdCounter(final String name) {
+        final Record record = read(new Key(namespace, ID_MANAGER_SET, name));
+        return record.getLong(COUNTER);
+    }
+
+    /**
+     * Increment an Id counter by a suppled value and return its incremented value
+     *
+     * @param name      name of Counter to operate on
+     * @param increment value to increment by
+     * @return value of counter after operation
+     */
+    public long incrementAndGetIdCounter(final String name, long increment) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Bin ctr = new Bin(COUNTER, increment);
+        final Record record = client.operate(null, key,
+                Operation.add(ctr),
+                Operation.get(COUNTER));
+        return record.getLong(COUNTER);
+    }
+
+    /**
+     * Increment an Id counter by 1 and return its incremented value
+     *
+     * @param name name of Counter to operate on
+     * @return value of Counter after operation
+     */
+    public long incrementAndGetIdCounter(final String name) {
+        return incrementAndGetIdCounter(name, 1);
+    }
+
+    /**
+     * decrement an Id counter
+     *
+     * @param name name of Counter to operate on
+     * @return value of counter after operation
+     */
+    public long decrementIdCounter(final String name) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        final Bin ctr = new Bin(COUNTER, -1);
+        final Record record = client.operate(null, key,
+                Operation.add(ctr),
+                Operation.get(COUNTER));
+        return record.getLong(COUNTER);
+    }
+
+    /**
+     * Zero an Id counter
+     *
+     * @param name name of Counter to operate on
+     * @return value of counter after operation
+     */
+    public long zeroIdCounter(final String name) {
+        final Bin ctr = new Bin(COUNTER, 0);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(this, null, name), ctr);
+        return 0L;
+    }
+
+    /**
+     * Offer a value, compare it to the current counter value.
+     * if the offered value is greater then the current counter value
+     * set the counter to the offered value, and return it.
+     * otherwise, increment the counter by 1, and return that.
+     *
+     * @param offer proposed value
+     * @param name  name of counter
+     * @return Incremented counter value or offered value
+     */
+
+    public long greaterOrIncrement(final long offer, final String name) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        Expression gtexp = Exp.build(Exp.cond(
+                Exp.gt(
+                        Exp.val(offer),
+                        Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+                ),
+                Exp.val(offer),
+                Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+        ));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
+        return (long) ret.get(1);
+    }
+
+    /**
+     * over a value and name a counter. return the greater of the two.
+     *
+     * @param offer proposed value
+     * @param name  name of counter to operate on
+     * @return value of counter or proposed value
+     */
+    public long greaterOrExisting(final long offer, final String name) {
+        final Key key = new Key(namespace, ID_MANAGER_SET, name);
+        Expression gtexp = Exp.build(Exp.cond(
+                Exp.gt(
+                        Exp.val(offer),
+                        Exp.add(Exp.intBin(COUNTER), Exp.val(1))
+                ),
+                Exp.val(offer),
+                Exp.intBin(COUNTER)
+        ));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
+        return (long) ret.get(1);
     }
 
     /**

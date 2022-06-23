@@ -17,6 +17,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
@@ -101,6 +102,7 @@ public class TestAerospikeClientIntegration {
 
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
+
 
     @Test
     public void testCounterOps() {
@@ -264,4 +266,6 @@ public class TestAerospikeClientIntegration {
         });
         System.out.println(results);
     }
+
+
 }

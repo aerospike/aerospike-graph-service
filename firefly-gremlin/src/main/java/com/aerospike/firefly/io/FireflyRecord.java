@@ -157,7 +157,7 @@ public class FireflyRecord {
         return new FireflyRecord(db, key, record, userClass, storageClass);
     }
 
-    public static void write(final AerospikeConnection db,
+    protected static void write(final AerospikeConnection db,
                                 final String set,
                                 final FireflyId id,
                                 final Bin... bins) {

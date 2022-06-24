@@ -8,6 +8,7 @@ import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -65,6 +66,13 @@ public class TestAirRoutes50k {
         graph = FireflyGraph.open(config);
         db.dropDatabase();
         g = graph.traversal();
+    }
+
+    @After
+    public void closeGraph() {
+        graph.close();
+        db.dropDatabase();
+        db.close();
     }
 
     @Test

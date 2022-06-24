@@ -81,6 +81,8 @@ public class AerospikeConnection {
     public final String TEST_SET;
     private final Configuration conf;
 
+    // User supplied id cache
+    public final String USER_SUPPLIED_ID_CACHE_SET;
 
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
@@ -205,6 +207,9 @@ public class AerospikeConnection {
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
+
+        // User supplied id cache.
+        USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
     }
 
     /**
@@ -233,6 +238,10 @@ public class AerospikeConnection {
                 ac.getElementPropertySet(FireflyVertexProperty.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         return ac;
 
+    }
+
+    public AerospikeClient getClient() {
+        return this.client;
     }
 
     /**
@@ -1437,6 +1446,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
+        client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, Calendar.getInstance());
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());

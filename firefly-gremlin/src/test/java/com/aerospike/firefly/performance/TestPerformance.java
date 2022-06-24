@@ -59,8 +59,9 @@ public class TestPerformance {
     }
 
     @After
-    public void closeGraphClearData() throws Exception {
+    public void closeGraphClearData() {
         db.dropDatabase();
+        db.close();
         graph.close();
     }
 

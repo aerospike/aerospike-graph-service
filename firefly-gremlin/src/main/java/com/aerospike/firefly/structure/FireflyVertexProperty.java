@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -21,6 +22,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     private final FireflyVertex vertex;
     private final String key;
     private final V value;
+    private final FireflyGraph graph;
 
     private Map<String, Property> readProperties() {
         return ((FireflyGraph) this.graph()).getBaseGraph().readProperties(this);
@@ -31,11 +33,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
 
-    public FireflyVertexProperty(FireflyRecord record, final FireflyId id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
-        super(id, key, record);
+    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
+        super(id, key);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
-
+        this.graph = graph;
         this.vertex = vertex;
         this.key = key;
         this.value = value;
@@ -43,8 +45,9 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         ElementHelper.attachProperties(this, propertyKeyValues);
     }
 
-    public FireflyVertexProperty(FireflyRecord record, final FireflyId fid, final FireflyVertex vertex, String key, V value) {
-        super(fid, key, record);
+    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId fid, final FireflyVertex vertex, String key, V value) {
+        super(fid, key);
+        this.graph = graph;
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
 
@@ -118,6 +121,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     public boolean equals(final Object object) {
         boolean areEqual = ElementHelper.areEqual(this, object);
         return areEqual;
+    }
+
+    @Override
+    public Record getBaseElement() {
+        return FireflyRecord.read(graph.getBaseGraph(),graph.getBaseGraph().VERTEX_PROPERTY_AERO_SET,FireflyId.fromElement(this)).record();
     }
 }
 

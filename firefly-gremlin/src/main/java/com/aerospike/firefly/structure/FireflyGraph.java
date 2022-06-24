@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.aerospike.firefly.structure.util.FireflyHelper.readVertex;
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
 
@@ -142,8 +141,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         writeVertex(this, idValue, label);
-        //@todo performance: avoid reread
-        Vertex vertex = readVertex(this, idValue);
+        Vertex vertex = new FireflyVertex(idValue,label,this);
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -30,8 +31,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
     }
 
 
-    public FireflyEdge(FireflyRecord record, FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
-        super(id, label, record);
+    public FireflyEdge(FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
+        super(id, label);
         this.graph = graph;
         this.inVid = inVid;
         this.outVid = outVid;
@@ -112,4 +113,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
         return StringFactory.edgeString(this);
     }
 
+    @Override
+    public Record getBaseElement() {
+        return FireflyRecord.read(graph.getBaseGraph(),graph.getBaseGraph().EDGE_AERO_SET,FireflyId.fromElement(this)).record();
+    }
 }

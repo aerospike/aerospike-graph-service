@@ -13,7 +13,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversal
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 /**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Marko A. Rodriguez (http://markorodriguez.com)
+ * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyGraphStepStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy> implements TraversalStrategy.ProviderOptimizationStrategy {
 

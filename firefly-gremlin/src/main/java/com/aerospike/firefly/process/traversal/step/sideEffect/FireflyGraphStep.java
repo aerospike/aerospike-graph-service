@@ -22,7 +22,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Marko A. Rodriguez (http://markorodriguez.com)
+ * @author Pieter Martin
+ * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implements HasContainerHolder {
     private final List<HasContainer> hasContainers = new ArrayList<>();
@@ -40,7 +42,7 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
 
         //                                    do we have an index over edges
         final HasContainer indexedContainer = getIndexKey(FireflyEdge.class);
-        Iterator<Edge> iterator;
+        Iterator<? extends Edge> iterator;
         // ids are present, filter on them first
         if (null == this.ids)
             iterator = Collections.emptyIterator();
@@ -49,13 +51,9 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
         else
             iterator = null == indexedContainer ?
                     this.iteratorList(graph.edges()) :
-                    FireflyHelper.queryEdgeIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()).stream()
-                            .filter(edge -> HasContainer.testAll(edge, this.hasContainers))
-                            .collect(Collectors.<Edge>toList()).iterator();
-
-
+                    IteratorUtils.filter(FireflyHelper.queryEdgeIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue())
+                            ,edge -> HasContainer.testAll((Element)edge, this.hasContainers));
         iterators.add(iterator);
-
         return iterator;
     }
     private Iterator<? extends Vertex> vertices() {
@@ -69,11 +67,9 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
         else
             iterator = (null == indexedContainer ?
                     this.iteratorList(graph.vertices()) :
-                    IteratorUtils.filter(FireflyHelper.queryVertexIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()).iterator(),
+                    IteratorUtils.filter(FireflyHelper.queryVertexIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()),
                             vertex -> HasContainer.testAll(vertex, this.hasContainers)));
-
         iterators.add(iterator);
-
         return iterator;
     }
 
@@ -81,8 +77,9 @@ public class FireflyGraphStep<S,E extends Element> extends GraphStep<S,E> implem
         final Set<String> indexedKeys = ((FireflyGraph) this.getTraversal().getGraph().get()).getIndexedKeys(indexedClass);
 
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(),
-                c -> c.getPredicate().getBiPredicate() == Compare.eq && indexedKeys.contains(c.getKey()));
-        return itty.hasNext() ? itty.next() : null;
+                c -> c.getPredicate().getBiPredicate() == Compare.eq && false); //todo indexedKeys.contains(c.getKey())), c.getValue().getClass().isAssignableFrom(String.class));
+        HasContainer result = itty.hasNext() ? itty.next() : null;
+        return result;
 
     }
 

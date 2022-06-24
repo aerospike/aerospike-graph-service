@@ -7,12 +7,8 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.ClientPolicy;
-import com.aerospike.client.policy.InfoPolicy;
-import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.ScanPolicy;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.client.query.IndexType;
+import com.aerospike.client.policy.*;
+import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -29,6 +25,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_PROPERTY_SET;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -218,9 +215,22 @@ public class AerospikeConnection {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         final AerospikeConnection ac = new AerospikeConnection(conf);
-        ac.createKeyIndex(FireflyVertex.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
-        ac.createKeyIndex(FireflyEdge.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
-        ac.createKeyIndex(FireflyVertexProperty.class,"label",IndexType.STRING,IndexCollectionType.DEFAULT);
+        ac.createKeyIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        ac.createKeyIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        ac.createKeyIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        ac.createIndex(ac.getElementPropertySet(FireflyVertex.class), "SVKV",
+                ac.getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+        ac.createIndex(ac.getElementPropertySet(FireflyEdge.class), "SEKV",
+                ac.getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+        ac.createIndex(ac.getElementPropertySet(FireflyVertexProperty.class), "SVPKV",
+                ac.getElementPropertySet(FireflyVertexProperty.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+
+        ac.createIndex(ac.getElementPropertySet(FireflyVertex.class), "NVKV",
+                ac.getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        ac.createIndex(ac.getElementPropertySet(FireflyEdge.class), "NEKV",
+                ac.getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        ac.createIndex(ac.getElementPropertySet(FireflyVertexProperty.class), "NVPKV",
+                ac.getElementPropertySet(FireflyVertexProperty.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         return ac;
 
     }
@@ -344,7 +354,12 @@ public class AerospikeConnection {
         return true; //@todo
     }
 
-    public long getSetSize(final String setName){
+    /*
+    @todo multi node test
+    Joe Martin
+      Keep in mind the replication Factor. You may need to divide by that
+    */
+    public long getSetSize(final String setName) {
         String infoQuery = "sets/" + namespace + "/" + setName;
         String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
         return Arrays.stream(infoResponse.split(":"))
@@ -353,12 +368,50 @@ public class AerospikeConnection {
                 .collect(Collectors.toList())
                 .get(0);
     }
+
     public long getVertexCount() {
         return getSetSize(VERTEX_AERO_SET);
     }
 
     public long getEdgeCount() {
         return getSetSize(EDGE_AERO_SET);
+    }
+
+    public Iterator<FireflyId> queryEdgeIndex(String key, Object value) {
+        Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(EDGE_AERO_SET);
+        if (String.class.isAssignableFrom(value.getClass()))
+            stmt.setFilter(Filter.contains(key, IndexCollectionType.MAPVALUES, (String) value));
+        else if (Number.class.isAssignableFrom(value.getClass()))
+            stmt.setFilter(Filter.contains(key, IndexCollectionType.MAPVALUES, ((Number) value).longValue()));
+        else
+            throw new RuntimeException(String.format("%s not supported type for index query", value.getClass()));
+        QueryPolicy p = new QueryPolicy();
+        RecordSet rs = client.query(null, stmt);
+        //@todo should we return constructed Elements here, are there memory limitations?
+        return (Iterator<FireflyId>) IteratorUtils.map(rs.iterator(), kr -> {
+            return FireflyId.of(this, FireflyEdge.class, kr.key.userKey);
+        });
+    }
+
+    public Iterator<FireflyId> queryVertexIndex(String key, Object value) {
+        Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(VERTEX_PROPERTY_AERO_SET);
+        if (String.class.isAssignableFrom(value.getClass())) {
+            stmt.setFilter(Filter.contains(getElementPropertySet(FireflyVertexProperty.class), IndexCollectionType.MAPVALUES, (String) value));
+        } else if (Number.class.isAssignableFrom(value.getClass())) {
+            stmt.setFilter(Filter.contains(getElementPropertySet(FireflyVertexProperty.class), IndexCollectionType.MAPVALUES, ((Number) value).longValue()));
+        } else
+            throw new RuntimeException(String.format("%s not supported type for index query", value.getClass()));
+
+        QueryPolicy p = new QueryPolicy();
+        RecordSet rs = client.query(null, stmt);
+        //@todo should we return constructed Elements here, are there memory limitations?
+        return (Iterator<FireflyId>) IteratorUtils.map(rs.iterator(), kr -> {
+            return FireflyId.of(this, FireflyVertex.class, kr.record.getList(PARENT_VERTEX_ID));
+        });
     }
 
 

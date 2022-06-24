@@ -14,6 +14,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import java.util.NoSuchElementException;
 
 /**
+ * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, Long> {

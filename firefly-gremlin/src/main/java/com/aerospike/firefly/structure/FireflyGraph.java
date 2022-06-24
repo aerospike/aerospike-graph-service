@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
@@ -134,10 +135,25 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
-        if (ElementHelper.getIdValue(keyValues).isPresent())
-            if (!features.vertex().supportsUserSuppliedIds())
-                throw Vertex.Exceptions.userSuppliedIdsNotSupported();
+
+        if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())
+            throw Vertex.Exceptions.userSuppliedIdsNotSupported();
+
         FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+
+        // Check to see if the id is user supplied. If so we must validate that it is not already in use.
+        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            try {
+                // Convert id to long and check bloom filter. If the id is not available throw vertex with id already exists exception.
+                long idLong = vertexIdManager.convert(idValue.value());
+                if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, db.USER_SUPPLIED_ID_VERTEX_CACHE, idLong)) {
+                    throw Graph.Exceptions.vertexWithIdAlreadyExists(idLong);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+        }
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         writeVertex(this, idValue, label);

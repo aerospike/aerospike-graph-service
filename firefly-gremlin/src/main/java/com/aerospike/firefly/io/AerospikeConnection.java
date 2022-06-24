@@ -81,6 +81,7 @@ public class AerospikeConnection {
 
     // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
+    public final String USER_SUPPLIED_ID_VERTEX_CACHE;
 
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
@@ -206,6 +207,7 @@ public class AerospikeConnection {
 
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
+        USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
     }
 
     /**

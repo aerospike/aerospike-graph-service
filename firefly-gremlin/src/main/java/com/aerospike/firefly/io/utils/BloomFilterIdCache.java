@@ -5,8 +5,6 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.operation.BitOperation;
-import com.aerospike.client.operation.BitPolicy;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.WritePolicy;
@@ -14,7 +12,6 @@ import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnel;
 import com.google.common.hash.Funnels;
 
-import javax.annotation.concurrent.NotThreadSafe;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -50,7 +47,7 @@ public final class BloomFilterIdCache {
      * @return true if id is available and is now in use, false otherwise.
      * @throws IOException If unable to determine whether id is available.
      */
-    public static boolean takeIdIfAvailable(final AerospikeClient client, final String namespace, final String name, long id) throws IOException {
+    public static boolean takeIdIfAvailable(final AerospikeClient client, final String namespace, final String name, long id) {
         // Generate key and ClientPolicy.
         final Key key = new Key(namespace, USER_SUPPLIED_ID_CACHE_SET, name);
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -76,6 +73,12 @@ public final class BloomFilterIdCache {
                 // Return id.
                 return true;
             } catch (AerospikeException ignored) {
+                // Occurs when the read/modify/write notices another write has occurred before it finished.
+                // Ignore exception and try again.
+            } catch (IOException e) {
+                // This should never happen (famous last words).
+                // This would indicate corruption in aerospike.
+                throw new IllegalStateException("Failed to determine if user id is in use.");
             }
         }
         return false;

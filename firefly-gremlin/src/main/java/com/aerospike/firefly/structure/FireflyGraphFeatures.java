@@ -10,7 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
  */
 public class FireflyGraphFeatures implements Graph.Features {
 
-    private static final boolean USER_SUPPLIED_IDS = false;
+    private static final boolean USER_SUPPLIED_IDS = true;
     private final FireflyGraph fireflyGraph;
     private final FireflyEdgeFeatures edgeFeatures;
     private final FireflyVertexFeatures vertexFeatures;

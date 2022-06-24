@@ -32,9 +32,9 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
 
     @Override
     public Long getNextId(FireflyGraph graph) {
-        Long value = graph.getBaseGraph().incrementAndGetIdCounter(this.counterName);
+        Long value = graph.getBaseGraph().decrementIdCounter(this.counterName);
         while (ids.contains(value)) {
-            value = graph.getBaseGraph().incrementAndGetIdCounter(this.counterName);
+            value = graph.getBaseGraph().decrementIdCounter(this.counterName);
         }
         ids.add(value);
         return value;

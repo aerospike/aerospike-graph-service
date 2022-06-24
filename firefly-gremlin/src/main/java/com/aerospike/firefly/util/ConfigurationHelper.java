@@ -62,6 +62,7 @@ public final class ConfigurationHelper {
 
         // User supplied id cache
         public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
+        public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -99,6 +100,7 @@ public final class ConfigurationHelper {
 
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
+        put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
     }};
 
     public static Configuration loadFromFile(final Path path) {

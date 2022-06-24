@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.process.traversal.step.FireflyGraphStep;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;

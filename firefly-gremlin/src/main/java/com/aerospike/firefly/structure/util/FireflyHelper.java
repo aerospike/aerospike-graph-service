@@ -157,4 +157,12 @@ public final class FireflyHelper {
     public static List<FireflyVertex>  queryVertexIndex(FireflyGraph graph, String key, Object value) {
         return null;
     }
+
+    public static long countVertices(FireflyGraph graph) {
+        return graph.getBaseGraph().getVertexCount();
+    }
+
+    public static long countEdges(FireflyGraph graph) {
+        return graph.getBaseGraph().getEdgeCount();
+    }
 }

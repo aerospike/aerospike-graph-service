@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process.traversal.step;
+package com.aerospike.firefly.process.traversal.step.sideEffect;
 
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;

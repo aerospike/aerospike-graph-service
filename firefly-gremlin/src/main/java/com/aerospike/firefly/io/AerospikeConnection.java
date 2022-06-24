@@ -8,6 +8,7 @@ import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.IndexCollectionType;
@@ -26,6 +27,8 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -339,6 +342,23 @@ public class AerospikeConnection {
      */
     public boolean aerospikeEnterprise() {
         return true; //@todo
+    }
+
+    public long getSetSize(final String setName){
+        String infoQuery = "sets/" + namespace + "/" + setName;
+        String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+        return Arrays.stream(infoResponse.split(":"))
+                .filter(str -> str.startsWith("objects"))
+                .map(str -> Long.valueOf(str.split("=")[1]))
+                .collect(Collectors.toList())
+                .get(0);
+    }
+    public long getVertexCount() {
+        return getSetSize(VERTEX_AERO_SET);
+    }
+
+    public long getEdgeCount() {
+        return getSetSize(EDGE_AERO_SET);
     }
 
 

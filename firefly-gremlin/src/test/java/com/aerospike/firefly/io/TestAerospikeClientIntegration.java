@@ -1,8 +1,8 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
+import com.aerospike.client.*;
+import com.aerospike.client.listener.InfoListener;
+import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.*;
@@ -21,6 +21,7 @@ import org.junit.Test;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -285,7 +286,41 @@ public class TestAerospikeClientIntegration {
         db.dropIndex(db.TEST_SET, "testIndex");
     }
 
+    @Test
+    public void testAerospikeInfo() {
+        final String binName = "age";
+        final String testIndex = "testIndex";
+        Bin bin1 = new Bin("name", "John Doe");
+        Bin bin3 = new Bin("greeting", "Hello World!");
+        int NUMBER_OF_RECORDS = 10000;
+        IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
+            final Key key = new Key(db.namespace, TEST_SET, i);
+            db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+        });
+        String infoQuery = "sets/" + db.namespace + "/" + TEST_SET;
+        String infoResponse = Info.request(new InfoPolicy(), db.client.getNodes()[0], infoQuery);
+        Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
+                .filter(str -> str.startsWith("objects"))
+                .map(str -> Long.valueOf(str.split("=")[1]))
+                .collect(Collectors.toList())
+                .get(0);
 
+        assertEquals(reportedObjectCount, Long.valueOf(NUMBER_OF_RECORDS));
+    }
+
+    @Test
+    public void testCountElements(){
+        FireflyGraph graph = FireflyGraph.open(configuration);
+        ArrayList<Vertex> added = new ArrayList<>();
+        IntStream.range(0,1000).forEach(i -> {
+            Vertex nv = graph.addVertex();
+            added.add(nv);
+            if(i != 0)
+                nv.addEdge("test",added.get(0));
+        });
+        assertEquals((long)graph.traversal().E().count().next(),db.getEdgeCount());
+        assertEquals((long)graph.traversal().V().count().next(),db.getVertexCount());
+    }
     @Test
     public void testAerospikeReadLatency() {
         Bin bin1 = new Bin("name", "John Doe");

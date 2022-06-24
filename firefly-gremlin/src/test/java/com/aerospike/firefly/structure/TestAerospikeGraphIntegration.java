@@ -477,4 +477,5 @@ public class TestAerospikeGraphIntegration {
         this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(0, 0));
     }
 
+
 }

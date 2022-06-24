@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
@@ -95,7 +96,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         TraversalStrategies.GlobalCache.registerStrategies(
                 FireflyGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(FireflyGraphCountStrategy.instance()));
     }
 
 

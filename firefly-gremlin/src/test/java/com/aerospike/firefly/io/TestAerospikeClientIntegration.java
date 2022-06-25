@@ -260,7 +260,6 @@ public class TestAerospikeClientIntegration {
         db.dropIndex(db.TEST_SET, "testIndex");
     }
     private long countQueryResults(final String binName,final String testIndex, final Statement stmt){
-
         QueryPolicy p = new QueryPolicy();
         RecordSet rs = db.client.query(p, stmt);
         int count = 0;

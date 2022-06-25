@@ -107,10 +107,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this(AerospikeConnection.connect(conf), conf);
     }
 
-    protected FireflyGraph(AerospikeConnection ac, final Configuration conf) {
-
+    protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
+        db.createGraphIndexes();
         this.configuration = conf;
-        this.db = ac;
+        this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
         this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
@@ -119,7 +119,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public static FireflyGraph open(Configuration conf) {
-
         return new FireflyGraph(conf);
     }
 

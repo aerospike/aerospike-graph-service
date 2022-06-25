@@ -222,7 +222,7 @@ public class TestAerospikeGraphIntegration {
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").iterate();
+                .addE("IsA").from("b").to("a").property("a","b").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());

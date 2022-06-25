@@ -44,11 +44,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
             iterator = this.iteratorList(graph.edges(this.ids));
-        else
-            iterator = null == indexedContainer ?
-                    this.iteratorList(graph.edges()) :
-                    IteratorUtils.filter(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue())
-                            , edge -> HasContainer.testAll((Element) edge, this.hasContainers));
+        else {
+            if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
+                iterator = this.iteratorList(graph.edges());
+            else
+                iterator = this.iteratorList(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+
+        }
         iterators.add(iterator);
         return iterator;
     }
@@ -65,7 +67,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
                 iterator = this.iteratorList(graph.vertices());
             else
-                iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph,indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+                iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         }
 
         iterators.add(iterator);
@@ -75,12 +77,19 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private HasContainer getIndexKey(final Class<? extends FireflyElement> indexedClass) {
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
             // we have an index over vertex properties
-            if (indexedClass.isAssignableFrom(FireflyVertex.class))
+            if (indexedClass.isAssignableFrom(FireflyVertex.class)) {
                 // we only support direct string comparison
                 if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
                     return false;
                 else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
                     return true;
+            } else if (indexedClass.isAssignableFrom(FireflyEdge.class)) {
+                // we only support direct string comparison
+                if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
+                    return false;
+                else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
+                    return true;
+            }
             return false; //nothing else
         });
         HasContainer result = itty.hasNext() ? itty.next() : null;

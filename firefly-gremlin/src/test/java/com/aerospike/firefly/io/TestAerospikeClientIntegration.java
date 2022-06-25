@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io;
 
 import com.aerospike.client.*;
-import com.aerospike.client.listener.InfoListener;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
@@ -27,7 +26,6 @@ import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
-import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
 /**
@@ -140,42 +138,43 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanVertexIds() {
-        FireflyGraph graph = FireflyGraph.open(configuration);
-        ArrayList<Long> ids = new ArrayList<>() {{
-            add(0L);
-            add(1L);
-        }};
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(0)), "a");
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(1)), "b");
-        Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
-        assertTrue(i.hasNext());
-        Long a = i.next();
-        assertTrue(ids.contains(a));
-        Long b = i.next();
-        assertTrue(ids.contains(b));
+        try (FireflyGraph graph = FireflyGraph.open(configuration)) {
+            ArrayList<Long> ids = new ArrayList<>() {{
+                add(0L);
+                add(1L);
+            }};
+            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(0)), "a");
+            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(1)), "b");
+            Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
+            assertTrue(i.hasNext());
+            Long a = i.next();
+            assertTrue(ids.contains(a));
+            Long b = i.next();
+            assertTrue(ids.contains(b));
+        }
     }
 
     @Test
     public void testSyntheticSupernode() {
         configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
-        FireflyGraph graph = FireflyGraph.open(configuration);
-        Vertex root = graph.addVertex("root");
-        List<Vertex> stuff = new ArrayList<>();
-        IntStream.range(0, 6).forEach(i -> {
-            Vertex nu = graph.addVertex("leaf");
-            stuff.add(nu);
-            graph.traversal().V(root).addE("edge").to(nu).next();
-        });
 
-        assertEquals(6L, graph.traversal().V(root).bothE().count().next().longValue());
-        final Iterator<Vertex> iter = stuff.iterator();
-        IntStream.range(0, 2).forEach(i -> {
-            graph.traversal().E(iter.next()).drop().tryNext();
-        });
-        List<Edge> list2 = graph.traversal().V(root).bothE().toList();
+        try (FireflyGraph graph = FireflyGraph.open(configuration)) {
+            Vertex root = graph.addVertex("root");
+            List<Vertex> stuff = new ArrayList<>();
+            IntStream.range(0, 6).forEach(i -> {
+                Vertex nu = graph.addVertex("leaf");
+                stuff.add(nu);
+                graph.traversal().V(root).addE("edge").to(nu).next();
+            });
+            assertEquals(6L, graph.traversal().V(root).bothE().count().next().longValue());
+            final Iterator<Vertex> iter = stuff.iterator();
+            IntStream.range(0, 2).forEach(i -> {
+                graph.traversal().E(iter.next()).drop().tryNext();
+            });
+            List<Edge> list2 = graph.traversal().V(root).bothE().toList();
 
-
-        assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
+            assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
+        }
     }
 
 

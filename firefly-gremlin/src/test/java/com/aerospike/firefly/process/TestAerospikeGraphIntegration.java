@@ -74,15 +74,16 @@ public class TestAerospikeGraphIntegration {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
         db.dropDatabase();
+        graph = FireflyGraph.open(config);
         g = graph.traversal();
 
     }
 
     @After
-    public void closeGraphClearData() throws Exception {
+    public void closeGraphClearData() {
         db.dropDatabase();
+        db.close();
         graph.close();
     }
 

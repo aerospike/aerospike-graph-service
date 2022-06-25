@@ -123,15 +123,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
 
-    public <E extends Element> Set<String> getIndexedKeys(final Class<E> elementClass) {
-        if (Vertex.class.isAssignableFrom(elementClass)) {
-            return this.db.getIndexedKeys((Class<? extends FireflyElement>) elementClass);
-        } else if (Edge.class.isAssignableFrom(elementClass)) {
-            return null == null ? Collections.emptySet() : this.db.getIndexedKeys((Class<? extends FireflyElement>) elementClass);
-        } else {
-            throw new IllegalArgumentException("Class is not indexable: " + elementClass);
-        }
-    }
 
 
     @Override

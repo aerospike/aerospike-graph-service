@@ -154,10 +154,6 @@ public final class FireflyHelper {
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
         return graph.getBaseGraph().queryEdgePropertyStringIndex(graph,key,value);
     }
-
-    public static Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(FireflyGraph graph,String key, Object value) {
-        return graph.getBaseGraph().queryVertexPropertyStringIndex(graph,key, value);
-    }
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph,String key, Object value) {
         return  IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph,key, value), vp -> vp.element());
     }

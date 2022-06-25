@@ -25,11 +25,11 @@ final class FireflyIndex<T extends FireflyElement> {
 
     public void createKeyIndex(final String key) {
         //@todo index types
-        this.graph.getBaseGraph().createKeyIndex(indexClass,key, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+        this.graph.getBaseGraph().createBinIndex(indexClass,key, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
     }
 
     public void dropKeyIndex(final String key) {
-        this.graph.getBaseGraph().dropKeyIndex(indexClass, key);
+        this.graph.getBaseGraph().dropBinIndex(indexClass, key);
     }
 
     public static Object indexable(final Object obj) {

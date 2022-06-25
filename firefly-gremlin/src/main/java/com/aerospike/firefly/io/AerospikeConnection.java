@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.async.*;
 import com.aerospike.client.exp.Exp;
@@ -33,7 +32,8 @@ public class AerospikeConnection {
     private static final String NUMERIC_VP_KV_INDEX = "N_VP_KV";
     private static final String STRING_VP_KV_INDEX = "S_VP_KV";
     private static final String STRING_E_KV_INDEX = "S_E_KV";
-
+    private static final String NUMERIC_E_KV_INDEX = "N_E_KV";
+    private static final String INDEXED_BINS = "indexedBins";
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
@@ -227,33 +227,38 @@ public class AerospikeConnection {
 
     }
 
+    /**
+     * Create Indexes for Firefly
+     */
     public void createGraphIndexes() {
-        createKeyIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
-        createKeyIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
-        createKeyIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createBinIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createBinIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createBinIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
                 STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
                 NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-//        createIndex(getElementPropertySet(FireflyVertex.class), INDEX_STRING_V_KV,
-//                getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-//        createIndex(getElementPropertySet(FireflyEdge.class), INDEX_STRING_E_KV,
-//                getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-//        createIndex(getElementPropertySet(FireflyVertexProperty.class), INDEX_STRING_VP_KV,
-//                getElementPropertySet(FireflyVertexProperty.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-//
-//        createIndex(getElementPropertySet(FireflyVertex.class), INDEX_NUMERIC_V_KV,
-//                getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-//        createIndex(getElementPropertySet(FireflyEdge.class), INDEX_NUMERIC_E_KV,
-//                getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-//        createIndex(getElementPropertySet(FireflyVertexProperty.class), INDEX_NUMERIC_VP_KV,
-//                getElementPropertySet(FireflyVertexProperty.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyEdge.class),
+                STRING_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyEdge.class),
+                NUMERIC_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
+    /**
+     * Drop indexes for Firefly
+     */
     public void dropGraphIndexes() {
-
+        dropIndex(getElementPropertySet(FireflyVertex.class), "label");
+        dropIndex(getElementPropertySet(FireflyEdge.class), "label");
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), "label");
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), STRING_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), NUMERIC_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyEdge.class), STRING_E_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyEdge.class), NUMERIC_E_KV_INDEX);
     }
 
     public AerospikeClient getClient() {
@@ -394,32 +399,56 @@ public class AerospikeConnection {
                 .get(0);
     }
 
+    /**
+     * Get a "fast count" of the number of elements in the Vertex set using Aerospike info
+     * @return number of Vertices
+     */
     public long getVertexCount() {
         return getSetSize(VERTEX_AERO_SET);
     }
 
+    /**
+     * Get a "fast count" of the number of elements in the Edge set using Aerospike info
+     * @return number of Edges
+     */
     public long getEdgeCount() {
         return getSetSize(EDGE_AERO_SET);
     }
 
+    /**
+     * Lookup Edges with a particular property value by index
+     * @param graph FireflyGraph
+     * @param key Property Key
+     * @param value Property Value being searched for
+     * @return an Iterator of Edges
+     */
     public Iterator<FireflyEdge> queryEdgePropertyStringIndex(FireflyGraph graph, String key, Object value) {
-        Statement stmt = new Statement();
+        final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(EDGE_AERO_SET);
         stmt.setIndexName(STRING_E_KV_INDEX);
-        final String binName = getElementPropertySet(FireflyEdge.class); //@todo should be KEY_VALUE
-        if (String.class.isAssignableFrom(value.getClass()))
-            stmt.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, (String) value));
-        else
-            throw new RuntimeException(String.format("%s not supported type for index query", value.getClass()));
-        QueryPolicy p = new QueryPolicy();
-        RecordSet rs = client.query(p, stmt);
+        if (String.class.isAssignableFrom(value.getClass())) {
+            stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
+        } else {
+            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+        }
+        final QueryPolicy p = new QueryPolicy();
+        final RecordSet rs = client.query(p, stmt);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         rs.iterator(),
                         Spliterator.ORDERED), false)
-                .map(kr -> (FireflyEdge) edgeFromRecord(graph, kr.key, kr.record)).iterator();
+                .map(kr -> (FireflyEdge) edgeFromRecord(graph, kr.key,
+                        kr.record)).filter(edge -> edge.property(key).value() == value)
+                .iterator();
     }
 
+    /**
+     * Lookup VertexProperties with a particular Value by index
+     * @param graph FireflyGraph
+     * @param key Property Key
+     * @param value Property Value being searched for
+     * @return Iterator of VertexProperties
+     */
     public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
@@ -440,7 +469,6 @@ public class AerospikeConnection {
                         FireflyRecord.fromRecord(db, kr.key, kr.record),
                         readVertex(graph, FireflyId.of(db, FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
                 .filter(vp -> vp.key().equals(key)).iterator();
-
     }
 
     public void queryVertexPropertyNumberIndex(String key, Object value) {
@@ -1198,8 +1226,15 @@ public class AerospikeConnection {
                 graph);
     }
 
+    /**
+     * Construct a FireflyEdge from a Record
+     * @param graph FireflyGraph
+     * @param key Aerospike Key
+     * @param edgeRecord Aerospike Record
+     * @return FireflyEdge
+     */
     public FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord) {
-        return new FireflyEdge(FireflyId.of(this, FireflyEdge.class, key.userKey),
+        return new FireflyEdge(FireflyId.of(this, FireflyEdge.class, key.userKey.toLong()),
                 edgeRecord.getString("label"),
                 FireflyId.of(this, FireflyEdge.class, edgeRecord.getLong(Direction.OUT.name())),
                 FireflyId.of(this, FireflyEdge.class, edgeRecord.getLong(Direction.IN.name())),
@@ -1484,6 +1519,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
+        dropGraphIndexes();
     }
 
     @Override
@@ -1491,19 +1527,11 @@ public class AerospikeConnection {
         return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }
 
-
-    public Set<String> getIndexedKeys(Class<? extends FireflyElement> elementType) {
-        //@todo getElementPropertySet is providing a string as the record key
-        Key key = new Key(namespace, INDEX_METADATA, getElementPropertySet(elementType));
-        Record rec = read(key);
-        List<String> keys;
-        if (rec == null)
-            keys = new ArrayList<>();
-        else
-            keys = (List<String>) rec.getList("indexedKeys");
-        return new HashSet<>(keys);
-    }
-
+    /**
+     * drop an Aerospike Index
+     * @param set Set name
+     * @param indexName Index name
+     */
     public void dropIndex(
             final String set,
             final String indexName
@@ -1514,12 +1542,20 @@ public class AerospikeConnection {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
             task.waitTillComplete();
         } catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+            if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
                 throw new RuntimeException(ae);
             }
         }
     }
 
+    /**
+     * create an Aerospike Index
+     * @param set Set name
+     * @param indexName Index name
+     * @param binName Bin name to be indexed
+     * @param type Index type
+     * @param indexCollectionType Index Collection Type
+     */
     public void createIndex(
             final String set,
             final String indexName,
@@ -1539,26 +1575,40 @@ public class AerospikeConnection {
         }
     }
 
-    public <T extends Element> void createKeyIndex(Class<? extends FireflyElement> indexClass,
-                                                   String key,
+    /**
+     * Create an Index on a particular Bin
+     * @param indexClass Firefly Element Class
+     * @param binName Name of Bin
+     * @param idxType Type of Index
+     * @param idxColTypee Type of Index Collection
+     * @param <T> FireflyElement Type
+     */
+    public <T extends Element> void createBinIndex(Class<? extends FireflyElement> indexClass,
+                                                   String binName,
                                                    IndexType idxType,
                                                    IndexCollectionType idxColTypee) {
         Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
         Record rec = read(mKey);
 
-        List<String> keys = rec == null ? new ArrayList<String>() : (List<String>) rec.getList("indexedKeys");
-        keys.add(key);
-        Bin keysBin = new Bin("indexedKeys", new ArrayList<>(new HashSet<>(keys)));
+        List<String> keys = rec == null ? new ArrayList<String>() : (List<String>) rec.getList(INDEXED_BINS);
+        keys.add(binName);
+        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
         client.put(null, mKey, keysBin);
-        createIndex(getElementPropertySet(indexClass), key, key, idxType, idxColTypee);
+        createIndex(getElementPropertySet(indexClass), binName, binName, idxType, idxColTypee);
     }
 
-    public <T extends Element> void dropKeyIndex(Class<? extends FireflyElement> indexClass, String key) {
+    /**
+     *
+     * @param indexClass
+     * @param key
+     * @param <T>
+     */
+    public <T extends Element> void dropBinIndex(Class<? extends FireflyElement> indexClass, String key) {
         Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
         Record rec = read(mKey);
-        List<String> keys = (List<String>) rec.getList("indexedKeys");
+        List<String> keys = (List<String>) rec.getList(INDEXED_BINS);
         keys.remove(key);
-        Bin keysBin = new Bin("indexedKeys", new ArrayList<>(new HashSet<>(keys)));
+        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
         client.put(null, mKey, keysBin);
         dropIndex(getElementPropertySet(indexClass), key);
     }

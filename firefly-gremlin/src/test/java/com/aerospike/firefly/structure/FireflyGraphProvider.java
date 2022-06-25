@@ -125,6 +125,11 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         AerospikeConnection db = AerospikeConnection.connect(config);
         db.dropDatabase();
         db.close();
+
+        // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.
+        if (graph != null) {
+            ((FireflyGraph) graph).close();
+        }
     }
 
     @Override

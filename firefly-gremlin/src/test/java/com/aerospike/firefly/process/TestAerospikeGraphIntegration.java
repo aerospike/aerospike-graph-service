@@ -974,5 +974,102 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(1L, listener1.vertexPropertyChangedEventRecorded());
     }
 
+    @Test
+    public void shouldTriggerUpdateEdgePropertyAddedViaMergeE() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
 
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        v.addEdge("self", v);
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        final Map<Object,Object> m = new HashMap<>();
+        m.put(T.label, "self");
+        final Map<Object,Object> mMatch = new HashMap<>();
+        mMatch.put("some", "thing");
+        gts.V(v).mergeE(m).option(Merge.onMatch, mMatch).next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+
+        assertEquals(1, IteratorUtils.count(gts.E()));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(0, listener1.addEdgeEventRecorded());
+        assertEquals(0, listener2.addEdgeEventRecorded());
+
+        assertEquals(1, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(1, listener1.edgePropertyChangedEventRecorded());
+    }
+
+    @Test
+    public void shouldTriggerEdgePropertyChanged() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        final Edge e = v.addEdge("self", v);
+        e.property("some", "thing");
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        gts.E(e).property("some", "other thing").next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "other thing"))));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(0, listener1.addEdgeEventRecorded());
+        assertEquals(0, listener2.addEdgeEventRecorded());
+
+        assertEquals(1, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(1, listener1.edgePropertyChangedEventRecorded());
+    }
+    @Test
+    public void shouldTriggerAddEdgePropertyAdded() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        v.addEdge("self", v);
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        gts.V(v).as("v").addE("self").to("v").property("some", "thing").next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(1, listener1.addEdgeEventRecorded());
+        assertEquals(1, listener2.addEdgeEventRecorded());
+
+        assertEquals(0, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(0, listener1.edgePropertyChangedEventRecorded());
+    }
 }

@@ -438,7 +438,7 @@ public class AerospikeConnection {
                         rs.iterator(),
                         Spliterator.ORDERED), false)
                 .map(kr -> (FireflyEdge) edgeFromRecord(graph, kr.key,
-                        kr.record)).filter(edge -> edge.property(key).value() == value)
+                        kr.record)).filter(edge -> edge.property(key).value().equals(value))
                 .iterator();
     }
 
@@ -1519,7 +1519,6 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
-        dropGraphIndexes();
     }
 
     @Override

@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -26,6 +27,7 @@ import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
+import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
 /**
@@ -257,6 +259,67 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
+    private long countQueryResults(final String binName,final String testIndex, final Statement stmt){
+
+        QueryPolicy p = new QueryPolicy();
+        RecordSet rs = db.client.query(p, stmt);
+        int count = 0;
+        try {
+            while (rs.next())
+                count++;
+        } catch (AerospikeException e) {
+            throw e;
+        }
+        return count;
+    }
+    @Test
+    public void testWriteReadMapUsingIndex() throws InterruptedException {
+        final String mapKey = "choice";
+        final Map<String, Object> aMap = new HashMap<>() {{
+            put(mapKey, "a");
+        }};
+        final Map<String, Object> bMap = new HashMap<>() {{
+            put(mapKey, "a");
+        }};
+        final Map<String, Object> cMap = new HashMap<>() {{
+            put(mapKey, "c");
+        }};
+        final Map<String, Object> oneMap = new HashMap<>() {{
+            put(mapKey, 1);
+        }};
+
+        final String binName = "choiceMap";
+        final String stringIndex = "stringIndex";
+        final String numberIndex = "numberIndex";
+        final Iterator<Map<String, Object>> choices = Iterables.cycle(aMap, bMap, cMap, oneMap).iterator();
+        db.createIndex(db.TEST_SET, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        db.createIndex(db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
+        IntStream.range(0, 10000).forEach(i -> {
+            final Key key = new Key(db.namespace, TEST_SET, i);
+            db.client.put(null, key, new Bin(binName, choices.next()));
+        });
+        final Statement stringQuery = new Statement();
+        stringQuery.setNamespace(db.namespace);
+        stringQuery.setSetName(TEST_SET);
+        stringQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, "a"));
+        stringQuery.setIndexName(stringIndex);
+
+        long stringCount = countQueryResults(binName, stringIndex, stringQuery);
+        assertEquals(5000, stringCount);
+
+        final Statement numberQuery = new Statement();
+        numberQuery.setNamespace(db.namespace);
+        numberQuery.setSetName(TEST_SET);
+        numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
+        numberQuery.setIndexName(numberIndex);
+        long numberCount = countQueryResults(binName, stringIndex, numberQuery);
+        assertEquals(2500, numberCount);
+
+        db.dropIndex(db.TEST_SET, numberIndex);
+        db.dropIndex(db.TEST_SET, stringIndex);
+
+    }
 
     @Test
     public void testWriteReadUsingIndex() {
@@ -309,18 +372,19 @@ public class TestAerospikeClientIntegration {
     }
 
     @Test
-    public void testCountElements(){
+    public void testCountElements() {
         FireflyGraph graph = FireflyGraph.open(configuration);
         ArrayList<Vertex> added = new ArrayList<>();
-        IntStream.range(0,1000).forEach(i -> {
+        IntStream.range(0, 1000).forEach(i -> {
             Vertex nv = graph.addVertex();
             added.add(nv);
-            if(i != 0)
-                nv.addEdge("test",added.get(0));
+            if (i != 0)
+                nv.addEdge("test", added.get(0));
         });
-        assertEquals((long)graph.traversal().E().count().next(),db.getEdgeCount());
-        assertEquals((long)graph.traversal().V().count().next(),db.getVertexCount());
+        assertEquals((long) graph.traversal().E().count().next(), db.getEdgeCount());
+        assertEquals((long) graph.traversal().V().count().next(), db.getVertexCount());
     }
+
     @Test
     public void testAerospikeReadLatency() {
         Bin bin1 = new Bin("name", "John Doe");

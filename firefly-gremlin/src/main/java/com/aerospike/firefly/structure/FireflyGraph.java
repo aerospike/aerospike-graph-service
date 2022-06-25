@@ -1,5 +1,7 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
@@ -102,8 +104,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
 
     protected FireflyGraph(final Configuration conf) {
+        this(AerospikeConnection.connect(conf), conf);
+    }
+
+    protected FireflyGraph(AerospikeConnection ac, final Configuration conf) {
+
         this.configuration = conf;
-        this.db = AerospikeConnection.connect(conf);
+        this.db = ac;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
         this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
@@ -112,6 +119,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public static FireflyGraph open(Configuration conf) {
+
         return new FireflyGraph(conf);
     }
 

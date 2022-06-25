@@ -220,23 +220,30 @@ public class AerospikeConnection {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         final AerospikeConnection ac = new AerospikeConnection(conf);
-        ac.createKeyIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
-        ac.createKeyIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
-        ac.createKeyIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
-        ac.createIndex(ac.getElementPropertySet(FireflyVertex.class), "SVKV",
-                ac.getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-        ac.createIndex(ac.getElementPropertySet(FireflyEdge.class), "SEKV",
-                ac.getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-        ac.createIndex(ac.getElementPropertySet(FireflyVertexProperty.class), "SVPKV",
-                ac.getElementPropertySet(FireflyVertexProperty.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
 
-        ac.createIndex(ac.getElementPropertySet(FireflyVertex.class), "NVKV",
-                ac.getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-        ac.createIndex(ac.getElementPropertySet(FireflyEdge.class), "NEKV",
-                ac.getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-        ac.createIndex(ac.getElementPropertySet(FireflyVertexProperty.class), "NVPKV",
-                ac.getElementPropertySet(FireflyVertexProperty.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         return ac;
+
+    }
+
+    public void createGraphIndexes() {
+        createKeyIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createKeyIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createKeyIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+//        createIndex(getElementPropertySet(FireflyVertex.class), INDEX_STRING_V_KV,
+//                getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+//        createIndex(getElementPropertySet(FireflyEdge.class), INDEX_STRING_E_KV,
+//                getElementPropertySet(FireflyVertex.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+//        createIndex(getElementPropertySet(FireflyVertexProperty.class), INDEX_STRING_VP_KV,
+//                getElementPropertySet(FireflyVertexProperty.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+//
+//        createIndex(getElementPropertySet(FireflyVertex.class), INDEX_NUMERIC_V_KV,
+//                getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+//        createIndex(getElementPropertySet(FireflyEdge.class), INDEX_NUMERIC_E_KV,
+//                getElementPropertySet(FireflyVertex.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+//        createIndex(getElementPropertySet(FireflyVertexProperty.class), INDEX_NUMERIC_VP_KV,
+//                getElementPropertySet(FireflyVertexProperty.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+    }
+    public void dropGraphIndexes(){
 
     }
 

@@ -1528,10 +1528,7 @@ public class AerospikeConnection {
      * @param set Set name
      * @param indexName Index name
      */
-    public void dropIndex(
-            final String set,
-            final String indexName
-    ) {
+    public void dropIndex(final String set, final String indexName) {
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {

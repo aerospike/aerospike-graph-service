@@ -209,8 +209,7 @@ public class TestAerospikeGraphIntegration {
             g.addV().next();
         });
         assertTrue(g.V().count().next() > 0);
-        db.dropDatabase();
-        sleep(10); //@todo is object count asynchronous?
+        g.V().drop().iterate();
         assertEquals(0, (long) g.V().count().next());
     }
 

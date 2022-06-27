@@ -1233,8 +1233,8 @@ public class AerospikeConnection {
     public FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord) {
         return new FireflyEdge(FireflyId.of(this, FireflyEdge.class, key.userKey.toLong()),
                 edgeRecord.getString("label"),
-                FireflyId.of(this, FireflyEdge.class, edgeRecord.getLong(Direction.OUT.name())),
-                FireflyId.of(this, FireflyEdge.class, edgeRecord.getLong(Direction.IN.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.OUT.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.IN.name())),
                 graph);
     }
 

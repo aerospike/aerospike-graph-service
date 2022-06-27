@@ -1218,8 +1218,8 @@ public class AerospikeConnection {
         }
         return new FireflyEdge(edgeId,
                 edgeRecord.record.getString("label"),
-                FireflyId.of(this, FireflyEdge.class, edgeRecord.record.getLong(Direction.OUT.name())),
-                FireflyId.of(this, FireflyEdge.class, edgeRecord.record.getLong(Direction.IN.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())),
                 graph);
     }
 

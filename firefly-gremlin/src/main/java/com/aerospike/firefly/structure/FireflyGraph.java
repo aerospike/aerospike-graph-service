@@ -123,8 +123,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
 
-
-
     @Override
     public AerospikeConnection getBaseGraph() {
         return db;

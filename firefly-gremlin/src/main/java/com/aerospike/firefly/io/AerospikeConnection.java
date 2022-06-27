@@ -1,14 +1,14 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.client.async.*;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.ClientPolicy;
-import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.policy.*;
+import com.aerospike.client.query.*;
+import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -16,21 +16,24 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class AerospikeConnection {
     public static final String ID_VALUE = "ID";
+    private static final String NUMERIC_VP_KV_INDEX = "N_VP_KV";
+    private static final String STRING_VP_KV_INDEX = "S_VP_KV";
+    private static final String STRING_E_KV_INDEX = "S_E_KV";
+    private static final String NUMERIC_E_KV_INDEX = "N_E_KV";
+    private static final String INDEXED_BINS = "indexedBins";
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
@@ -45,6 +48,7 @@ public class AerospikeConnection {
     private static final String IN_EDGES = "IN_EDGES";
     private static final String OUT_EDGES = "OUT_EDGES";
     private static final String CACHE_DISABLED = "CACHE_DISABLED";
+    private static final String INDEX_METADATA = "INDEX_META";
 
     protected final String GRAPH_METADATA_SET;
     protected final String GRAPH_VARIABLES_SET;
@@ -135,6 +139,8 @@ public class AerospikeConnection {
     private String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
         if (elementClass.equals(FireflyEdge.class))
             return EDGE_AERO_SET;
+        else if (elementClass.equals(FireflyVertex.class))
+            return VERTEX_AERO_SET;
         else if (elementClass.equals(FireflyVertexProperty.class))
             return VERTEX_PROPERTY_AERO_SET;
         throw new UnsupportedOperationException("ele not supported " + elementClass.getClass());
@@ -216,6 +222,40 @@ public class AerospikeConnection {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         return new AerospikeConnection(conf);
+    }
+
+    /**
+     * Create Indexes for Firefly
+     */
+    public void createGraphIndexes() {
+        createBinIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createBinIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createBinIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
+        createIndex(getElementPropertySet(FireflyVertexProperty.class),
+                STRING_VP_KV_INDEX,
+                KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyVertexProperty.class),
+                NUMERIC_VP_KV_INDEX,
+                KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyEdge.class),
+                STRING_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyEdge.class),
+                NUMERIC_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+    }
+
+    /**
+     * Drop indexes for Firefly
+     */
+    public void dropGraphIndexes() {
+        dropIndex(getElementPropertySet(FireflyVertex.class), "label");
+        dropIndex(getElementPropertySet(FireflyEdge.class), "label");
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), "label");
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), STRING_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertexProperty.class), NUMERIC_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyEdge.class), STRING_E_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyEdge.class), NUMERIC_E_KV_INDEX);
     }
 
     public AerospikeClient getClient() {
@@ -340,6 +380,98 @@ public class AerospikeConnection {
     public boolean aerospikeEnterprise() {
         return true; //@todo
     }
+
+    /*
+    @todo multi node test
+    Joe Martin
+      Keep in mind the replication Factor. You may need to divide by that
+    */
+    public long getSetSize(final String setName) {
+        String infoQuery = "sets/" + namespace + "/" + setName;
+        String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+        return Arrays.stream(infoResponse.split(":"))
+                .filter(str -> str.startsWith("objects"))
+                .map(str -> Long.valueOf(str.split("=")[1]))
+                .collect(Collectors.toList())
+                .get(0);
+    }
+
+    /**
+     * Get a "fast count" of the number of elements in the Vertex set using Aerospike info
+     * @return number of Vertices
+     */
+    public long getVertexCount() {
+        return getSetSize(VERTEX_AERO_SET);
+    }
+
+    /**
+     * Get a "fast count" of the number of elements in the Edge set using Aerospike info
+     * @return number of Edges
+     */
+    public long getEdgeCount() {
+        return getSetSize(EDGE_AERO_SET);
+    }
+
+    /**
+     * Lookup Edges with a particular property value by index
+     * @param graph FireflyGraph
+     * @param key Property Key
+     * @param value Property Value being searched for
+     * @return an Iterator of Edges
+     */
+    public Iterator<FireflyEdge> queryEdgePropertyStringIndex(FireflyGraph graph, String key, Object value) {
+        final Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(EDGE_AERO_SET);
+        stmt.setIndexName(STRING_E_KV_INDEX);
+        if (String.class.isAssignableFrom(value.getClass())) {
+            stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
+        } else {
+            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+        }
+        final QueryPolicy p = new QueryPolicy();
+        final RecordSet rs = client.query(p, stmt);
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                        rs.iterator(),
+                        Spliterator.ORDERED), false)
+                .map(kr -> (FireflyEdge) edgeFromRecord(graph, kr.key,
+                        kr.record)).filter(edge -> edge.property(key).value().equals(value))
+                .iterator();
+    }
+
+    /**
+     * Lookup VertexProperties with a particular Value by index
+     * @param graph FireflyGraph
+     * @param key Property Key
+     * @param value Property Value being searched for
+     * @return Iterator of VertexProperties
+     */
+    public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
+        final Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(VERTEX_PROPERTY_AERO_SET);
+        stmt.setIndexName(STRING_VP_KV_INDEX);
+        if (String.class.isAssignableFrom(value.getClass())) {
+            stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
+        } else {
+            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+        }
+        final QueryPolicy p = new QueryPolicy();
+        final RecordSet rs = client.query(p, stmt);
+        final AerospikeConnection db = this;
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                        rs.iterator(),
+                        Spliterator.ORDERED), false)
+                .map(kr -> (FireflyVertexProperty) vertexPropertyFromRecord(graph,
+                        FireflyRecord.fromRecord(db, kr.key, kr.record),
+                        readVertex(graph, FireflyId.of(db, FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
+                .filter(vp -> vp.key().equals(key)).iterator();
+    }
+
+    public void queryVertexPropertyNumberIndex(String key, Object value) {
+        throw new RuntimeException("Unimplemented");
+    }
+
 
     /**
      * manage the set names for an element type
@@ -1080,14 +1212,30 @@ public class AerospikeConnection {
      * @return Edge
      */
     public FireflyEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId);
-        if (fireflyRecord == null) {
+        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId);
+        if (edgeRecord == null) {
             return null;
         }
         return new FireflyEdge(edgeId,
-                fireflyRecord.record.getString("label"),
-                FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.OUT.name())),
-                FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.IN.name())), graph);
+                edgeRecord.record.getString("label"),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())),
+                graph);
+    }
+
+    /**
+     * Construct a FireflyEdge from a Record
+     * @param graph FireflyGraph
+     * @param key Aerospike Key
+     * @param edgeRecord Aerospike Record
+     * @return FireflyEdge
+     */
+    public FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord) {
+        return new FireflyEdge(FireflyId.of(this, FireflyEdge.class, key.userKey.toLong()),
+                edgeRecord.getString("label"),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.OUT.name())),
+                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.IN.name())),
+                graph);
     }
 
     /**
@@ -1367,12 +1515,96 @@ public class AerospikeConnection {
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
+        client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
     }
 
     @Override
     public final String toString() {
         return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }
+
+    /**
+     * drop an Aerospike Index
+     * @param set Set name
+     * @param indexName Index name
+     */
+    public void dropIndex(final String set, final String indexName) {
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
+            task.waitTillComplete();
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+    /**
+     * create an Aerospike Index
+     * @param set Set name
+     * @param indexName Index name
+     * @param binName Bin name to be indexed
+     * @param type Index type
+     * @param indexCollectionType Index Collection Type
+     */
+    public void createIndex(
+            final String set,
+            final String indexName,
+            final String binName,
+            final IndexType type,
+            final IndexCollectionType indexCollectionType) {
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
+            task.waitTillComplete();
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+    /**
+     * Create an Index on a particular Bin
+     * @param indexClass Firefly Element Class
+     * @param binName Name of Bin
+     * @param idxType Type of Index
+     * @param idxColTypee Type of Index Collection
+     * @param <T> FireflyElement Type
+     */
+    public <T extends Element> void createBinIndex(Class<? extends FireflyElement> indexClass,
+                                                   String binName,
+                                                   IndexType idxType,
+                                                   IndexCollectionType idxColTypee) {
+        Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
+        Record rec = read(mKey);
+
+        List<String> keys = rec == null ? new ArrayList<String>() : (List<String>) rec.getList(INDEXED_BINS);
+        keys.add(binName);
+        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
+        client.put(null, mKey, keysBin);
+        createIndex(getElementPropertySet(indexClass), binName, binName, idxType, idxColTypee);
+    }
+
+    /**
+     *
+     * @param indexClass
+     * @param key
+     * @param <T>
+     */
+    public <T extends Element> void dropBinIndex(Class<? extends FireflyElement> indexClass, String key) {
+        Key mKey = new Key(namespace, INDEX_METADATA, getElementPropertySet(indexClass));
+        Record rec = read(mKey);
+        List<String> keys = (List<String>) rec.getList(INDEXED_BINS);
+        keys.remove(key);
+        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
+        client.put(null, mKey, keysBin);
+        dropIndex(getElementPropertySet(indexClass), key);
+    }
+
 
     /**
      * close the connection to Aerospike

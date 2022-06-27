@@ -53,7 +53,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // cardinality is single. if it is list/set then we can just ignore the null.
         final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
         if (VertexProperty.Cardinality.single == card || graph.features().vertex().getCardinality(key) == VertexProperty.Cardinality.single)
-            properties(key).forEachRemaining(VertexProperty::remove);
+            properties(key).forEachRemaining(it -> it.remove());
         if (!allowNullPropertyValues && null == value) {
             return VertexProperty.empty();
         }

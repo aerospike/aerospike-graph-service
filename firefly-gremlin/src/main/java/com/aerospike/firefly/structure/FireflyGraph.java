@@ -1,7 +1,11 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -15,12 +19,10 @@ import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.tinkergraph.process.traversal.strategy.optimization.TinkerGraphStepStrategy;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
@@ -95,13 +97,20 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone());
+                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(FireflyGraphCountStrategy.instance()));
     }
 
 
     protected FireflyGraph(final Configuration conf) {
+        this(AerospikeConnection.connect(conf), conf);
+    }
+
+    protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
+        db.createGraphIndexes();
         this.configuration = conf;
-        this.db = AerospikeConnection.connect(conf);
+        this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
         this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
@@ -141,7 +150,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         writeVertex(this, idValue, label);
-        Vertex vertex = new FireflyVertex(idValue,label,this);
+        Vertex vertex = new FireflyVertex(idValue, label, this);
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }
@@ -164,7 +173,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             longs.add(vertexIdManager.convert(o));
         });
         if (vertexIdsOrVertices.length != 0)
-            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db,FireflyVertex.class, longId)), db::vertexExists))
+            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db, FireflyVertex.class, longId)), db::vertexExists))
                 throw new NoSuchElementException("vertex could not be found and edge could not be created");
         if (vertexIdsOrVertices.length != 0)
             itr = longs.iterator();

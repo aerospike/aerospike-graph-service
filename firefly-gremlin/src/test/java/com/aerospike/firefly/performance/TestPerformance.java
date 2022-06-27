@@ -52,8 +52,8 @@ public class TestPerformance {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
         db.dropDatabase();
+        graph = FireflyGraph.open(config);
         g = graph.traversal();
 
     }

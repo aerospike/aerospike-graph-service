@@ -49,7 +49,7 @@ public class TestAirRoutes50k {
     static {
         try {
             airRoutesUrl = new URL(AIR_ROUTES_50K_URL);
-            tempFile = new File("/tmp/air-routes50k.graphml");
+            tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -63,8 +63,8 @@ public class TestAirRoutes50k {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
         db.dropDatabase();
+        graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
 

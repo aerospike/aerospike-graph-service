@@ -36,7 +36,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private Iterator<? extends Edge> edges() {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
-        //                                    do we have an index over edges
+        // do we have an index over edges
         final HasContainer indexedContainer = getIndexKey(FireflyEdge.class);
         Iterator<? extends Edge> iterator;
         // ids are present, filter on them first

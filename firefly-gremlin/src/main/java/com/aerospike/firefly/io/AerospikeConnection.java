@@ -1557,8 +1557,7 @@ public class AerospikeConnection {
             final String indexName,
             final String binName,
             final IndexType type,
-            final IndexCollectionType indexCollectionType
-    ) {
+            final IndexCollectionType indexCollectionType) {
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {

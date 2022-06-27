@@ -221,10 +221,7 @@ public class AerospikeConnection {
      * @return Database connection handle
      */
     public static AerospikeConnection connect(final Configuration conf) {
-        final AerospikeConnection ac = new AerospikeConnection(conf);
-
-        return ac;
-
+        return new AerospikeConnection(conf);
     }
 
     /**

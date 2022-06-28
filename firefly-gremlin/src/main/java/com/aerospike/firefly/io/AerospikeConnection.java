@@ -406,6 +406,7 @@ public class AerospikeConnection {
 
     /**
      * Get a "fast count" of the number of elements in the Vertex set using Aerospike info
+     *
      * @return number of Vertices
      */
     public long getVertexCount() {
@@ -414,6 +415,7 @@ public class AerospikeConnection {
 
     /**
      * Get a "fast count" of the number of elements in the Edge set using Aerospike info
+     *
      * @return number of Edges
      */
     public long getEdgeCount() {
@@ -422,8 +424,9 @@ public class AerospikeConnection {
 
     /**
      * Lookup Edges with a particular property value by index
+     *
      * @param graph FireflyGraph
-     * @param key Property Key
+     * @param key   Property Key
      * @param value Property Value being searched for
      * @return an Iterator of Edges
      */
@@ -449,8 +452,9 @@ public class AerospikeConnection {
 
     /**
      * Lookup VertexProperties with a particular Value by index
+     *
      * @param graph FireflyGraph
-     * @param key Property Key
+     * @param key   Property Key
      * @param value Property Value being searched for
      * @return Iterator of VertexProperties
      */
@@ -963,8 +967,8 @@ public class AerospikeConnection {
             vpCounter--;
         if (vpCounter == ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
             propertyKeys = readVertexPropertiesByScan(vertex).entrySet().stream().map(entry -> {
-                return new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue().stream().map(vxp -> vxp.id()));
-            }).collect(Collectors.toMap(it -> (String) it.getKey(), it -> (List<Object>) it.getValue()));
+                return new AbstractMap.SimpleEntry<>(entry.getKey(), entry.getValue().stream().map(Element::id));
+            }).collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, it -> (List<Object>) it.getValue()));
 
         final Bin vpCounterBin = new Bin(VP_COUNTER, Value.get(vpCounter));
         final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
@@ -976,7 +980,7 @@ public class AerospikeConnection {
      *
      * @param property VertexProperty to remove
      */
-    public void removeVertexProperty(final FireflyGraph graph, final FireflyVertexProperty property) {
+    public void removeVertexProperty(final FireflyVertexProperty property) {
         final Key key = FireflyRecord.getKey(namespace, VERTEX_PROPERTY_AERO_SET, FireflyId.fromElement(property));
         final Vertex parent = property.element();
         removeIdFromVertexPropertyList((FireflyVertex) parent, property);
@@ -1231,8 +1235,9 @@ public class AerospikeConnection {
 
     /**
      * Construct a FireflyEdge from a Record
-     * @param graph FireflyGraph
-     * @param key Aerospike Key
+     *
+     * @param graph      FireflyGraph
+     * @param key        Aerospike Key
      * @param edgeRecord Aerospike Record
      * @return FireflyEdge
      */
@@ -1532,7 +1537,8 @@ public class AerospikeConnection {
 
     /**
      * drop an Aerospike Index
-     * @param set Set name
+     *
+     * @param set       Set name
      * @param indexName Index name
      */
     public void dropIndex(final String set, final String indexName) {
@@ -1550,10 +1556,11 @@ public class AerospikeConnection {
 
     /**
      * create an Aerospike Index
-     * @param set Set name
-     * @param indexName Index name
-     * @param binName Bin name to be indexed
-     * @param type Index type
+     *
+     * @param set                 Set name
+     * @param indexName           Index name
+     * @param binName             Bin name to be indexed
+     * @param type                Index type
      * @param indexCollectionType Index Collection Type
      */
     public void createIndex(
@@ -1576,11 +1583,12 @@ public class AerospikeConnection {
 
     /**
      * Create an Index on a particular Bin
-     * @param indexClass Firefly Element Class
-     * @param binName Name of Bin
-     * @param idxType Type of Index
+     *
+     * @param indexClass  Firefly Element Class
+     * @param binName     Name of Bin
+     * @param idxType     Type of Index
      * @param idxColTypee Type of Index Collection
-     * @param <T> FireflyElement Type
+     * @param <T>         FireflyElement Type
      */
     public <T extends Element> void createBinIndex(Class<? extends FireflyElement> indexClass,
                                                    String binName,
@@ -1597,7 +1605,6 @@ public class AerospikeConnection {
     }
 
     /**
-     *
      * @param indexClass
      * @param key
      * @param <T>

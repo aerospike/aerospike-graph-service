@@ -29,6 +29,10 @@ public class FireflyId {
         return new FireflyId(type, id);
     }
 
+    public FireflyId toNumericId() {
+        return new FireflyId(type, NumericIdManager.convert(value));
+    }
+
 
     public Object value() {
         return value;

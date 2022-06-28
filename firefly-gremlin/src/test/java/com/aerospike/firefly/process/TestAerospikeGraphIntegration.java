@@ -410,6 +410,8 @@ public class TestAerospikeGraphIntegration {
         final Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.graphml).read();
         printTraversalForm(traversal);
         traversal.iterate();
+        Iterator<Vertex> vertices = graph.vertices();
+        Iterator<Edge> edge = graph.edges();
 
         IoTest.assertModernGraph(graph, false, true);
 

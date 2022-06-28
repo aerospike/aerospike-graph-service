@@ -354,8 +354,7 @@ public class AerospikeConnection {
      * @return Boolean vertex exists
      */
     public boolean vertexExists(final FireflyId vertexId) {
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET,
-                FireflyId.of(FireflyEdge.class, NumericIdManager.convert(vertexId.value())));
+        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId.toNumericId());
         return exists(key);
     }
 
@@ -366,8 +365,7 @@ public class AerospikeConnection {
      * @return Boolean edge exists
      */
     public boolean edgeExists(final FireflyId edgeId) {
-        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET,
-                FireflyId.of(FireflyEdge.class, NumericIdManager.convert(edgeId.value())));
+        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId.toNumericId());
         return exists(key);
     }
 
@@ -378,7 +376,7 @@ public class AerospikeConnection {
      * @return Boolean vertex property exists
      */
     public boolean vertexPropertyExists(final FireflyId vpId) {
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vpId);
+        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vpId.toNumericId());
         return exists(key);
     }
 
@@ -773,12 +771,12 @@ public class AerospikeConnection {
         final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
         final Bin valueBin = new Bin(mapName, Value.get(data));
         if (additionalBins == null) {
-            FireflyRecord.write(this, aeroSet, fid, valueBin, typeHintBin);
+            FireflyRecord.write(this, aeroSet, fid.toNumericId(), valueBin, typeHintBin);
         } else {
             List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
             listOfBins.add(valueBin);
             listOfBins.add(typeHintBin);
-            FireflyRecord.write(this, aeroSet, fid, listOfBins.toArray(new Bin[0]));
+            FireflyRecord.write(this, aeroSet, fid.toNumericId(), listOfBins.toArray(new Bin[0]));
         }
 
     }
@@ -974,7 +972,7 @@ public class AerospikeConnection {
 
         final Bin vpCounterBin = new Bin(VP_COUNTER, Value.get(vpCounter));
         final Bin vertexPropertyIds = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(propertyKeys));
-        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), vertexPropertyIds, vpCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id.toNumericId(), vertexPropertyIds, vpCounterBin);
     }
 
     /**
@@ -1092,7 +1090,7 @@ public class AerospikeConnection {
      */
     public void writeVertex(final FireflyGraph graph, final FireflyId vertexId, final String label) {
         final Bin labelBin = new Bin("label", Value.get(label));
-        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId, labelBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId.toNumericId(), labelBin);
     }
 
     /**
@@ -1102,7 +1100,7 @@ public class AerospikeConnection {
      * @param vertexId id of Vertex to remove
      */
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId);
+        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId.toNumericId());
         delete(key);
     }
 
@@ -1224,7 +1222,7 @@ public class AerospikeConnection {
      * @return Edge
      */
     public FireflyEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId);
+        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId.toNumericId());
         if (edgeRecord == null) {
             return null;
         }
@@ -1274,7 +1272,7 @@ public class AerospikeConnection {
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(idToStorageType(inVertex.id())));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(idToStorageType(outVertex.id())));
 
-        FireflyRecord.writeElement(this, EDGE_AERO_SET, edgeId, labelBin, inVbin, outVBin);
+        FireflyRecord.writeElement(this, EDGE_AERO_SET, edgeId.toNumericId(), labelBin, inVbin, outVBin);
         addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
         addEdgeToVertex(inVertex, edgeId, label, Direction.IN);
 
@@ -1291,7 +1289,7 @@ public class AerospikeConnection {
     }
 
     private FireflyRecord getVertexRecord(FireflyId id) {
-        return FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(id)));
+        return FireflyRecord.read(this, VERTEX_AERO_SET, id.toNumericId());
     }
 
     /**
@@ -1323,7 +1321,7 @@ public class AerospikeConnection {
         labelIds.put(vp.key(), ids);
         final Bin edgeData = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(labelIds));
         final Bin edgeCounterBin = new Bin(VP_COUNTER, Value.get(vpCounter));
-        FireflyRecord.writeElement(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), edgeData, edgeCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id.toNumericId(), edgeData, edgeCounterBin);
     }
 
     /**
@@ -1359,8 +1357,7 @@ public class AerospikeConnection {
         final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         final Bin cacheDisabledBin = new Bin(CACHE_DISABLED, Value.get(cacheDisabled));
-        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex),
-                edgeDataBin, edgeCounterBin, cacheDisabledBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id.toNumericId(), edgeDataBin, edgeCounterBin, cacheDisabledBin);
     }
 
     /**
@@ -1393,7 +1390,7 @@ public class AerospikeConnection {
         labelEdges.put(edge.label(), edges);
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), edgeIdsBin, edgeCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id.toNumericId(), edgeIdsBin, edgeCounterBin);
     }
 
     /**
@@ -1403,7 +1400,7 @@ public class AerospikeConnection {
      * @param edgeId Id of edge to remove
      */
     public void removeEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId);
+        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId.toNumericId());
         FireflyEdge e = readEdge(graph, edgeId);
         if (e == null) //@todo transactions for edge removal
             return;

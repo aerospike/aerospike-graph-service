@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -142,7 +141,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
         // Validate key value pairs are valid for Firefly.
-        Iterator i = IteratorUtils.asIterator(keyValues);
+        final Iterator i = IteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
@@ -153,21 +152,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
         // Create a new id or use the provided user-supplied id (if present and supported).
-        FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
-
-        FireflyHelper.validateId(USER_SUPPLIED_ID_VERTEX_CACHE, idValue,
-                Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported(),
-                Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value()),
-                db.getClient(),
-                db.namespace,
-                keyValues);
+        final FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            FireflyHelper.validateVertexId(idValue, db);
+        }
 
         // Get label from key value pairs.
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         // Write vertex with label and id.
         writeVertex(this, idValue, label);
-        Vertex vertex = new FireflyVertex(idValue, label, this);
+        final Vertex vertex = new FireflyVertex(idValue, label, this);
 
         // Attach properties to vertex.
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
@@ -192,7 +187,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         if (!longs.isEmpty() && !longs.stream().map(
-                id -> FireflyId.of(db, FireflyVertex.class, id)).allMatch(db::vertexExists)) {
+                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 

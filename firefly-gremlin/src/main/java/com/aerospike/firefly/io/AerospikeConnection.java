@@ -354,7 +354,8 @@ public class AerospikeConnection {
      * @return Boolean vertex exists
      */
     public boolean vertexExists(final FireflyId vertexId) {
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId);
+        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET,
+                FireflyId.of(FireflyEdge.class, NumericIdManager.convert(vertexId.value())));
         return exists(key);
     }
 
@@ -365,7 +366,8 @@ public class AerospikeConnection {
      * @return Boolean edge exists
      */
     public boolean edgeExists(final FireflyId edgeId) {
-        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId);
+        final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET,
+                FireflyId.of(FireflyEdge.class, NumericIdManager.convert(edgeId.value())));
         return exists(key);
     }
 
@@ -476,7 +478,7 @@ public class AerospikeConnection {
                         Spliterator.ORDERED), false)
                 .map(kr -> (FireflyVertexProperty) vertexPropertyFromRecord(graph,
                         FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        readVertex(graph, FireflyId.of(db, FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
+                        readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
                 .filter(vp -> vp.key().equals(key)).iterator();
     }
 
@@ -494,7 +496,7 @@ public class AerospikeConnection {
         private final String ID_KEY;
         private final String ID_BIN;
 
-        id_config(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
+        public id_config(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
             this.type = type;
             if (type == FireflyVertex.class) {
                 AERO_SET = ac.VERTEX_AERO_SET;
@@ -532,10 +534,10 @@ public class AerospikeConnection {
      * @param setName name of Aerospike set to scan
      * @return an Iterator of raw Long id values
      */
-    protected Iterator<Long> scanAllIdsInSet(final String setName) {
+    public Iterator<Long> scanAllIdsInSet(final String setName) {
         //@todo performance
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> keyRecordEntry.getKey().userKey.toLong());
+        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
     }
 
     /**
@@ -599,7 +601,7 @@ public class AerospikeConnection {
      * @param binNames Bin names to read into Records returned
      * @return Iterator of Map.Entry Key, Record
      */
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
+    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
         final Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;
@@ -789,7 +791,7 @@ public class AerospikeConnection {
      * @return Graph variable value
      */
     public <V> V readGraphVariable(final String key) {
-        return readTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key);
+        return readTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key);
     }
 
     /**
@@ -798,7 +800,7 @@ public class AerospikeConnection {
      * @return Set of Graph variable keys
      */
     public Set<String> readGraphVariableKeys() {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD));
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, GRAPH_VARIABLES_SET, FireflyId.of(null, GRAPH_VARIABLES_RECORD));
         if (fireflyRecord == null)
             return new HashSet<>();
         final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(GRAPH_VARIABLES_MAP);
@@ -813,7 +815,7 @@ public class AerospikeConnection {
      * @param <V>   Graph variable value type
      */
     public <V> void writeGraphVariable(final String key, final V value) {
-        writeTypeHintedValueToMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key, value);
+        writeTypeHintedValueToMap(GRAPH_VARIABLES_SET, FireflyId.of(null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key, value);
     }
 
     /**
@@ -823,7 +825,7 @@ public class AerospikeConnection {
      * @param <V> Graph variable type
      */
     public <V> void removeGraphVariable(final String key) {
-        removeTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(this, null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key);
+        removeTypeHintedValueFromMap(GRAPH_VARIABLES_SET, FireflyId.of(null, GRAPH_VARIABLES_RECORD), GRAPH_VARIABLES_MAP, key);
     }
 
 
@@ -851,7 +853,7 @@ public class AerospikeConnection {
      * @return FireflyVertexProperty
      */
     public <V> FireflyVertexProperty<V> vertexPropertyFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord, final FireflyVertex parent) {
-        FireflyId fid = FireflyId.of(this, FireflyVertexProperty.class, fireflyRecord.id());
+        FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(readTypeHintedKeyValueFromMap(VERTEX_PROPERTY_AERO_SET, fid, KEY_VALUE));
         if (kv.isEmpty())
             return new FireflyVertexProperty<V>(graph, fid, parent, null, null);
@@ -900,7 +902,7 @@ public class AerospikeConnection {
      * @return Map of label to List of VertexProperty
      */
     public Map<String, List<VertexProperty>> readVertexProperties(final FireflyVertex vertex) {
-        FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        FireflyRecord r =  getVertexRecord(vertex);
         if (r == null) {
             return new HashMap<>();
         }
@@ -913,7 +915,7 @@ public class AerospikeConnection {
                 List<Long> idList = entry.getValue();
                 List<VertexProperty> vpList = new ArrayList<>();
                 idList.forEach(id -> {
-                    vpList.add(readVertexProperty(vertex, FireflyId.of(this, FireflyVertexProperty.class, id)));
+                    vpList.add(readVertexProperty(vertex, FireflyId.of(FireflyVertexProperty.class, id)));
                 });
                 vpLabelList.put(label, vpList);
             });
@@ -950,7 +952,7 @@ public class AerospikeConnection {
      * @param vp     VertexProperty to remove from Vertex id cache
      */
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, final VertexProperty vp) {
-        final FireflyRecord vertexRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        final FireflyRecord vertexRecord =  getVertexRecord(vertex);
         if (vertexRecord == null)
             throw new NoSuchElementException();
         Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.record.getMap(VERTEX_PROPERTY_NAME_TO_ID);
@@ -1074,7 +1076,7 @@ public class AerospikeConnection {
      */
 
     public FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, vertexId);
+        final FireflyRecord fireflyRecord = getVertexRecord(vertexId);
         if (fireflyRecord == null) {
             return null;
         }
@@ -1113,7 +1115,7 @@ public class AerospikeConnection {
      * @return Iterator of raw Ids
      */
     public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex vertex) {
-        FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        FireflyRecord r =  getVertexRecord(vertex);
         long edge_count = r.record.getLong(IN_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
         if (edge_count < ID_CACHE_SIZE && !cacheDisabled)
@@ -1131,7 +1133,7 @@ public class AerospikeConnection {
      * @return Iterator of raw Ids
      */
     public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex vertex) {
-        FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        FireflyRecord r =  getVertexRecord(vertex);
         long edgeCount = r.record.getLong(OUT_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
         if (edgeCount < ID_CACHE_SIZE && !cacheDisabled)
@@ -1165,7 +1167,7 @@ public class AerospikeConnection {
      * @return Map of data
      */
     public Map<String, List<Long>> getXXXIdsFromVertexLabelMap(final FireflyVertex vertex, String mapName) {
-        FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        FireflyRecord r =  getVertexRecord(vertex);
         Map<String, List<Long>> labelIds = (Map<String, List<Long>>) r.record.getMap(mapName);
         if (labelIds == null) {
             labelIds = new HashMap<>();
@@ -1184,7 +1186,7 @@ public class AerospikeConnection {
         return IteratorUtils.map(
                 IteratorUtils.flatMap(getXXXIdsFromVertexLabelMap(vertex, mapName).entrySet().iterator(),
                         mapEntry -> mapEntry.getValue().iterator()),
-                it -> (Object) it);
+                it -> it);
     }
 
     /**
@@ -1228,8 +1230,8 @@ public class AerospikeConnection {
         }
         return new FireflyEdge(FireflyId.loadFromAerospike(this, FireflyEdge.class, edgeRecord),
                 edgeRecord.record.getString("label"),
-                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
-                FireflyId.of(this, FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())),
+                FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
+                FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())),
                 graph);
     }
 
@@ -1242,10 +1244,10 @@ public class AerospikeConnection {
      * @return FireflyEdge
      */
     public FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord) {
-        return new FireflyEdge(FireflyId.of(this, FireflyEdge.class, key.userKey.toLong()),
+        return new FireflyEdge(FireflyId.of(FireflyEdge.class, key.userKey.toLong()),
                 edgeRecord.getString("label"),
-                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.OUT.name())),
-                FireflyId.of(this, FireflyVertex.class, edgeRecord.getLong(Direction.IN.name())),
+                FireflyId.of(FireflyVertex.class, edgeRecord.getLong(Direction.OUT.name())),
+                FireflyId.of(FireflyVertex.class, edgeRecord.getLong(Direction.IN.name())),
                 graph);
     }
 
@@ -1284,6 +1286,14 @@ public class AerospikeConnection {
         }
     }
 
+    private FireflyRecord getVertexRecord(FireflyVertex vertex) {
+        return getVertexRecord(vertex.id);
+    }
+
+    private FireflyRecord getVertexRecord(FireflyId id) {
+        return FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(id)));
+    }
+
     /**
      * Add a VertexProperty to a Vertex
      *
@@ -1291,7 +1301,7 @@ public class AerospikeConnection {
      * @param vp
      */
     private void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp) {
-        FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        final FireflyRecord fireflyRecord = getVertexRecord(vertex);
 
         Map<String, List<Long>> labelIds;
         if (fireflyRecord == null || fireflyRecord.record() == null) {
@@ -1313,7 +1323,7 @@ public class AerospikeConnection {
         labelIds.put(vp.key(), ids);
         final Bin edgeData = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(labelIds));
         final Bin edgeCounterBin = new Bin(VP_COUNTER, Value.get(vpCounter));
-        FireflyRecord.write(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), edgeData, edgeCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex), edgeData, edgeCounterBin);
     }
 
     /**
@@ -1328,7 +1338,7 @@ public class AerospikeConnection {
         final String directionKey = direction == Direction.IN ? IN_EDGES : OUT_EDGES;
         final String counterKey = direction == Direction.IN ? IN_EDGE_COUNTER : OUT_EDGE_COUNTER;
 
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        final FireflyRecord fireflyRecord =  getVertexRecord(vertex);
         long edgeCounter = 0;
         boolean cacheDisabled = false;
         Map<String, List<Long>> labelEdges = new HashMap<>();
@@ -1364,7 +1374,7 @@ public class AerospikeConnection {
     public void removeEdgeFromVertex(final FireflyGraph graph, final FireflyVertex vertex, final FireflyEdge edge, final Direction direction) {
         if (vertex == null)
             throw new NoSuchElementException(); //@todo transactions for edge removal
-        FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        FireflyRecord r =  getVertexRecord(vertex);
         final String directionKey = direction == Direction.IN ? IN_EDGES : OUT_EDGES;
         final String counterKey = direction == Direction.IN ? IN_EDGE_COUNTER : OUT_EDGE_COUNTER;
         if (r == null)
@@ -1463,7 +1473,7 @@ public class AerospikeConnection {
      */
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(this, null, name), ctr);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null, name), ctr);
         return 0L;
     }
 

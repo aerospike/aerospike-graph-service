@@ -66,13 +66,13 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(db, null, id), bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(db, null, id))).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
     }
 
     @Test
     public void testBasicReadWriteGetValueOfKey() {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -87,7 +87,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testBasicDelete() {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -99,7 +99,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testDropDatabase() throws InterruptedException {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -147,8 +147,8 @@ public class TestAerospikeClientIntegration {
                 add(0L);
                 add(1L);
             }};
-            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(0)), "a");
-            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(1)), "b");
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
             Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
             assertTrue(i.hasNext());
             Long a = i.next();
@@ -193,10 +193,10 @@ public class TestAerospikeClientIntegration {
             add(2L);
             add(3L);
         }};
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(0)), "a");
-        FireflyVertex va = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(0)));
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(1)), "b");
-        FireflyVertex vb = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(1)));
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
+        FireflyVertex va = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
+        FireflyVertex vb = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
         Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
         assertTrue(i.hasNext());
         Long a = i.next();
@@ -204,8 +204,8 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(vertexIds.contains(b));
 
-        db.writeEdge(graph, FireflyId.of(db, FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
-        db.writeEdge(graph, FireflyId.of(db, FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
+        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
+        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
 
         Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
         assertTrue(ie.hasNext());
@@ -217,12 +217,12 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanQuery() {
-        FireflyId id1 = FireflyId.of(db, null, 1L);
+        FireflyId id1 = FireflyId.of(null, 1L);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id1, bin1, bin2, bin3);
-        FireflyId id2 = FireflyId.of(db, null, 2L);
+        FireflyId id2 = FireflyId.of(null, 2L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         Bin bin23 = new Bin("greeting", "Hello World!");
@@ -237,7 +237,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyRecordIntegerId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
-        FireflyId intId = FireflyId.of(db, null, 1);
+        FireflyId intId = FireflyId.of(null, 1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, intId, bin21, bin22);
@@ -248,7 +248,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyRecordLongId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
-        FireflyId fid = FireflyId.of(db, null, 1L);
+        FireflyId fid = FireflyId.of(null, 1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, fid, bin21, bin22);

@@ -108,7 +108,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Iterator<Edge> edges(Direction direction, String... edgeLabels) {
-        final Iterator<Edge> edgeIterator = (Iterator) FireflyHelper.getEdges(this, direction, edgeLabels);
+        final Iterator<Edge> edgeIterator = FireflyHelper.getEdges(this, direction, edgeLabels);
         return FireflyHelper.inComputerMode(this.graph) ?
                 IteratorUtils.filter(edgeIterator, edge -> this.graph.graphComputerView.legalEdge(this, edge)) :
                 edgeIterator;

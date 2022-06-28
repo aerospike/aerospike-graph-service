@@ -34,6 +34,9 @@ public final class BloomFilterIdCache {
     public static final long BLOOM_FILTER_BIT_MASK = -(1 << 15);
     private static final Funnel<Long> FUNNEL = Funnels.longFunnel();
     private static final int RETRY_COUNT = 100;
+    private static final Object LOCK = new Object();
+    private static BloomFilter<Long> bloomFilter = null;
+    private static String bloomFilterid = null;
 
     private BloomFilterIdCache() {
     }
@@ -58,20 +61,37 @@ public final class BloomFilterIdCache {
 
         for (int i = 0; i < RETRY_COUNT; i++) {
             try {
-                // Grab bloom filter from aerospike.
-                BloomFilter<Long> bloomFilter = getBloomFilter(client, key, idToBinKey(id), clientPolicy);
+                synchronized (LOCK) {
+                    if (i == 0 && bloomFilter != null && idToBinKey(id).equals(bloomFilterid)) {
 
-                // If bloom filter might contain id, return false.
-                if (bloomFilter.mightContain(id)) {
-                    return false;
+                        // If bloom filter might contain id, return false.
+                        if (bloomFilter.mightContain(id)) {
+                            return false;
+                        }
+
+                        // Add id to bloom filter and write bloom filter back.
+                        bloomFilter.put(id);
+                        putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
+
+                        // Return true.
+                        return true;
+                    }
+
+                    // Grab bloom filter from aerospike.
+                    bloomFilter = getBloomFilter(client, key, idToBinKey(id), clientPolicy);
+
+                    // If bloom filter might contain id, return false.
+                    if (bloomFilter.mightContain(id)) {
+                        return false;
+                    }
+
+                    // Add id to bloom filter and write bloom filter back.
+                    bloomFilter.put(id);
+                    putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
+
+                    // Return true.
+                    return true;
                 }
-
-                // Add id to bloom filter and write bloom filter back.
-                bloomFilter.put(id);
-                putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
-
-                // Return id.
-                return true;
             } catch (AerospikeException ignored) {
                 // Occurs when the read/modify/write notices another write has occurred before it finished.
                 // Ignore exception and try again.
@@ -115,5 +135,6 @@ public final class BloomFilterIdCache {
         byte[] data = outputStream.toByteArray();
         clientPolicy.writePolicyDefault.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
         client.put(clientPolicy.writePolicyDefault, key, new Bin(binKey, data));
+        clientPolicy.writePolicyDefault.generation++;
     }
 }

@@ -44,8 +44,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
         ids.remove(convert(id));
     }
 
-    @Override
-    public Long convert(Object id) {
+    public static Long convert(Object id) {
         if (id != null)
             if (Element.class.isAssignableFrom(id.getClass()))
                 id = ((Element) id).id();

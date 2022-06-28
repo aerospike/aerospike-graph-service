@@ -70,8 +70,8 @@ public class TestAirRoutes50k {
 
     @After
     public void closeGraph() {
-        graph.close();
         db.dropDatabase();
+        graph.close();
         db.close();
     }
 

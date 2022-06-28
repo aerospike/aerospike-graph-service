@@ -10,8 +10,11 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Before;
@@ -19,6 +22,7 @@ import org.junit.Test;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -27,6 +31,7 @@ import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class TestAerospikeClientIntegration {
 
@@ -268,5 +273,184 @@ public class TestAerospikeClientIntegration {
         System.out.println(results);
     }
 
+    @Test
+    public void testFireflyVertexWithUserSuppliedId() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("user-id-vertex").property(T.id, "123").
+                    addV("user-id-vertex").property(T.id, 1234).
+                    addV("user-id-vertex").property(T.id, 12345L).
+                    iterate();
+            assertEquals(3L, g.V().count().next().longValue());
 
+            // "123", 1234, and 12345L were inserted and should be retrieved as such.
+            final Set<Vertex> actualVertices = g.V().toSet();
+            final Set<Object> expectedIds = ImmutableSet.of("123", 1234, 12345L);
+            final Set<Object> actualIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
+            assertEquals(expectedIds, actualIds);
+
+            final String errorMessageCatch = "%s was expected, instead %s was thrown (%s).";
+            final String errorMessageFail = "%s was expected, instead no error was thrown.";
+            String exceptionName = null;
+            try {
+                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+                exceptionName = UnsupportedOperationException.class.getName();
+                g.addV("Mr. T").property(T.id, "can't parse this").iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (UnsupportedOperationException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value already exists in the graph then adding it again should throw an error.
+                exceptionName = IllegalArgumentException.class.getName();
+                g.addV("user-id").property(T.id, 12345L).iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+                exceptionName = IllegalArgumentException.class.getName();
+                g.addV("user-id").property(T.id, "12345").iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value already exists in the graph then adding it again should throw an error.
+                exceptionName = UnsupportedOperationException.class.getName();
+                g.addV("user-id").property(T.id, 123).iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+        }
+    }
+
+    @Test
+    public void testFireflyEdgeWithUserSuppliedId() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("vertex").property("type", "a").
+                    addV("vertex").property("type", "b").
+                    iterate();
+
+            g.V().has("type", "a").as("a").
+                    V().has("type", "b").as("b").
+                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
+                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
+                    iterate();
+
+            assertEquals(3L, g.E().count().next().longValue());
+
+            // 1L, "2", and 3 were inserted and should be retrieved as such.
+            final Set<Edge> actualEdges = g.E().toSet();
+            final Set<Object> expectedIds = ImmutableSet.of(1L, "2", 3);
+            final Set<Object> actualIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
+            assertEquals(expectedIds, actualIds);
+
+            final String errorMessageCatch = "%s was expected, instead %s was thrown (%s).";
+            final String errorMessageFail = "%s was expected, instead no error was thrown.";
+            String exceptionName = null;
+            try {
+                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+                exceptionName = UnsupportedOperationException.class.getName();
+                g.
+                        addV("vertex").as("a").
+                        addV("vertex").as("b").
+                        addE("Mr. T").property(T.id, "can't parse this").from("a").to("b").
+                        iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (UnsupportedOperationException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value already exists in the graph then adding it again should throw an error.
+                exceptionName = IllegalArgumentException.class.getName();
+                g.V().has("type", "a").as("a").
+                        V().has("type", "b").as("b").
+                        addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                        iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+                exceptionName = IllegalArgumentException.class.getName();
+                g.V().has("type", "a").as("a").
+                        V().has("type", "b").as("b").
+                        addE("user-id-edge").from("a").to("b").property(T.id, "1").
+                        iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+
+            try {
+                // If a value already exists in the graph then adding it again should throw an error.
+                exceptionName = UnsupportedOperationException.class.getName();
+                g.V().has("type", "a").as("a").
+                        V().has("type", "b").as("b").
+                        addE("user-id-edge").from("a").to("b").property(T.id, 1).
+                        iterate();
+                fail(String.format(errorMessageFail, exceptionName));
+            } catch (IllegalArgumentException ignored) {
+            } catch (Exception e) {
+                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
+            }
+        }
+    }
+
+    @Test
+    public void testFireflyVertexIdEdgeIdCollision() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("user-id-vertex").property(T.id, "1").
+                    addV("user-id-vertex").property(T.id, 2).
+                    addV("user-id-vertex").property(T.id, 3L).
+                    iterate();
+            assertEquals(3L, g.V().count().next().longValue());
+
+
+            // "1", 2, and 3L were inserted and should be retrieved as such.
+            final Set<Vertex> actualVertices = g.V().toSet();
+            final Set<Object> expectedVertexIds = ImmutableSet.of("1", 2, 3L);
+            final Set<Object> actualVertexIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
+            assertEquals(expectedVertexIds, actualVertexIds);
+
+            g.V().has(T.id, "1").as("a").
+                    V().has(T.id, 2).as("b").
+                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
+                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
+                    iterate();
+            assertEquals(3L, g.E().count().next().longValue());
+
+            // 1L, "2", and 3 were inserted and should be retrieved as such.
+            final Set<Edge> actualEdges = g.E().toSet();
+            final Set<Object> expectedEdgeIds = ImmutableSet.of(1L, "2", 3);
+            final Set<Object> actualEdgeIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
+            assertEquals(expectedEdgeIds, actualEdgeIds);
+        }
+    }
 }

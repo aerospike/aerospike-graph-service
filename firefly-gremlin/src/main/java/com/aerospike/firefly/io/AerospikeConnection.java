@@ -11,6 +11,7 @@ import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class AerospikeConnection {
     public static final String ID_VALUE = "ID";
@@ -82,6 +84,8 @@ public class AerospikeConnection {
     // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
+    public final String USER_SUPPLIED_ID_EDGE_CACHE;
+    public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
 
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
@@ -208,6 +212,8 @@ public class AerospikeConnection {
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
         USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
+        USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
+        USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
     }
 
     /**
@@ -393,9 +399,7 @@ public class AerospikeConnection {
     protected Iterator<Long> scanAllIdsInSet(final String setName) {
         //@todo performance
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> {
-            return keyRecordEntry.getKey().userKey.toLong();
-        });
+        return IteratorUtils.map(i, keyRecordEntry -> keyRecordEntry.getKey().userKey.toLong());
     }
 
     /**
@@ -524,8 +528,7 @@ public class AerospikeConnection {
      */
     private <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
                                                                            final FireflyId fid,
-                                                                           final String mapName
-    ) {
+                                                                           final String mapName) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null || fireflyRecord.record.getMap(mapName).size() == 0)
             throw new NoSuchElementException();
@@ -762,6 +765,9 @@ public class AerospikeConnection {
      */
     public Map<String, List<VertexProperty>> readVertexProperties(final FireflyVertex vertex) {
         FireflyRecord r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        if (r == null) {
+            return new HashMap<>();
+        }
         long vp_count = r.record.getLong(VP_COUNTER);
         if (vp_count < ID_CACHE_SIZE) {
             final Map<String, List<Long>> idMap = getXXXIdsFromVertexLabelMap(vertex, VERTEX_PROPERTY_NAME_TO_ID);
@@ -797,8 +803,6 @@ public class AerospikeConnection {
                                         final String vpk,
                                         final String key,
                                         final V value) {
-        final Record vertexRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex)).record;
-
         final Bin vpkBin = new Bin(VERTEX_PROPERTY_NAME, vpk);
         final Bin pviBin = new Bin(PARENT_VERTEX_ID, idToStorageType(vertex.id()));
         writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, vpid, KEY_VALUE, key, value, vpkBin, pviBin);
@@ -1088,7 +1092,7 @@ public class AerospikeConnection {
         if (fireflyRecord == null) {
             return null;
         }
-        return new FireflyEdge(edgeId,
+        return new FireflyEdge(FireflyId.loadFromAerospike(this, FireflyEdge.class, fireflyRecord),
                 fireflyRecord.record.getString("label"),
                 FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.OUT.name())),
                 FireflyId.of(this, FireflyVertex.class, fireflyRecord.record.getLong(Direction.IN.name())), graph);
@@ -1136,21 +1140,23 @@ public class AerospikeConnection {
      * @param vp
      */
     private void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp) {
+        FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
 
         Map<String, List<Long>> labelIds;
-        final Record r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex)).record();
-        if (r == null) {
+        if (fireflyRecord == null || fireflyRecord.record() == null) {
             labelIds = new HashMap<>();
         } else {
-            labelIds = (Map<String, List<Long>>) Optional.ofNullable(r.getMap(VERTEX_PROPERTY_NAME_TO_ID)).orElse(new HashMap<>());
+            labelIds = (Map<String, List<Long>>) Optional.ofNullable(fireflyRecord.record().getMap(VERTEX_PROPERTY_NAME_TO_ID)).orElse(new HashMap<>());
         }
-        if (labelIds == null) {
-            labelIds = new HashMap<>();
+
+        long vpCounter = 0;
+        if (fireflyRecord != null && fireflyRecord.record() != null) {
+            vpCounter = fireflyRecord.record().getLong(VP_COUNTER);
         }
-        long vpCounter = r.getLong(VP_COUNTER);
+
         final List<Long> ids = labelIds.getOrDefault(vp.key(), new ArrayList<>());
         if (vpCounter < ID_CACHE_SIZE)
-            ids.add(((Number) vp.id()).longValue());
+            ids.add(NumericIdManager.convert(vp.id()));
         vpCounter++;
 
         labelIds.put(vp.key(), ids);
@@ -1170,21 +1176,20 @@ public class AerospikeConnection {
     private void addEdgeToVertex(FireflyVertex vertex, FireflyId edgeId, String label, Direction direction) {
         final String directionKey = direction == Direction.IN ? IN_EDGES : OUT_EDGES;
         final String counterKey = direction == Direction.IN ? IN_EDGE_COUNTER : OUT_EDGE_COUNTER;
-        Map<String, List<Long>> labelEdges;
-        final Record r = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex)).record();
-        if (r == null) {
-            labelEdges = new HashMap<>();
-        } else {
-            labelEdges = (Map<String, List<Long>>) Optional.ofNullable(r.getMap(directionKey)).orElse(new HashMap<>());
+
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_AERO_SET, FireflyId.fromElement(vertex));
+        long edgeCounter = 0;
+        boolean cacheDisabled = false;
+        Map<String, List<Long>> labelEdges = new HashMap<>();
+        if (fireflyRecord != null && fireflyRecord.record() != null) {
+            labelEdges = (Map<String, List<Long>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
+            edgeCounter = fireflyRecord.record().getLong(counterKey);
+            cacheDisabled = fireflyRecord.record().getBoolean(CACHE_DISABLED);
         }
-        if (labelEdges == null) {
-            labelEdges = new HashMap<>();
-        }
-        long edgeCounter = r.getLong(counterKey);
+
         final List<Long> edges = labelEdges.getOrDefault(label, new ArrayList<>());
-        boolean cacheDisabled = r.getBoolean(CACHE_DISABLED);
         if (edgeCounter < ID_CACHE_SIZE)
-            edges.add(((Number) edgeId.value()).longValue());
+            edges.add(NumericIdManager.convert(edgeId.value()));
         else
             cacheDisabled = true;
         edgeCounter++;
@@ -1223,7 +1228,7 @@ public class AerospikeConnection {
         if (edgeCounter == ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
             labelEdges = getXXXIdsFromVertexLabelMap(vertex, directionKey);
         List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
-        edges.remove(((Number) edge.id()).longValue());
+        edges.remove(NumericIdManager.convert(edge.id()));
         labelEdges.put(edge.label(), edges);
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));

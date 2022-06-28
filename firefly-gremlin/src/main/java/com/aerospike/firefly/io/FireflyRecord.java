@@ -117,7 +117,7 @@ public class FireflyRecord {
         else if (id.value().getClass().equals(byte[].class))
             key = new Key(namespace, set, (byte[]) id.value());
         else
-            throw new UnsupportedOperationException(id.value().getClass() + " unsuppored key type");
+            throw new UnsupportedOperationException(id.value().getClass() + " unsupported key type");
         return key;
     }
 

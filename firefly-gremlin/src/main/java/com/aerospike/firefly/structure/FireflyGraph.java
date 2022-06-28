@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
@@ -19,12 +18,15 @@ import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -128,36 +130,38 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Vertex addVertex(Object... keyValues) {
+        // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
+        // Validate key value pairs are valid for Firefly.
         Iterator i = IteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
         }
 
+        // If a user-supplied id is provided and it is not supported, throw exception.
         if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
+        // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
 
-        // Check to see if the id is user supplied. If so we must validate that it is not already in use.
-        if (ElementHelper.getIdValue(keyValues).isPresent()) {
-            try {
-                // Convert id to long and check bloom filter. If the id is not available throw vertex with id already exists exception.
-                long idLong = vertexIdManager.convert(idValue.value());
-                if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, db.USER_SUPPLIED_ID_VERTEX_CACHE, idLong)) {
-                    throw Graph.Exceptions.vertexWithIdAlreadyExists(idLong);
-                }
-            } catch (IllegalArgumentException ignored) {
-                // Invalid type for id.
-                throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            }
-        }
+        FireflyHelper.validateId(USER_SUPPLIED_ID_VERTEX_CACHE, idValue,
+                Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported(),
+                Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value()),
+                db.getClient(),
+                db.namespace,
+                keyValues);
+
+        // Get label from key value pairs.
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
+        // Write vertex with label and id.
         writeVertex(this, idValue, label);
-        Vertex vertex = new FireflyVertex(idValue,label,this);
+        Vertex vertex = new FireflyVertex(idValue, label, this);
+
+        // Attach properties to vertex.
         ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
         return vertex;
     }
@@ -174,35 +178,31 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
-        Iterator<Long> itr;
-        List<Long> longs = new ArrayList<>();
-        IteratorUtils.asIterator(vertexIdsOrVertices).forEachRemaining(o -> {
-            longs.add(vertexIdManager.convert(o));
-        });
-        if (vertexIdsOrVertices.length != 0)
-            if (!IteratorUtils.allMatch(IteratorUtils.map(longs.iterator(), longId -> FireflyId.of(db,FireflyVertex.class, longId)), db::vertexExists))
-                throw new NoSuchElementException("vertex could not be found and edge could not be created");
-        if (vertexIdsOrVertices.length != 0)
-            itr = longs.iterator();
-        else
-            itr = (Iterator<Long>) db.readElementIds(FireflyVertex.class);
+        // Convert vertexIds to longs
+        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).
+                map(NumericIdManager::convert).collect(Collectors.toList());
 
-        return new FireflyVertexIterator(this, itr);
+        // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
+        if (!longs.isEmpty() && !longs.stream().map(
+                id -> FireflyId.of(db, FireflyVertex.class, id)).allMatch(db::vertexExists)) {
+            throw new NoSuchElementException("vertex could not be found and edge could not be created");
+        }
+
+        // Create vertex iterator with graph and vertex id iterator.
+        // If there are vertexIds present use them, otherwise read from database.
+        return new FireflyVertexIterator(this, longs.isEmpty() ?
+                db.readElementIds(FireflyVertex.class) :
+                longs.iterator());
     }
 
     @Override
     public Iterator<Edge> edges(Object... edgeIds) {
-        Iterator<Long> itr;
-        List<Long> longs = new ArrayList<>();
-        IteratorUtils.asIterator(edgeIds).forEachRemaining(o -> {
-            longs.add(edgeIdManager.convert(o));
-        });
-        if (edgeIds.length != 0)
-            itr = longs.iterator();
-        else
-            itr = (Iterator<Long>) db.readElementIds(FireflyEdge.class);
-
-        return new FireflyEdgeIterator(this, itr);
+        // Create edge iterator with graph and edge id iterator.
+        // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
+        return new FireflyEdgeIterator(this,
+                (edgeIds.length == 0) ?
+                        db.readElementIds(FireflyEdge.class) :
+                        Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
     }
 
     @Override

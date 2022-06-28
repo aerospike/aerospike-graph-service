@@ -12,10 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -23,6 +20,11 @@ import java.util.Properties;
 public final class ConfigurationHelper {
     private ConfigurationHelper() {
     }
+
+    private static List PREFIX_MASK = new ArrayList() {{
+        add(Keys.GRAPH_ID);
+        add(Keys.ID_CACHE_SIZE);
+    }};
 
     public static class Keys {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
@@ -59,44 +61,45 @@ public final class ConfigurationHelper {
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
         public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
         public static final String VP_COUNTER = "VP_COUNTER";
+        public static final String GRAPH_ID = "GRAPH_ID";
 
         // User supplied id cache
         public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
-        put(Keys.GRAPH_METADATA_SET, "G_METADATA");
-        put(Keys.GRAPH_VARIABLES_SET, "G_VARIABLES");
-        put(Keys.GRAPH_VARIABLES_RECORD, "G_VARIABLES_REC");
-        put(Keys.GRAPH_VARIABLES_MAP, "G_VARIABLES_MAP");
+        put(Keys.GRAPH_METADATA_SET, "G_META");
+        put(Keys.GRAPH_VARIABLES_SET, "G_VAR");
+        put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
+        put(Keys.GRAPH_VARIABLES_MAP, "G_VAR_MAP");
         put(Keys.EDGE_AERO_SET, "EDGE");
-        put(Keys.EDGE_PROPERTIES, "E_PROPERTIES");
+        put(Keys.EDGE_PROPERTIES, "E_PROP");
         put(Keys.VERTEX_AERO_SET, "VERTEX");
-        put(Keys.VERTEX_EDGELIST_AERO_SET, "EDGELIST");
-        put(Keys.VERTEX_PROPERTY_AERO_SET, "V_PROPERTY");
-        put(Keys.EDGE_ID_KEY, "EDGE_ID_KEY");
-        put(Keys.EDGE_ID_BIN, "EDGE_ID_BIN");
-        put(Keys.VERTEX_ID_KEY, "VERTEX_ID_KEY");
-        put(Keys.VERTEX_ID_BIN, "VERTEX_ID_BIN");
+        put(Keys.VERTEX_EDGELIST_AERO_SET, "E_LIST");
+        put(Keys.VERTEX_PROPERTY_AERO_SET, "V_PROP");
+        put(Keys.EDGE_ID_KEY, "E_ID_KEY");
+        put(Keys.EDGE_ID_BIN, "E_ID_BIN");
+        put(Keys.VERTEX_ID_KEY, "V_ID_KEY");
+        put(Keys.VERTEX_ID_BIN, "V_ID_BIN");
         put(Keys.VERTEX_PROPERTY_SET, "VP");
-        put(Keys.VERTEX_PROPERTY_ID_KEY, "VP_ID_KEY");
-        put(Keys.VERTEX_PROPERTY_ID_BIN, "VP_P_ID_BIN");
-        put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_NAME_ID");
+        put(Keys.VERTEX_PROPERTY_ID_KEY, "VP_ID_K");
+        put(Keys.VERTEX_PROPERTY_ID_BIN, "VP_P_ID_B");
+        put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_N_ID");
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
-        put(Keys.VP_PROPERTIES, "VP_PROPERTIES");
+        put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
-        put(Keys.KEY_VALUE, "KEY_VALUE");
-        put(Keys.PARENT_VERTEX_ID, "PARENT_V_ID");
+        put(Keys.KEY_VALUE, "KEY_VAL");
+        put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
         put(Keys.ID_TYPE, "ID_TYPE");
         put(Keys.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
         put(Keys.TEST_SET, "TEST_SET");
-        put(Keys.IN_EDGE_COUNTER, "IN_EDGE_CTR");
-        put(Keys.OUT_EDGE_COUNTER, "OUT_EDGE_CTR");
+        put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
+        put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
         put(Keys.ID_CACHE_SIZE, "100000");
-        put(Keys.VP_COUNTER, "VP_COUNTER");
-
+        put(Keys.VP_COUNTER, "VP_COUNT");
+        put(Keys.GRAPH_ID, "0");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
     }};
@@ -157,7 +160,11 @@ public final class ConfigurationHelper {
     public static String getOrDefault(final String key, Configuration config) {
         if (!config.containsKey(key) && !defaultValues.containsKey(key))
             throw new ConfigurationRuntimeException("no default value available for key: " + key);
-        return config.containsKey(key) ? config.get(String.class, key) : defaultValues.get(key);
+        return (PREFIX_MASK.contains(key) ? "" : getPrefix(config)) + (config.containsKey(key) ? config.get(String.class, key) : defaultValues.get(key));
+    }
+
+    private static String getPrefix(Configuration config) {
+        return config.containsKey(Keys.GRAPH_ID) ? config.get(String.class, Keys.GRAPH_ID) : defaultValues.get(Keys.GRAPH_ID) + "_";
     }
 
     public static String aerospikeNamespace(Configuration c) {

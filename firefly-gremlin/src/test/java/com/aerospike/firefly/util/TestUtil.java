@@ -39,7 +39,7 @@ public class TestUtil {
 
         config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID,"2");
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);
-        AerospikeConnection db_two = AerospikeConnection.connect(config_one);
+        AerospikeConnection db_two = AerospikeConnection.connect(config_two);
         db_one.dropDatabase();
         db_two.dropDatabase();
 
@@ -60,6 +60,10 @@ public class TestUtil {
 
         db_one.dropDatabase();
         db_two.dropDatabase();
+        graph_one.close();
+        graph_two.close();
+        db_one.close();
+        db_two.close();
 
     }
 }

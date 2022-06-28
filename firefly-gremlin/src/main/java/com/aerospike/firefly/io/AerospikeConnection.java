@@ -981,7 +981,6 @@ public class AerospikeConnection {
         final Vertex parent = property.element();
         removeIdFromVertexPropertyList((FireflyVertex) parent, property);
         delete(key);
-        graph.vertexPropertyIdManager.removeFromCache(property.id);
     }
 
     /**
@@ -1099,7 +1098,6 @@ public class AerospikeConnection {
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
         final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId);
         delete(key);
-        graph.vertexIdManager.removeFromCache(vertexId);
     }
 
     /**
@@ -1398,7 +1396,6 @@ public class AerospikeConnection {
         removeEdgeFromVertex(graph, (FireflyVertex) e.inVertex(), e, Direction.IN);
         removeEdgeFromVertex(graph, (FireflyVertex) e.outVertex(), e, Direction.OUT);
         delete(key);
-        graph.edgeIdManager.removeFromCache(edgeId);
     }
 
     /**

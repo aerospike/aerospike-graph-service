@@ -21,7 +21,6 @@ public class NumericIdManagerTest {
         idManager = new NumericIdManager<>(FireflyVertex.class, "TEST_COUNTER");
     }
 
-
     @Test
     public void testAllow() {
         // Supported classes.
@@ -46,30 +45,5 @@ public class NumericIdManagerTest {
         // Invalid Strings or otherwise invalid types should throw an IllegalArgumentException.
         assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert("a"));
         assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert(new NumericIdManager<>(FireflyVertex.class, "")));
-    }
-
-    @Test
-    public void testAddToCache() {
-        // Expect to only be able to add same id once, even if type changes.
-        idManager.addToCache(1L);
-        assertThrows(IllegalArgumentException.class, () -> idManager.addToCache(1L));
-        assertThrows(IllegalArgumentException.class, () -> idManager.addToCache("1"));
-
-        // Should be able to add an additional item.
-        idManager.addToCache(2L);
-    }
-
-    @Test
-    public void testRemoveFromCache() {
-        // Expect UnsupportedOperationException to be thown if item is not in cache.
-        assertThrows(AssertionError.class, () -> idManager.removeFromCache(1L));
-
-        // Expect things to work if item is in cache. Even if we use different types.
-        idManager.addToCache(1L);
-        idManager.addToCache("2");
-        idManager.addToCache(3);
-        idManager.removeFromCache("1");
-        idManager.removeFromCache(2);
-        idManager.removeFromCache(3L);
     }
 }

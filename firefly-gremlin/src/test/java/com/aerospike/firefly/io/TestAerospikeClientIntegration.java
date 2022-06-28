@@ -262,7 +262,8 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
-    private long countQueryResults(final String binName,final String testIndex, final Statement stmt){
+
+    private long countQueryResults(final String binName, final String testIndex, final Statement stmt) {
         QueryPolicy p = new QueryPolicy();
         RecordSet rs = db.client.query(p, stmt);
         int count = 0;
@@ -274,6 +275,7 @@ public class TestAerospikeClientIntegration {
         }
         return count;
     }
+
     @Test
     public void testWriteReadMapUsingIndex() throws InterruptedException {
         final String mapKey = "choice";
@@ -424,48 +426,18 @@ public class TestAerospikeClientIntegration {
             final Set<Object> actualIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
             assertEquals(expectedIds, actualIds);
 
-            final String errorMessageCatch = "%s was expected, instead %s was thrown (%s).";
-            final String errorMessageFail = "%s was expected, instead no error was thrown.";
-            String exceptionName = null;
-            try {
-                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
-                exceptionName = UnsupportedOperationException.class.getName();
-                g.addV("Mr. T").property(T.id, "can't parse this").iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (UnsupportedOperationException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
+            // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+            assertThrows(UnsupportedOperationException.class, () ->
+                g.addV("Mr. T").property(T.id, "can't parse this").iterate());
 
-            try {
-                // If a value already exists in the graph then adding it again should throw an error.
-                exceptionName = IllegalArgumentException.class.getName();
-                g.addV("user-id").property(T.id, 12345L).iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
-
-            try {
-                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
-                exceptionName = IllegalArgumentException.class.getName();
-                g.addV("user-id").property(T.id, "12345").iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
-
-            try {
-                // If a value already exists in the graph then adding it again should throw an error.
-                exceptionName = UnsupportedOperationException.class.getName();
-                g.addV("user-id").property(T.id, 123).iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
+            // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
+            // Try "123", 123, and 123L, all should fail.
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, "123").iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, 123).iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, 123L).iterate());
         }
     }
 
@@ -494,61 +466,30 @@ public class TestAerospikeClientIntegration {
             final Set<Object> actualIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
             assertEquals(expectedIds, actualIds);
 
-            final String errorMessageCatch = "%s was expected, instead %s was thrown (%s).";
-            final String errorMessageFail = "%s was expected, instead no error was thrown.";
-            String exceptionName = null;
-            try {
-                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
-                exceptionName = UnsupportedOperationException.class.getName();
-                g.
-                        addV("vertex").as("a").
-                        addV("vertex").as("b").
-                        addE("Mr. T").property(T.id, "can't parse this").from("a").to("b").
-                        iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (UnsupportedOperationException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
+            // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+            assertThrows(UnsupportedOperationException.class, () ->
+                    g.addV("vertex").as("a").
+                            addV("vertex").as("b").
+                            addE("Mr. T").property(T.id, "can't parse this").from("a").to("b").
+                            iterate());
 
-            try {
-                // If a value already exists in the graph then adding it again should throw an error.
-                exceptionName = IllegalArgumentException.class.getName();
-                g.V().has("type", "a").as("a").
-                        V().has("type", "b").as("b").
-                        addE("user-id-edge").from("a").to("b").property(T.id, 1L).
-                        iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
-
-            try {
-                // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
-                exceptionName = IllegalArgumentException.class.getName();
-                g.V().has("type", "a").as("a").
-                        V().has("type", "b").as("b").
-                        addE("user-id-edge").from("a").to("b").property(T.id, "1").
-                        iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
-
-            try {
-                // If a value already exists in the graph then adding it again should throw an error.
-                exceptionName = UnsupportedOperationException.class.getName();
-                g.V().has("type", "a").as("a").
-                        V().has("type", "b").as("b").
-                        addE("user-id-edge").from("a").to("b").property(T.id, 1).
-                        iterate();
-                fail(String.format(errorMessageFail, exceptionName));
-            } catch (IllegalArgumentException ignored) {
-            } catch (Exception e) {
-                fail(String.format(errorMessageCatch, exceptionName, e.getClass().getName(), e.getMessage()));
-            }
+            // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
+            // Try adding 1L, "1", and 1, all should fail.
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                            iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, "1").
+                            iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, 1).
+                            iterate());
         }
     }
 

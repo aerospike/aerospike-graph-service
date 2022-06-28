@@ -28,6 +28,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static java.lang.Thread.sleep;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
@@ -56,8 +57,8 @@ public class TestAerospikeGraphIntegration {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        graph = new FireflyGraph(config);
         db.dropDatabase();
+        graph = new FireflyGraph(config);
     }
 
     @After
@@ -202,13 +203,13 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
-    public void testWriteThenDrop() {
+    public void testWriteThenDrop() throws InterruptedException {
         GraphTraversalSource g = graph.traversal();
         IntStream.range(0, 10).forEach(i -> {
             g.addV().next();
         });
         assertTrue(g.V().count().next() > 0);
-        db.dropDatabase();
+        g.V().drop().iterate();
         assertEquals(0, (long) g.V().count().next());
     }
 
@@ -222,9 +223,10 @@ public class TestAerospikeGraphIntegration {
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").iterate();
+                .addE("IsA").from("b").to("a").property("a","b").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
+        List<Edge> things = g.E().has("a", "b").toList();
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
     }
 

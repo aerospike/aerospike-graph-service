@@ -2,6 +2,8 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -17,7 +19,6 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -98,13 +99,20 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone());
+                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(FireflyGraphCountStrategy.instance()));
     }
 
 
     protected FireflyGraph(final Configuration conf) {
+        this(AerospikeConnection.connect(conf), conf);
+    }
+
+    protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
+        db.createGraphIndexes();
         this.configuration = conf;
-        this.db = AerospikeConnection.connect(conf);
+        this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
         this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);

@@ -108,13 +108,14 @@ public class FireflyRecord {
 
     public static Key getKey(final String namespace, final String set, final FireflyId id) {
         final Key key;
-        if (id.value().getClass().equals(Long.class))
+        Class<? extends Object> clazz = id.value().getClass();
+        if (clazz.isAssignableFrom(Long.class))
             key = new Key(namespace, set, (Long) id.value());
-        else if (id.value().getClass().equals(Integer.class))
+        else if (clazz.equals(Integer.class))
             key = new Key(namespace, set, (Long) keyToStorageType(id.value()));
-        else if (id.value().getClass().equals(String.class))
+        else if (clazz.equals(String.class))
             key = new Key(namespace, set, (String) id.value());
-        else if (id.value().getClass().equals(byte[].class))
+        else if (clazz.equals(byte[].class))
             key = new Key(namespace, set, (byte[]) id.value());
         else
             throw new UnsupportedOperationException(id.value().getClass() + " unsupported key type");

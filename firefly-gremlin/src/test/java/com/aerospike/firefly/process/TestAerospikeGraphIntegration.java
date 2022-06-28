@@ -4,7 +4,9 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -12,6 +14,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoTest;
 import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;
@@ -33,7 +36,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
@@ -68,8 +74,8 @@ public class TestAerospikeGraphIntegration {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
         db.dropDatabase();
+        graph = FireflyGraph.open(config);
         g = graph.traversal();
 
     }
@@ -713,6 +719,18 @@ public class TestAerospikeGraphIntegration {
     }
 
     @Test
+    public void g_V_hasXname_endingWithXasXX() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+
+        Traversal<Vertex, Vertex> traversal = g.V().has("name", TextP.endingWith("as"));
+
+        this.printTraversalForm(traversal);
+        Assert.assertTrue(traversal.hasNext());
+        Assert.assertTrue(((Vertex) traversal.next()).value("name").equals("vadas"));
+        Assert.assertFalse(traversal.hasNext());
+    }
+
+    @Test
     public void g_VX1X_addVXanimalX_propertyXage_selectXaX_byXageXX_propertyXname_puppyX() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
 
@@ -787,5 +805,271 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(19L, (long) (Integer) vertex.value("age"));
         Assert.assertFalse(traversal.hasNext());
         Assert.assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
+    }
+
+    static class StubMutationListener implements MutationListener {
+        private final AtomicLong addEdgeEvent = new AtomicLong(0);
+        private final AtomicLong addVertexEvent = new AtomicLong(0);
+        private final AtomicLong vertexRemovedEvent = new AtomicLong(0);
+        private final AtomicLong edgePropertyChangedEvent = new AtomicLong(0);
+        private final AtomicLong vertexPropertyChangedEvent = new AtomicLong(0);
+        private final AtomicLong vertexPropertyPropertyChangedEvent = new AtomicLong(0);
+        private final AtomicLong edgePropertyRemovedEvent = new AtomicLong(0);
+        private final AtomicLong vertexPropertyPropertyRemovedEvent = new AtomicLong(0);
+        private final AtomicLong edgeRemovedEvent = new AtomicLong(0);
+        private final AtomicLong vertexPropertyRemovedEvent = new AtomicLong(0);
+
+        private final ConcurrentLinkedQueue<String> order = new ConcurrentLinkedQueue<>();
+
+        public void reset() {
+            addEdgeEvent.set(0);
+            addVertexEvent.set(0);
+            vertexRemovedEvent.set(0);
+            edgePropertyChangedEvent.set(0);
+            vertexPropertyChangedEvent.set(0);
+            vertexPropertyPropertyChangedEvent.set(0);
+            vertexPropertyPropertyRemovedEvent.set(0);
+            edgePropertyRemovedEvent.set(0);
+            edgeRemovedEvent.set(0);
+            vertexPropertyRemovedEvent.set(0);
+
+            order.clear();
+        }
+
+        public List<String> getOrder() {
+            return new ArrayList<>(this.order);
+        }
+
+        @Override
+        public void vertexAdded(final Vertex vertex) {
+            addVertexEvent.incrementAndGet();
+            order.add("v-added-" + vertex.id());
+        }
+
+        @Override
+        public void vertexRemoved(final Vertex vertex) {
+            vertexRemovedEvent.incrementAndGet();
+            order.add("v-removed-" + vertex.id());
+        }
+
+        @Override
+        public void edgeAdded(final Edge edge) {
+            addEdgeEvent.incrementAndGet();
+            order.add("e-added-" + edge.id());
+        }
+
+        @Override
+        public void edgePropertyRemoved(final Edge element, final Property o) {
+            edgePropertyRemovedEvent.incrementAndGet();
+            order.add("e-property-removed-" + element.id() + "-" + o);
+        }
+
+        @Override
+        public void vertexPropertyPropertyRemoved(final VertexProperty element, final Property o) {
+            vertexPropertyPropertyRemovedEvent.incrementAndGet();
+            order.add("vp-property-removed-" + element.id() + "-" + o);
+        }
+
+        @Override
+        public void edgeRemoved(final Edge edge) {
+            edgeRemovedEvent.incrementAndGet();
+            order.add("e-removed-" + edge.id());
+        }
+
+        @Override
+        public void vertexPropertyRemoved(final VertexProperty vertexProperty) {
+            vertexPropertyRemovedEvent.incrementAndGet();
+            order.add("vp-property-removed-" + vertexProperty.id());
+        }
+
+        @Override
+        public void edgePropertyChanged(final Edge element, final Property oldValue, final Object setValue) {
+            edgePropertyChangedEvent.incrementAndGet();
+            order.add("e-property-chanaged-" + element.id());
+        }
+
+        @Override
+        public void vertexPropertyPropertyChanged(final VertexProperty element, final Property oldValue, final Object setValue) {
+            vertexPropertyPropertyChangedEvent.incrementAndGet();
+            order.add("vp-property-changed-" + element.id());
+        }
+
+        @Override
+        public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
+            vertexPropertyChangedEvent.incrementAndGet();
+            order.add("v-property-changed-" + element.id());
+        }
+
+        public long addEdgeEventRecorded() {
+            return addEdgeEvent.get();
+        }
+
+        public long addVertexEventRecorded() {
+            return addVertexEvent.get();
+        }
+
+        public long vertexRemovedEventRecorded() {
+            return vertexRemovedEvent.get();
+        }
+
+        public long edgeRemovedEventRecorded() {
+            return edgeRemovedEvent.get();
+        }
+
+        public long edgePropertyRemovedEventRecorded() {
+            return edgePropertyRemovedEvent.get();
+        }
+
+        public long vertexPropertyRemovedEventRecorded() {
+            return vertexPropertyRemovedEvent.get();
+        }
+
+        public long vertexPropertyPropertyRemovedEventRecorded() {
+            return vertexPropertyPropertyRemovedEvent.get();
+        }
+
+        public long edgePropertyChangedEventRecorded() {
+            return edgePropertyChangedEvent.get();
+        }
+
+        public long vertexPropertyChangedEventRecorded() {
+            return vertexPropertyChangedEvent.get();
+        }
+
+        public long vertexPropertyPropertyChangedEventRecorded() {
+            return vertexPropertyPropertyChangedEvent.get();
+        }
+    }
+
+    public void tryCommit(final Graph graph, final Consumer<Graph> assertFunction) {
+        assertFunction.accept(graph);
+        if (graph.features().graph().supportsTransactions()) {
+            graph.tx().commit();
+            assertFunction.accept(graph);
+        }
+    }
+
+    @Test
+    @FeatureRequirementSet(FeatureRequirementSet.Package.VERTICES_ONLY)
+    public void shouldTriggerAddVertexWithPropertyThenPropertyAdded() {
+        StubMutationListener listener1 = new StubMutationListener();
+        StubMutationListener listener2 = new StubMutationListener();
+        EventStrategy.Builder builder = EventStrategy.build().addListener(listener1).addListener(listener2);
+        if (this.graph.features().graph().supportsTransactions()) {
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(this.graph));
+        }
+
+        EventStrategy eventStrategy = builder.create();
+        Vertex vSome = this.graph.addVertex(new Object[]{"some", "thing"});
+        vSome.property(VertexProperty.Cardinality.single, "that", "thing", new Object[0]);
+        GraphTraversalSource gts = this.create(eventStrategy);
+        gts.V(new Object[0]).addV().property("any", "thing", new Object[0]).property(VertexProperty.Cardinality.single, "this", "thing", new Object[0]).next();
+        this.tryCommit(this.graph, (g) -> {
+            long val = IteratorUtils.count(gts.V(new Object[0]).has("this", "thing"));
+            Assert.assertEquals(1L, val);
+        });
+        Assert.assertEquals(1L, listener1.addVertexEventRecorded());
+        Assert.assertEquals(1L, listener2.addVertexEventRecorded());
+        Assert.assertEquals(1L, listener2.vertexPropertyChangedEventRecorded());
+        Assert.assertEquals(1L, listener1.vertexPropertyChangedEventRecorded());
+    }
+
+    @Test
+    public void shouldTriggerUpdateEdgePropertyAddedViaMergeE() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        v.addEdge("self", v);
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        final Map<Object,Object> m = new HashMap<>();
+        m.put(T.label, "self");
+        final Map<Object,Object> mMatch = new HashMap<>();
+        mMatch.put("some", "thing");
+        gts.V(v).mergeE(m).option(Merge.onMatch, mMatch).next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+
+        assertEquals(1, IteratorUtils.count(gts.E()));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(0, listener1.addEdgeEventRecorded());
+        assertEquals(0, listener2.addEdgeEventRecorded());
+
+        assertEquals(1, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(1, listener1.edgePropertyChangedEventRecorded());
+    }
+
+    @Test
+    public void shouldTriggerEdgePropertyChanged() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        final Edge e = v.addEdge("self", v);
+        e.property("some", "thing");
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        gts.E(e).property("some", "other thing").next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "other thing"))));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(0, listener1.addEdgeEventRecorded());
+        assertEquals(0, listener2.addEdgeEventRecorded());
+
+        assertEquals(1, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(1, listener1.edgePropertyChangedEventRecorded());
+    }
+    @Test
+    public void shouldTriggerAddEdgePropertyAdded() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        final Vertex v = graph.addVertex();
+        v.addEdge("self", v);
+
+        final GraphTraversalSource gts = create(eventStrategy);
+        gts.V(v).as("v").addE("self").to("v").property("some", "thing").next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+
+        assertEquals(0, listener1.addVertexEventRecorded());
+        assertEquals(0, listener2.addVertexEventRecorded());
+
+        assertEquals(1, listener1.addEdgeEventRecorded());
+        assertEquals(1, listener2.addEdgeEventRecorded());
+
+        assertEquals(0, listener2.edgePropertyChangedEventRecorded());
+        assertEquals(0, listener1.edgePropertyChangedEventRecorded());
     }
 }

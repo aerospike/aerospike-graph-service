@@ -5,9 +5,10 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.NumericIdManager;
+import com.aerospike.firefly.structure.id.FireflyId;
+
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -59,8 +60,8 @@ public final class FireflyHelper {
     /**
      * Throws a TinkerPop based exception if id is in use.
      *
-     * @param cache Cache to look for id in.
-     * @param idValue FireflyId id to look for.
+     * @param cache     Cache to look for id in.
+     * @param idValue   FireflyId id to look for.
      * @param keyValues Key value pair to inspect to see if user-supplied id is present.
      */
     public static void validateId(final String cache,
@@ -191,5 +192,21 @@ public final class FireflyHelper {
             }
         }
         return vertices.iterator();
+    }
+
+    public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
+        return graph.getBaseGraph().queryEdgePropertyStringIndex(graph, key, value);
+    }
+
+    public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
+        return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
+    }
+
+    public static long countVertices(FireflyGraph graph) {
+        return graph.getBaseGraph().getVertexCount();
+    }
+
+    public static long countEdges(FireflyGraph graph) {
+        return graph.getBaseGraph().getEdgeCount();
     }
 }

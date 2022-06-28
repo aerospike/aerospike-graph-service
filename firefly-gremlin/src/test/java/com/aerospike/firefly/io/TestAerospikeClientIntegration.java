@@ -105,7 +105,7 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
         db.dropDatabase();
-
+        Thread.sleep(1000);
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 

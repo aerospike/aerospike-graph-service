@@ -119,6 +119,11 @@ public final class BloomFilterIdCache {
         final Record record = client.get(clientPolicy.readPolicyDefault, key);
         final byte[] data = (byte[]) record.bins.get(binKey);
 
+        // This is the case when we push over the bound and enter a new bin.
+        if (data == null) {
+            return BloomFilter.create(FUNNEL, BLOOM_FILTER_EXPECTED_INSERTIONS);
+        }
+
         // Set WritePolicy generation based on Record.
         clientPolicy.writePolicyDefault.generation = record.generation;
 

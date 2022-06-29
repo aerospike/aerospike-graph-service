@@ -1528,7 +1528,7 @@ public class AerospikeConnection {
         dropDatabase(false);
     }
 
-        @Override
+    @Override
     public final String toString() {
         return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }

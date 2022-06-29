@@ -246,7 +246,7 @@ public class AerospikeConnection {
     }
 
     /**
-     * Drop indexes for Firefly
+     * Drop indices for Firefly
      */
     public void dropGraphIndices() {
         dropIndex(getElementPropertySet(FireflyVertex.class), "label");

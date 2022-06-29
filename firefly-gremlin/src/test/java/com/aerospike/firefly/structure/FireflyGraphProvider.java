@@ -123,7 +123,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
     @Override
     public void clear(Graph graph, Configuration configuration) {
         AerospikeConnection db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        db.dropDatabase(false);
         db.close();
 
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.

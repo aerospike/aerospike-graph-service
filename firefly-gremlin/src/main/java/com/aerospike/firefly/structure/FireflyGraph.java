@@ -152,9 +152,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
         // Create a new id or use the provided user-supplied id (if present and supported).
-        final FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+        FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
         if (ElementHelper.getIdValue(keyValues).isPresent()) {
             FireflyHelper.validateVertexId(idValue, db);
+        } else {
+            while (db.vertexExists(idValue)) {
+                idValue = FireflyId.createFromManager(this, FireflyVertex.class);
+            }
         }
 
         // Get label from key value pairs.

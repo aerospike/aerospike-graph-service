@@ -49,9 +49,13 @@ public final class FireflyHelper {
 
 
     public static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
-        final FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
+        FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
         if (ElementHelper.getIdValue(keyValues).isPresent()) {
             FireflyHelper.validateEdgeId(fid, graph.getBaseGraph());
+        } else {
+            while (graph.getBaseGraph().edgeExists(fid)) {
+                fid = FireflyId.createFromManager(graph, FireflyEdge.class);
+            }
         }
         graph.getBaseGraph().writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
         FireflyEdge edge = new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
@@ -91,9 +95,9 @@ public final class FireflyHelper {
         try {
             // Convert id to long and check bloom filter. If the id is not available throw vertex with id already exists exception.
             idLong = NumericIdManager.convert(idValue.value());
-            if (idLong < 0) {
-                throw unsupportedOperationException;
-            }
+            // if (idLong < 0) {
+            //     throw unsupportedOperationException;
+            // }
         } catch (IllegalArgumentException ignored) {
             // Invalid type for id.
             throw unsupportedOperationException;
@@ -141,6 +145,7 @@ public final class FireflyHelper {
     }
 
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
+        System.out.println("getEdges");
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).getBaseGraph();
         final List<Edge> edges = new ArrayList<>();
 

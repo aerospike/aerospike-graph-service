@@ -84,7 +84,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Edge addEdge(final String label, final Vertex vertex, final Object... keyValues) {
-
         FireflyHelper.legalPropertyKeyValueArray(keyValues);
         if(ElementHelper.getIdValue(keyValues).isPresent())
             if (!graph.features().edge().supportsUserSuppliedIds())

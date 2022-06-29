@@ -1005,7 +1005,7 @@ public class AerospikeConnection {
      */
 
     public <V> Map<String, Property> readProperties(final FireflyElement element) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, getElementPropertySet(element.getClass()), FireflyId.fromElement(element));
+        final FireflyRecord fireflyRecord = FireflyRecord.read(this, getElementPropertySet(element.getClass()), FireflyId.fromElement(element).toNumericId());
         if (fireflyRecord == null)
             return new HashMap<>();
 
@@ -1030,7 +1030,7 @@ public class AerospikeConnection {
      * @return Property
      */
     public <V> Property readProperty(final FireflyElement element, final String key) {
-        return new FireflyProperty(element, key, readTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key));
+        return new FireflyProperty(element, key, readTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element).toNumericId(), getElementPropertySet(element.getClass()), key));
     }
 
     /**
@@ -1399,7 +1399,7 @@ public class AerospikeConnection {
         labelEdges.put(edge.label(), edges);
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
+        FireflyRecord.write(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
     }
 
     /**

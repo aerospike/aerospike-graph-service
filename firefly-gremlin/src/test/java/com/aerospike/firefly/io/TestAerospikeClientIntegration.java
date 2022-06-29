@@ -164,18 +164,12 @@ public class TestAerospikeClientIntegration {
 
         try (FireflyGraph graph = FireflyGraph.open(configuration)) {
             Vertex root = graph.addVertex("root");
-            List<Vertex> stuff = new ArrayList<>();
             IntStream.range(0, 6).forEach(i -> {
                 Vertex nu = graph.addVertex("leaf");
-                stuff.add(nu);
                 graph.traversal().V(root).addE("edge").to(nu).next();
             });
             assertEquals(6L, graph.traversal().V(root).bothE().count().next().longValue());
-            final Iterator<Vertex> iter = stuff.iterator();
-            IntStream.range(0, 2).forEach(i -> {
-                graph.traversal().E(iter.next()).drop().tryNext();
-            });
-            List<Edge> list2 = graph.traversal().V(root).bothE().toList();
+            IntStream.range(0, 2).forEach(i -> graph.traversal().E().limit(1).drop().iterate());
 
             assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
         }

@@ -124,22 +124,4 @@ public class TestBloomFilterIdCache {
             return null;
         }
     }
-
-    @Test
-    public void testBloomFilterBounds() {
-        // Create id set and ExecutorService.
-        Set<Long> ids = new HashSet<>();
-
-        // Generate list of tasks.
-        int j = 0;
-        for (Long i = 0L; i < (1 << 17); i++ ) {
-            if (i > (1 << j)) {
-                System.out.println(1 << j);
-                j+=1;
-            }
-            if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, "VERTEX_TEST_ID", i)) {
-                ids.add(i);
-            }
-        }
-    }
 }

@@ -43,10 +43,11 @@ public final class BloomFilterIdCache {
 
     /**
      * Check if id is available using bloom filter. If it is, take it.
-     * @param client Aerospike client.
+     *
+     * @param client    Aerospike client.
      * @param namespace namespace of graph.
-     * @param name name of id cache.
-     * @param id id to use.
+     * @param name      name of id cache.
+     * @param id        id to use.
      * @return true if id is available and is now in use, false otherwise.
      * @throws IOException If unable to determine whether id is available.
      */

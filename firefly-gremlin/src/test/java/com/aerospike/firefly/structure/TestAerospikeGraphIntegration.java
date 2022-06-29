@@ -63,7 +63,7 @@ public class TestAerospikeGraphIntegration {
 
     @After
     public void closeGraphClearData() throws Exception {
-        db.dropDatabase();
+        db.dropDatabase(true);
         graph.close();
     }
 

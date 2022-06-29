@@ -58,8 +58,8 @@ public class TestUtil {
         assertEquals(3,graph_two.traversal().V().count().next().longValue());
         assertEquals(2,graph_two.traversal().E().count().next().longValue());
 
-        db_one.dropDatabase();
-        db_two.dropDatabase();
+        db_one.dropDatabase(true);
+        db_two.dropDatabase(true);
         graph_one.close();
         graph_two.close();
         db_one.close();

@@ -36,5 +36,4 @@ public final class ProfileUtil {
         });
         return results.stream().reduce("", (a, b) -> a + "\n" + b);
     }
-
 }

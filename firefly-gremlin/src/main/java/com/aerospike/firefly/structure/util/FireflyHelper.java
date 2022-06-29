@@ -95,9 +95,6 @@ public final class FireflyHelper {
         try {
             // Convert id to long and check bloom filter. If the id is not available throw vertex with id already exists exception.
             idLong = NumericIdManager.convert(idValue.value());
-            // if (idLong < 0) {
-            //     throw unsupportedOperationException;
-            // }
         } catch (IllegalArgumentException ignored) {
             // Invalid type for id.
             throw unsupportedOperationException;
@@ -145,7 +142,6 @@ public final class FireflyHelper {
     }
 
     public static Iterator<Edge> getEdges(FireflyVertex vertex, Direction direction, String[] edgeLabels) {
-        System.out.println("getEdges");
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).getBaseGraph();
         final List<Edge> edges = new ArrayList<>();
 

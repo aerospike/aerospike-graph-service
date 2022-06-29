@@ -184,9 +184,9 @@ public class AerospikeConnection {
         this.client = new AerospikeClient(clientPolicy, hosts);
         this.namespace = namespace;
 
-        VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_AERO_SET, conf);
-        VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_EDGELIST_AERO_SET, conf);
-        VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_AERO_SET, conf);
+        VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
+        VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_EDGELIST_AERO_SET, conf);
+        VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_PROPERTY_AERO_SET, conf);
         EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
         EDGE_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BIN, conf);
         VERTEX_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_KEY, conf);
@@ -201,13 +201,13 @@ public class AerospikeConnection {
         TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TYPE_HINTS, conf);
         KEY_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.KEY_VALUE, conf);
         COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.COUNTER, conf);
-        ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_MANAGER_SET, conf);
+        ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET, conf);
         ID_TYPE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE, conf);
         GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
-        TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TEST_SET, conf);
-        EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_AERO_SET, conf);
+        TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.TEST_SET, conf);
+        EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET, conf);
         GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_METADATA_SET, conf);
-        GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_SET, conf);
+        GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.GRAPH_VARIABLES_SET, conf);
         GRAPH_VARIABLES_RECORD = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD, conf);
         GRAPH_VARIABLES_MAP = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_MAP, conf);
         IN_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGE_COUNTER, conf);
@@ -240,23 +240,23 @@ public class AerospikeConnection {
         createBinIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
         createBinIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                STRING_VP_KV_INDEX,
+                getElementPropertySet(FireflyVertexProperty.class) + STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                NUMERIC_VP_KV_INDEX,
+                getElementPropertySet(FireflyVertexProperty.class) + NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                STRING_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class) + STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                NUMERIC_E_KV_INDEX,
+                getElementPropertySet(FireflyEdge.class) + NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
     /**
-     * Drop indexes for Firefly
+     * Drop indices for Firefly
      */
-    public void dropGraphIndexes() {
+    public void dropGraphIndices() {
         dropIndex(getElementPropertySet(FireflyVertex.class), "label");
         dropIndex(getElementPropertySet(FireflyEdge.class), "label");
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), "label");
@@ -474,8 +474,8 @@ public class AerospikeConnection {
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         rs.iterator(),
                         Spliterator.ORDERED), false)
-                .map(kr -> (FireflyVertexProperty) vertexPropertyFromRecord(graph,
-                        FireflyRecord.fromRecord(db, kr.key, kr.record),
+                .map(kr ->
+                        (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
                 .filter(vp -> vp.key().equals(key)).iterator();
     }
@@ -1533,7 +1533,7 @@ public class AerospikeConnection {
     /**
      * truncate all the sets associated with the Graph
      */
-    public void dropDatabase() {
+    public void dropDatabase(boolean dropIndices) {
         client.truncate(null, namespace, EDGE_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, Calendar.getInstance());
@@ -1543,6 +1543,11 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
+        if(dropIndices)
+            dropGraphIndices();
+    }
+    public void dropDatabase() {
+        dropDatabase(false);
     }
 
     @Override

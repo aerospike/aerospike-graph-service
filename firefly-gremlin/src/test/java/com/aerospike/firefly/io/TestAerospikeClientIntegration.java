@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TEST_SET;
 import static org.junit.Assert.*;
 
 /**
@@ -294,12 +293,12 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         IntStream.range(0, 10000).forEach(i -> {
-            final Key key = new Key(db.namespace, TEST_SET, i);
+            final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, new Bin(binName, choices.next()));
         });
         final Statement stringQuery = new Statement();
         stringQuery.setNamespace(db.namespace);
-        stringQuery.setSetName(TEST_SET);
+        stringQuery.setSetName(db.TEST_SET);
         stringQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, "a"));
         stringQuery.setIndexName(stringIndex);
 
@@ -308,7 +307,7 @@ public class TestAerospikeClientIntegration {
 
         final Statement numberQuery = new Statement();
         numberQuery.setNamespace(db.namespace);
-        numberQuery.setSetName(TEST_SET);
+        numberQuery.setSetName(db.TEST_SET);
         numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
         numberQuery.setIndexName(numberIndex);
         long numberCount = countQueryResults(binName, stringIndex, numberQuery);
@@ -327,13 +326,13 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 10000).forEach(i -> {
-            final Key key = new Key(db.namespace, TEST_SET, i);
+            final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         Statement stmt = new Statement();
         stmt.setNamespace(db.namespace);
-        stmt.setSetName(TEST_SET);
+        stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
         RecordSet rs = db.client.query(null, stmt);
@@ -355,10 +354,10 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         int NUMBER_OF_RECORDS = 10000;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
-            final Key key = new Key(db.namespace, TEST_SET, i);
+            final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
-        String infoQuery = "sets/" + db.namespace + "/" + TEST_SET;
+        String infoQuery = "sets/" + db.namespace + "/" + db.TEST_SET;
         String infoResponse = Info.request(new InfoPolicy(), db.client.getNodes()[0], infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
@@ -389,13 +388,13 @@ public class TestAerospikeClientIntegration {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 10000).forEach(i -> {
-            final Key key = new Key(db.namespace, TEST_SET, i);
+            final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, bin2, bin3);
         });
 
         PerfUtil.Results results = PerfUtil.runTestBatch(10000, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
-            final Key key = new Key(db.namespace, TEST_SET, tlr.nextInt(0, 10000));
+            final Key key = new Key(db.namespace, db.TEST_SET, tlr.nextInt(0, 10000));
             final Record data = db.client.get(null, key);
             assert data.getLong("age") == 32;
         });

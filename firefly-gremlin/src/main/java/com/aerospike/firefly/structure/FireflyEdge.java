@@ -10,7 +10,6 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
-import java.util.logging.Logger;
 
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -18,7 +17,6 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyEdge extends FireflyElement implements Edge {
-    private static final Logger LOG = Logger.getLogger(FireflyEdge.class.getName());
     protected boolean removed;
     private final FireflyGraph graph;
     private final FireflyId inVid;

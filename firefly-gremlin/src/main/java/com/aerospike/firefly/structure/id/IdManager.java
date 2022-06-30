@@ -14,16 +14,9 @@ public interface IdManager<T> {
     T getNextId(final FireflyGraph graph);
 
     /**
-     * Convert an identifier to the type required by the manager.
-     * @param id id to convert
-     * @return converted id
-     */
-    T convert(final Object id);
-
-    /**
-     * Determine if an identifier is allowed by this manager given its type.
-     * @param id id to check
+     * Determine if an identifier's class is allowed by this manager given its type.
+     * @param id class of id to check
      * @return is value allowed
      */
-    boolean allow(final Object id);
+    boolean allow(final Class<?> id);
 }

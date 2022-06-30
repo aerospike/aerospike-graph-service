@@ -11,9 +11,12 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Before;
@@ -29,6 +32,7 @@ import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class TestAerospikeClientIntegration {
 
@@ -61,13 +65,13 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(db, null, id), bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(db, null, id))).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
     }
 
     @Test
     public void testBasicReadWriteGetValueOfKey() {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -82,7 +86,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testBasicDelete() {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -94,13 +98,13 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testDropDatabase() throws InterruptedException {
-        FireflyId id = FireflyId.of(db, null, "foo");
+        FireflyId id = FireflyId.of(null, "foo");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
         db.dropDatabase();
-
+        Thread.sleep(1000);
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
@@ -142,8 +146,8 @@ public class TestAerospikeClientIntegration {
                 add(0L);
                 add(1L);
             }};
-            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(0)), "a");
-            db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, ids.get(1)), "b");
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
             Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
             assertTrue(i.hasNext());
             Long a = i.next();
@@ -159,18 +163,12 @@ public class TestAerospikeClientIntegration {
 
         try (FireflyGraph graph = FireflyGraph.open(configuration)) {
             Vertex root = graph.addVertex("root");
-            List<Vertex> stuff = new ArrayList<>();
             IntStream.range(0, 6).forEach(i -> {
                 Vertex nu = graph.addVertex("leaf");
-                stuff.add(nu);
                 graph.traversal().V(root).addE("edge").to(nu).next();
             });
             assertEquals(6L, graph.traversal().V(root).bothE().count().next().longValue());
-            final Iterator<Vertex> iter = stuff.iterator();
-            IntStream.range(0, 2).forEach(i -> {
-                graph.traversal().E(iter.next()).drop().tryNext();
-            });
-            List<Edge> list2 = graph.traversal().V(root).bothE().toList();
+            IntStream.range(0, 2).forEach(i -> graph.traversal().E().limit(1).drop().iterate());
 
             assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
         }
@@ -188,10 +186,10 @@ public class TestAerospikeClientIntegration {
             add(2L);
             add(3L);
         }};
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(0)), "a");
-        FireflyVertex va = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(0)));
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(1)), "b");
-        FireflyVertex vb = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, vertexIds.get(1)));
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
+        FireflyVertex va = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
+        FireflyVertex vb = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
         Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
         assertTrue(i.hasNext());
         Long a = i.next();
@@ -199,8 +197,8 @@ public class TestAerospikeClientIntegration {
         Long b = i.next();
         assertTrue(vertexIds.contains(b));
 
-        db.writeEdge(graph, FireflyId.of(db, FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
-        db.writeEdge(graph, FireflyId.of(db, FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
+        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
+        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
 
         Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
         assertTrue(ie.hasNext());
@@ -212,12 +210,12 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanQuery() {
-        FireflyId id1 = FireflyId.of(db, null, 1L);
+        FireflyId id1 = FireflyId.of(null, 1L);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id1, bin1, bin2, bin3);
-        FireflyId id2 = FireflyId.of(db, null, 2L);
+        FireflyId id2 = FireflyId.of(null, 2L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         Bin bin23 = new Bin("greeting", "Hello World!");
@@ -232,7 +230,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyRecordIntegerId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
-        FireflyId intId = FireflyId.of(db, null, 1);
+        FireflyId intId = FireflyId.of(null, 1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, intId, bin21, bin22);
@@ -243,7 +241,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyRecordLongId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
-        FireflyId fid = FireflyId.of(db, null, 1L);
+        FireflyId fid = FireflyId.of(null, 1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, fid, bin21, bin22);
@@ -257,7 +255,8 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
-    private long countQueryResults(final String binName,final String testIndex, final Statement stmt){
+
+    private long countQueryResults(final String binName, final String testIndex, final Statement stmt) {
         QueryPolicy p = new QueryPolicy();
         RecordSet rs = db.client.query(p, stmt);
         int count = 0;
@@ -269,6 +268,7 @@ public class TestAerospikeClientIntegration {
         }
         return count;
     }
+
     @Test
     public void testWriteReadMapUsingIndex() throws InterruptedException {
         final String mapKey = "choice";
@@ -401,5 +401,123 @@ public class TestAerospikeClientIntegration {
         System.out.println(results);
     }
 
+    @Test
+    public void testFireflyVertexWithUserSuppliedId() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("user-id-vertex").property(T.id, "123").
+                    addV("user-id-vertex").property(T.id, 1234).
+                    addV("user-id-vertex").property(T.id, 12345L).
+                    iterate();
+            assertEquals(3L, g.V().count().next().longValue());
 
+            // "123", 1234, and 12345L were inserted and should be retrieved as such.
+            final Set<Vertex> actualVertices = g.V().toSet();
+            final Set<Object> expectedIds = ImmutableSet.of("123", 1234, 12345L);
+            final Set<Object> actualIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
+            assertEquals(expectedIds, actualIds);
+
+            // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+            assertThrows(UnsupportedOperationException.class, () ->
+                g.addV("Mr. T").property(T.id, "can't parse this").iterate());
+
+            // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
+            // Try "123", 123, and 123L, all should fail.
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, "123").iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, 123).iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.addV("user-id").property(T.id, 123L).iterate());
+        }
+    }
+
+    @Test
+    public void testFireflyEdgeWithUserSuppliedId() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("vertex").property("type", "a").
+                    addV("vertex").property("type", "b").
+                    iterate();
+
+            g.V().has("type", "a").as("a").
+                    V().has("type", "b").as("b").
+                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
+                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
+                    iterate();
+
+            assertEquals(3L, g.E().count().next().longValue());
+
+            // 1L, "2", and 3 were inserted and should be retrieved as such.
+            final Set<Edge> actualEdges = g.E().toSet();
+            final Set<Object> expectedIds = ImmutableSet.of(1L, "2", 3);
+            final Set<Object> actualIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
+            assertEquals(expectedIds, actualIds);
+
+            // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
+            assertThrows(UnsupportedOperationException.class, () ->
+                    g.addV("vertex").as("a").
+                            addV("vertex").as("b").
+                            addE("Mr. T").property(T.id, "can't parse this").from("a").to("b").
+                            iterate());
+
+            // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
+            // Try adding 1L, "1", and 1, all should fail.
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                            iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, "1").
+                            iterate());
+            assertThrows(IllegalArgumentException.class, () ->
+                    g.V().has("type", "a").as("a").
+                            V().has("type", "b").as("b").
+                            addE("user-id-edge").from("a").to("b").property(T.id, 1).
+                            iterate());
+        }
+    }
+
+    @Test
+    public void testFireflyVertexIdEdgeIdCollision() {
+        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            g.addV("user-id-vertex").property(T.id, "1").
+                    addV("user-id-vertex").property(T.id, 2).
+                    addV("user-id-vertex").property(T.id, 3L).
+                    iterate();
+            assertEquals(3L, g.V().count().next().longValue());
+
+
+            // "1", 2, and 3L were inserted and should be retrieved as such.
+            final Set<Vertex> actualVertices = g.V().toSet();
+            final Set<Object> expectedVertexIds = ImmutableSet.of("1", 2, 3L);
+            final Set<Object> actualVertexIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
+            assertEquals(expectedVertexIds, actualVertexIds);
+
+            g.V().has(T.id, "1").as("a").
+                    V().has(T.id, 2).as("b").
+                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
+                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
+                    iterate();
+            assertEquals(3L, g.E().count().next().longValue());
+
+            // 1L, "2", and 3 were inserted and should be retrieved as such.
+            final Set<Edge> actualEdges = g.E().toSet();
+            final Set<Object> expectedEdgeIds = ImmutableSet.of(1L, "2", 3);
+            final Set<Object> actualEdgeIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
+            assertEquals(expectedEdgeIds, actualEdgeIds);
+        }
+    }
 }

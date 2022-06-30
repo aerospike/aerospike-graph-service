@@ -3,14 +3,12 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.IdManager;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class NumericIdManager<T extends FireflyElement> implements IdManager<Long> {
-
     /**
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values
@@ -29,14 +27,15 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
 
     @Override
     public Long getNextId(FireflyGraph graph) {
-        long value = graph.getBaseGraph().incrementAndGetIdCounter( this.counterName);
-        return value;
+        return graph.getBaseGraph().decrementIdCounter(this.counterName);
     }
 
-    @Override
-    public Long convert(Object id) {
-        if (id != null && Element.class.isAssignableFrom(id.getClass()))
-            id = ((Element) id).id();
+    public static Long convert(Object id) {
+        if (id != null)
+            if (Element.class.isAssignableFrom(id.getClass()))
+                id = ((Element) id).id();
+            else if (FireflyId.class.isAssignableFrom(id.getClass()))
+                id = ((FireflyId) id).value();
         if (null == id)
             return null;
         else if (id instanceof Number)
@@ -52,8 +51,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public boolean allow(Object id) {
-        final boolean willAllow = AerospikeConnection.IdToDiskTypeMap.containsKey(id.getClass());
-        return willAllow;
+    public boolean allow(Class<?> id) {
+        return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
 }

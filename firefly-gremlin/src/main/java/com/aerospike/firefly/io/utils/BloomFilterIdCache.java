@@ -5,8 +5,6 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.operation.BitOperation;
-import com.aerospike.client.operation.BitPolicy;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.WritePolicy;
@@ -14,7 +12,6 @@ import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnel;
 import com.google.common.hash.Funnels;
 
-import javax.annotation.concurrent.NotThreadSafe;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,20 +34,24 @@ public final class BloomFilterIdCache {
     public static final long BLOOM_FILTER_BIT_MASK = -(1 << 15);
     private static final Funnel<Long> FUNNEL = Funnels.longFunnel();
     private static final int RETRY_COUNT = 100;
+    private static final Object LOCK = new Object();
+    private static BloomFilter<Long> bloomFilter = null;
+    private static String bloomFilterid = null;
 
     private BloomFilterIdCache() {
     }
 
     /**
      * Check if id is available using bloom filter. If it is, take it.
-     * @param client Aerospike client.
+     *
+     * @param client    Aerospike client.
      * @param namespace namespace of graph.
-     * @param name name of id cache.
-     * @param id id to use.
+     * @param name      name of id cache.
+     * @param id        id to use.
      * @return true if id is available and is now in use, false otherwise.
      * @throws IOException If unable to determine whether id is available.
      */
-    public static boolean takeIdIfAvailable(final AerospikeClient client, final String namespace, final String name, long id) throws IOException {
+    public static boolean takeIdIfAvailable(final AerospikeClient client, final String namespace, final String name, long id) {
         // Generate key and ClientPolicy.
         final Key key = new Key(namespace, USER_SUPPLIED_ID_CACHE_SET, name);
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -61,21 +62,44 @@ public final class BloomFilterIdCache {
 
         for (int i = 0; i < RETRY_COUNT; i++) {
             try {
-                // Grab bloom filter from aerospike.
-                BloomFilter<Long> bloomFilter = getBloomFilter(client, key, idToBinKey(id), clientPolicy);
+                synchronized (LOCK) {
+                    if (i == 0 && bloomFilter != null && idToBinKey(id).equals(bloomFilterid)) {
 
-                // If bloom filter might contain id, return false.
-                if (bloomFilter.mightContain(id)) {
-                    return false;
+                        // If bloom filter might contain id, return false.
+                        if (bloomFilter.mightContain(id)) {
+                            return false;
+                        }
+
+                        // Add id to bloom filter and write bloom filter back.
+                        bloomFilter.put(id);
+                        putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
+
+                        // Return true.
+                        return true;
+                    }
+
+                    // Grab bloom filter from aerospike.
+                    bloomFilter = getBloomFilter(client, key, idToBinKey(id), clientPolicy);
+
+                    // If bloom filter might contain id, return false.
+                    if (bloomFilter.mightContain(id)) {
+                        return false;
+                    }
+
+                    // Add id to bloom filter and write bloom filter back.
+                    bloomFilter.put(id);
+                    putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
+
+                    // Return true.
+                    return true;
                 }
-
-                // Add id to bloom filter and write bloom filter back.
-                bloomFilter.put(id);
-                putBloomFilter(client, key, idToBinKey(id), bloomFilter, clientPolicy);
-
-                // Return id.
-                return true;
             } catch (AerospikeException ignored) {
+                // Occurs when the read/modify/write notices another write has occurred before it finished.
+                // Ignore exception and try again.
+            } catch (IOException e) {
+                // This should never happen (famous last words).
+                // This would indicate corruption in aerospike.
+                throw new IllegalStateException("Failed to determine if user id is in use.");
             }
         }
         return false;
@@ -96,6 +120,11 @@ public final class BloomFilterIdCache {
         final Record record = client.get(clientPolicy.readPolicyDefault, key);
         final byte[] data = (byte[]) record.bins.get(binKey);
 
+        // This is the case when we push over the bound and enter a new bin.
+        if (data == null) {
+            return BloomFilter.create(FUNNEL, BLOOM_FILTER_EXPECTED_INSERTIONS);
+        }
+
         // Set WritePolicy generation based on Record.
         clientPolicy.writePolicyDefault.generation = record.generation;
 
@@ -112,5 +141,6 @@ public final class BloomFilterIdCache {
         byte[] data = outputStream.toByteArray();
         clientPolicy.writePolicyDefault.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
         client.put(clientPolicy.writePolicyDefault, key, new Bin(binKey, data));
+        clientPolicy.writePolicyDefault.generation++;
     }
 }

@@ -10,7 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
  */
 public class FireflyGraphFeatures implements Graph.Features {
 
-    private static final boolean USER_SUPPLIED_IDS = false;
+    private static final boolean USER_SUPPLIED_IDS = true;
     private final FireflyGraph fireflyGraph;
     private final FireflyEdgeFeatures edgeFeatures;
     private final FireflyVertexFeatures vertexFeatures;
@@ -229,7 +229,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexIdManager.allow(id.getClass());
         }
 
         @Override
@@ -285,7 +285,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && edgeIdManager.allow(id);
+            return supportsUserSuppliedIds() && edgeIdManager.allow(id.getClass());
         }
     }
 
@@ -472,7 +472,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean willAllowId(final Object id) {
-            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id);
+            return supportsUserSuppliedIds() && vertexPropertyIdManager.allow(id.getClass());
         }
     }
 }

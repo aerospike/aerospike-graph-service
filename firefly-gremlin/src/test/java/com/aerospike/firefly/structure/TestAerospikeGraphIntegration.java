@@ -102,8 +102,8 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void testReadWriteVertexProperty() {
-        db.writeVertex(graph, FireflyId.of(db, FireflyVertex.class, 2l), "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(db, FireflyVertex.class, 2l));
+        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
+        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
         FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
         db.writeVertexProperty(vertex, vpid, "a", "a", "b");
         VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
@@ -478,6 +478,4 @@ public class TestAerospikeGraphIntegration {
 
         this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(0, 0));
     }
-
-
 }

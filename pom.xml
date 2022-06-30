@@ -39,7 +39,7 @@
         <tinkerpop.version>3.6.0</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
-        <log4j.version>2.17.2</log4j.version>
+        <logback.version>1.2.11</logback.version>
         <guava.version>31.1-jre</guava.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>

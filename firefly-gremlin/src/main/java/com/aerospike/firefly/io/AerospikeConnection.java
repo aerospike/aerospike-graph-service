@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -28,6 +29,7 @@ import java.util.stream.StreamSupport;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class AerospikeConnection {
+    private static final Logger LOG = Logger.getLogger(AerospikeConnection.class.getName());
     public static final String ID_VALUE = "ID";
     private static final String NUMERIC_VP_KV_INDEX = "N_VP_KV";
     private static final String STRING_VP_KV_INDEX = "S_VP_KV";
@@ -165,6 +167,7 @@ public class AerospikeConnection {
      * @param conf Apache Configuration
      */
     public AerospikeConnection(final Configuration conf) {
+        LOG.info("Initializing AerospikeConnection.");
 
         this.conf = conf;
         final String host = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST);
@@ -228,6 +231,7 @@ public class AerospikeConnection {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
+        LOG.info("Creating graph indices.");
         createBinIndex(FireflyVertex.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
         createBinIndex(FireflyEdge.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
         createBinIndex(FireflyVertexProperty.class, "label", IndexType.STRING, IndexCollectionType.DEFAULT);
@@ -249,6 +253,7 @@ public class AerospikeConnection {
      * Drop indices for Firefly
      */
     public void dropGraphIndices() {
+        LOG.info("Dropping graph indices.");
         dropIndex(getElementPropertySet(FireflyVertex.class), "label");
         dropIndex(getElementPropertySet(FireflyEdge.class), "label");
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), "label");
@@ -305,7 +310,7 @@ public class AerospikeConnection {
                 eventLoops = new NettyEventLoops(eventPolicy, epollGroup);
                 break;
             default:
-                System.out.println("Error: Invalid event loop type");
+                LOG.warning("Error: Invalid event loop type");
         }
         return eventLoops;
     }
@@ -346,6 +351,7 @@ public class AerospikeConnection {
      * @return Boolean vertex exists
      */
     public boolean vertexExists(final FireflyId vertexId) {
+        LOG.finer(() -> String.format("Checking if %s exists.", vertexId.toString()));
         final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId);
         return exists(key);
     }
@@ -357,6 +363,7 @@ public class AerospikeConnection {
      * @return Boolean edge exists
      */
     public boolean edgeExists(final FireflyId edgeId) {
+        LOG.finer(() -> String.format("Checking if %s exists.", edgeId.toString()));
         final Key key = FireflyRecord.getKey(namespace, EDGE_AERO_SET, edgeId);
         return exists(key);
     }
@@ -368,6 +375,7 @@ public class AerospikeConnection {
      * @return Boolean vertex property exists
      */
     public boolean vertexPropertyExists(final FireflyId vpId) {
+        LOG.finer(() -> String.format("Checking if %s exists.", vpId.toString()));
         final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vpId);
         return exists(key);
     }
@@ -526,6 +534,7 @@ public class AerospikeConnection {
      */
     protected Iterator<Long> scanAllIdsInSet(final String setName) {
         //@todo performance
+        LOG.finer(() -> String.format("Scanning %s ids.", setName));
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
         return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getKey().userKey.toLong();
@@ -540,6 +549,7 @@ public class AerospikeConnection {
      * @return Iterator of raw Object ids
      */
     protected Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
+        LOG.finer(() -> String.format("Scanning %s ids with filter %s.", setName, exp.toString()));
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, exp);
         return IteratorUtils.map(i, keyRecordEntry -> {
             return keyRecordEntry.getKey().userKey.getObject();
@@ -555,6 +565,7 @@ public class AerospikeConnection {
      * @return Iterator of Map.Entry Key, Record matched by Scan query
      */
     protected Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
+        LOG.finer(() -> String.format("Scanning %s ids with filter %s.", setName, exp.toString()));
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
         return scanAllRecordsInSet(setName, exp, policy, binNames);

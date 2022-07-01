@@ -7,6 +7,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
@@ -249,7 +250,35 @@ public class TestAerospikeGraphIntegration {
             fail();
         }
     }
-
+    @Test
+    public void testWrite2VertexWithEdgeThenRemoveNumeric() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon")
+                .property("color", "yellow")
+                .property("type", "plant")
+                .property("spots",3).next();
+        Vertex lime = g.addV("lime")
+                .property("color", "green")
+                .property("type", "plant")
+                .property("spots",2).next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("n",3).iterate();
+        Vertex s1 = g.V().has("type", "taxonomy").next();
+//        List<Edge> thing = g.E().has("n", 3).toList();
+        List<Vertex> twoSpots = g.V().has("spots", 2).toList();
+        List<Vertex> slt = g.V().has("spots", P.lt(4)).toList();
+        List<Vertex> sgt = g.V().has("spots", P.gt(1)).toList();
+        List<Vertex> s2 = g.V().has("type", "plant").next(2);
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+        g.V(s1.id()).outE().drop().iterate();
+        if (g.V(fruit.id()).outE().count().next() > 0) {
+            Edge a = g.V(fruit.id()).outE().next();
+            fail();
+        }
+    }
     @Test
     public void testReadWriteRemoveEdgeProperty() {
         GraphTraversalSource g = graph.traversal();

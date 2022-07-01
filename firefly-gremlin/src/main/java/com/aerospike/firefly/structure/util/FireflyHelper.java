@@ -1,18 +1,15 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Key;
-import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -106,6 +103,7 @@ public final class FireflyHelper {
             throw illegalArgumentException;
         }
     }
+
 
     public interface ExistsFunction {
         boolean exists(final FireflyId idValue);
@@ -221,6 +219,17 @@ public final class FireflyHelper {
 
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
+    }
+
+    public static Iterator<? extends Vertex> queryVertexByVertexPropertyNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
+        if(predicate.getBiPredicate().equals(Compare.eq))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
+        else if (predicate.getBiPredicate().equals(Compare.lt))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+        else if(predicate.getBiPredicate().equals(Compare.gt))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+        else
+            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
 
     public static long countVertices(FireflyGraph graph) {

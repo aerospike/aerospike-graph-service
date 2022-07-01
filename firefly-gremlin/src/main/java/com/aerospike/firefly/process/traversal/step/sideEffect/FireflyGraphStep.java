@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
+import java.util.function.BiPredicate;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -49,7 +50,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 iterator = this.iteratorList(graph.edges());
             else
                 iterator = this.iteratorList(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-
         }
         iterators.add(iterator);
         return iterator;
@@ -63,31 +63,44 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
             iterator = this.iteratorList(graph.vertices(this.ids));
-        else {
+        else
             if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
                 iterator = this.iteratorList(graph.vertices());
             else
-                iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-        }
+                if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
+                    iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+                else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
+                    iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+                else
+                    iterator = Collections.emptyIterator();
 
         iterators.add(iterator);
         return iterator;
     }
 
     private HasContainer getIndexKey(final Class<? extends FireflyElement> indexedClass) {
+        final ArrayList<BiPredicate> supportedPredicates = new ArrayList<BiPredicate>() {{
+            add(Compare.eq);
+            add(Compare.lt);
+            add(Compare.gt);
+        }};
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
             // we have an index over vertex properties
             if (indexedClass.isAssignableFrom(FireflyVertex.class)) {
                 // we only support direct string comparison
-                if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
+                if (hasContainer == null || hasContainer.getValue() == null || !supportedPredicates.contains(hasContainer.getBiPredicate()))
                     return false;
-                else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
+                else if (hasContainer.getValue().getClass().isAssignableFrom(String.class) || Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) )
+                    return true;
+                else if (Number.class.isAssignableFrom(hasContainer.getValue().getClass()))
                     return true;
             } else if (indexedClass.isAssignableFrom(FireflyEdge.class)) {
                 // we only support direct string comparison
-                if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
+                if (hasContainer == null || hasContainer.getValue() == null || !supportedPredicates.contains(hasContainer.getBiPredicate()))
                     return false;
                 else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
+                    return true;
+                else if (Number.class.isAssignableFrom(hasContainer.getValue().getClass()))
                     return true;
             }
             return false; //nothing else

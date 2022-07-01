@@ -10,7 +10,7 @@
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
     <description>Graph Computing On Aerospike</description>
-    <url>http://aerospike.com</url>
+    <url>https://aerospike.com</url>
     <inceptionYear>2022</inceptionYear>
     <!-- PRIMARY DEVELOPERS -->
     <developers>
@@ -39,8 +39,9 @@
         <tinkerpop.version>3.6.0</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
-        <log4j.version>2.17.1</log4j.version>
-        <slf4j.version>1.7.36</slf4j.version>
+        <logback.version>1.2.11</logback.version>
+        <slf4j.version>1.7.30</slf4j.version>
+        <guava.version>31.1-jre</guava.version>
         <!-- MAVEN PLUGIN VERSIONS -->
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
         <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>

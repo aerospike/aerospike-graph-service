@@ -86,9 +86,9 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             add(Compare.eq);
         }};
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
-            // we have an index over vertex properties
+            // we have an index over VertexProperty and Edge
             if (indexedClass.isAssignableFrom(FireflyVertex.class)) {
-                // we only support direct string comparison
+                //                                                             we only support direct string comparison
                 if (hasContainer == null || hasContainer.getValue() == null || !supportedStringPredicates.contains(hasContainer.getBiPredicate()))
                     return false;
                 else if (hasContainer.getValue().getClass().isAssignableFrom(String.class) || Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
@@ -96,7 +96,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 else if (Number.class.isAssignableFrom(hasContainer.getValue().getClass()))
                     return true;
             } else if (indexedClass.isAssignableFrom(FireflyEdge.class)) {
-                // we only support direct string comparison
                 if (hasContainer == null || hasContainer.getValue() == null || !supportedNumericPredicates.contains(hasContainer.getBiPredicate()))
                     return false;
                 else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))

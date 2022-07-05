@@ -485,7 +485,7 @@ public class AerospikeConnection {
                         Spliterator.ORDERED), false)
                 .map(kr ->
                         (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
+                                readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
                 .filter(vp -> vp.key().equals(key)).iterator();
     }
 
@@ -917,6 +917,36 @@ public class AerospikeConnection {
     }
 
     /**
+     * return a single VertexProperty associated with a Vertex and key.
+     *
+     * @param vertex parenet Vertex
+     * @return Map of label to List of VertexProperty
+     */
+    public Map<String, List<VertexProperty>> readVertexProperty(final FireflyVertex vertex, final String key) {
+        FireflyRecord r = getVertexRecord(vertex);
+        if (r == null) {
+            return new HashMap<>();
+        }
+        long vp_count = r.record.getLong(VP_COUNTER);
+        if (vp_count < ID_CACHE_SIZE) {
+            final Map<String, List<Long>> idMap = getXXXIdsFromVertexLabelMap(vertex, VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<VertexProperty>> vpLabelList = new HashMap<>();
+            Optional<Map.Entry<String, List<Long>>> valid = idMap.entrySet().stream().filter(e -> e.getKey().equals(key)).findFirst();
+            valid.ifPresent(e -> {
+                        String label = e.getKey();
+                        List<Long> idList = e.getValue();
+                        List<VertexProperty> vpList = new ArrayList<>();
+                        idList.forEach(id -> vpList.add(readVertexProperty(vertex, FireflyId.of(FireflyVertexProperty.class, id))));
+                        vpLabelList.put(label, vpList);
+                    }
+            );
+            return vpLabelList;
+
+        } else
+            return readVertexPropertiesByScan(vertex);
+    }
+
+    /**
      * return a map of VertexProperties associated with a Vertex
      *
      * @param vertex parenet Vertex
@@ -1118,6 +1148,36 @@ public class AerospikeConnection {
     }
 
     /**
+     * write a labeled Vertex record
+     *
+     * @param graph    handle to Graph instance
+     * @param vertexId vertex id to write
+     * @param label    vertex label to write
+     */
+    public void writeFullyQualifiedVertex(final FireflyGraph graph, final FireflyId vertexId, final String label, List<Map.Entry<String, Object>> properties) {
+        LOG.debug("Writing fully qualified Vertex {}.", vertexId.value().toString());
+        final Map<String, List<Long>> vertexPropertyLabelIdMap = new HashMap<>();
+        final List<Long> vertexPropertyIdCache = new ArrayList<>();
+        properties.forEach(vp -> {
+            FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+            final Bin vpkBin = new Bin(VERTEX_PROPERTY_NAME, vp.getKey());
+            final Bin pviBin = new Bin(PARENT_VERTEX_ID, idToStorageType(vertexId.value()));
+            writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, vertexPropertyId, KEY_VALUE, vp.getKey(), vp.getValue(), vpkBin, pviBin);
+            final List<Long> vertexPropertyIds = vertexPropertyLabelIdMap.getOrDefault(vp.getKey(), new ArrayList<>());
+            vertexPropertyIds.add(NumericIdManager.convert(vertexPropertyId.value()));
+            vertexPropertyLabelIdMap.put(vp.getKey(), vertexPropertyIds);
+
+            if (vertexPropertyIdCache.size() < ID_CACHE_SIZE)
+                vertexPropertyIdCache.add(NumericIdManager.convert(vertexPropertyId.value()));
+        });
+
+        final Bin labelBin = new Bin("label", Value.get(label));
+        final Bin vertexPropertyIdsBin = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyLabelIdMap));
+        final Bin vertexPropertyCounterBin = new Bin(VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdCache.size())));
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin);
+    }
+
+    /**
      * remove a Vertex Record
      *
      * @param graph    refrence to Graph
@@ -1315,6 +1375,61 @@ public class AerospikeConnection {
             final Object propVal = propIter.next();
             writeProperty(edgeId, FireflyEdge.class, (String) propKey, propVal);
         }
+    }
+
+    /**
+     * TODO.
+     *
+     * @param graph      handle to Graph
+     * @param edgeId     Id of Edge to write
+     * @param label      label for Edge to write
+     * @param inVertex   in Vertex for new Edge
+     * @param outVertex  out Vertex for new Edge
+     * @param properties Edge properties
+     */
+    public void writeFullyQualifiedEdge(final FireflyGraph graph,
+                                        final FireflyId edgeId,
+                                        final String label,
+                                        final FireflyVertex outVertex,
+                                        final FireflyVertex inVertex,
+                                        final List<Map.Entry<String, Object>> properties) {
+        LOG.debug("Writing fully qualified edge {} [{}-({})->{}].", edgeId.value(), outVertex.id(), label, inVertex.id());
+
+
+        addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
+        addEdgeToVertex(inVertex, edgeId, label, Direction.IN);
+
+        final Map<String, Object> data = new HashMap<>();
+        final Map<String, Object> typeHints = new HashMap<>();
+        properties.forEach(prop -> {
+            final String key = prop.getKey();
+            final Object value = prop.getValue();
+            FireflyHelper.validatePropertyValue(value);
+
+            if (value != null)
+                typeHints.put(key, getSupportedType(value.getClass()));
+            else
+                typeHints.put(key, null);
+
+            // TODO: Handle property duplicates
+            if (properties.stream().filter(p -> p.getKey().equals(key)).count() > 1) {
+                typeHints.put(key, getSupportedType(List.class));
+                if (data.containsKey(key)) {
+                    ((List<Object>) (data.get(key))).add(value);
+                } else {
+                    List<Object> temp = new ArrayList<>();
+                    temp.add(value);
+                    data.put(key, temp);
+                }
+            }
+
+        });
+        final Bin labelBin = new Bin("label", Value.get(label));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(idToStorageType(inVertex.id())));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(idToStorageType(outVertex.id())));
+        final Bin valueBin = new Bin(EDGE_AERO_SET, Value.get(data));
+        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
+        FireflyRecord.writeElement(this, EDGE_AERO_SET, edgeId, labelBin, inVbin, outVBin, valueBin, typeHintBin);
     }
 
     private FireflyRecord getVertexRecord(FireflyVertex vertex) {
@@ -1574,9 +1689,10 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
-        if(dropIndices)
+        if (dropIndices)
             dropGraphIndices();
     }
+
     public void dropDatabase() {
         dropDatabase(false);
     }

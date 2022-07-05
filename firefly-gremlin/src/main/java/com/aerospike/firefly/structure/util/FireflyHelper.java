@@ -1,15 +1,10 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Key;
-import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 
@@ -43,6 +38,10 @@ public final class FireflyHelper {
         graph.getBaseGraph().writeVertex(graph, id, label);
     }
 
+    public static void writeFullyQualifiedVertex(FireflyGraph graph, FireflyId id, String label, List<Map.Entry<String, Object>> properties) {
+        graph.getBaseGraph().writeFullyQualifiedVertex(graph, id, label, properties);
+    }
+
     public static void removeVertex(FireflyGraph graph, FireflyId id) {
         graph.getBaseGraph().removeVertex(graph, id);
     }
@@ -50,17 +49,21 @@ public final class FireflyHelper {
 
     public static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
-        if (ElementHelper.getIdValue(keyValues).isPresent()) {
-            FireflyHelper.validateEdgeId(fid, graph.getBaseGraph());
+        if (ElementHelper.getIdValue(keyValues).isPresent() && graph.getBaseGraph().edgeExists(fid.toNumericId())) {
+            throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
         } else {
             while (graph.getBaseGraph().edgeExists(fid)) {
                 fid = FireflyId.createFromManager(graph, FireflyEdge.class);
             }
         }
-        graph.getBaseGraph().writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
-        FireflyEdge edge = new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
-        ElementHelper.attachProperties(edge, keyValues);
-        return edge;
+
+        // Write fully qualified edge.
+        final List<Map.Entry<String, Object>> properties =
+                graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
+        graph.getBaseGraph().writeFullyQualifiedEdge(graph, fid, label, outVertex, inVertex, properties);
+
+        // Return FireflyEdge.
+        return new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
     }
 
     public static void validateVertexId(final FireflyId idValue,

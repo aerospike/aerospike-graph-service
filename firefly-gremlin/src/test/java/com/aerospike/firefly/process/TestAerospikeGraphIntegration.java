@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -1071,5 +1072,15 @@ public class TestAerospikeGraphIntegration {
 
         assertEquals(0, listener2.edgePropertyChangedEventRecorded());
         assertEquals(0, listener1.edgePropertyChangedEventRecorded());
+    }
+
+    @Test
+    public void g_V_hasXname_gtXmX_andXcontainingXoXXX() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Traversal<Vertex, Vertex> traversal = g.V().has("name", P.gt("m").and(TextP.containing("o")));
+        this.printTraversalForm(traversal);
+        Assert.assertTrue(traversal.hasNext());
+        Assert.assertTrue(((Vertex)traversal.next()).value("name").equals("marko"));
+        Assert.assertFalse(traversal.hasNext());
     }
 }

@@ -267,7 +267,6 @@ public class TestAerospikeGraphIntegration {
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("n",3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
-//        List<Edge> thing = g.E().has("n", 3).toList();
         List<Vertex> twoSpots = g.V().has("spots", 2).toList();
         List<Vertex> slt = g.V().has("spots", P.lt(4)).toList();
         List<Vertex> sgt = g.V().has("spots", P.gt(1)).toList();

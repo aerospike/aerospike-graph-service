@@ -503,7 +503,7 @@ public class AerospikeConnection {
             if (Long.class.isAssignableFrom(value.getClass()))
                 stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (Long) value));
         } else {
-            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+            throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);

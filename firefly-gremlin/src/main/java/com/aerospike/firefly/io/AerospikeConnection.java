@@ -1393,7 +1393,7 @@ public class AerospikeConnection {
                                         final FireflyVertex outVertex,
                                         final FireflyVertex inVertex,
                                         final List<Map.Entry<String, Object>> properties) {
-        LOG.debug("Writing fully qualified edge {} [{}-({})->{}].", edgeId.value(), outVertex.id(), label, inVertex.id());
+        LOG.debug("Writing fully qualified edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
 
 
         addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
@@ -1411,7 +1411,6 @@ public class AerospikeConnection {
             else
                 typeHints.put(key, null);
 
-            // TODO: Handle property duplicates
             if (properties.stream().filter(p -> p.getKey().equals(key)).count() > 1) {
                 typeHints.put(key, getSupportedType(List.class));
                 if (data.containsKey(key)) {
@@ -1421,6 +1420,8 @@ public class AerospikeConnection {
                     temp.add(value);
                     data.put(key, temp);
                 }
+            } else {
+                data.put(key, value);
             }
 
         });

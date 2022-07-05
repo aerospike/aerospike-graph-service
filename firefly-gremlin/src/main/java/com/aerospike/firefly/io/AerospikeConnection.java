@@ -917,7 +917,7 @@ public class AerospikeConnection {
     }
 
     /**
-     * return a single VertexProperty associated with a Vertex and key.
+     * Return a single VertexProperty associated with a Vertex and key if vertex is in cache. Otherwise scan and return result.
      *
      * @param vertex parenet Vertex
      * @return Map of label to List of VertexProperty
@@ -941,9 +941,9 @@ public class AerospikeConnection {
                     }
             );
             return vpLabelList;
-
-        } else
+        } else {
             return readVertexPropertiesByScan(vertex);
+        }
     }
 
     /**
@@ -1148,7 +1148,7 @@ public class AerospikeConnection {
     }
 
     /**
-     * write a labeled Vertex record
+     * Write a fully qualified Vertex (includes label, id, and vertex properties).
      *
      * @param graph    handle to Graph instance
      * @param vertexId vertex id to write
@@ -1378,13 +1378,13 @@ public class AerospikeConnection {
     }
 
     /**
-     * TODO.
+     * Write a fully qualified edge including caching in IN/OUT vertices and edge properties.
      *
      * @param graph      handle to Graph
      * @param edgeId     Id of Edge to write
      * @param label      label for Edge to write
-     * @param inVertex   in Vertex for new Edge
      * @param outVertex  out Vertex for new Edge
+     * @param inVertex   in Vertex for new Edge
      * @param properties Edge properties
      */
     public void writeFullyQualifiedEdge(final FireflyGraph graph,
@@ -1394,8 +1394,7 @@ public class AerospikeConnection {
                                         final FireflyVertex inVertex,
                                         final List<Map.Entry<String, Object>> properties) {
         LOG.debug("Writing fully qualified edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
-
-
+        
         addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
         addEdgeToVertex(inVertex, edgeId, label, Direction.IN);
 

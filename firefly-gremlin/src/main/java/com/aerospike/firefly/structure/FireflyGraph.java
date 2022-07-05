@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.structure.util.FireflyHelper.validateVertexId;
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeFullyQualifiedVertex;
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
@@ -167,8 +168,16 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
 
-        if (ElementHelper.getIdValue(keyValues).isPresent() && db.vertexExists(idValue)) {
-            throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
+        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            try {
+                NumericIdManager.convert(idValue.value());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+            if (db.vertexExists(idValue)) {
+                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
+            }
         } else {
             while (db.vertexExists(idValue)) {
                 idValue = FireflyId.createFromManager(this, FireflyVertex.class);

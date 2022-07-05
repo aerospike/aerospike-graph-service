@@ -49,8 +49,16 @@ public final class FireflyHelper {
 
     public static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
-        if (ElementHelper.getIdValue(keyValues).isPresent() && graph.getBaseGraph().edgeExists(fid.toNumericId())) {
-            throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
+        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            try {
+                NumericIdManager.convert(fid.value());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+            if (graph.getBaseGraph().edgeExists(fid)) {
+                throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
+            }
         } else {
             while (graph.getBaseGraph().edgeExists(fid)) {
                 fid = FireflyId.createFromManager(graph, FireflyEdge.class);

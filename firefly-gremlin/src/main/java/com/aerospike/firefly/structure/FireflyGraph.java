@@ -197,12 +197,22 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public List<Map.Entry<String, Object>> convertFullyQualified(final boolean supportNullProperties, final Object... propertyKeyValues) {
-        final List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        List<Map.Entry<String, Object>> properties = new ArrayList<>();
         for (int i = 0; i < propertyKeyValues.length; i += 2) {
+            // Skip label and user supplied id key/value pairs.
+            // Also, if we do not support null and it is null, skip as well. We don't need to explicitly remove
+            // null properties here since we are doing a fully qualified write and will overwrite regardless.
             if (propertyKeyValues[i].equals(T.id) || propertyKeyValues[i].equals(T.label) || (!supportNullProperties && propertyKeyValues[i + 1] == null)) {
                 continue;
             }
-            properties.add(new AbstractMap.SimpleEntry<>((String) propertyKeyValues[i], propertyKeyValues[i + 1]));
+            final String key = (String) propertyKeyValues[i];
+            final Object value = propertyKeyValues[i + 1];
+
+            // If cardinality is single we must only retain the final item.
+            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
+                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
+            }
+            properties.add(new AbstractMap.SimpleEntry<>(key, value));
         }
         return properties;
     }

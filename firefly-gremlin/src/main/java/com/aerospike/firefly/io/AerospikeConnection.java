@@ -614,7 +614,7 @@ public class AerospikeConnection {
      * @return Iterator of Map.Entry Key, Record
      */
     protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
-        LOG.trace("Issuing scan query of all records in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
+        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", namespace, setName, Arrays.toString(binNames), exp);
         final Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;

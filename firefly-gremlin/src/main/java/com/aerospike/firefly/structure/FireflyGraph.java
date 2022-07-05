@@ -208,6 +208,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             final String key = (String) propertyKeyValues[i];
             final Object value = propertyKeyValues[i + 1];
 
+            // Key cannot be empty, must be non-empty String.
+            if (key.isEmpty()) {
+                throw Element.Exceptions.providedKeyValuesMustHaveALegalKeyOnEvenIndices();
+            }
+
             // If cardinality is single we must only retain the final item.
             if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
                 properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());

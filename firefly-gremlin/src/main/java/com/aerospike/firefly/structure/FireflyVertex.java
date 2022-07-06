@@ -4,6 +4,7 @@ import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.google.common.collect.ImmutableMap;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -27,7 +28,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return this.graph.getBaseGraph().readVertexProperties(this);
     }
 
-    private Map<String, List<VertexProperty>> readVertexProperty(String key) {
+    private List<VertexProperty> readVertexProperty(String key) {
         return this.graph.getBaseGraph().readVertexProperty(this, key);
     }
 
@@ -162,7 +163,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     @Override
     public <V> Iterator<VertexProperty<V>> properties(String... propertyKeys) {
         Map<String, List<VertexProperty>> propertiesMap = (propertyKeys.length == 1) ?
-                readVertexProperty(propertyKeys[0]) : readVertexProperties();
+                ImmutableMap.of(propertyKeys[0], readVertexProperty(propertyKeys[0])) : readVertexProperties();
         if (propertiesMap.isEmpty()) {
             return Collections.emptyIterator();
         } else if (propertyKeys.length == 1) {

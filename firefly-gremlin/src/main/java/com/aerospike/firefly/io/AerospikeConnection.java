@@ -919,30 +919,38 @@ public class AerospikeConnection {
     /**
      * Return a single VertexProperty associated with a Vertex and key if vertex is in cache. Otherwise scan and return result.
      *
-     * @param vertex parenet Vertex
-     * @return Map of label to List of VertexProperty
+     * @param vertex parent Vertex
+     * @return List of VertexProperty for provided key
      */
-    public Map<String, List<VertexProperty>> readVertexProperty(final FireflyVertex vertex, final String key) {
-        FireflyRecord r = getVertexRecord(vertex);
+    public List<VertexProperty> readVertexProperty(final FireflyVertex vertex, final String key) {
+        final FireflyRecord r = getVertexRecord(vertex);
         if (r == null) {
-            return new HashMap<>();
+            return new ArrayList<>();
         }
-        long vp_count = r.record.getLong(VP_COUNTER);
-        if (vp_count < ID_CACHE_SIZE) {
-            final Map<String, List<Long>> idMap = getXXXIdsFromVertexLabelMap(vertex, VERTEX_PROPERTY_NAME_TO_ID);
-            final Map<String, List<VertexProperty>> vpLabelList = new HashMap<>();
-            Optional<Map.Entry<String, List<Long>>> valid = idMap.entrySet().stream().filter(e -> e.getKey().equals(key)).findFirst();
-            valid.ifPresent(e -> {
-                        String label = e.getKey();
-                        List<Long> idList = e.getValue();
-                        List<VertexProperty> vpList = new ArrayList<>();
-                        idList.forEach(id -> vpList.add(readVertexProperty(vertex, FireflyId.of(FireflyVertexProperty.class, id))));
-                        vpLabelList.put(label, vpList);
-                    }
-            );
-            return vpLabelList;
+
+        if (r.record.getLong(VP_COUNTER) < ID_CACHE_SIZE) {
+            final Map<String, List<Long>> idMap = (Map<String, List<Long>>) r.record.getMap(VERTEX_PROPERTY_NAME_TO_ID);
+            if (idMap == null) {
+                return new ArrayList<>();
+            }
+
+            final List<Long> vp = idMap.getOrDefault(key, null);
+            if (vp == null) {
+                return new ArrayList<>();
+            }
+
+            final List<VertexProperty> vpList = new ArrayList<>();
+            for (Long id: vp) {
+                FireflyId fireflyId = FireflyId.of(FireflyVertexProperty.class, id);
+                final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(readTypeHintedKeyValueFromMap(VERTEX_PROPERTY_AERO_SET, fireflyId, KEY_VALUE));
+                if (kv.isEmpty())
+                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex, null, null));
+                else
+                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex, kv.get().getKey(), kv.get().getValue()));
+            }
+            return vpList;
         } else {
-            return readVertexPropertiesByScan(vertex);
+            return readVertexPropertiesByScan(vertex).get(key);
         }
     }
 

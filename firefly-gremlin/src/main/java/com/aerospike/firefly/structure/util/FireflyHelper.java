@@ -40,6 +40,10 @@ public final class FireflyHelper {
         graph.getBaseGraph().writeVertex(graph, id, label);
     }
 
+    public static void writeFullyQualifiedVertex(FireflyGraph graph, FireflyId id, String label, List<Map.Entry<String, Object>> properties) {
+        graph.getBaseGraph().writeFullyQualifiedVertex(graph, id, label, properties);
+    }
+
     public static void removeVertex(FireflyGraph graph, FireflyId id) {
         graph.getBaseGraph().removeVertex(graph, id);
     }
@@ -48,16 +52,28 @@ public final class FireflyHelper {
     public static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
         if (ElementHelper.getIdValue(keyValues).isPresent()) {
-            FireflyHelper.validateEdgeId(fid, graph.getBaseGraph());
+            try {
+                NumericIdManager.convert(fid.value());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+            if (graph.getBaseGraph().edgeExists(fid)) {
+                throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
+            }
         } else {
             while (graph.getBaseGraph().edgeExists(fid)) {
                 fid = FireflyId.createFromManager(graph, FireflyEdge.class);
             }
         }
-        graph.getBaseGraph().writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
-        FireflyEdge edge = new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
-        ElementHelper.attachProperties(edge, keyValues);
-        return edge;
+
+        // Write fully qualified edge.
+        final List<Map.Entry<String, Object>> properties =
+                graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
+        graph.getBaseGraph().writeFullyQualifiedEdge(graph, fid, label, outVertex, inVertex, properties);
+
+        // Return FireflyEdge.
+        return new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
     }
 
     public static void validateVertexId(final FireflyId idValue,

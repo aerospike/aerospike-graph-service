@@ -31,7 +31,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
 
         // Adjust here to test transition from caches to scans
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE,"100000");
+        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "100000");
     }
 
     protected IdManager selectIdMakerFromTest(final Class<?> test, final String testMethodName) {
@@ -111,18 +111,26 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
 
 
     @Override
-    public Map<String, Object> getBaseConfiguration(String graphName, Class<?> test, String testMethodName, LoadGraphWith.GraphData loadGraphWith) {
-        HashMap<String, Object> configMap = new HashMap<String, Object>();
-        config.getKeys().forEachRemaining(key -> {
-            configMap.put(key, config.get(Object.class, key));
-        });
+    public Map<String, Object> getBaseConfiguration(final String graphName,
+                                                    final Class<?> test,
+                                                    final String testMethodName,
+                                                    final LoadGraphWith.GraphData loadGraphWith) {
+        // Load config map with base config
+        final HashMap<String, Object> configMap = new HashMap<>();
+        config.getKeys().forEachRemaining(key -> configMap.put(key, config.get(Object.class, key)));
+
+        // Add GRAPH_ID:graphName and GRAPH:FireflyGraph.
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, graphName);
         configMap.put(Graph.GRAPH, FireflyGraph.class.getName());
         return configMap;
     }
 
     @Override
-    public void clear(Graph graph, Configuration configuration) {
-        AerospikeConnection db = AerospikeConnection.connect(config);
+    public void clear(final Graph graph, final Configuration configuration) {
+        // Connect to db using configuration
+        final AerospikeConnection db = AerospikeConnection.connect(configuration);
+
+        // Drop database and close database. Do not drop indices.
         db.dropDatabase(false);
         db.close();
 

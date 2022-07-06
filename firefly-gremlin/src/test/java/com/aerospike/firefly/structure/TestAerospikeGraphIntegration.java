@@ -533,7 +533,11 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void airRoutesTest() throws IOException {
+        long start = System.currentTimeMillis();
         IOUtil.loadGraphmlFromData(graph, "air-routes-small.graphml");
+        long finish = System.currentTimeMillis();
+        long delta = finish - start;
+        System.out.printf("Air Routes Small Load: %d milliseconds elapsed%n", delta);
         GraphTraversalSource g = graph.traversal();
         Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
         Map<Object, Object> stuff = g.V().hasLabel("airport").

@@ -4,12 +4,14 @@ import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.google.common.collect.ImmutableMap;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.structure.util.FireflyHelper.removeVertex;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
@@ -24,6 +26,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
         return this.graph.getBaseGraph().readVertexProperties(this);
+    }
+
+    private List<VertexProperty> readVertexProperty(String key) {
+        return this.graph.getBaseGraph().readVertexProperty(this, key);
     }
 
 
@@ -41,6 +47,20 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
 
+    /**
+     * Create a new vertex property. If the cardinality is {@link VertexProperty.Cardinality#single}, then set the key
+     * to the value. If the cardinality is {@link VertexProperty.Cardinality#list}, then add a new value to the key.
+     * If the cardinality is {@link VertexProperty.Cardinality#set}, then only add a new value if that value doesn't
+     * already exist for the key. If the value already exists for the key, add the provided key value vertex property
+     * properties to it.
+     *
+     * @param cardinality the desired cardinality of the property key
+     * @param key         the key of the vertex property
+     * @param value       The value of the vertex property
+     * @param keyValues   the key/value pairs to turn into vertex property properties
+     * @param <V>         the type of the value of the vertex property
+     * @return the newly created vertex property
+     */
     @Override
     public <V> VertexProperty<V> property(VertexProperty.Cardinality cardinality, String key, V value, Object... keyValues) {
         if (this.removed) throw elementAlreadyRemoved(Vertex.class, this.id);
@@ -49,12 +69,22 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if(ElementHelper.getIdValue(keyValues).isPresent())
             if (!graph.features().vertex().properties().supportsUserSuppliedIds())
                 throw VertexProperty.Exceptions.userSuppliedIdsNotSupported();
+
+        // If single cardinality, we are setting key to value.
+        if (graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)
+                || VertexProperty.Cardinality.single.equals(cardinality)) {
+            // If we do not support null and the value is null, we should simply remove the value.
+            if (!allowNullPropertyValues && null == value) {
+                properties(key).forEachRemaining(Property::remove);
+            }
+        }
         // if we don't allow null property values and the value is null then the key can be removed but only if the
         // cardinality is single. if it is list/set then we can just ignore the null.
         final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-        if (VertexProperty.Cardinality.single == card || graph.features().vertex().getCardinality(key) == VertexProperty.Cardinality.single)
-            properties(key).forEachRemaining(it -> it.remove());
         if (!allowNullPropertyValues && null == value) {
+            if (VertexProperty.Cardinality.single == card || graph.features().vertex().getCardinality(key) == VertexProperty.Cardinality.single) {
+                properties(key).forEachRemaining(Property::remove);
+            }
             return VertexProperty.empty();
         }
 
@@ -132,21 +162,33 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public <V> Iterator<VertexProperty<V>> properties(String... propertyKeys) {
-        //@todo performance
-        Map<String, List<VertexProperty>> allProperties = this.readVertexProperties();
-        if (propertyKeys.length == 1) {
-            final List<VertexProperty> properties = allProperties.getOrDefault(propertyKeys[0], Collections.emptyList());
+        // Null property key is not valid and also can cause null key exception in the map.
+        Map<String, List<VertexProperty>> propertiesMap;
+        if (propertyKeys.length == 1 && propertyKeys[0] == null) {
+            propertiesMap = new HashMap<>();
+        } else {
+            propertiesMap = (propertyKeys.length == 1) ?
+                    ImmutableMap.of(propertyKeys[0], readVertexProperty(propertyKeys[0])) : readVertexProperties();
+        }
+        if (propertiesMap.isEmpty()) {
+            return Collections.emptyIterator();
+        } else if (propertyKeys.length == 1) {
+            final List<VertexProperty> properties = propertiesMap.getOrDefault(propertyKeys[0], Collections.emptyList());
             if (properties.size() == 1) {
                 return IteratorUtils.of(properties.get(0));
-            } else if (properties.isEmpty()) {
-                return Collections.emptyIterator();
             } else {
                 return (Iterator) new ArrayList<>(properties).iterator();
             }
         } else {
-            return IteratorUtils.flatMap(IteratorUtils.filter(IteratorUtils.asIterator(allProperties.entrySet()),
-                            entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
-                    entry -> IteratorUtils.asIterator(((AbstractMap.Entry) entry).getValue()));
+            return (Iterator) propertiesMap.entrySet().stream().
+                    // Filter for keys that exist.
+                    filter(e -> ElementHelper.keyExists(e.getKey(), propertyKeys)).
+                    // Map from {String:List<List>} to List<List>.
+                    map((Map.Entry::getValue)).
+                    // Flatten List<List> to List.
+                    flatMap(List::stream).
+                    // Convert to iterator.
+                    collect(Collectors.toList()).iterator();
         }
     }
 

@@ -18,7 +18,6 @@ import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -250,8 +249,70 @@ public class TestAerospikeGraphIntegration {
             fail();
         }
     }
+
+
     @Test
-    public void testWrite2VertexWithEdgeThenRemoveNumeric() {
+    public void testEdgeNumericIndexLong() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon")
+                .property("color", "yellow")
+                .property("type", "plant")
+                .next();
+        Vertex lime = g.addV("lime")
+                .property("color", "green")
+                .property("type", "plant")
+                .next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("n",3L).iterate();
+        Vertex s1 = g.V().has("type", "taxonomy").next();
+        List<Edge> nEdge = g.E().has("n", 3L).toList();
+        assertEquals(2,nEdge.size());
+        List<Edge> ltnEdge = g.E().has("n",  P.lt(4L)).toList();
+        assertEquals(2,ltnEdge.size());
+        List<Edge> gtnEdge = g.E().has("n",  P.gt(1L)).toList();
+        assertEquals(2,gtnEdge.size());
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+        g.V(s1.id()).outE().drop().iterate();
+        if (g.V(fruit.id()).outE().count().next() > 0) {
+            Edge a = g.V(fruit.id()).outE().next();
+            fail();
+        }
+    }
+
+
+    @Test
+    public void testVertexNumericIndexLong() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon")
+                .property("color", "yellow")
+                .property("type", "plant")
+                .property("spots",3L).next();
+        Vertex lime = g.addV("lime")
+                .property("color", "green")
+                .property("type", "plant")
+                .property("spots",2L).next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("n",3).iterate();
+        Vertex s1 = g.V().has("type", "taxonomy").next();
+        List<Vertex> twoSpots = g.V().has("spots", 2L).toList();
+        List<Vertex> slt = g.V().has("spots", P.lt(4L)).toList();
+        List<Vertex> sgt = g.V().has("spots", P.gt(1L)).toList();
+        List<Vertex> s2 = g.V().has("type", "plant").next(2);
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+        g.V(s1.id()).outE().drop().iterate();
+        if (g.V(fruit.id()).outE().count().next() > 0) {
+            Edge a = g.V(fruit.id()).outE().next();
+            fail();
+        }
+    }
+    @Test
+    public void testVertexNumericIndexInteger() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
@@ -268,8 +329,11 @@ public class TestAerospikeGraphIntegration {
                 .addE("IsA").from("b").to("a").property("n",3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2).toList();
+        assertEquals(1,twoSpots.size());
         List<Vertex> slt = g.V().has("spots", P.lt(4)).toList();
+        assertEquals(2,slt.size());
         List<Vertex> sgt = g.V().has("spots", P.gt(1)).toList();
+        assertEquals(2,sgt.size());
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
@@ -278,6 +342,40 @@ public class TestAerospikeGraphIntegration {
             fail();
         }
     }
+
+    @Test
+    public void testNumericIndexDouble() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon")
+                .property("color", "yellow")
+                .property("type", "plant")
+                .property("spots",3.14d).next();
+        Vertex lime = g.addV("lime")
+                .property("color", "green")
+                .property("type", "plant")
+                .property("spots",2.33d).next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("n",3).iterate();
+        Vertex s1 = g.V().has("type", "taxonomy").next();
+        List<Vertex> twoSpots = g.V().has("spots", 2.33d).toList();
+        assertEquals(1,twoSpots.size());
+        List<Vertex> slt = g.V().has("spots", P.lt(4d)).toList();
+        assertEquals(2,slt.size());
+        List<Vertex> sgt = g.V().has("spots", P.gt(1d)).toList();
+        assertEquals(2,sgt.size());
+        List<Vertex> s2 = g.V().has("type", "plant").next(2);
+        assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+        g.V(s1.id()).outE().drop().iterate();
+        if (g.V(fruit.id()).outE().count().next() > 0) {
+            Edge a = g.V(fruit.id()).outE().next();
+            fail();
+        }
+    }
+
+
     @Test
     public void testReadWriteRemoveEdgeProperty() {
         GraphTraversalSource g = graph.traversal();

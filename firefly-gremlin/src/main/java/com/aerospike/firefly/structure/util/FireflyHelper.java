@@ -105,6 +105,7 @@ public final class FireflyHelper {
     }
 
 
+
     public interface ExistsFunction {
         boolean exists(final FireflyId idValue);
     }
@@ -214,9 +215,19 @@ public final class FireflyHelper {
     }
 
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.getBaseGraph().queryEdgePropertyStringIndex(graph, key, value);
+        return graph.getBaseGraph().queryEdgePropertyStringMatchIndex(graph, key, value);
     }
 
+    public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
+        if(predicate.getBiPredicate().equals(Compare.eq))
+            return graph.getBaseGraph().queryEdgePropertyNumberMatchIndex(graph, key, predicate);
+        else if (predicate.getBiPredicate().equals(Compare.lt))
+            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+        else if(predicate.getBiPredicate().equals(Compare.gt))
+            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+        else
+            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
+    }
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
     }

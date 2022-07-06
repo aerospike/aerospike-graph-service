@@ -252,6 +252,7 @@ public class AerospikeConnection {
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
                 getElementPropertySet(FireflyVertexProperty.class) + NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
         createIndex(getElementPropertySet(FireflyEdge.class),
                 getElementPropertySet(FireflyEdge.class) + STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
@@ -441,7 +442,7 @@ public class AerospikeConnection {
      * @param value Property Value being searched for
      * @return an Iterator of Edges
      */
-    public Iterator<FireflyEdge> queryEdgePropertyStringIndex(FireflyGraph graph, String key, Object value) {
+    public Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(FireflyGraph graph, String key, Object value) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(EDGE_AERO_SET);
@@ -460,6 +461,59 @@ public class AerospikeConnection {
                         kr.record)).filter(edge -> edge.property(key).value().equals(value))
                 .iterator();
     }
+
+    public Iterator<FireflyEdge> queryEdgePropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
+        Object value = predicate.getValue();
+        final Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(EDGE_AERO_SET);
+        stmt.setIndexName(NUMERIC_E_KV_INDEX);
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            if (Integer.class.isAssignableFrom(value.getClass()))
+                stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (Long.valueOf((Integer) value))));
+            else if (Long.class.isAssignableFrom(value.getClass()))
+                stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (Long) value));
+            else
+                throw new RuntimeException(String.format("%s not a supported numeric match type", value.getClass()));
+        } else {
+            throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
+        }
+        final QueryPolicy p = new QueryPolicy();
+        final RecordSet rs = client.query(p, stmt);
+        final AerospikeConnection db = this;
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                        rs.iterator(),
+                        Spliterator.ORDERED), false)
+                .map(kr -> edgeFromRecord(graph, kr.key, kr.record))
+                .filter(edge -> edge.properties(key).hasNext()).iterator();
+    }
+
+    public Iterator<FireflyEdge> queryEdgePropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
+
+        final Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(EDGE_AERO_SET);
+        stmt.setIndexName(NUMERIC_E_KV_INDEX);
+        if (Number.class.isAssignableFrom(predicate.getValue().getClass())) {
+            final long val = Long.class.isAssignableFrom(predicate.getValue().getClass()) ?
+                    (long) predicate.getValue() : Long.valueOf((Integer) predicate.getValue());
+            if (predicate.getBiPredicate().equals(Compare.lt))
+                stmt.setFilter(Filter.range(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, Long.MIN_VALUE, val));
+            else if (predicate.getBiPredicate().equals(Compare.gt))
+                stmt.setFilter(Filter.range(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, val, Long.MAX_VALUE));
+        } else {
+            throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
+        }
+        final QueryPolicy p = new QueryPolicy();
+        final RecordSet rs = client.query(p, stmt);
+        final AerospikeConnection db = this;
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
+                        rs.iterator(),
+                        Spliterator.ORDERED), false)
+                .map(kr -> edgeFromRecord(graph, kr.key, kr.record))
+                .filter(edge -> edge.properties(key).hasNext()).iterator();
+    }
+
 
     /**
      * Lookup VertexProperties with a particular Value by index
@@ -482,6 +536,7 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
+        //@todo can be optimized
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         rs.iterator(),
                         Spliterator.ORDERED), false)
@@ -491,7 +546,7 @@ public class AerospikeConnection {
                 .filter(vp -> vp.key().equals(key)).iterator();
     }
 
-    public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(FireflyGraph graph, String key,  P<?> predicate) {
+    public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
         Object value = predicate.getValue();
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
@@ -500,14 +555,18 @@ public class AerospikeConnection {
         if (Number.class.isAssignableFrom(value.getClass())) {
             if (Integer.class.isAssignableFrom(value.getClass()))
                 stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (Long.valueOf((Integer) value))));
-            if (Long.class.isAssignableFrom(value.getClass()))
+            else if (Long.class.isAssignableFrom(value.getClass()))
                 stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (Long) value));
+            else
+                throw new RuntimeException(String.format("%s not a supported numeric match type", value.getClass()));
         } else {
             throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
+
+        //@todo can be optimized
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         rs.iterator(),
                         Spliterator.ORDERED), false)
@@ -536,6 +595,7 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
+        //@todo can be optimized
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         rs.iterator(),
                         Spliterator.ORDERED), false)

@@ -16,6 +16,7 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
+import java.util.function.BiPredicate;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -47,9 +48,12 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         else {
             if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
                 iterator = this.iteratorList(graph.edges());
-            else
+            else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
                 iterator = this.iteratorList(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-
+            else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
+                iterator = this.iteratorList(FireflyHelper.queryEdgeNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+            else
+                iterator = Collections.emptyIterator();
         }
         iterators.add(iterator);
         return iterator;
@@ -63,38 +67,44 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
             iterator = this.iteratorList(graph.vertices(this.ids));
-        else {
-            if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
-                iterator = this.iteratorList(graph.vertices());
-            else
-                iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-        }
+        else if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
+            iterator = this.iteratorList(graph.vertices());
+        else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
+            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+        else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
+            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+        else
+            iterator = Collections.emptyIterator();
 
         iterators.add(iterator);
         return iterator;
     }
 
     private HasContainer getIndexKey(final Class<? extends FireflyElement> indexedClass) {
+        final ArrayList<BiPredicate> supportedNumericPredicates = new ArrayList<BiPredicate>() {{
+            add(Compare.eq);
+            add(Compare.lt);
+            add(Compare.gt);
+        }};
+        final ArrayList<BiPredicate> supportedStringPredicates = new ArrayList<BiPredicate>() {{
+            add(Compare.eq);
+        }};
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
-            // we have an index over vertex properties
-            if (indexedClass.isAssignableFrom(FireflyVertex.class)) {
-                // we only support direct string comparison
-                if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
+            // we indices for String exact match and Numeric {match,lt,gt} over vertex properties and edge properties
+            if (indexedClass.isAssignableFrom(FireflyVertex.class) || indexedClass.isAssignableFrom(FireflyEdge.class)) {
+                if (hasContainer == null || hasContainer.getValue() == null)
                     return false;
-                else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
-                    return true;
-            } else if (indexedClass.isAssignableFrom(FireflyEdge.class)) {
-                // we only support direct string comparison
-                if (hasContainer == null || hasContainer.getValue() == null || !hasContainer.getBiPredicate().equals(Compare.eq))
-                    return false;
-                else if (hasContainer.getValue().getClass().isAssignableFrom(String.class))
-                    return true;
+                if (Long.class.isAssignableFrom(hasContainer.getValue().getClass()) || Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
+                    if (supportedNumericPredicates.contains(hasContainer.getBiPredicate()))
+                        return true;
+                if (String.class.isAssignableFrom(hasContainer.getValue().getClass()))
+                    if (supportedStringPredicates.contains(hasContainer.getBiPredicate()))
+                        return true;
             }
             return false; //nothing else
         });
         HasContainer result = itty.hasNext() ? itty.next() : null;
         return result;
-
     }
 
     @Override

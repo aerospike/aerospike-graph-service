@@ -162,8 +162,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public <V> Iterator<VertexProperty<V>> properties(String... propertyKeys) {
-        Map<String, List<VertexProperty>> propertiesMap = (propertyKeys.length == 1) ?
-                ImmutableMap.of(propertyKeys[0], readVertexProperty(propertyKeys[0])) : readVertexProperties();
+        // Null property key is not valid and also can cause null key exception in the map.
+        Map<String, List<VertexProperty>> propertiesMap;
+        if (propertyKeys.length == 1 && propertyKeys[0] == null) {
+            propertiesMap = new HashMap<>();
+        } else {
+            propertiesMap = (propertyKeys.length == 1) ?
+                    ImmutableMap.of(propertyKeys[0], readVertexProperty(propertyKeys[0])) : readVertexProperties();
+        }
         if (propertiesMap.isEmpty()) {
             return Collections.emptyIterator();
         } else if (propertyKeys.length == 1) {

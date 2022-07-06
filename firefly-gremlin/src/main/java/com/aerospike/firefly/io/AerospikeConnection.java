@@ -454,12 +454,8 @@ public class AerospikeConnection {
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr -> (FireflyEdge) edgeFromRecord(graph, kr.key,
-                        kr.record)).filter(edge -> edge.property(key).value().equals(value))
-                .iterator();
+        Iterator<FireflyEdge> edges = IteratorUtils.map(rs.iterator(), kr -> edgeFromRecord(graph, kr.key, kr.record));
+        return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
     }
 
     public Iterator<FireflyEdge> queryEdgePropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
@@ -481,15 +477,11 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr -> edgeFromRecord(graph, kr.key, kr.record))
-                .filter(edge -> edge.properties(key).hasNext()).iterator();
+        Iterator<FireflyEdge> edges = IteratorUtils.map(rs.iterator(), kr -> edgeFromRecord(graph, kr.key, kr.record));
+        return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
     public Iterator<FireflyEdge> queryEdgePropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
-
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(EDGE_AERO_SET);
@@ -507,11 +499,8 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr -> edgeFromRecord(graph, kr.key, kr.record))
-                .filter(edge -> edge.properties(key).hasNext()).iterator();
+        Iterator<FireflyEdge> edges = IteratorUtils.map(rs.iterator(), kr -> edgeFromRecord(graph, kr.key, kr.record));
+        return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
 
@@ -536,14 +525,10 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
-        //@todo can be optimized
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr ->
-                        (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
-                                readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
-                .filter(vp -> vp.key().equals(key)).iterator();
+        Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rs.iterator(), kr ->
+                vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                        FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
+        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
 
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
@@ -566,14 +551,10 @@ public class AerospikeConnection {
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
 
-        //@todo can be optimized
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr ->
-                        (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
-                                readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
-                .filter(vp -> vp.key().equals(key)).iterator();
+        Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rs.iterator(), kr ->
+                vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                        FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
+        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
 
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
@@ -595,14 +576,10 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
         final AerospikeConnection db = this;
-        //@todo can be optimized
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                        rs.iterator(),
-                        Spliterator.ORDERED), false)
-                .map(kr ->
-                        (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
-                                readVertex(graph, FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID)))))
-                .filter(vp -> vp.key().equals(key)).iterator();
+        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rs.iterator(), kr ->
+                (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                        FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
+        return IteratorUtils.filter(vps,vp -> vp.key().equals(key));
     }
 
 
@@ -974,25 +951,25 @@ public class AerospikeConnection {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, VERTEX_PROPERTY_AERO_SET, vpId);
         if (fireflyRecord == null)
             throw new NoSuchElementException();
-        return vertexPropertyFromRecord((FireflyGraph) parent.graph(), fireflyRecord, parent);
+        return vertexPropertyFromRecord((FireflyGraph) parent.graph(), fireflyRecord, parent.id);
     }
 
     /**
      * Construct a VertexProperty object from a record
      *
      * @param fireflyRecord FireflyRecord with VertexProperty data
-     * @param parent        parent Vertex
+     * @param parentId      parent Vertex Id
      * @param <V>           type
      * @return FireflyVertexProperty
      */
-    public <V> FireflyVertexProperty<V> vertexPropertyFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord, final FireflyVertex parent) {
+    public <V> FireflyVertexProperty<V> vertexPropertyFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord, final FireflyId parentId) {
         FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(readTypeHintedKeyValueFromMap(VERTEX_PROPERTY_AERO_SET, fid, KEY_VALUE));
         if (kv.isEmpty())
-            return new FireflyVertexProperty<V>(graph, fid, parent, null, null);
+            return new FireflyVertexProperty<V>(graph, fid, parentId, null, null);
         final String vpKey = kv.get().getKey();
         final Object vpVal = kv.get().getValue();
-        return new FireflyVertexProperty<V>(graph, fid, parent, vpKey, (V) vpVal);
+        return new FireflyVertexProperty<V>(graph, fid, parentId, vpKey, (V) vpVal);
     }
 
     /**
@@ -1017,7 +994,7 @@ public class AerospikeConnection {
         //for every vp id associated with vertex
         records.forEachRemaining(entry -> {
             //load the vp
-            final VertexProperty<Object> vp = vertexPropertyFromRecord((FireflyGraph) vertex.graph(), FireflyRecord.fromRecord(this, entry.getKey(), entry.getValue()), vertex);
+            final VertexProperty<Object> vp = vertexPropertyFromRecord((FireflyGraph) vertex.graph(), FireflyRecord.fromRecord(this, entry.getKey(), entry.getValue()), vertex.id);
             //if there is a list for its key, get it, else, create it
             final List<VertexProperty> list = results.getOrDefault(vp.key(), new ArrayList<>());
             //add the vp to the list named for its key
@@ -1052,13 +1029,13 @@ public class AerospikeConnection {
             }
 
             final List<VertexProperty> vpList = new ArrayList<>();
-            for (Long id: vp) {
+            for (Long id : vp) {
                 FireflyId fireflyId = FireflyId.of(FireflyVertexProperty.class, id);
                 final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(readTypeHintedKeyValueFromMap(VERTEX_PROPERTY_AERO_SET, fireflyId, KEY_VALUE));
                 if (kv.isEmpty())
-                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex, null, null));
+                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex.id, null, null));
                 else
-                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex, kv.get().getKey(), kv.get().getValue()));
+                    vpList.add(new FireflyVertexProperty((FireflyGraph) vertex.graph(), fireflyId, vertex.id, kv.get().getKey(), kv.get().getValue()));
             }
             return vpList;
         } else {
@@ -1512,7 +1489,7 @@ public class AerospikeConnection {
                                         final FireflyVertex inVertex,
                                         final List<Map.Entry<String, Object>> properties) {
         LOG.debug("Writing fully qualified edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
-        
+
         addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
         addEdgeToVertex(inVertex, edgeId, label, Direction.IN);
 

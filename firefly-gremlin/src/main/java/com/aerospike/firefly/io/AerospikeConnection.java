@@ -450,7 +450,7 @@ public class AerospikeConnection {
         if (String.class.isAssignableFrom(value.getClass())) {
             stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
         } else {
-            throw new RuntimeException(String.format("{} not a string", value.getClass()));
+            throw new RuntimeException(String.format("%s not a string", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
@@ -520,7 +520,7 @@ public class AerospikeConnection {
         if (String.class.isAssignableFrom(value.getClass())) {
             stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         } else {
-            throw new RuntimeException(String.format("{} not a string", value.getClass()));
+            throw new RuntimeException(String.format("%s not a string", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);

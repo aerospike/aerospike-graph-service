@@ -81,12 +81,16 @@ public class TestAirRoutes50k {
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = System.currentTimeMillis();
         long delta = finish - start;
-        System.out.println(String.format("%d milliseconds elapsed", delta));
+        System.out.println(String.format("Air Routes 50k Load Test: %d milliseconds elapsed", delta));
     }
 
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {
+        long start = System.currentTimeMillis();
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
+        long finish = System.currentTimeMillis();
+        long delta = finish - start;
+        System.out.println(String.format("Air Routes 50k Latency Load time: %d milliseconds elapsed", delta));
         PerfUtil.Results results = PerfUtil.runTestBatch(200, () -> {
             List<List<Object>> data = g.withSack(0).
                     V().has("code", "SAF").
@@ -96,6 +100,7 @@ public class TestAirRoutes50k {
                             sack()).fold()).
                     local(unfold().unfold().fold()).toList();
         });
+        System.out.println("Air routes 50k Query Latency:");
         System.out.println(results);
     }
 }

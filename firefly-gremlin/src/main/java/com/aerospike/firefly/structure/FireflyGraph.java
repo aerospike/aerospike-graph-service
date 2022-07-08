@@ -18,14 +18,21 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.structure.util.FireflyHelper.validateVertexId;
+import static com.aerospike.firefly.structure.util.FireflyHelper.writeFullyQualifiedVertex;
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
 
@@ -84,6 +91,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 
 
 public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
     private final AerospikeConnection db;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -159,8 +167,17 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+
         if (ElementHelper.getIdValue(keyValues).isPresent()) {
-            FireflyHelper.validateVertexId(idValue, db);
+            try {
+                NumericIdManager.convert(idValue.value());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+            if (db.vertexExists(idValue)) {
+                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
+            }
         } else {
             while (db.vertexExists(idValue)) {
                 idValue = FireflyId.createFromManager(this, FireflyVertex.class);
@@ -170,13 +187,39 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Get label from key value pairs.
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
-        // Write vertex with label and id.
-        writeVertex(this, idValue, label);
-        final Vertex vertex = new FireflyVertex(idValue, label, this);
+        // Write fully qualified Vertex.
+        final List<Map.Entry<String, Object>> properties =
+                convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
+        writeFullyQualifiedVertex(this, idValue, label, properties);
 
-        // Attach properties to vertex.
-        ElementHelper.attachProperties(vertex, VertexProperty.Cardinality.list, keyValues);
-        return vertex;
+        // Return FireflyVertex.
+        return new FireflyVertex(idValue, label, this);
+    }
+
+    public List<Map.Entry<String, Object>> convertFullyQualified(final boolean supportNullProperties, final Object... propertyKeyValues) {
+        List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        for (int i = 0; i < propertyKeyValues.length; i += 2) {
+            // Skip label and user supplied id key/value pairs.
+            // Also, if we do not support null and it is null, skip as well. We don't need to explicitly remove
+            // null properties here since we are doing a fully qualified write and will overwrite regardless.
+            if (propertyKeyValues[i].equals(T.id) || propertyKeyValues[i].equals(T.label) || (!supportNullProperties && propertyKeyValues[i + 1] == null)) {
+                continue;
+            }
+            final String key = (String) propertyKeyValues[i];
+            final Object value = propertyKeyValues[i + 1];
+
+            // Key cannot be empty, must be non-empty String.
+            if (key.isEmpty()) {
+                throw Element.Exceptions.providedKeyValuesMustHaveALegalKeyOnEvenIndices();
+            }
+
+            // If cardinality is single we must only retain the final item.
+            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
+                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
+            }
+            properties.add(new AbstractMap.SimpleEntry<>(key, value));
+        }
+        return properties;
     }
 
     @Override

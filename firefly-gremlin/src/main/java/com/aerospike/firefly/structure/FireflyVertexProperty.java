@@ -19,7 +19,7 @@ import java.util.*;
 public class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
 
     private final boolean allowNullPropertyValues = true;
-    private final FireflyVertex vertex;
+    private final FireflyId vertexId;
     private final String key;
     private final V value;
     private final FireflyGraph graph;
@@ -33,25 +33,25 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
 
-    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId id, final FireflyVertex vertex, final String key, final V value, final Object... propertyKeyValues) {
+    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId id, final FireflyId vertexId, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
         this.graph = graph;
-        this.vertex = vertex;
+        this.vertexId = vertexId;
         this.key = key;
         this.value = value;
         ElementHelper.legalPropertyKeyValueArray(propertyKeyValues);
         ElementHelper.attachProperties(this, propertyKeyValues);
     }
 
-    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId fid, final FireflyVertex vertex, String key, V value) {
+    public FireflyVertexProperty(final FireflyGraph graph, final FireflyId fid, final FireflyId vertexId, String key, V value) {
         super(fid, key);
         this.graph = graph;
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
 
-        this.vertex = vertex;
+        this.vertexId = vertexId;
         this.key = key;
         this.value = value;
 
@@ -74,7 +74,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        return this.vertex;
+        return graph.getBaseGraph().readVertex(graph,this.vertexId);
     }
 
     @Override

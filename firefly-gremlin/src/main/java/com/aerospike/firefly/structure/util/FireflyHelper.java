@@ -1,18 +1,15 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Key;
-import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.utils.BloomFilterIdCache;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -43,6 +40,10 @@ public final class FireflyHelper {
         graph.getBaseGraph().writeVertex(graph, id, label);
     }
 
+    public static void writeFullyQualifiedVertex(FireflyGraph graph, FireflyId id, String label, List<Map.Entry<String, Object>> properties) {
+        graph.getBaseGraph().writeFullyQualifiedVertex(graph, id, label, properties);
+    }
+
     public static void removeVertex(FireflyGraph graph, FireflyId id) {
         graph.getBaseGraph().removeVertex(graph, id);
     }
@@ -51,16 +52,28 @@ public final class FireflyHelper {
     public static Edge addEdge(final FireflyGraph graph, final FireflyVertex outVertex, final FireflyVertex inVertex, final String label, final Object... keyValues) {
         FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
         if (ElementHelper.getIdValue(keyValues).isPresent()) {
-            FireflyHelper.validateEdgeId(fid, graph.getBaseGraph());
+            try {
+                NumericIdManager.convert(fid.value());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid type for id.
+                throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            }
+            if (graph.getBaseGraph().edgeExists(fid)) {
+                throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
+            }
         } else {
             while (graph.getBaseGraph().edgeExists(fid)) {
                 fid = FireflyId.createFromManager(graph, FireflyEdge.class);
             }
         }
-        graph.getBaseGraph().writeEdge(graph, fid, label, outVertex, inVertex, new Object[]{});
-        FireflyEdge edge = new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
-        ElementHelper.attachProperties(edge, keyValues);
-        return edge;
+
+        // Write fully qualified edge.
+        final List<Map.Entry<String, Object>> properties =
+                graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
+        graph.getBaseGraph().writeFullyQualifiedEdge(graph, fid, label, outVertex, inVertex, properties);
+
+        // Return FireflyEdge.
+        return new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
     }
 
     public static void validateVertexId(final FireflyId idValue,
@@ -106,6 +119,8 @@ public final class FireflyHelper {
             throw illegalArgumentException;
         }
     }
+
+
 
     public interface ExistsFunction {
         boolean exists(final FireflyId idValue);
@@ -216,11 +231,32 @@ public final class FireflyHelper {
     }
 
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.getBaseGraph().queryEdgePropertyStringIndex(graph, key, value);
+        return graph.getBaseGraph().queryEdgePropertyStringMatchIndex(graph, key, value);
     }
 
+    public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
+        if(predicate.getBiPredicate().equals(Compare.eq))
+            return graph.getBaseGraph().queryEdgePropertyNumberMatchIndex(graph, key, predicate);
+        else if (predicate.getBiPredicate().equals(Compare.lt))
+            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+        else if(predicate.getBiPredicate().equals(Compare.gt))
+            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+        else
+            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
+    }
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
+    }
+
+    public static Iterator<? extends Vertex> queryVertexByVertexPropertyNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
+        if(predicate.getBiPredicate().equals(Compare.eq))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
+        else if (predicate.getBiPredicate().equals(Compare.lt))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+        else if(predicate.getBiPredicate().equals(Compare.gt))
+            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+        else
+            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
 
     public static long countVertices(FireflyGraph graph) {

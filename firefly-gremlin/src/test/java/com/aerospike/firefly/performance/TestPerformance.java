@@ -174,4 +174,65 @@ public class TestPerformance {
         System.out.println(results);
     }
 
+    private void createOrgChartData() {
+        //12 vertices
+        Vertex p1 = g.addV("employee").property("name", "alice").property("title", "worker").next();
+        Vertex p2 = g.addV("employee").property("name", "bob").property("title", "worker").next();
+        Vertex p3 = g.addV("employee").property("name", "carol").property("title", "manager").next();
+        Vertex p4 = g.addV("employee").property("name", "dean").property("title", "manager").next();
+        Vertex p5 = g.addV("employee").property("name", "evelyn").property("title", "worker").next();
+        Vertex p6 = g.addV("employee").property("name", "frank").property("title", "worker").next();
+        Vertex p7 = g.addV("employee").property("name", "gary").property("title", "worker").next();
+        Vertex p8 = g.addV("employee").property("name", "harry").property("title", "worker").next();
+        Vertex p9 = g.addV("employee").property("name", "ivan").property("title", "worker").next();
+        Vertex p10 = g.addV("employee").property("name", "jack").property("title", "ceo").next();
+        Vertex p11 = g.addV("employee").property("name", "kris").property("title", "vp").next();
+        Vertex p12 = g.addV("employee").property("name", "lance").property("title", "vp").next();
+
+        //11 edges
+        g.addE("reportsTo").from(p1).to(p3);
+        g.addE("reportsTo").from(p2).to(p3);
+        g.addE("reportsTo").from(p3).to(p12);
+        g.addE("reportsTo").from(p4).to(p11);
+        g.addE("reportsTo").from(p5).to(p4);
+        g.addE("reportsTo").from(p6).to(p4);
+        g.addE("reportsTo").from(p7).to(p4);
+        g.addE("reportsTo").from(p8).to(p3);
+        g.addE("reportsTo").from(p9).to(p3);
+        g.addE("reportsTo").from(p11).to(p10);
+        g.addE("reportsTo").from(p12).to(p10);
+
+    }
+
+    @Test
+    public void orgchartReadWriteAccounting1() {
+        final long readStart = db.getReadMetric();
+        final long writeStart = db.getWriteMetric();
+
+        createOrgChartData();
+        assertEquals(36, db.getWriteMetric() - writeStart);
+        List<Object> result1 = g.V()
+                .has("employee", "name", "lance")
+                .in("reportsTo")
+                .in("reportsTo").values("name").toList();
+        final long result1ReadMetric = db.getReadMetric();
+        // when using label, reads are much higher
+        assertEquals(62, result1ReadMetric - readStart);
+
+        List<Object> result2 = g.V()
+                .has("name", "lance")
+                .in("reportsTo")
+                .in("reportsTo").values("name").toList();
+        final long result2ReadMetric = db.getReadMetric();
+        assertEquals(6, result2ReadMetric - result1ReadMetric);
+        assertEquals(result1, result2);
+
+        List<Vertex> result3 = g.V().has("employee", "name", "lance").toList();
+        final long result3ReadMetric = db.getReadMetric();
+        assertEquals(36, result3ReadMetric - result2ReadMetric);
+        List<Vertex> result4 = g.V().has("name", "lance").toList();
+        final long result4ReadMetric = db.getReadMetric();
+        assertEquals(4, result4ReadMetric - result3ReadMetric);
+        assertEquals(result3, result4);
+    }
 }

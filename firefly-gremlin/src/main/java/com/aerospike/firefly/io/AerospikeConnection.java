@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -122,6 +123,8 @@ public class AerospikeConnection {
 
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
+    static AtomicLong readMetric = new AtomicLong(0);
+    static AtomicLong writeMetric = new AtomicLong(0);
 
 
     /**
@@ -334,6 +337,7 @@ public class AerospikeConnection {
      * @return Aerospike Record
      */
     protected Record read(final Key key) {
+        this.readMetric.incrementAndGet();
         return client.get(null, key);
     }
 
@@ -582,6 +586,13 @@ public class AerospikeConnection {
         return IteratorUtils.filter(vps,vp -> vp.key().equals(key));
     }
 
+    public long getWriteMetric() {
+        return writeMetric.get();
+    }
+
+    public long getReadMetric() {
+        return readMetric.get();
+    }
 
     /**
      * manage the set names for an element type

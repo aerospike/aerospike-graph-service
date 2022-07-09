@@ -120,7 +120,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         config.getKeys().forEachRemaining(key -> configMap.put(key, config.get(Object.class, key)));
 
         // Add GRAPH_ID:graphName and GRAPH:FireflyGraph.
-//        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, graphName);
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, graphName);
         configMap.put(Graph.GRAPH, FireflyGraph.class.getName());
         return configMap;
     }
@@ -128,10 +128,12 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
     @Override
     public void clear(final Graph graph, final Configuration configuration) {
         // Connect to db using configuration
-        final AerospikeConnection db = AerospikeConnection.connect(configuration);
-
+        Configuration conf = configuration;
+        if (graph != null)
+            conf = ((FireflyGraph) graph).configuration();
+        AerospikeConnection db = AerospikeConnection.connect(conf);
         // Drop database and close database. Do not drop indices.
-        db.dropDatabase(false);
+        db.dropDatabase(true);
         db.close();
 
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.

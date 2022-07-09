@@ -251,31 +251,33 @@ public class AerospikeConnection {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
+        final String graphName = this.conf.get(String.class, ConfigurationHelper.Keys.GRAPH_ID);
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_IN_INDEX, Direction.IN.name(), IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+                    E_IN_INDEX, graphName + "_" + Direction.IN.name(),
+                    IndexType.NUMERIC, IndexCollectionType.DEFAULT);
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_OUT_INDEX, Direction.OUT.name(), IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+                    E_OUT_INDEX, graphName + "_" + Direction.OUT.name(),
+                    IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         createIndex(getElementPropertySet(FireflyVertex.class),
-                V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                graphName + "_" + V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                graphName + "_" + E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                getElementPropertySet(FireflyVertexProperty.class) + STRING_VP_KV_INDEX,
+                graphName + "_" + STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                getElementPropertySet(FireflyVertexProperty.class) + NUMERIC_VP_KV_INDEX,
+                graphName + "_" + NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-
         createIndex(getElementPropertySet(FireflyEdge.class),
-                getElementPropertySet(FireflyEdge.class) + STRING_E_KV_INDEX,
+                graphName + "_" + STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                getElementPropertySet(FireflyEdge.class) + NUMERIC_E_KV_INDEX,
+                graphName + "_" + NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
 

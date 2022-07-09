@@ -173,35 +173,43 @@ public class TestPerformance {
         });
         System.out.println(results);
     }
+    private static final long ORG_CHART_VERTEX_COUNT = 12;
+    private static final long ORG_CHART_EDGE_COUNT = 11;
+    private static final String ORGCHART_VERTEX_LABEL_EMPLOYEE ="employee";
+    private static final long ORGCHART_EMPLOYEE_COUNT = 7;
+    private static final String ORGCHART_VERTEX_LABEL_MANAGER ="manager";
+
+    private static final String ORGCHART_EDGE_LABEL_REPORTS = "reportsTo";
+    private static final String ORGCHART_EDGE_LABEL_CONTRACTS = "contractsTo";
+
+    private static final String ORGCHART_NAME="name";
+    private static final String ORGCHART_TITLE="title";
 
     private void createOrgChartData() {
-        //12 vertices
-        Vertex p1 = g.addV("employee").property("name", "alice").property("title", "worker").next();
-        Vertex p2 = g.addV("employee").property("name", "bob").property("title", "worker").next();
-        Vertex p3 = g.addV("employee").property("name", "carol").property("title", "manager").next();
-        Vertex p4 = g.addV("employee").property("name", "dean").property("title", "manager").next();
-        Vertex p5 = g.addV("employee").property("name", "evelyn").property("title", "worker").next();
-        Vertex p6 = g.addV("employee").property("name", "frank").property("title", "worker").next();
-        Vertex p7 = g.addV("employee").property("name", "gary").property("title", "worker").next();
-        Vertex p8 = g.addV("employee").property("name", "harry").property("title", "worker").next();
-        Vertex p9 = g.addV("employee").property("name", "ivan").property("title", "worker").next();
-        Vertex p10 = g.addV("employee").property("name", "jack").property("title", "ceo").next();
-        Vertex p11 = g.addV("employee").property("name", "kris").property("title", "vp").next();
-        Vertex p12 = g.addV("employee").property("name", "lance").property("title", "vp").next();
+        Vertex p1 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "alice").property(ORGCHART_TITLE, "worker").next();
+        Vertex p2 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "bob").property(ORGCHART_TITLE, "worker").next();
+        Vertex p3 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "carol").property(ORGCHART_TITLE, "manager").next();
+        Vertex p4 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "dean").property(ORGCHART_TITLE, "manager").next();
+        Vertex p5 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "evelyn").property(ORGCHART_TITLE, "worker").next();
+        Vertex p6 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "frank").property(ORGCHART_TITLE, "worker").next();
+        Vertex p7 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "gary").property(ORGCHART_TITLE, "worker").next();
+        Vertex p8 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "harry").property(ORGCHART_TITLE, "worker").next();
+        Vertex p9 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "ivan").property(ORGCHART_TITLE, "worker").next();
+        Vertex p10 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "jack").property(ORGCHART_TITLE, "ceo").next();
+        Vertex p11 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "kris").property(ORGCHART_TITLE, "vp").next();
+        Vertex p12 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "lance").property(ORGCHART_TITLE, "vp").next();
 
-        //11 edges
-        g.addE("reportsTo").from(p1).to(p3);
-        g.addE("reportsTo").from(p2).to(p3);
-        g.addE("reportsTo").from(p3).to(p12);
-        g.addE("reportsTo").from(p4).to(p11);
-        g.addE("reportsTo").from(p5).to(p4);
-        g.addE("reportsTo").from(p6).to(p4);
-        g.addE("reportsTo").from(p7).to(p4);
-        g.addE("reportsTo").from(p8).to(p3);
-        g.addE("reportsTo").from(p9).to(p3);
-        g.addE("reportsTo").from(p11).to(p10);
-        g.addE("reportsTo").from(p12).to(p10);
-
+        g.addE(ORGCHART_EDGE_LABEL_CONTRACTS).from(p1).to(p3);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p2).to(p3);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p3).to(p12);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p4).to(p11);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p5).to(p4);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p6).to(p4);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p7).to(p4);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p8).to(p3);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p9).to(p3);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p11).to(p10);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p12).to(p10);
     }
 
     @Test
@@ -212,27 +220,36 @@ public class TestPerformance {
         createOrgChartData();
         assertEquals(36, db.getWriteMetric() - writeStart);
         List<Object> result1 = g.V()
-                .has("employee", "name", "lance")
-                .in("reportsTo")
-                .in("reportsTo").values("name").toList();
+                .has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "lance")
+                .in(ORGCHART_EDGE_LABEL_REPORTS)
+                .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result1ReadMetric = db.getReadMetric();
         // when using label, reads are much higher
-        assertEquals(62, result1ReadMetric - readStart);
+        assertEquals(50, result1ReadMetric - readStart);
 
         List<Object> result2 = g.V()
-                .has("name", "lance")
-                .in("reportsTo")
-                .in("reportsTo").values("name").toList();
+                .has(ORGCHART_NAME, "lance")
+                .in(ORGCHART_EDGE_LABEL_REPORTS)
+                .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result2ReadMetric = db.getReadMetric();
         assertEquals(6, result2ReadMetric - result1ReadMetric);
         assertEquals(result1, result2);
 
-        List<Vertex> result3 = g.V().has("employee", "name", "lance").toList();
+        List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
-        assertEquals(36, result3ReadMetric - result2ReadMetric);
-        List<Vertex> result4 = g.V().has("name", "lance").toList();
+        assertEquals(26, result3ReadMetric - result2ReadMetric);
+        List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
         assertEquals(4, result4ReadMetric - result3ReadMetric);
         assertEquals(result3, result4);
+    }
+    @Test
+    public void testLabelQuery(){
+        createOrgChartData();
+        final long startReadMetric = db.getReadMetric();
+        g.V().hasLabel(ORGCHART_VERTEX_LABEL_EMPLOYEE).toList();
+        final long afterGetByLabelMetric = db.getReadMetric();
+//        assertEquals(ORGCHART_EMPLOYEE_COUNT,afterGetByLabelMetric - startReadMetric);
+        assertEquals(ORG_CHART_VERTEX_COUNT, afterGetByLabelMetric - startReadMetric);
     }
 }

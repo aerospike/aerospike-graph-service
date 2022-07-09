@@ -7,8 +7,11 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -22,10 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -199,7 +199,7 @@ public class TestPerformance {
         Vertex p11 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "kris").property(ORGCHART_TITLE, "vp").next();
         Vertex p12 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "lance").property(ORGCHART_TITLE, "vp").next();
 
-        g.addE(ORGCHART_EDGE_LABEL_CONTRACTS).from(p1).to(p3);
+        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p1).to(p3);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p2).to(p3);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p3).to(p12);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p4).to(p11);
@@ -208,7 +208,7 @@ public class TestPerformance {
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p7).to(p4);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p8).to(p3);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p9).to(p3);
-        g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p11).to(p10);
+        g.addE(ORGCHART_EDGE_LABEL_CONTRACTS).from(p11).to(p10);
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p12).to(p10);
     }
 
@@ -220,15 +220,15 @@ public class TestPerformance {
         createOrgChartData();
         assertEquals(36, db.getWriteMetric() - writeStart);
         List<Object> result1 = g.V()
-                .has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "lance")
+                .has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "bob")
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result1ReadMetric = db.getReadMetric();
         // when using label, reads are much higher
-        assertEquals(50, result1ReadMetric - readStart);
+        assertEquals(40, result1ReadMetric - readStart);
 
         List<Object> result2 = g.V()
-                .has(ORGCHART_NAME, "lance")
+                .has(ORGCHART_NAME, "bob")
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result2ReadMetric = db.getReadMetric();
@@ -237,7 +237,7 @@ public class TestPerformance {
 
         List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
-        assertEquals(26, result3ReadMetric - result2ReadMetric);
+        assertEquals(14, result3ReadMetric - result2ReadMetric);
         List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
         assertEquals(4, result4ReadMetric - result3ReadMetric);
@@ -247,9 +247,18 @@ public class TestPerformance {
     public void testLabelQuery(){
         createOrgChartData();
         final long startReadMetric = db.getReadMetric();
-        g.V().hasLabel(ORGCHART_VERTEX_LABEL_EMPLOYEE).toList();
+        List<Vertex> x = g.V().hasLabel(ORGCHART_VERTEX_LABEL_EMPLOYEE).toList();
         final long afterGetByLabelMetric = db.getReadMetric();
-//        assertEquals(ORGCHART_EMPLOYEE_COUNT,afterGetByLabelMetric - startReadMetric);
-        assertEquals(ORG_CHART_VERTEX_COUNT, afterGetByLabelMetric - startReadMetric);
+        //results by index, no reads
+        assertEquals(0, afterGetByLabelMetric - startReadMetric);
+    }
+
+    @Test
+    public void grateful_V_out_out_profile() {
+        Traversal<Vertex, TraversalMetrics> traversal = g.V().out().out().profile();
+        this.printTraversalForm(traversal);
+        TraversalMetrics traversalMetrics = (TraversalMetrics)traversal.next();
+        Collection<? extends Metrics> m = traversalMetrics.getMetrics();
+        assertEquals(4,m.size());
     }
 }

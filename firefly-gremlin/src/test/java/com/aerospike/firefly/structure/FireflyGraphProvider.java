@@ -120,7 +120,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         config.getKeys().forEachRemaining(key -> configMap.put(key, config.get(Object.class, key)));
 
         // Add GRAPH_ID:graphName and GRAPH:FireflyGraph.
-        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, graphName);
+//        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, graphName);
         configMap.put(Graph.GRAPH, FireflyGraph.class.getName());
         return configMap;
     }

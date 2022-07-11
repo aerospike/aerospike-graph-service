@@ -44,6 +44,8 @@ public class AerospikeConnection {
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
+    final int DelayPerSetExistsCheck = 100;
+    final int LoopsPerSetExistsCheck = 100;
 
     final EventLoops eventLoops;
 
@@ -407,13 +409,13 @@ public class AerospikeConnection {
       Keep in mind the replication Factor. You may need to divide by that
     */
     public long getSetSize(final String setName) {
-        String infoQuery = "sets/" + namespace + "/" + setName;
-        String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-        return Arrays.stream(infoResponse.split(":"))
+        final String infoQuery = "sets/" + namespace + "/" + setName;
+        final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+        final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
                 .map(str -> Long.valueOf(str.split("=")[1]))
-                .collect(Collectors.toList())
-                .get(0);
+                .collect(Collectors.toList());
+        return setSize.isEmpty() ? 0 : setSize.get(0);
     }
 
     /**
@@ -1786,6 +1788,25 @@ public class AerospikeConnection {
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();
+
+        for (int i = 0; i < LoopsPerSetExistsCheck; i++) {
+            if (getSetSize(EDGE_AERO_SET) == 0 &&
+                    getSetSize(VERTEX_AERO_SET) == 0 &&
+                    getSetSize(VERTEX_PROPERTY_AERO_SET) == 0 &&
+                    getSetSize(ID_MANAGER_SET) == 0 &&
+                    getSetSize(USER_SUPPLIED_ID_CACHE_SET) == 0 &&
+                    getSetSize(TEST_SET) == 0 &&
+                    getSetSize(VERTEX_EDGELIST_AERO_SET) == 0 &&
+                    getSetSize(GRAPH_VARIABLES_SET) == 0 &&
+                    getSetSize(INDEX_METADATA) == 0) {
+                break;
+            } else {
+                try {
+                    Thread.sleep(DelayPerSetExistsCheck);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
     }
 
     public void dropDatabase() {

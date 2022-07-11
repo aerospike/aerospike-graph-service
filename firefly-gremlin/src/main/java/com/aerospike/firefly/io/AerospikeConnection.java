@@ -1801,6 +1801,10 @@ public class AerospikeConnection {
                     getSetSize(INDEX_METADATA) == 0) {
                 break;
             } else {
+                if (i == (LoopsPerSetExistsCheck - 1)) {
+                    LOG.error("Failed to drop database.");
+                    break;
+                }
                 try {
                     Thread.sleep(DelayPerSetExistsCheck);
                 } catch (InterruptedException ignored) {

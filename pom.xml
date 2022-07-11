@@ -125,9 +125,9 @@
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
-<!--                    <excludes>-->
-<!--                        <exclude>**/*IntegrateTest.java</exclude>-->
-<!--                    </excludes>-->
+                   <excludes>
+                       <exclude>**/BenchmarkTest.java</exclude>-
+                   </excludes>
                 </configuration>
             </plugin>
             <plugin>

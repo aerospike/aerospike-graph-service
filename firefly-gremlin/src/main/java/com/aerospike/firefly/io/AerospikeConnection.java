@@ -1799,6 +1799,7 @@ public class AerospikeConnection {
                     getSetSize(VERTEX_EDGELIST_AERO_SET) == 0 &&
                     getSetSize(GRAPH_VARIABLES_SET) == 0 &&
                     getSetSize(INDEX_METADATA) == 0) {
+                LOG.info("Removed sets after {} attempts.", i);
                 break;
             } else {
                 if (i == (LoopsPerSetExistsCheck - 1)) {

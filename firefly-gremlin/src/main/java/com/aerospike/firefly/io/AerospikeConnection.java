@@ -1277,7 +1277,7 @@ public class AerospikeConnection {
     /**
      * remove a Vertex Record
      *
-     * @param graph    refrence to Graph
+     * @param graph    reference to Graph
      * @param vertexId id of Vertex to remove
      */
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
@@ -1409,7 +1409,7 @@ public class AerospikeConnection {
      */
     public FireflyEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
         LOG.debug("Reading edge {}.", edgeId.value().toString());
-        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId);
+        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId.toNumericId());
         if (edgeRecord == null) {
             return null;
         }
@@ -1637,7 +1637,7 @@ public class AerospikeConnection {
         labelEdges.put(edge.label(), edges);
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.write(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
     }
 
     /**

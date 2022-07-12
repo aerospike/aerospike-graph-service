@@ -16,8 +16,10 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -50,21 +52,25 @@ public class TestAerospikeGraphIntegration {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
 
-    private AerospikeConnection db;
-    private FireflyGraph graph;
+    private static AerospikeConnection db;
+    private static FireflyGraph graph;
 
 
-    @Before
-    public void openGraph() {
-        this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+    @BeforeClass
+    public static void openGraph() {
+        db = AerospikeConnection.connect(config);
         graph = new FireflyGraph(config);
     }
 
-    @After
-    public void closeGraphClearData() throws Exception {
-        db.dropDatabase(true);
+    @Before
+    public void clearGraph() {
+        graph.traversal().V().drop().iterate();
+    }
+
+    @AfterClass
+    public static void closeGraphClearData() throws Exception {
         graph.close();
+        db.close();
     }
 
     @Test
@@ -469,7 +475,7 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void testTree() {
-        int branchSize = 11;
+        int branchSize = 5;
         final Vertex start = graph.addVertex();
         for (int i = 0; i < branchSize; i++) {
             final Vertex a = graph.addVertex();
@@ -528,23 +534,6 @@ public class TestAerospikeGraphIntegration {
         Object next = i.next();
         assertTrue(x.contains(next));
         assertTrue(x.contains(next));
-    }
-
-
-    @Test
-    public void airRoutesTest() throws IOException {
-        long start = System.currentTimeMillis();
-        IOUtil.loadGraphmlFromData(graph, "air-routes-small.graphml");
-        long finish = System.currentTimeMillis();
-        long delta = finish - start;
-        System.out.printf("Air Routes Small Load: %d milliseconds elapsed%n", delta);
-        GraphTraversalSource g = graph.traversal();
-        Map<String, Object> res = g.V().has("airport", "code", "DFW").propertyMap().next();
-        Map<Object, Object> stuff = g.V().hasLabel("airport").
-                properties("runways", "longest").
-                group().by(key).by(value().sum()).next();
-        System.out.println(res);
-        System.out.println(stuff);
     }
 
 

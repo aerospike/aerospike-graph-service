@@ -77,11 +77,6 @@ public class TestAirRoutes50k {
 
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {
-        long start = System.currentTimeMillis();
-        graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
-        long finish = System.currentTimeMillis();
-        long delta = finish - start;
-        System.out.printf("Air Routes 50k Latency Load time: %d milliseconds elapsed%n", delta);
         PerfUtil.Results results = PerfUtil.runTestBatch(200, () -> {
             List<List<Object>> data = g.withSack(0).
                     V().has("code", "SAF").

@@ -177,7 +177,7 @@ public class FireflyRecord {
         }
     }
 
-    protected static void writeElement(final AerospikeConnection db,
+    public static void writeElement(final AerospikeConnection db,
                                        final String set,
                                        final FireflyId id,
                                        final Bin... bins) {

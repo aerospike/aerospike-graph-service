@@ -61,14 +61,11 @@ public class TestAerospikeGraphIntegration {
     public static void openGraph() {
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
-        graph.traversal().V().drop().iterate();
-        db.dropDatabase();
     }
 
     @Before
     public void clearGraph() {
         graph.traversal().V().drop().iterate();
-        db.dropDatabase();
     }
 
     @AfterClass
@@ -212,14 +209,10 @@ public class TestAerospikeGraphIntegration {
         assertEquals("red", g.V().hasLabel("penguin").next().values("color").next());
     }
 
-    // This only fails in GHA. Need to determine why, for now I want to get test stabaility.
     @Test
-    @Ignore
-    public void testWriteThenDrop() throws InterruptedException {
+    public void testWriteThenDrop() {
         GraphTraversalSource g = graph.traversal();
-        IntStream.range(0, 10).forEach(i -> {
-            g.addV().next();
-        });
+        IntStream.range(0, 10).forEach(i -> g.addV().next());
         assertTrue(g.V().count().next() > 0);
         g.V().drop().iterate();
         assertEquals(0, (long) g.V().count().next());

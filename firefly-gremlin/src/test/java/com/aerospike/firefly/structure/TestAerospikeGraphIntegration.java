@@ -67,6 +67,7 @@ public class TestAerospikeGraphIntegration {
     @Before
     public void clearGraph() {
         graph.traversal().V().drop().iterate();
+        db.dropDatabase();
     }
 
     @AfterClass

@@ -56,7 +56,7 @@ public class TestPerformance {
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-
+        g.V().drop().iterate();
     }
 
     @Before

@@ -40,12 +40,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.getBaseGraph().readVertex(graph, this.outVid);
+        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.getBaseGraph().readVertex(graph, this.inVid);
+        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.inVid);
     }
 
     @Override

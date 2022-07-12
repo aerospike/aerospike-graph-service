@@ -34,11 +34,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
 
     protected Iterator<Object> getInEdgeIds() {
-        return this.graph.getBaseGraph().getInEdgeIdsFromVertex(this);
+        return this.graph.getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(this);
     }
 
     protected Iterator<Object> getOutEdgeIds() {
-        return this.graph.getBaseGraph().getOutEdgeIdsFromVertex(this);
+        return this.graph.getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(this);
     }
 
     public FireflyVertex(final FireflyId fid, final String label, final FireflyGraph graph) {

@@ -9,6 +9,7 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
+import com.aerospike.firefly.io.impl.standard.VertexBackend;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -61,9 +62,9 @@ public class AerospikeConnection {
     protected final AerospikeClient client;
     public final String namespace;
 
-    private static final String IN_EDGES = "IN_EDGES";
-    private static final String OUT_EDGES = "OUT_EDGES";
-    private static final String CACHE_DISABLED = "CACHE_DISABLED";
+    public static final String IN_EDGES = "IN_EDGES";
+    public static final String OUT_EDGES = "OUT_EDGES";
+    public static final String CACHE_DISABLED = "CACHE_DISABLED";
     private static final String INDEX_METADATA = "INDEX_META";
 
     protected final String GRAPH_METADATA_SET;
@@ -80,18 +81,18 @@ public class AerospikeConnection {
     protected final String VERTEX_ID_BIN;
     protected final String VERTEX_PROPERTY_ID_KEY;
     protected final String VERTEX_PROPERTY_ID_BIN;
-    protected final String VERTEX_PROPERTY_NAME_TO_ID;
-    protected final String VERTEX_PROPERTY_NAME;
-    protected final String PARENT_VERTEX_ID;
+    public final String VERTEX_PROPERTY_NAME_TO_ID;
+    public final String VERTEX_PROPERTY_NAME;
+    public final String PARENT_VERTEX_ID;
 
-    protected final String IN_EDGE_COUNTER;
+    public final String IN_EDGE_COUNTER;
     protected final String OUT_EDGE_COUNTER;
-    protected final String VP_COUNTER;
-    protected final long ID_CACHE_SIZE;
+    public final String VP_COUNTER;
+    public final long ID_CACHE_SIZE;
     protected final String EDGE_PROPERTIES;
     protected final String VP_PROPERTIES;
     protected final String TYPE_HINTS;
-    protected final String KEY_VALUE;
+    public final String KEY_VALUE;
     protected final String COUNTER;
     protected final String ID_MANAGER_SET;
     public final String ID_TYPE;
@@ -135,13 +136,15 @@ public class AerospikeConnection {
     static AtomicLong writeMetric = new AtomicLong(0);
 
 
+    public final Backend.Vertex vertexBackend;
+
     /**
      * Cast an Id to its on-disk storage type
      *
      * @param origId raw id
      * @return id cast to on-disk type
      */
-    private static Object idToStorageType(Object origId) {
+    public static Object idToStorageType(Object origId) {
         if (FireflyElement.class.isAssignableFrom(origId.getClass()))
             origId = ((FireflyElement) origId).id();
         if (Integer.class.equals(origId.getClass()))
@@ -237,6 +240,8 @@ public class AerospikeConnection {
         USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
+
+        vertexBackend = new VertexBackend(this);
     }
 
     /**
@@ -529,7 +534,7 @@ public class AerospikeConnection {
         final Iterator<KeyRecord> iter = queryIndex(VERTEX_AERO_SET, V_LABEL_INDEX, Filter.contains(LABEL, IndexCollectionType.DEFAULT, (String) value));
         final AerospikeConnection db = this;
         return IteratorUtils.map(iter, kr ->
-                vertexFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
+                vertexBackend.vertexFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
     }
 
     public Iterator<? extends Edge> queryEdgeLabelStringIndex(FireflyGraph graph, Object value) {
@@ -669,7 +674,7 @@ public class AerospikeConnection {
      * @param exp     Aerospike filter Expression to apply to Scan
      * @return Iterator of raw Object ids
      */
-    protected Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
+    public Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
         LOG.trace("Scanning {} ids with filter {}.", setName, exp);
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, exp);
         return IteratorUtils.map(i, keyRecordEntry -> {
@@ -878,7 +883,7 @@ public class AerospikeConnection {
      * @param additionalBins
      * @param <V>
      */
-    private <V> void writeTypeHintedValueToMap(final String aeroSet,
+    public <V> void writeTypeHintedValueToMap(final String aeroSet,
                                                final FireflyId fid,
                                                final String mapName,
                                                final String mapKey,
@@ -1083,7 +1088,7 @@ public class AerospikeConnection {
         }
         long vp_count = r.record.getLong(VP_COUNTER);
         if (vp_count < ID_CACHE_SIZE) {
-            final Map<String, List<Long>> idMap = getXXXIdsFromVertexLabelMap(vertex, VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Long>> idMap = this.vertexBackend.getXXXIdsFromVertexLabelMap(vertex, VERTEX_PROPERTY_NAME_TO_ID);
             final Map<String, List<VertexProperty>> vpLabelList = new HashMap<>();
             idMap.entrySet().forEach(entry -> {
                 String label = entry.getKey();
@@ -1242,156 +1247,6 @@ public class AerospikeConnection {
         removeTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key);
     }
 
-
-    public FireflyVertex vertexFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord) {
-        return new FireflyVertex(FireflyId.loadFromAerospike(this, FireflyVertex.class, fireflyRecord), fireflyRecord.record.getString(LABEL), graph);
-    }
-
-
-    /**
-     * Write a fully qualified Vertex (includes label, id, and vertex properties).
-     *
-     * @param graph    handle to Graph instance
-     * @param vertexId vertex id to write
-     * @param label    vertex label to write
-     */
-    public void writeFullyQualifiedVertex(final FireflyGraph graph, final FireflyId vertexId, final String label, List<Map.Entry<String, Object>> properties) {
-        LOG.debug("Writing fully qualified Vertex {}.", vertexId.value().toString());
-        final Map<String, List<Long>> vertexPropertyLabelIdMap = new HashMap<>();
-        final List<Long> vertexPropertyIdCache = new ArrayList<>();
-        properties.forEach(vp -> {
-            FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
-            final Bin vpkBin = new Bin(VERTEX_PROPERTY_NAME, vp.getKey());
-            final Bin pviBin = new Bin(PARENT_VERTEX_ID, idToStorageType(vertexId.value()));
-            writeTypeHintedValueToMap(VERTEX_PROPERTY_AERO_SET, vertexPropertyId, KEY_VALUE, vp.getKey(), vp.getValue(), vpkBin, pviBin);
-            final List<Long> vertexPropertyIds = vertexPropertyLabelIdMap.getOrDefault(vp.getKey(), new ArrayList<>());
-            vertexPropertyIds.add(NumericIdManager.convert(vertexPropertyId.value()));
-            vertexPropertyLabelIdMap.put(vp.getKey(), vertexPropertyIds);
-
-            if (vertexPropertyIdCache.size() < ID_CACHE_SIZE)
-                vertexPropertyIdCache.add(NumericIdManager.convert(vertexPropertyId.value()));
-        });
-
-        final Bin labelBin = new Bin(LABEL, Value.get(label));
-        final Bin vertexPropertyIdsBin = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyLabelIdMap));
-        final Bin vertexPropertyCounterBin = new Bin(VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdCache.size())));
-        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin);
-    }
-
-    /**
-     * remove a Vertex Record
-     *
-     * @param graph    reference to Graph
-     * @param vertexId id of Vertex to remove
-     */
-    public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Removing Vertex {}.", vertexId.value().toString());
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId.toNumericId());
-        delete(key);
-    }
-
-    /**
-     * Get the in-edge ids for a vertex
-     * If the counter is less than the cache size, use the cache
-     * else, query by scan
-     *
-     * @param vertex Vertex to read in edge ids from
-     * @return Iterator of raw Ids
-     */
-    public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex vertex) {
-        LOG.debug("Getting in edge ids from Vertex {}.", vertex.id().toString());
-        FireflyRecord r = getVertexRecord(vertex);
-        long edge_count = r.record.getLong(IN_EDGE_COUNTER);
-        boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
-        if (edge_count < ID_CACHE_SIZE && !cacheDisabled)
-            return getXXXIdsFromVertexByCache(vertex, IN_EDGES);
-        else
-            return getInEdgeIdsFromVertexByScan(vertex);
-    }
-
-    /**
-     * Get the out-edge ids for a vertex
-     * If the counter is less than the cache size, use the cache
-     * else, query by scan
-     *
-     * @param vertex Vertex to read out edge ids from
-     * @return Iterator of raw Ids
-     */
-    public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex vertex) {
-        LOG.debug("Getting out edge ids from Vertex {}.", vertex.id().toString());
-        FireflyRecord r = getVertexRecord(vertex);
-        long edgeCount = r.record.getLong(OUT_EDGE_COUNTER);
-        boolean cacheDisabled = r.record.getBoolean(CACHE_DISABLED);
-        if (edgeCount < ID_CACHE_SIZE && !cacheDisabled)
-            return getXXXIdsFromVertexByCache(vertex, OUT_EDGES);
-        else
-            return getOutEdgeIdsFromVertexByScan(vertex);
-    }
-
-    /**
-     * Scan for and return the out direction ids associated with a vertex
-     *
-     * @param vertex Vertex to read out edge ids from
-     * @return Iterator of raw Ids
-     */
-    public Iterator<Object> getOutEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
-        LOG.debug("Getting out edge ids from Vertex {} via scan.", vertex.id().toString());
-        final Expression exp = Exp.build(
-                Exp.eq(
-                        Exp.intBin(Direction.OUT.name()),
-                        Exp.val((Long) idToStorageType(vertex.id())))
-        );
-        return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
-    }
-
-
-    /**
-     * read an Id cache from a vertex, return it as a map of label to ids with label
-     *
-     * @param vertex  Vertex to read data from
-     * @param mapName Bin name
-     * @return Map of data
-     */
-    public Map<String, List<Long>> getXXXIdsFromVertexLabelMap(final FireflyVertex vertex, String mapName) {
-        LOG.debug("Getting out XXX ids from Vertex {} using label map {}.", vertex.id().toString(), mapName);
-        FireflyRecord r = getVertexRecord(vertex);
-        Map<String, List<Long>> labelIds = (Map<String, List<Long>>) r.record.getMap(mapName);
-        if (labelIds == null) {
-            labelIds = new HashMap<>();
-        }
-        return labelIds;
-    }
-
-    /**
-     * read an Id cache from a vertex
-     *
-     * @param vertex  Vertex to read data from
-     * @param mapName Bin name
-     * @return Iterator of ids
-     */
-    public Iterator<Object> getXXXIdsFromVertexByCache(final FireflyVertex vertex, String mapName) {
-        LOG.debug("Getting out XXX ids from Vertex {} using cache {}.", vertex.id().toString(), mapName);
-        return IteratorUtils.map(
-                IteratorUtils.flatMap(getXXXIdsFromVertexLabelMap(vertex, mapName).entrySet().iterator(),
-                        mapEntry -> mapEntry.getValue().iterator()),
-                it -> it);
-    }
-
-    /**
-     * Issue a scan query for all In direction edges associated with a vertex
-     *
-     * @param vertex vertex to read in edge ids from
-     * @return Iterator of raw ids
-     */
-    public Iterator<Object> getInEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
-        LOG.trace("Getting in edge ids from Vertex by scan {}.", vertex.id().toString());
-        final Expression exp = Exp.build(
-                Exp.eq(
-                        Exp.intBin(Direction.IN.name()),
-                        Exp.val((Long) idToStorageType(vertex.id())))
-        );
-        return this.scanFilteredIdsInSet(EDGE_AERO_SET, exp);
-    }
 
     /**
      * get a list of currently valid ids
@@ -1635,7 +1490,7 @@ public class AerospikeConnection {
         if (edgeCounter > 0)
             edgeCounter--;
         if (edgeCounter == ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
-            labelEdges = getXXXIdsFromVertexLabelMap(vertex, directionKey);
+            labelEdges = this.vertexBackend.getXXXIdsFromVertexLabelMap(vertex, directionKey);
         List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());
         edges.remove(NumericIdManager.convert(edge.id()));
         labelEdges.put(edge.label(), edges);

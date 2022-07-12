@@ -141,8 +141,8 @@ public class TestAerospikeClientIntegration {
                 add(0L);
                 add(1L);
             }};
-            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
-            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
+            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
+            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
             Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
             assertTrue(i.hasNext());
             Long a = i.next();
@@ -183,10 +183,10 @@ public class TestAerospikeClientIntegration {
                 add(2L);
                 add(3L);
             }};
-            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
-            FireflyVertex va = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
-            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
-            FireflyVertex vb = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
+            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
+            FireflyVertex va = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
+            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
+            FireflyVertex vb = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
             Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
             assertTrue(i.hasNext());
             Long a = i.next();
@@ -379,7 +379,7 @@ public class TestAerospikeClientIntegration {
                     nv.addEdge("test", added.get(0));
             });
             assertEquals((long) graph.traversal().E().count().next(), db.getEdgeCount());
-            assertEquals((long) graph.traversal().V().count().next(), db.getVertexCount());
+            assertEquals((long) graph.traversal().V().count().next(), db.vertexBackend.getVertexCount());
         }
     }
 

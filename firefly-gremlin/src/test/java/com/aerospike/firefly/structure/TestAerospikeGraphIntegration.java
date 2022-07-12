@@ -120,8 +120,8 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void testReadWriteVertexProperty() {
-        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
+        db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
+        FireflyVertex vertex = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
         FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
         db.writeVertexProperty(vertex, vpid, "a", "a", "b");
         VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
@@ -149,8 +149,8 @@ public class TestAerospikeGraphIntegration {
     @Test
     public void testReadWriteVertex() {
         FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
-        db.writeVertex(graph, id, "aVertexLabel");
-        FireflyVertex v = db.readVertex(graph, id);
+        db.vertexBackend.writeVertex(graph, id, "aVertexLabel");
+        FireflyVertex v = db.vertexBackend.readVertex(graph, id);
         assertEquals(v.label(), "aVertexLabel");
     }
 
@@ -160,7 +160,7 @@ public class TestAerospikeGraphIntegration {
         LongStream.range(0, 10).forEach(l -> {
             FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
             usedIds.add((Long) next.value());
-            db.writeVertex(graph, next, "aVertexLabel");
+            db.vertexBackend.writeVertex(graph, next, "aVertexLabel");
         });
         final AtomicLong ctr = new AtomicLong(0);
         new FireflyVertexIterator<Long>(graph, usedIds.iterator()).forEachRemaining(v -> {
@@ -540,7 +540,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        Iterator<Object> i = db.getInEdgeIdsFromVertex((FireflyVertex) fruit);
+        Iterator<Object> i = db.vertexBackend.getInEdgeIdsFromVertex((FireflyVertex) fruit);
         assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         Object next = i.next();

@@ -7,6 +7,9 @@ import com.aerospike.firefly.io.BackendElement;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class Edge extends BackendElement implements Backend.Edge {
+public class EdgeBackend extends BackendElement implements Backend.Edge {
 
+    public EdgeBackend(AerospikeConnection db) {
+        super(db);
+    }
 }

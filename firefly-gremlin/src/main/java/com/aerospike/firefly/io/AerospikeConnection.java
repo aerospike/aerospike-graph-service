@@ -44,8 +44,6 @@ public class AerospikeConnection {
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
-    final int DelayPerSetExistsCheck = 100;
-    final int LoopsPerSetExistsCheck = 1000;
 
     final EventLoops eventLoops;
 

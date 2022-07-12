@@ -409,13 +409,17 @@ public class AerospikeConnection {
       Keep in mind the replication Factor. You may need to divide by that
     */
     public long getSetSize(final String setName) {
-        String infoQuery = "sets/" + namespace + "/" + setName;
-        String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-        return Arrays.stream(infoResponse.split(":"))
-                .filter(str -> str.startsWith("objects"))
-                .map(str -> Long.valueOf(str.split("=")[1]))
-                .collect(Collectors.toList())
-                .get(0);
+        try {
+            String infoQuery = "sets/" + namespace + "/" + setName;
+            String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+            return Arrays.stream(infoResponse.split(":"))
+                    .filter(str -> str.startsWith("objects"))
+                    .map(str -> Long.valueOf(str.split("=")[1]))
+                    .collect(Collectors.toList())
+                    .get(0);
+        } catch (AerospikeException ignored) {
+            return 0;
+        }
     }
 
     /**

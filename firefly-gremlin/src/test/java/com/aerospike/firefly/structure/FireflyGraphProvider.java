@@ -130,11 +130,8 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         // Connect to db using configuration
         final AerospikeConnection db = AerospikeConnection.connect(configuration);
 
-        // Drop vertices to clear graph.
-        if (graph != null) {
-            graph.traversal().V().drop().iterate();
-        }
-        db.close();
+        // Drop database and close database. Do not drop indices.
+        db.dropDatabase(false);
 
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.
         if (graph != null) {

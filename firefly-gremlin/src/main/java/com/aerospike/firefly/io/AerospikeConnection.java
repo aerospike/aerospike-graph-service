@@ -695,6 +695,7 @@ public class AerospikeConnection {
     /**
      * Issue a scan query for all the records in a set.
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
      * @param setName  Aerospike set name to scan
      * @param exp      Expression to apply to Scan

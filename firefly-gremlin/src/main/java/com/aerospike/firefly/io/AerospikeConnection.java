@@ -412,11 +412,15 @@ public class AerospikeConnection {
         try {
             String infoQuery = "sets/" + namespace + "/" + setName;
             String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-            return Arrays.stream(infoResponse.split(":"))
+            List<Long> result = Arrays.stream(infoResponse.split(":"))
                     .filter(str -> str.startsWith("objects"))
                     .map(str -> Long.valueOf(str.split("=")[1]))
-                    .collect(Collectors.toList())
-                    .get(0);
+                    .collect(Collectors.toList());
+            if (result.isEmpty()) {
+                return 0;
+            } else {
+                return result.get(0);
+            }
         } catch (AerospikeException ignored) {
             return 0;
         }

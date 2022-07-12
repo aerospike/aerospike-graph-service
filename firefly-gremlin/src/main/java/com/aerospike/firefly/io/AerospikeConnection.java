@@ -41,7 +41,7 @@ public class AerospikeConnection {
     private static final String STRING_E_KV_INDEX = "S_E_KV";
     private static final String NUMERIC_E_KV_INDEX = "N_E_KV";
     private static final String INDEXED_BINS = "indexedBins";
-    private static final String LABEL = "label";
+    public static final String LABEL = "label";
     private static final String V_LABEL_INDEX = "v_label_idx";
     private static final String E_LABEL_INDEX = "e_label_idx";
     private static final String E_IN_INDEX = "v_label_idx";
@@ -440,14 +440,6 @@ public class AerospikeConnection {
                 .get(0);
     }
 
-    /**
-     * Get a "fast count" of the number of elements in the Vertex set using Aerospike info
-     *
-     * @return number of Vertices
-     */
-    public long getVertexCount() {
-        return getSetSize(VERTEX_AERO_SET);
-    }
 
     /**
      * Get a "fast count" of the number of elements in the Edge set using Aerospike info
@@ -1239,38 +1231,11 @@ public class AerospikeConnection {
         removeTypeHintedValueFromMap(getElementPropertySet(element.getClass()), FireflyId.fromElement(element), getElementPropertySet(element.getClass()), key);
     }
 
-    /**
-     * Read a record from VERTEX_AERO_SET and return a constructed FireflyVertex
-     *
-     * @param graph    Graph handle
-     * @param vertexId id of Vertex to read
-     * @return Vertex to return
-     */
-
-    public FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        final FireflyRecord fireflyRecord = getVertexRecord(vertexId);
-        if (fireflyRecord == null) {
-            return null;
-        }
-        return vertexFromRecord(graph, fireflyRecord);
-    }
 
     public FireflyVertex vertexFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord) {
         return new FireflyVertex(FireflyId.loadFromAerospike(this, FireflyVertex.class, fireflyRecord), fireflyRecord.record.getString(LABEL), graph);
     }
 
-    /**
-     * write a labeled Vertex record
-     *
-     * @param graph    handle to Graph instance
-     * @param vertexId vertex id to write
-     * @param label    vertex label to write
-     */
-    public void writeVertex(final FireflyGraph graph, final FireflyId vertexId, final String label) {
-        LOG.debug("Writing Vertex {}.", vertexId.value().toString());
-        final Bin labelBin = new Bin(LABEL, Value.get(label));
-        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId, labelBin);
-    }
 
     /**
      * Write a fully qualified Vertex (includes label, id, and vertex properties).
@@ -1300,18 +1265,6 @@ public class AerospikeConnection {
         final Bin vertexPropertyIdsBin = new Bin(VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyLabelIdMap));
         final Bin vertexPropertyCounterBin = new Bin(VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdCache.size())));
         FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin);
-    }
-
-    /**
-     * remove a Vertex Record
-     *
-     * @param graph    refrence to Graph
-     * @param vertexId id of Vertex to remove
-     */
-    public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Removing Vertex {}.", vertexId.value().toString());
-        final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId.toNumericId());
-        delete(key);
     }
 
     /**
@@ -1559,7 +1512,7 @@ public class AerospikeConnection {
         return getVertexRecord(vertex.id);
     }
 
-    private FireflyRecord getVertexRecord(FireflyId id) {
+    public FireflyRecord getVertexRecord(FireflyId id) {
         LOG.trace("Getting vertex record v[{}].", id.value());
         return FireflyRecord.read(this, VERTEX_AERO_SET, id.toNumericId());
     }

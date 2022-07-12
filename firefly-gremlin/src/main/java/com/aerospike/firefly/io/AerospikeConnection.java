@@ -460,7 +460,7 @@ public class AerospikeConnection {
         if (String.class.isAssignableFrom(value.getClass())) {
             stmt.setFilter(Filter.contains(getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
         } else {
-            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+            throw new RuntimeException(String.format("{} not a string", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
@@ -530,7 +530,7 @@ public class AerospikeConnection {
         if (String.class.isAssignableFrom(value.getClass())) {
             stmt.setFilter(Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         } else {
-            throw new RuntimeException(String.format("%s not a string", value.getClass()));
+            throw new RuntimeException(String.format("{} not a string", value.getClass()));
         }
         final QueryPolicy p = new QueryPolicy();
         final RecordSet rs = client.query(p, stmt);
@@ -1797,30 +1797,6 @@ public class AerospikeConnection {
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();
-
-        for (int i = 0; i < LoopsPerSetExistsCheck; i++) {
-            if (getSetSize(EDGE_AERO_SET) == 0 &&
-                    getSetSize(VERTEX_AERO_SET) == 0 &&
-                    getSetSize(VERTEX_PROPERTY_AERO_SET) == 0 &&
-                    getSetSize(ID_MANAGER_SET) == 0 &&
-                    getSetSize(USER_SUPPLIED_ID_CACHE_SET) == 0 &&
-                    getSetSize(TEST_SET) == 0 &&
-                    getSetSize(VERTEX_EDGELIST_AERO_SET) == 0 &&
-                    getSetSize(GRAPH_VARIABLES_SET) == 0 &&
-                    getSetSize(INDEX_METADATA) == 0) {
-                LOG.info("Removed sets after {} attempts.", i);
-                break;
-            } else {
-                if (i == (LoopsPerSetExistsCheck - 1)) {
-                    LOG.error("Failed to drop database.");
-                    break;
-                }
-                try {
-                    Thread.sleep(DelayPerSetExistsCheck);
-                } catch (InterruptedException ignored) {
-                }
-            }
-        }
     }
 
     public void dropDatabase() {
@@ -1829,7 +1805,7 @@ public class AerospikeConnection {
 
     @Override
     public final String toString() {
-        return String.format("aerospike://%s:%s/%s", host, port, namespace);
+        return String.format("aerospike://{}:{}/{}", host, port, namespace);
     }
 
     /**

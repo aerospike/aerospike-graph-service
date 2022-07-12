@@ -77,7 +77,6 @@ public class TestAerospikeGraphIntegration {
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-
     }
 
     @Before

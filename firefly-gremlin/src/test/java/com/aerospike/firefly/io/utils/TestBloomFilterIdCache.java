@@ -33,10 +33,12 @@ public class TestBloomFilterIdCache {
     @Before
     public void setup() {
         db = AerospikeConnection.connect(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES));
+        db.dropDatabase();
     }
 
     @After
     public void cleanup() {
+        db.dropDatabase();
         db.close();
     }
 
@@ -47,7 +49,7 @@ public class TestBloomFilterIdCache {
 
         // Grab ids from bloom filter and ensure we have no duplicates.
         for (int i = 0; i < ID_COUNT; i++) {
-            if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, "BLOOM_FILTER_TEST_SINGLE_FILTER", i)) {
+            if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, "VERTEX_TEST_ID", i)) {
                 ids.add((long) i);
             }
         }
@@ -80,7 +82,7 @@ public class TestBloomFilterIdCache {
     }
 
     @Test
-    public void testMultiBloomFilterWithCollision() throws IOException, InterruptedException {
+    public void testMultiBloomFilterWithCollision() throws InterruptedException {
         // Create id set and ExecutorService.
         Set<Long> ids = new HashSet<>();
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -115,7 +117,7 @@ public class TestBloomFilterIdCache {
 
         public Void call() throws IOException {
             for (int i = index * 100; i < (index + 1) * 100; i++) {
-                if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, "BLOOM_FILTER_TEST_CONCURRENT_FILTER", i)) {
+                if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, "VERTEX_TEST_ID", i)) {
                     ids.add((long) i);
                 }
             }

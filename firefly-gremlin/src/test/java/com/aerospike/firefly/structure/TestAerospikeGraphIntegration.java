@@ -61,6 +61,7 @@ public class TestAerospikeGraphIntegration {
         db = AerospikeConnection.connect(config);
         graph = new FireflyGraph(config);
         graph.traversal().V().drop().iterate();
+        db.dropDatabase();
     }
 
     @Before

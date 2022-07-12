@@ -44,6 +44,7 @@ public class TestAerospikeClientIntegration {
     public static void setup() {
         configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
+        db.dropDatabase();
     }
 
     @Before

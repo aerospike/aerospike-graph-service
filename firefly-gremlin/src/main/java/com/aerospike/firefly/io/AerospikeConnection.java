@@ -44,6 +44,8 @@ public class AerospikeConnection {
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
+    final int DelayPerSetExistsCheck = 100;
+    final int LoopsPerSetExistsCheck = 100;
 
     final EventLoops eventLoops;
 
@@ -1787,6 +1789,30 @@ public class AerospikeConnection {
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();
+
+        for (int i = 0; i < LoopsPerSetExistsCheck; i++) {
+            if (getSetSize(EDGE_AERO_SET) == 0 &&
+                    getSetSize(VERTEX_AERO_SET) == 0 &&
+                    getSetSize(VERTEX_PROPERTY_AERO_SET) == 0 &&
+                    getSetSize(ID_MANAGER_SET) == 0 &&
+                    getSetSize(USER_SUPPLIED_ID_CACHE_SET) == 0 &&
+                    getSetSize(TEST_SET) == 0 &&
+                    getSetSize(VERTEX_EDGELIST_AERO_SET) == 0 &&
+                    getSetSize(GRAPH_VARIABLES_SET) == 0 &&
+                    getSetSize(INDEX_METADATA) == 0) {
+                LOG.info("Removed sets after {} attempts.", i);
+                break;
+            } else {
+                if (i == (LoopsPerSetExistsCheck - 1)) {
+                    LOG.error("Failed to drop database.");
+                    break;
+                }
+                try {
+                    Thread.sleep(DelayPerSetExistsCheck);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
     }
 
     public void dropDatabase() {

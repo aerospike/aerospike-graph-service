@@ -18,8 +18,10 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,22 +47,25 @@ public class TestPerformance {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
 
-    private AerospikeConnection db;
-    private FireflyGraph graph;
-    private GraphTraversalSource g;
+    private static AerospikeConnection db;
+    private static FireflyGraph graph;
+    private static GraphTraversalSource g;
 
-    @Before
-    public void openGraph() {
-        this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+    @BeforeClass
+    public static void openGraph() {
+        db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-
+        g.V().drop().iterate();
     }
 
-    @After
-    public void closeGraphClearData() {
-        db.dropDatabase();
+    @Before
+    public void clearGraph() {
+        g.V().drop().iterate();
+    }
+
+    @AfterClass
+    public static void closeGraph() {
         db.close();
         graph.close();
     }

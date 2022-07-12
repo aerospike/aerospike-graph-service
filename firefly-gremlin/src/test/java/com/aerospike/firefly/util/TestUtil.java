@@ -40,11 +40,11 @@ public class TestUtil {
         config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID,"2");
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);
         AerospikeConnection db_two = AerospikeConnection.connect(config_two);
-        db_one.dropDatabase();
-        db_two.dropDatabase();
 
         FireflyGraph graph_one = FireflyGraph.open(config_one);
+        graph_one.traversal().V().drop().iterate();
         FireflyGraph graph_two = FireflyGraph.open(config_two);
+        graph_two.traversal().V().drop().iterate();
 
         Vertex a = graph_one.traversal().addV().next();
         a.addEdge("a",graph_one.traversal().addV().next());
@@ -58,8 +58,8 @@ public class TestUtil {
         assertEquals(3,graph_two.traversal().V().count().next().longValue());
         assertEquals(2,graph_two.traversal().E().count().next().longValue());
 
-        db_one.dropDatabase(true);
-        db_two.dropDatabase(true);
+        graph_one.traversal().V().drop().iterate();
+        graph_two.traversal().V().drop().iterate();
         graph_one.close();
         graph_two.close();
         db_one.close();

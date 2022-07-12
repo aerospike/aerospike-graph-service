@@ -82,7 +82,7 @@ public class TestBloomFilterIdCache {
     }
 
     @Test
-    public void testMultiBloomFilterWithCollision() throws IOException, InterruptedException {
+    public void testMultiBloomFilterWithCollision() throws InterruptedException {
         // Create id set and ExecutorService.
         Set<Long> ids = new HashSet<>();
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);

@@ -45,16 +45,19 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
             iterator = this.iteratorList(graph.edges(this.ids));
-        else {
-            if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
+        else if (indexedContainer == null || indexedContainer.getKey() == null)
                 iterator = this.iteratorList(graph.edges());
-            else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
+        else if (indexedContainer.getKey().startsWith("~label"))
+            iterator = this.iteratorList(FireflyHelper.queryEdgeByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+        else if (indexedContainer.getKey().startsWith("~"))
+            iterator = this.iteratorList(graph.edges());
+        else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
                 iterator = this.iteratorList(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-            else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
+        else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
                 iterator = this.iteratorList(FireflyHelper.queryEdgeNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
-            else
+        else
                 iterator = Collections.emptyIterator();
-        }
+
         iterators.add(iterator);
         return iterator;
     }
@@ -67,9 +70,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
             iterator = this.iteratorList(graph.vertices(this.ids));
-        else if (indexedContainer == null || indexedContainer.getKey() == null || indexedContainer.getKey().startsWith("~"))
+        else if (indexedContainer == null || indexedContainer.getKey() == null )
             iterator = this.iteratorList(graph.vertices());
-        else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
+        else if (indexedContainer.getKey().equals("~label"))
+            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+        else if (indexedContainer.getKey().startsWith("~"))
+            iterator = this.iteratorList(graph.vertices());
+        else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class) || indexedContainer.getKey().equals("~label"))
             iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
             iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));

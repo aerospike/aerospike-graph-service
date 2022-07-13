@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -407,21 +406,13 @@ public class AerospikeConnection {
       Keep in mind the replication Factor. You may need to divide by that
     */
     public long getSetSize(final String setName) {
-        try {
-            String infoQuery = "sets/" + namespace + "/" + setName;
-            String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-            List<Long> result = Arrays.stream(infoResponse.split(":"))
-                    .filter(str -> str.startsWith("objects"))
-                    .map(str -> Long.valueOf(str.split("=")[1]))
-                    .collect(Collectors.toList());
-            if (result.isEmpty()) {
-                return 0;
-            } else {
-                return result.get(0);
-            }
-        } catch (AerospikeException ignored) {
-            return 0;
-        }
+        final String infoQuery = "sets/" + namespace + "/" + setName;
+        final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+        final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
+                .filter(str -> str.startsWith("objects"))
+                .map(str -> Long.valueOf(str.split("=")[1]))
+                .collect(Collectors.toList());
+        return setSize.isEmpty() ? 0 : setSize.get(0);
     }
 
     /**

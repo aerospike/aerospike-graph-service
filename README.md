@@ -129,6 +129,14 @@ To build the docker image for firefly-enabled gremlin-server
 ```
 docker build -t firefly-server .
 ```
+To serve Firefly
 ```
 docker run -t -i -p8182:8182 --entrypoint gremlin-server.sh firefly-server /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml
+```
+To connect to Firefly from gremlin-console (emptygraph[empty] is expected output for remote traversal sources)
+```
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("172.17.0.1",8182,"g"));
+==>graphtraversalsource[emptygraph[empty], standard]
+gremlin> g.addV()
+==>v[-13]
 ```

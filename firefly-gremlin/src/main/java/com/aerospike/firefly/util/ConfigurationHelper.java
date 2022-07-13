@@ -127,7 +127,7 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                logger.info(String.format("config[%s:%s]", key, value));
+                logger.debug(String.format("config[%s:%s]", key, value));
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);

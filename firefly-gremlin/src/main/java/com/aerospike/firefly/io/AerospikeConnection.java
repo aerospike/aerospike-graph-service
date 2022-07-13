@@ -175,13 +175,13 @@ public class AerospikeConnection {
      */
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
-        LOG.warn("CONFIGURATION:");
+        LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            LOG.warn(String.format("config: [%s]:[%s]", key, conf.get(String.class, key)));
+            LOG.debug(String.format("config: [%s]:[%s]", key, conf.get(String.class, key)));
         });
-        LOG.warn(String.format("host %s %s", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST)));
-        LOG.warn(String.format("port %s %d", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT)));
-        LOG.warn(String.format("ns %s %s", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE)));
+        LOG.debug(String.format("host %s %s", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST)));
+        LOG.debug(String.format("port %s %d", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT)));
+        LOG.debug(String.format("ns %s %s", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE)));
 
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);

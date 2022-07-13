@@ -27,8 +27,10 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,24 +68,26 @@ public class TestAerospikeGraphIntegration {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
 
-    private AerospikeConnection db;
-    private FireflyGraph graph;
-    private GraphTraversalSource g;
+    private static AerospikeConnection db;
+    private static FireflyGraph graph;
+    private static GraphTraversalSource g;
 
-    @Before
-    public void openGraph() {
-        this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+    @BeforeClass
+    public static void openGraph() {
+        db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-
     }
 
-    @After
-    public void closeGraphClearData() {
-        db.dropDatabase();
-        db.close();
+    @Before
+    public void clearGraph() {
+        g.V().drop().iterate();
+    }
+
+    @AfterClass
+    public static void closeGraphClearData() {
         graph.close();
+        db.close();
     }
 
     public void printTraversalForm(final Traversal traversal) {

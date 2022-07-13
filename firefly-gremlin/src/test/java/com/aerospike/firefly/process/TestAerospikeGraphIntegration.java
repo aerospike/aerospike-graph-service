@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
 import org.apache.tinkerpop.gremlin.structure.*;
@@ -41,12 +42,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.lt;
+import static org.apache.tinkerpop.gremlin.process.traversal.Pick.none;
 import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.constant;
 import static org.apache.tinkerpop.gremlin.structure.Column.keys;
 import static org.apache.tinkerpop.gremlin.structure.Column.values;
 import static org.apache.tinkerpop.gremlin.util.tools.CollectionFactory.asMap;
@@ -159,7 +164,7 @@ public class TestAerospikeGraphIntegration {
         printTraversalForm(traversal);
         try {
             traversal.next();
-            fail("Should have failed as vertices are not created");
+            Assert.fail("Should have failed as vertices are not created");
         } catch (Exception ex) {
             assertThat(ex.getMessage(), endsWith("could not be found and edge could not be created"));
         }
@@ -242,7 +247,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 9);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
 
@@ -264,7 +269,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 7);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
 
@@ -302,7 +307,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 9);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
 
@@ -340,7 +345,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 8);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
 
@@ -362,7 +367,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 10);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
 
@@ -384,7 +389,7 @@ public class TestAerospikeGraphIntegration {
                 assertEquals(1, e.keys().size());
                 assertId(g1, lossyForId, e, 12);
             } else {
-                fail("Edge not expected");
+                Assert.fail("Edge not expected");
             }
         });
     }
@@ -1086,5 +1091,86 @@ public class TestAerospikeGraphIntegration {
         Assert.assertTrue(traversal.hasNext());
         Assert.assertTrue(((Vertex)traversal.next()).value("name").equals("marko"));
         Assert.assertFalse(traversal.hasNext());
+    }
+
+    @Test
+    public void g_E_hasLabelXknowsX() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Traversal<Edge, Edge> traversal = this.g.E().hasLabel("knows");
+        this.printTraversalForm(traversal);
+        int counter = 0;
+
+        while(traversal.hasNext()) {
+            ++counter;
+            Assert.assertEquals("knows", ((Edge)traversal.next()).label());
+        }
+
+        Assert.assertEquals(2L, (long)counter);
+    }
+
+    private static <A, B> boolean internalCheckMap(final Map<A, B> expectedMap, final Map<A, B> actualMap) {
+        final List<Map.Entry<A, B>> actualList = actualMap.entrySet().stream().sorted(Comparator.comparing(a -> a.getKey().toString())).collect(Collectors.toList());
+        final List<Map.Entry<A, B>> expectedList = expectedMap.entrySet().stream().sorted(Comparator.comparing(a -> a.getKey().toString())).collect(Collectors.toList());
+
+        if (expectedList.size() != actualList.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < actualList.size(); i++) {
+            if (!Objects.equals(actualList.get(i).getKey(), expectedList.get(i).getKey())) {
+                return false;
+            }
+            if (!Objects.equals(actualList.get(i).getValue(), expectedList.get(i).getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+    private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
+        if (expectedList.size() != actualList.size()) {
+            return false;
+        }
+        for (int i = 0; i < actualList.size(); i++) {
+            if (!actualList.get(i).equals(expectedList.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    public static <T> void checkResults(final List<T> expectedResults, final Traversal<?, T> traversal) {
+        final List<T> results = traversal.toList();
+        assertThat(traversal.hasNext(), Is.is(false));
+        if (expectedResults.size() != results.size()) {
+            assertEquals("Checking result size", expectedResults.size(), results.size());
+        }
+
+        for (T t : results) {
+            if (t instanceof Map) {
+                assertThat("Checking map result existence: " + t, expectedResults.stream().filter(e -> e instanceof Map).anyMatch(e -> internalCheckMap((Map) e, (Map) t)), Is.is(true));
+            } else if (t instanceof List) {
+                assertThat("Checking list result existence: " + t, expectedResults.stream().filter(e -> e instanceof List).anyMatch(e -> internalCheckList((List) e, (List) t)), Is.is(true));
+            } else {
+                assertThat("Checking result existence: " + t, expectedResults.contains(t), Is.is(true));
+            }
+        }
+        final Map<T, Long> expectedResultsCount = new HashMap<>();
+        final Map<T, Long> resultsCount = new HashMap<>();
+        expectedResults.forEach(t -> MapHelper.incr(expectedResultsCount, t, 1L));
+        results.forEach(t -> MapHelper.incr(resultsCount, t, 1L));
+        assertEquals("Checking indexing is equivalent", expectedResultsCount.size(), resultsCount.size());
+        expectedResultsCount.forEach((k, v) -> assertEquals("Checking result group counts", v, resultsCount.get(k)));
+    }
+    @Test
+    public void g_V_branchXageX_optionXltX30X__youngX_optionXgtX30X__oldX_optionXnone__on_the_edgeX() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Traversal<Vertex, Object> traversal = g.V().hasLabel("person")
+                .branch(__.values("age"))
+                .option(lt(30), constant("young"))
+                .option(gt(30), constant("old"))
+                .option(none, constant("on the edge"));
+        this.printTraversalForm(traversal);
+        checkResults(Arrays.asList("young", "young", "old", "old"), traversal);
     }
 }

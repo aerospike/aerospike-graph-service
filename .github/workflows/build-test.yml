@@ -28,6 +28,7 @@ jobs:
   test:
     name: test-firefly
     timeout-minutes: 120
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -45,6 +46,7 @@ jobs:
   benchmark:
     name: benchmark-firefly
     timeout-minutes: 120
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

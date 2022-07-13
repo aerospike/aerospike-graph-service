@@ -18,8 +18,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.*;
@@ -36,19 +37,24 @@ import static org.junit.Assert.*;
  */
 public class TestAerospikeClientIntegration {
 
-    private Configuration configuration;
-    private AerospikeConnection db;
+    private static Configuration configuration;
+    private static AerospikeConnection db;
 
-    @Before
-    public void setup() {
+    @BeforeClass
+    public static void setup() {
         configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
-        db.dropDatabase();
     }
 
-    @After
-    public void cleanup() {
-        db.dropDatabase();
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            graph.traversal().V().drop().iterate();
+        }
+    }
+
+    @AfterClass
+    public static void cleanup() {
         db.close();
     }
 
@@ -93,18 +99,6 @@ public class TestAerospikeClientIntegration {
         FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
         assertNotEquals(null, db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
         db.delete(FireflyRecord.getKey(db.namespace, db.TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
-    }
-
-    @Test
-    public void testDropDatabase() throws InterruptedException {
-        FireflyId id = FireflyId.of(null, "foo");
-        Bin bin1 = new Bin("name", "John Doe");
-        Bin bin2 = new Bin("age", 32);
-        Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
-        db.dropDatabase();
-        Thread.sleep(1000);
         assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
     }
 
@@ -162,6 +156,7 @@ public class TestAerospikeClientIntegration {
         configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
 
         try (FireflyGraph graph = FireflyGraph.open(configuration)) {
+            graph.traversal().V().drop().iterate();
             Vertex root = graph.addVertex("root");
             IntStream.range(0, 6).forEach(i -> {
                 Vertex nu = graph.addVertex("leaf");
@@ -177,35 +172,37 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanEdgeIds() {
-        FireflyGraph graph = FireflyGraph.open(configuration);
-        ArrayList<Long> vertexIds = new ArrayList<>() {{
-            add(0L);
-            add(1L);
-        }};
-        ArrayList<Long> edgeIds = new ArrayList<>() {{
-            add(2L);
-            add(3L);
-        }};
-        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
-        FireflyVertex va = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
-        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
-        FireflyVertex vb = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
-        Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
-        assertTrue(i.hasNext());
-        Long a = i.next();
-        assertTrue(vertexIds.contains(a));
-        Long b = i.next();
-        assertTrue(vertexIds.contains(b));
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)){
+            graph.traversal().V().drop().iterate();
+            ArrayList<Long> vertexIds = new ArrayList<>() {{
+                add(0L);
+                add(1L);
+            }};
+            ArrayList<Long> edgeIds = new ArrayList<>() {{
+                add(2L);
+                add(3L);
+            }};
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
+            FireflyVertex va = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
+            db.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
+            FireflyVertex vb = db.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
+            Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
+            assertTrue(i.hasNext());
+            Long a = i.next();
+            assertTrue(vertexIds.contains(a));
+            Long b = i.next();
+            assertTrue(vertexIds.contains(b));
 
-        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
-        db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
+            db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
+            db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
 
-        Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
-        assertTrue(ie.hasNext());
-        Long ae = ie.next();
-        assertTrue(edgeIds.contains(ae));
-        Long be = ie.next();
-        assertTrue(edgeIds.contains(be));
+            Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
+            assertTrue(ie.hasNext());
+            Long ae = ie.next();
+            assertTrue(edgeIds.contains(ae));
+            Long be = ie.next();
+            assertTrue(edgeIds.contains(be));
+        }
     }
 
     @Test
@@ -292,7 +289,7 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
         db.createIndex(db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
-        IntStream.range(0, 10000).forEach(i -> {
+        IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, new Bin(binName, choices.next()));
         });
@@ -303,7 +300,7 @@ public class TestAerospikeClientIntegration {
         stringQuery.setIndexName(stringIndex);
 
         long stringCount = countQueryResults(binName, stringIndex, stringQuery);
-        assertEquals(5000, stringCount);
+        assertEquals(50, stringCount);
 
         final Statement numberQuery = new Statement();
         numberQuery.setNamespace(db.namespace);
@@ -311,7 +308,7 @@ public class TestAerospikeClientIntegration {
         numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
         numberQuery.setIndexName(numberIndex);
         long numberCount = countQueryResults(binName, stringIndex, numberQuery);
-        assertEquals(2500, numberCount);
+        assertEquals(25, numberCount);
 
         db.dropIndex(db.TEST_SET, numberIndex);
         db.dropIndex(db.TEST_SET, stringIndex);
@@ -325,7 +322,7 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
-        IntStream.range(0, 10000).forEach(i -> {
+        IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
@@ -352,7 +349,7 @@ public class TestAerospikeClientIntegration {
         final String testIndex = "testIndex";
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
-        int NUMBER_OF_RECORDS = 10000;
+        int NUMBER_OF_RECORDS = 100;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
             final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
@@ -370,16 +367,19 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testCountElements() {
-        FireflyGraph graph = FireflyGraph.open(configuration);
-        ArrayList<Vertex> added = new ArrayList<>();
-        IntStream.range(0, 1000).forEach(i -> {
-            Vertex nv = graph.addVertex();
-            added.add(nv);
-            if (i != 0)
-                nv.addEdge("test", added.get(0));
-        });
-        assertEquals((long) graph.traversal().E().count().next(), db.getEdgeCount());
-        assertEquals((long) graph.traversal().V().count().next(), db.getVertexCount());
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            ArrayList<Vertex> added = new ArrayList<>();
+            IntStream.range(0, 10).forEach(i -> {
+                Vertex nv = graph.addVertex();
+                added.add(nv);
+                if (i != 0)
+                    nv.addEdge("test", added.get(0));
+            });
+            assertEquals((long) graph.traversal().E().count().next(), db.getEdgeCount());
+            assertEquals((long) graph.traversal().V().count().next(), db.getVertexCount());
+        }
     }
 
     @Test
@@ -387,14 +387,14 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        IntStream.range(0, 10000).forEach(i -> {
+        IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.namespace, db.TEST_SET, i);
             db.client.put(null, key, bin1, bin2, bin3);
         });
 
-        PerfUtil.Results results = PerfUtil.runTestBatch(10000, () -> {
+        PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
-            final Key key = new Key(db.namespace, db.TEST_SET, tlr.nextInt(0, 10000));
+            final Key key = new Key(db.namespace, db.TEST_SET, tlr.nextInt(0, 100));
             final Record data = db.client.get(null, key);
             assert data.getLong("age") == 32;
         });
@@ -518,6 +518,43 @@ public class TestAerospikeClientIntegration {
             final Set<Object> expectedEdgeIds = ImmutableSet.of(1L, "2", 3);
             final Set<Object> actualEdgeIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
             assertEquals(expectedEdgeIds, actualEdgeIds);
+        }
+    }
+
+    @Test
+    public void testDropVerticesEdges() {
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            assertEquals(0L, g.V().count().next().longValue());
+            g.addV("user-id-vertex").property(T.id, "1").
+                    addV("user-id-vertex").property(T.id, 2).
+                    addV("user-id-vertex").property(T.id, 3L).
+                    iterate();
+            assertEquals(3L, g.V().count().next().longValue());
+
+            g.V().has(T.id, "1").as("a").
+                    V().has(T.id, 2).as("b").
+                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
+                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
+                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
+                    addE("user-id-edge").from("a").to("a").property(T.id, 4).
+                    iterate();
+            assertEquals(4L, g.E().count().next().longValue());
+
+            // Problem 1: Vertices with string ids are not dropped. properly.
+            g.V().has(T.id, 3L).drop().iterate();
+            assertEquals(2L, g.V().count().next().longValue());
+            assertEquals(4L, g.E().count().next().longValue());
+
+            g.V().has(T.id, "1").drop().iterate();
+            assertEquals(1L, g.V().count().next().longValue());
+            assertEquals(1L, g.E().count().next().longValue());
+
+            g.V().has(T.id, 2).drop().iterate();
+            assertEquals(0L, g.V().count().next().longValue());
+            g.E().toList().forEach(e -> System.out.println(e.id()));
+            assertEquals(0L, g.E().count().next().longValue());
         }
     }
 }

@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -44,8 +43,6 @@ public class AerospikeConnection {
     final int NumLoops = 2;
     final int CommandsPerEventLoop = 50;
     final int DelayQueueSize = 50;
-    final int DelayPerSetExistsCheck = 100;
-    final int LoopsPerSetExistsCheck = 100;
 
     final EventLoops eventLoops;
 
@@ -697,6 +694,7 @@ public class AerospikeConnection {
     /**
      * Issue a scan query for all the records in a set.
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
      * @param setName  Aerospike set name to scan
      * @param exp      Expression to apply to Scan
@@ -1279,7 +1277,7 @@ public class AerospikeConnection {
     /**
      * remove a Vertex Record
      *
-     * @param graph    refrence to Graph
+     * @param graph    reference to Graph
      * @param vertexId id of Vertex to remove
      */
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
@@ -1411,7 +1409,7 @@ public class AerospikeConnection {
      */
     public FireflyEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
         LOG.debug("Reading edge {}.", edgeId.value().toString());
-        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId);
+        final FireflyRecord edgeRecord = FireflyRecord.read(this, EDGE_AERO_SET, edgeId.toNumericId());
         if (edgeRecord == null) {
             return null;
         }
@@ -1639,7 +1637,7 @@ public class AerospikeConnection {
         labelEdges.put(edge.label(), edges);
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.write(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
+        FireflyRecord.writeElement(this, VERTEX_AERO_SET, vertex.id, edgeIdsBin, edgeCounterBin);
     }
 
     /**
@@ -1788,30 +1786,6 @@ public class AerospikeConnection {
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();
-
-        for (int i = 0; i < LoopsPerSetExistsCheck; i++) {
-            if (getSetSize(EDGE_AERO_SET) == 0 &&
-                    getSetSize(VERTEX_AERO_SET) == 0 &&
-                    getSetSize(VERTEX_PROPERTY_AERO_SET) == 0 &&
-                    getSetSize(ID_MANAGER_SET) == 0 &&
-                    getSetSize(USER_SUPPLIED_ID_CACHE_SET) == 0 &&
-                    getSetSize(TEST_SET) == 0 &&
-                    getSetSize(VERTEX_EDGELIST_AERO_SET) == 0 &&
-                    getSetSize(GRAPH_VARIABLES_SET) == 0 &&
-                    getSetSize(INDEX_METADATA) == 0) {
-                LOG.info("Removed sets after {} attempts.", i);
-                break;
-            } else {
-                if (i == (LoopsPerSetExistsCheck - 1)) {
-                    LOG.error("Failed to drop database.");
-                    break;
-                }
-                try {
-                    Thread.sleep(DelayPerSetExistsCheck);
-                } catch (InterruptedException ignored) {
-                }
-            }
-        }
     }
 
     public void dropDatabase() {
@@ -1820,7 +1794,7 @@ public class AerospikeConnection {
 
     @Override
     public final String toString() {
-        return String.format("aerospike://{}:{}/{}", host, port, namespace);
+        return String.format("aerospike://%s:%s/%s", host, port, namespace);
     }
 
     /**

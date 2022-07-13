@@ -24,7 +24,7 @@ public class GraphTraversalSourceFactory {
         FLIGHTS
     }
 
-    public static GraphTraversalSource createGraphTraversalSource(GRAPH graph) {
+    public static Graph createGraphTraversalSource(GRAPH graph) {
         switch (graph) {
             case FIREFLY:
                 return createFireflyGraphTraversalSource();
@@ -37,23 +37,30 @@ public class GraphTraversalSourceFactory {
 
     public static void loadGraph(GRAPH graph, DATASET dataset) {
         switch (graph) {
-            case FIREFLY:
-                AirRoutes.loadAirRoutes50k(FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES)));
+            case FIREFLY: {
+                FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
+                AirRoutes.loadAirRoutes50k(fireflyGraph);
+                fireflyGraph.close();
+            }
             case JANUSGRAPH:
                 AirRoutes.loadAirRoutes50k(null);
-            default:
-                AirRoutes.loadAirRoutes50k(FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES)));
+            default: {
+                FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
+                AirRoutes.loadAirRoutes50k(fireflyGraph);
+                fireflyGraph.close();
+            }
         }
     }
 
     // TODO: Connect using remote connection and generate graph traversal source.
-    private static GraphTraversalSource createFireflyGraphTraversalSource() {
+    //  Currently using Graph object so it can be closed after the test.
+    private static Graph createFireflyGraphTraversalSource() {
         LOG.info("Creating Firefly GraphTraversalSource.");
-        return FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES)).traversal();
+        return FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
     }
 
     // TODO: Support JanusGraph
-    private static GraphTraversalSource createJanusGraphTraversalSource() {
+    private static Graph createJanusGraphTraversalSource() {
         throw new RuntimeException("JanusGraph is not yet supported.");
     }
 

@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.IO.graphson;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
@@ -47,7 +48,7 @@ public class TestAerospikeGraphIntegration {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromFile("/home/g/phaseshift/aerospike/aerograph/conf/firefly-graph.properties");
+        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;

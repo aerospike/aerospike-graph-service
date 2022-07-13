@@ -4,7 +4,6 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.IOUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -15,13 +14,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.util.*;
@@ -30,15 +23,10 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static java.lang.Thread.sleep;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
-import static org.apache.tinkerpop.gremlin.structure.T.key;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.*;
 
@@ -50,7 +38,7 @@ public class TestAerospikeGraphIntegration {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile("/home/g/phaseshift/aerospike/aerograph/conf/firefly-graph.properties");
     }
 
     private static AerospikeConnection db;

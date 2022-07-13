@@ -127,5 +127,8 @@ gremlin>
 
 To build the docker image for firefly-enabled gremlin-server
 ```
-docker build --build-arg ENTRYPOINT=gremlin-server.sh -t firefly-server .
+docker build -t firefly-server .
+```
+```
+docker run -t -i -p8182:8182 --entrypoint gremlin-server.sh firefly-server /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml
 ```

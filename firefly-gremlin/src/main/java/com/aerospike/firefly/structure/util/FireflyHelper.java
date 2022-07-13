@@ -121,7 +121,6 @@ public final class FireflyHelper {
     }
 
 
-
     public interface ExistsFunction {
         boolean exists(final FireflyId idValue);
     }
@@ -244,6 +243,14 @@ public final class FireflyHelper {
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
+    public static Iterator<? extends Vertex> queryVertexByLabelStringIndex(FireflyGraph graph, Object value) {
+        return graph.getBaseGraph().queryVertexLabelStringIndex(graph, value);
+    }
+    public static Iterator<? extends Edge> queryEdgeByLabelStringIndex(FireflyGraph graph, Object value) {
+        return graph.getBaseGraph().queryEdgeLabelStringIndex(graph, value);
+    }
+
+
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
     }

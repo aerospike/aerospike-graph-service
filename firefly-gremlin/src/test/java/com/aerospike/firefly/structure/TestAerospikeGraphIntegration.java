@@ -5,17 +5,25 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.io.IoCore;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
+import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,6 +32,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
+import static org.apache.tinkerpop.gremlin.process.traversal.IO.graphson;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -58,6 +67,7 @@ public class TestAerospikeGraphIntegration {
 
     @AfterClass
     public static void closeGraphClearData() throws Exception {
+        graph.traversal().V().drop().iterate();
         graph.close();
         db.close();
     }
@@ -584,4 +594,73 @@ public class TestAerospikeGraphIntegration {
 
         this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(0, 0));
     }
+
+    @Test
+    public void shouldReadWriteSelfLoopingEdges() throws Exception {
+        GraphSONMapper mapper = ((GraphSONIo)this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
+        Graph source = this.graph;
+        Vertex v1 = source.addVertex(new Object[0]);
+        Vertex v2 = source.addVertex(new Object[0]);
+        v1.addEdge("CONTROL", v2, new Object[0]);
+        v1.addEdge("SELFLOOP", v1, new Object[0]);
+        final HashMap<String, Object> configMap = new HashMap<>();
+        graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, "_1");
+
+
+        Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));
+        targetGraph.traversal().V().drop().iterate();
+        try {
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            Throwable var8 = null;
+
+            try {
+                ((GraphSONIo)source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
+                ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
+                Throwable var10 = null;
+
+                try {
+                    ((GraphSONIo)targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
+                } catch (Throwable var35) {
+                    var10 = var35;
+                    throw var35;
+                } finally {
+                    if (is != null) {
+                        if (var10 != null) {
+                            try {
+                                is.close();
+                            } catch (Throwable var34) {
+                                var10.addSuppressed(var34);
+                            }
+                        } else {
+                            is.close();
+                        }
+                    }
+
+                }
+            } catch (Throwable var37) {
+                var8 = var37;
+                throw var37;
+            } finally {
+                if (os != null) {
+                    if (var8 != null) {
+                        try {
+                            os.close();
+                        } catch (Throwable var33) {
+                            var8.addSuppressed(var33);
+                        }
+                    } else {
+                        os.close();
+                    }
+                }
+
+            }
+        } catch (IOException var39) {
+            throw new RuntimeException(var39);
+        }
+
+        Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
+        Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
+    }
 }
+

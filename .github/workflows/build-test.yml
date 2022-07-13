@@ -60,5 +60,5 @@ jobs:
           distribution: 'temurin'
       - name: Benchmark Firefly
         run: |
-          mvn clean test
+          mvn clean test -Dtest=BenchmarkTest
 

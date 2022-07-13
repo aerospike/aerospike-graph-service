@@ -1,14 +1,9 @@
 package com.aerospike.firefly.benchmark;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.IOUtil;
-import org.apache.commons.configuration2.Configuration;
+
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -17,7 +12,6 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -31,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.All)
-@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 0)
 @Measurement(iterations = 2, time = 2, timeUnit = TimeUnit.MINUTES)
@@ -49,22 +43,28 @@ public class BenchmarkTest {
         Options opt = new OptionsBuilder()
                 .include(BenchmarkTest.class.getSimpleName())
                 .forks(1)
-                .timeout(TimeValue.seconds(20))
+                .timeout(TimeValue.minutes(10)) // Timeout
                 .build();
         new Runner(opt).run();
     }
 
+    // TODO: Benchmark should ONLY contain the code that is being benchmarked. I.E g.V() code.
     @Benchmark
-    public void testBenchmark1(final Blackhole blackhole) {
-        final GraphTraversalSource g = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
+    public void testBenchmark1(final Blackhole blackhole) throws Exception {
+        final Graph graph = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
+        GraphTraversalSource g = graph.traversal();
         List<Vertex> vertices = g.V().has("code", "AUS").out().out().has("code", "SEA").toList();
         blackhole.consume(vertices);
+        graph.close();
     }
 
+    // TODO: Benchmark should ONLY contain the code that is being benchmarked. I.E g.V() code.
     @Benchmark
-    public void testBenchmark2(final Blackhole blackhole) {
-        final GraphTraversalSource g = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
+    public void testBenchmark2(final Blackhole blackhole) throws Exception {
+        final Graph graph = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
+        GraphTraversalSource g = graph.traversal();
         List<Vertex> vertices = g.V().has("code", "AUS").out().has("code", "SEA").toList();
         blackhole.consume(vertices);
+        graph.close();
     }
 }

@@ -135,7 +135,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         // Drop database and close database. Do not drop indices.
         db.dropDatabase(true);
         db.close();
-        
+
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.
         if (graph != null) {
             ((FireflyGraph) graph).close();

@@ -617,11 +617,11 @@ public class TestAerospikeGraphIntegration {
         v1.addEdge("SELFLOOP", v1, new Object[0]);
         final HashMap<String, Object> configMap = new HashMap<>();
         graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
-        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, "target");
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, "_1");
 
 
-        Graph target = FireflyGraph.open(new MapConfiguration(configMap));
-
+        Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));
+        targetGraph.traversal().V().drop().iterate();
         try {
             ByteArrayOutputStream os = new ByteArrayOutputStream();
             Throwable var8 = null;
@@ -632,7 +632,7 @@ public class TestAerospikeGraphIntegration {
                 Throwable var10 = null;
 
                 try {
-                    ((GraphSONIo)target.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, target);
+                    ((GraphSONIo)targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
                 } catch (Throwable var35) {
                     var10 = var35;
                     throw var35;
@@ -671,8 +671,8 @@ public class TestAerospikeGraphIntegration {
             throw new RuntimeException(var39);
         }
 
-        Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(target.vertices(new Object[0])));
-        Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(target.edges(new Object[0])));
+        Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
+        Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
     }
 }
 

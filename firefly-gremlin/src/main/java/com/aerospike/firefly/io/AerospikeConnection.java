@@ -389,7 +389,8 @@ public class AerospikeConnection {
     public boolean vertexExists(final FireflyId vertexId) {
         LOG.debug("Checking if vertex {} exists.", vertexId.value());
         final Key key = FireflyRecord.getKey(namespace, VERTEX_AERO_SET, vertexId.toNumericId());
-        return exists(key);
+        final boolean exists = exists(key);
+        return exists;
     }
 
     /**

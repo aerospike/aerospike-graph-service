@@ -131,6 +131,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final List<Edge> edges = new ArrayList<>();
         this.edges(Direction.BOTH).forEachRemaining(edges::add);
         IteratorUtils.filter(IteratorUtils.asIterator(edges), edge -> !((FireflyEdge) edge).removed).forEachRemaining(edge -> ((Edge) edge).remove());
+        this.properties().forEachRemaining(Property::remove);
         removeVertex(graph, this.id);
         this.removed = true;
     }

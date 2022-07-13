@@ -61,6 +61,20 @@ gremlin> g = graph.traversal()
 
 **NOTE**: It is required that you restart the console after `:install` in order to get the new `ext/firefly` jars on the classpath.
 
+Installing Firefly for Gremlin-Server
+-----------
+
+![GremlinServer](https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/gremlin-server.png)
+
+Download [GremlinServer](https://tinkerpop.apache.org/download.html).
+
+The shell command below will load GremlinServer configured to `firefly-gremlin-server.yaml` which references `conf/firefly-gremlin.properties`. The latter is the standard `GRAPH.gremlin` properites file denoting a TinkerPop3 implementation and thus, can be opened using `Graph.open()`.
+
+```
+# start GremlinServer
+bin/gremlin-server.sh ~/firefly-gremlin-server.yaml
+```
+
 Gremlin Traversals
 -----------
 

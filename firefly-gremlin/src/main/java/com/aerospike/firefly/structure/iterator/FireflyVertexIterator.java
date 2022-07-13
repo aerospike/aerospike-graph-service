@@ -13,7 +13,7 @@ import java.util.Iterator;
 public class FireflyVertexIterator<T> extends FireflyElementIterator<Vertex> {
     public FireflyVertexIterator(FireflyGraph graph, Iterator<T> idIterator) {
         super(graph.getBaseGraph(), idIterator,
-                id -> graph.getBaseGraph().vertexExists(FireflyId.of(FireflyVertex.class, id)),
+                id -> graph.getBaseGraph().vertexBackend.vertexExists(FireflyId.of(FireflyVertex.class, id)),
                 id -> graph.getBaseGraph().vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, id)));
     }
 }

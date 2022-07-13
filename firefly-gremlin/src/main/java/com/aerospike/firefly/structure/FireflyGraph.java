@@ -175,11 +175,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
-            if (db.vertexExists(idValue)) {
+            if (db.vertexBackend.vertexExists(idValue)) {
                 throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
             }
         } else {
-            while (db.vertexExists(idValue)) {
+            while (db.vertexBackend.vertexExists(idValue)) {
                 idValue = FireflyId.createFromManager(this, FireflyVertex.class);
             }
         }
@@ -240,7 +240,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         if (!longs.isEmpty() && !longs.stream().map(
-                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db::vertexExists)) {
+                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db.vertexBackend::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 

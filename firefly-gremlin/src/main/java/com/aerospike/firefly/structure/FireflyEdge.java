@@ -88,7 +88,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public void remove() {
         //@todo multi record transactions
-        graph.getBaseGraph().removeEdge(graph, this.id);
+        graph.getBaseGraph().edgeBackend.removeEdge(graph, this.id);
     }
 
     @Override

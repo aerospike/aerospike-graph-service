@@ -194,8 +194,8 @@ public class TestAerospikeClientIntegration {
             Long b = i.next();
             assertTrue(vertexIds.contains(b));
 
-            db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
-            db.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
+            db.edgeBackend.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
+            db.edgeBackend.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
 
             Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
             assertTrue(ie.hasNext());

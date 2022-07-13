@@ -52,7 +52,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
 
     @Override
     public FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        final FireflyRecord fireflyRecord = db.getVertexRecord(vertexId);
+        final FireflyRecord fireflyRecord = getVertexRecord(vertexId);
         if (fireflyRecord == null) {
             return null;
         }
@@ -134,7 +134,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
     @Override
     public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex vertex) {
         logger.debug("Getting in edge ids from Vertex {}.", vertex.id().toString());
-        FireflyRecord r = db.getVertexRecord(vertex.id);
+        FireflyRecord r = getVertexRecord(vertex.id);
         long edge_count = r.record.getLong(db.IN_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(db.CACHE_DISABLED);
         if (edge_count < db.ID_CACHE_SIZE && !cacheDisabled)
@@ -154,7 +154,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
     @Override
     public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex vertex) {
         logger.debug("Getting out edge ids from Vertex {}.", vertex.id().toString());
-        FireflyRecord r = db.getVertexRecord(vertex.id);
+        FireflyRecord r = getVertexRecord(vertex.id);
         long edgeCount = r.record.getLong(OUT_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(db.CACHE_DISABLED);
         if (edgeCount < db.ID_CACHE_SIZE && !cacheDisabled)
@@ -191,7 +191,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
     @Override
     public Map<String, List<Long>> getXXXIdsFromVertexLabelMap(final FireflyVertex vertex, String mapName) {
         logger.debug("Getting out XXX ids from Vertex {} using label map {}.", vertex.id().toString(), mapName);
-        FireflyRecord r = db.getVertexRecord(vertex.id);
+        FireflyRecord r = getVertexRecord(vertex.id);
         Map<String, List<Long>> labelIds = (Map<String, List<Long>>) r.record.getMap(mapName);
         if (labelIds == null) {
             labelIds = new HashMap<>();
@@ -231,4 +231,29 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
         );
         return db.scanFilteredIdsInSet(db.EDGE_AERO_SET, exp);
     }
+
+    /**
+     * Determine of a Vertex exists
+     *
+     * @param vertexId Id of Vertex to check
+     * @return Boolean vertex exists
+     */
+    @Override
+    public boolean vertexExists(final FireflyId vertexId) {
+        logger.debug("Checking if vertex {} exists.", vertexId.value());
+        final Key key = FireflyRecord.getKey(db.namespace, db.VERTEX_AERO_SET, vertexId.toNumericId());
+        return db.exists(key);
+    }
+
+    @Override
+    public FireflyRecord getVertexRecord(FireflyId id) {
+        logger.trace("Getting vertex record v[{}].", id.value());
+        return FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+    }
+
+    @Override
+    public FireflyRecord getVertexRecord(FireflyVertex vertex) {
+        return getVertexRecord(vertex.id);
+    }
+
 }

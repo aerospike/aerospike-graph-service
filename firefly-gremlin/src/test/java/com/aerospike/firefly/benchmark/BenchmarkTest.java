@@ -51,7 +51,6 @@ public class BenchmarkTest {
     // TODO: Benchmark should ONLY contain the code that is being benchmarked. I.E g.V() code.
     @Benchmark
     public void testBenchmark1(final Blackhole blackhole) throws Exception {
-        System.out.println("Benchmark 1");
         final Graph graph = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
         GraphTraversalSource g = graph.traversal();
         List<Vertex> vertices = g.V().has("code", "AUS").out().out().has("code", "SEA").toList();
@@ -62,7 +61,6 @@ public class BenchmarkTest {
     // TODO: Benchmark should ONLY contain the code that is being benchmarked. I.E g.V() code.
     @Benchmark
     public void testBenchmark2(final Blackhole blackhole) throws Exception {
-        System.out.println("Benchmark 2");
         final Graph graph = GraphTraversalSourceFactory.createGraphTraversalSource(GRAPH_TYPE);
         GraphTraversalSource g = graph.traversal();
         List<Vertex> vertices = g.V().has("code", "AUS").out().has("code", "SEA").toList();

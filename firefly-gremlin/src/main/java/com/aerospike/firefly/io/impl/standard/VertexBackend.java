@@ -40,8 +40,9 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
      */
     @Override
     public long getVertexCount() {
-        return db.getSetSize(db.VERTEX_AERO_SET);
+        return AerospikeConnection.InfoOps.getSetSize(db.VERTEX_AERO_SET, db.getNamespace(), db.getClient());
     }
+
     /**
      * Read a record from VERTEX_AERO_SET and return a constructed FireflyVertex
      *
@@ -58,6 +59,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
         }
         return vertexFromRecord(graph, fireflyRecord);
     }
+
     /**
      * write a labeled Vertex record
      *
@@ -81,7 +83,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
     @Override
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
         logger.debug("Removing Vertex {}.", vertexId.value().toString());
-        final Key key = FireflyRecord.getKey(db.namespace, db.VERTEX_AERO_SET, vertexId.toNumericId());
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertexId.toNumericId());
         db.delete(key);
     }
 
@@ -241,7 +243,7 @@ public class VertexBackend extends BackendElement implements Backend.Vertex {
     @Override
     public boolean vertexExists(final FireflyId vertexId) {
         logger.debug("Checking if vertex {} exists.", vertexId.value());
-        final Key key = FireflyRecord.getKey(db.namespace, db.VERTEX_AERO_SET, vertexId.toNumericId());
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertexId.toNumericId());
         return db.exists(key);
     }
 

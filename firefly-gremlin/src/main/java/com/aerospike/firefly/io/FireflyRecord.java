@@ -138,7 +138,7 @@ public class FireflyRecord {
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
-        final Key key = getKey(db.namespace, set, id);
+        final Key key = getKey(db.getNamespace(), set, id);
         final Record record = db.read(key);
         if (record == null)
             return null;
@@ -164,7 +164,7 @@ public class FireflyRecord {
                                 final FireflyId id,
                                 final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(id.value().getClass());
-        final Key key = getKey(db.namespace, set, id);
+        final Key key = getKey(db.getNamespace(), set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
@@ -182,7 +182,7 @@ public class FireflyRecord {
                                        final FireflyId id,
                                        final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
-        final Key key = getElementKey(db.namespace, set, id);
+        final Key key = getElementKey(db.getNamespace(), set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);

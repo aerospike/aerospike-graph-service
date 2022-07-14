@@ -270,7 +270,7 @@ public class VertexPropertyBackend extends BackendElement implements Backend.Ver
      */
     @Override
     public void removeVertexProperty(final FireflyVertexProperty property) {
-        final Key key = FireflyRecord.getKey(db.namespace, db.VERTEX_PROPERTY_AERO_SET, FireflyId.fromElement(property));
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, FireflyId.fromElement(property));
         final Vertex parent = property.element();
         removeIdFromVertexPropertyList((FireflyVertex) parent, property);
         db.delete(key);

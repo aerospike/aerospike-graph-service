@@ -663,5 +663,6 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
         Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
     }
+
 }
 

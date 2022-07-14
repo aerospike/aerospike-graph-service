@@ -102,5 +102,7 @@ public interface Backend {
                                      List<Map.Entry<String, Object>> properties);
 
         boolean edgeExists(FireflyId edgeId);
+
+        long getEdgeCount();
     }
 }

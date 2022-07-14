@@ -14,10 +14,12 @@ import com.aerospike.firefly.util.PerfUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
 /**
@@ -97,9 +100,9 @@ public class TestAerospikeClientIntegration {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
-        assertNotEquals(null, db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
-        db.delete(FireflyRecord.getKey(db.namespace, db.TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKey(db.namespace, db.TEST_SET, id)));
+        assertNotEquals(null, db.read(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id)));
+        db.delete(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id));
+        assertNull(db.read(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id)));
     }
 
 
@@ -172,7 +175,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanEdgeIds() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)){
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
             graph.traversal().V().drop().iterate();
             ArrayList<Long> vertexIds = new ArrayList<>() {{
                 add(0L);
@@ -290,11 +293,11 @@ public class TestAerospikeClientIntegration {
         db.createIndex(db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.namespace, db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
             db.client.put(null, key, new Bin(binName, choices.next()));
         });
         final Statement stringQuery = new Statement();
-        stringQuery.setNamespace(db.namespace);
+        stringQuery.setNamespace(db.getNamespace());
         stringQuery.setSetName(db.TEST_SET);
         stringQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, "a"));
         stringQuery.setIndexName(stringIndex);
@@ -303,7 +306,7 @@ public class TestAerospikeClientIntegration {
         assertEquals(50, stringCount);
 
         final Statement numberQuery = new Statement();
-        numberQuery.setNamespace(db.namespace);
+        numberQuery.setNamespace(db.getNamespace());
         numberQuery.setSetName(db.TEST_SET);
         numberQuery.setFilter(Filter.contains(binName, IndexCollectionType.MAPVALUES, 1));
         numberQuery.setIndexName(numberIndex);
@@ -323,12 +326,12 @@ public class TestAerospikeClientIntegration {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.namespace, db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         Statement stmt = new Statement();
-        stmt.setNamespace(db.namespace);
+        stmt.setNamespace(db.getNamespace());
         stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
@@ -351,10 +354,10 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         int NUMBER_OF_RECORDS = 100;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
-            final Key key = new Key(db.namespace, db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
             db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
-        String infoQuery = "sets/" + db.namespace + "/" + db.TEST_SET;
+        String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
         String infoResponse = Info.request(new InfoPolicy(), db.client.getNodes()[0], infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
@@ -377,7 +380,7 @@ public class TestAerospikeClientIntegration {
                 if (i != 0)
                     nv.addEdge("test", added.get(0));
             });
-            assertEquals((long) graph.traversal().E().count().next(), db.getEdgeCount());
+            assertEquals((long) graph.traversal().E().count().next(), db.edgeBackend.getEdgeCount());
             assertEquals((long) graph.traversal().V().count().next(), db.vertexBackend.getVertexCount());
         }
     }
@@ -388,13 +391,13 @@ public class TestAerospikeClientIntegration {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
-            final Key key = new Key(db.namespace, db.TEST_SET, i);
+            final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
             db.client.put(null, key, bin1, bin2, bin3);
         });
 
         PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
-            final Key key = new Key(db.namespace, db.TEST_SET, tlr.nextInt(0, 100));
+            final Key key = new Key(db.getNamespace(), db.TEST_SET, tlr.nextInt(0, 100));
             final Record data = db.client.get(null, key);
             assert data.getLong("age") == 32;
         });
@@ -421,7 +424,7 @@ public class TestAerospikeClientIntegration {
 
             // If a value that cannot be parsed to string is added, it should throw an UnsupportedOperationException.
             assertThrows(UnsupportedOperationException.class, () ->
-                g.addV("Mr. T").property(T.id, "can't parse this").iterate());
+                    g.addV("Mr. T").property(T.id, "can't parse this").iterate());
 
             // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
             // Try "123", 123, and 123L, all should fail.
@@ -556,5 +559,44 @@ public class TestAerospikeClientIntegration {
             g.E().toList().forEach(e -> System.out.println(e.id()));
             assertEquals(0L, g.E().count().next().longValue());
         }
+    }
+
+    @Test
+    public void testListAllSets() {
+        Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());
+    }
+
+    @Test
+    public void testListEmptySets() {
+        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+    }
+
+    @Test
+    public void shouldRemoveAllData() throws InterruptedException {
+        AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
+            db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
+        });
+        while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() != 0)
+            sleep(1000);
+        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+
+            GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+            while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
+                sleep(1000);
+            graph.traversal().V().drop().iterate();
+            sleep(1000);
+            assertEquals(0, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+
+            Vertex a = graph.addVertex();
+            Vertex b = graph.addVertex();
+            Edge e = a.addEdge("edge", b);
+            assertEquals(3, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+
+            graph.traversal().V().drop().iterate();
+            sleep(1000);
+            // counter set
+            assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+        }
+
     }
 }

@@ -31,6 +31,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -60,7 +61,7 @@ public class AerospikeConnection {
     protected final String host;
     protected final int port;
     protected final AerospikeClient client;
-    public final String namespace;
+    private final String namespace;
 
     public static final String IN_EDGES = "IN_EDGES";
     public static final String OUT_EDGES = "OUT_EDGES";
@@ -136,8 +137,8 @@ public class AerospikeConnection {
     static AtomicLong writeMetric = new AtomicLong(0);
 
 
-    public final Backend.Vertex vertexBackend;
     public final Backend.Edge edgeBackend;
+    public final Backend.Vertex vertexBackend;
     public final Backend.VertexProperty vpBackend;
 
     /**
@@ -318,6 +319,10 @@ public class AerospikeConnection {
         return this.client;
     }
 
+    public String getNamespace() {
+        return this.namespace;
+    }
+
     /**
      * Initialize the Aerospike Throttles
      *
@@ -418,30 +423,62 @@ public class AerospikeConnection {
         return true; //@todo
     }
 
-    /*
-    @todo multi node test
-    Joe Martin
-      Keep in mind the replication Factor. You may need to divide by that
-    */
-    public long getSetSize(final String setName) {
-        final String infoQuery = "sets/" + namespace + "/" + setName;
-        final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-        final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
-                .filter(str -> str.startsWith("objects"))
-                .map(str -> Long.valueOf(str.split("=")[1]))
-                .collect(Collectors.toList());
-        return setSize.isEmpty() ? 0 : setSize.get(0);
+    public static class InfoOps {
+        private static class Keys {
+            public static final String SET = "set";
+            public static final String SETS = "sets";
+            public static final String NS = "ns";
+            public static final String OBJECTS = "objects";
+
+        }
+
+        private static Map<String, Map<String, String>> parse(String infoResponse, String namespace) {
+            Map<String, Map<String, String>> results = new HashMap<>();
+            Arrays.stream(infoResponse.split(";"))
+                    .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
+                    .map(str -> str.split(":"))
+                    .forEach(strAry -> {
+                        Map<String, String> data = new HashMap<>();
+                        Arrays.stream(strAry).forEach(kvStr -> {
+                            data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
+                        });
+                        results.put(data.get(Keys.SET), data);
+                    });
+            return results;
+        }
+
+        /*
+        @todo multi node test
+        Joe Martin
+          Keep in mind the replication Factor. You may need to divide by that
+        */
+        public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
+            final String infoQuery = "sets/" + namespace + "/" + setName;
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+            final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
+                    .filter(str -> str.startsWith("objects"))
+                    .map(str -> Long.valueOf(str.split("=")[1]))
+                    .collect(Collectors.toList());
+            return setSize.isEmpty() ? 0 : setSize.get(0);
+        }
+
+        public static Set<String> getSetList(String namespace, AerospikeClient client) {
+            String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
+            final Set<String> allSets = parse(infoResponse, namespace).keySet();
+            return allSets;
+        }
+
+        public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
+            return parse(infoResponse, namespace).entrySet().stream().filter(entry -> {
+                        Map<String, String> map = entry.getValue();
+                        return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
+                    })
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
+                    .keySet();
+        }
     }
 
-
-    /**
-     * Get a "fast count" of the number of elements in the Edge set using Aerospike info
-     *
-     * @return number of Edges
-     */
-    public long getEdgeCount() {
-        return getSetSize(EDGE_AERO_SET);
-    }
 
     private Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
         final Statement stmt = new Statement();
@@ -595,13 +632,13 @@ public class AerospikeConnection {
     /**
      * manage the set names for an element type
      */
-    static class id_config {
+    static class IdConfig {
         private final Class<? extends FireflyElement> type;
         private final String AERO_SET;
         private final String ID_KEY;
         private final String ID_BIN;
 
-        public id_config(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
+        public IdConfig(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
             this.type = type;
             if (type == FireflyVertex.class) {
                 AERO_SET = ac.VERTEX_AERO_SET;
@@ -630,7 +667,6 @@ public class AerospikeConnection {
         String getIdBin() {
             return ID_BIN;
         }
-
     }
 
     /**
@@ -863,10 +899,10 @@ public class AerospikeConnection {
      * @param <V>
      */
     public <V> void writeTypeHintedValueToMap(final String aeroSet,
-                                               final FireflyId fid,
-                                               final String mapName,
-                                               final String mapKey,
-                                               final V value, Bin... additionalBins) {
+                                              final FireflyId fid,
+                                              final String mapName,
+                                              final String mapKey,
+                                              final V value, Bin... additionalBins) {
         final Map<String, Object> data;
         final Map<String, Object> typeHints;
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
@@ -1033,7 +1069,7 @@ public class AerospikeConnection {
      * @return Iterator of raw Ids
      */
     public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
-        final id_config cfg = new id_config(this, type);
+        final IdConfig cfg = new IdConfig(this, type);
         return scanAllIdsInSet(cfg.getAeroSet());
     }
 

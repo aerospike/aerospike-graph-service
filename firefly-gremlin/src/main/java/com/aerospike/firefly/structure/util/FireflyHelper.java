@@ -114,7 +114,7 @@ public final class FireflyHelper {
         }
 
         // Check if id is inside bloom filter.
-        if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, cache, idLong)
+        if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.getNamespace(), cache, idLong)
                 && existsFunction.exists(idValue)) {
             throw illegalArgumentException;
         }
@@ -271,6 +271,6 @@ public final class FireflyHelper {
     }
 
     public static long countEdges(FireflyGraph graph) {
-        return graph.getBaseGraph().getEdgeCount();
+        return graph.getBaseGraph().edgeBackend.getEdgeCount();
     }
 }

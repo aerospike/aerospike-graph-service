@@ -115,7 +115,7 @@ public class EdgeBackend extends BackendElement implements Backend.Edge {
     @Override
     public void removeEdge(final FireflyGraph graph, final FireflyId edgeId) {
         logger.debug("Removing edge {}.", edgeId.value());
-        final Key key = FireflyRecord.getKey(db.namespace, db.EDGE_AERO_SET, edgeId.toNumericId());
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, edgeId.toNumericId());
         FireflyEdge e = readEdge(graph, edgeId);
         if (e == null) //@todo transactions for edge removal
             return;
@@ -265,8 +265,17 @@ public class EdgeBackend extends BackendElement implements Backend.Edge {
     @Override
     public boolean edgeExists(final FireflyId edgeId) {
         logger.debug("Checking if edge {} exists.", edgeId.value());
-        final Key key = FireflyRecord.getKey(db.namespace, db.EDGE_AERO_SET, edgeId.toNumericId());
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, edgeId.toNumericId());
         return db.exists(key);
     }
 
+    /**
+     * Get a "fast count" of the number of elements in the Edge set using Aerospike info
+     *
+     * @return number of Edges
+     */
+    @Override
+    public long getEdgeCount() {
+        return AerospikeConnection.InfoOps.getSetSize(db.EDGE_AERO_SET, db.getNamespace(), db.getClient());
+    }
 }

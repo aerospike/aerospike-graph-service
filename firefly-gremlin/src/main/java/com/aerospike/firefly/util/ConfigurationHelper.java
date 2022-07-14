@@ -1,9 +1,12 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,6 +21,8 @@ import java.util.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ConfigurationHelper {
+    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+
     private ConfigurationHelper() {
     }
 
@@ -38,6 +43,7 @@ public final class ConfigurationHelper {
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
             public static final String TEST_SET = "TEST_SET";
         }
+
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
@@ -119,7 +125,10 @@ public final class ConfigurationHelper {
             props.load(Files.newBufferedReader(path));
             HashMap<String, Object> configData = new HashMap<>();
             props.keySet().forEach(it -> {
-                configData.put(it.toString().toUpperCase(), props.get(it.toString()));
+                final String key = it.toString().toLowerCase();
+                final Object value = props.get(it.toString());
+                logger.debug("config[{}:{}]", key, value);
+                configData.put(key, value);
             });
             return new MapConfiguration(configData);
         } catch (IOException e) {
@@ -140,7 +149,7 @@ public final class ConfigurationHelper {
                 props.load(reader);
                 HashMap<String, Object> configData = new HashMap<>();
                 props.keySet().forEach(it -> {
-                    configData.put(it.toString().toUpperCase(), props.get(it.toString()));
+                    configData.put(it.toString().toLowerCase(), props.get(it.toString()));
                 });
                 return new MapConfiguration(configData);
             }
@@ -160,21 +169,22 @@ public final class ConfigurationHelper {
         if (!missingVariables.isEmpty())
             throw new RuntimeException("Required environment variable(s) not set: " + missingVariables);
         return new MapConfiguration(new HashMap<>() {{
-            put(Keys.AEROSPIKE_HOST, System.getenv(Keys.AEROSPIKE_HOST));
-            put(Keys.AEROSPIKE_PORT, Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));
-            put(Keys.AEROSPIKE_NAMESPACE, System.getenv(Keys.AEROSPIKE_NAMESPACE));
+            put(Keys.AEROSPIKE_HOST.toLowerCase(), System.getenv(Keys.AEROSPIKE_HOST));
+            put(Keys.AEROSPIKE_PORT.toLowerCase(), Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));
+            put(Keys.AEROSPIKE_NAMESPACE.toLowerCase(), System.getenv(Keys.AEROSPIKE_NAMESPACE));
         }});
     }
 
     public static String getOrDefault(final String key, Configuration config) {
-        if (!config.containsKey(key) && !defaultValues.containsKey(key))
-            throw new ConfigurationRuntimeException("no default value available for key: " + key);
+        final String lowerKey = key.toLowerCase();
+        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key))
+            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         try {
             Keys.Sets.class.getField(key);
         } catch (NoSuchFieldException e) {
-            return config.containsKey(key) ? config.get(String.class, key) : defaultValues.get(key);
+            return config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key);
         }
-        return (PREFIX_MASK.contains(key) ? "" : getPrefix(config)) + (config.containsKey(key) ? config.get(String.class, key) : defaultValues.get(key));
+        return (PREFIX_MASK.contains(lowerKey) ? "" : getPrefix(config)) + (config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key));
     }
 
     private static String getPrefix(Configuration config) {
@@ -182,15 +192,15 @@ public final class ConfigurationHelper {
     }
 
     public static String aerospikeNamespace(Configuration c) {
-        return c.get(String.class, Keys.AEROSPIKE_NAMESPACE);
+        return c.get(String.class, Keys.AEROSPIKE_NAMESPACE.toLowerCase());
     }
 
     public static int aerospikePort(Configuration c) {
-        return c.get(Integer.class, Keys.AEROSPIKE_PORT);
+        return c.get(Integer.class, Keys.AEROSPIKE_PORT.toLowerCase());
     }
 
     public static String aerospikeHost(Configuration c) {
-        return c.get(String.class, Keys.AEROSPIKE_HOST);
+        return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
 
 }

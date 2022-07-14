@@ -185,19 +185,24 @@ public class AerospikeConnection {
      */
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
+        LOG.debug("CONFIGURATION:");
+        conf.getKeys().forEachRemaining(key -> {
+            LOG.debug(String.format("config: [%s]:[%s]", key, conf.get(String.class, key)));
+        });
+        LOG.debug("host {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
+        LOG.debug("port {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
+        LOG.debug("ns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
 
         this.conf = conf;
-        final String host = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST);
-        final Integer port = conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT);
-        final String namespace = conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
-        this.host = host;
-        this.port = port;
+        this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+        this.namespace = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
+
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
         final Host[] hosts = Host.parseHosts(host, port);
         this.clientPolicy = new ClientPolicy();
         this.clientPolicy.eventLoops = this.eventLoops;
         this.client = new AerospikeClient(clientPolicy, hosts);
-        this.namespace = namespace;
 
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
         VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_EDGELIST_AERO_SET, conf);
@@ -596,6 +601,7 @@ public class AerospikeConnection {
                 (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+
     }
 
     public long getWriteMetric() {

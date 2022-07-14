@@ -5,8 +5,10 @@ import com.aerospike.client.Record;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import java.util.Iterator;
 import java.util.List;
@@ -18,6 +20,27 @@ import java.util.Map;
 public interface Backend {
     public static interface VertexProperty{
 
+        void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp);
+
+        <V> FireflyVertexProperty<V> readVertexProperty(FireflyVertex parent, FireflyId vpId);
+
+        <V> FireflyVertexProperty<V> vertexPropertyFromRecord(FireflyGraph graph, FireflyRecord fireflyRecord, FireflyId parentId);
+
+        Map<String, List<org.apache.tinkerpop.gremlin.structure.VertexProperty>> readVertexPropertiesByScan(FireflyVertex vertex);
+
+        List<org.apache.tinkerpop.gremlin.structure.VertexProperty> readVertexProperty(FireflyVertex vertex, String key);
+
+        Map<String, List<org.apache.tinkerpop.gremlin.structure.VertexProperty>> readVertexProperties(FireflyVertex vertex);
+
+        <V> void writeVertexProperty(FireflyVertex vertex,
+                                     FireflyId vpid,
+                                     String vpk,
+                                     String key,
+                                     V value);
+
+        void removeIdFromVertexPropertyList(FireflyVertex vertex, org.apache.tinkerpop.gremlin.structure.VertexProperty vp);
+
+        void removeVertexProperty(FireflyVertexProperty property);
     }
     public static interface Vertex{
 

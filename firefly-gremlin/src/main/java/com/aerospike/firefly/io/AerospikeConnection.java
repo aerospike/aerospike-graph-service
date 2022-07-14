@@ -11,6 +11,7 @@ import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.standard.EdgeBackend;
 import com.aerospike.firefly.io.impl.standard.VertexBackend;
+import com.aerospike.firefly.io.impl.standard.VertexPropertyBackend;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -137,6 +138,7 @@ public class AerospikeConnection {
 
     public final Backend.Vertex vertexBackend;
     public final Backend.Edge edgeBackend;
+    public final Backend.VertexProperty vpBackend;
 
     /**
      * Cast an Id to its on-disk storage type
@@ -248,6 +250,7 @@ public class AerospikeConnection {
 
         vertexBackend = new VertexBackend(this);
         edgeBackend = new EdgeBackend(this);
+        vpBackend = new VertexPropertyBackend(this);
     }
 
     /**
@@ -530,7 +533,7 @@ public class AerospikeConnection {
         final Iterator<KeyRecord> rsi = queryIndex(VERTEX_PROPERTY_AERO_SET, STRING_VP_KV_INDEX, Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final AerospikeConnection db = this;
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                vpBackend.vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
@@ -552,7 +555,7 @@ public class AerospikeConnection {
         final AerospikeConnection db = this;
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                vpBackend.vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
@@ -574,7 +577,7 @@ public class AerospikeConnection {
         Iterator<KeyRecord> rsi = queryIndex(VERTEX_PROPERTY_AERO_SET, NUMERIC_VP_KV_INDEX, filter);
         final AerospikeConnection db = this;
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                (FireflyVertexProperty) vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
+                (FireflyVertexProperty) vpBackend.vertexPropertyFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(PARENT_VERTEX_ID))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
 
@@ -693,7 +696,7 @@ public class AerospikeConnection {
      * @param binNames Bin names to read into Records returned by Scan
      * @return Iterator of Map.Entry Key, Record
      */
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, String... binNames) {
+    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, String... binNames) {
         LOG.trace("Scanning all records in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
         return scanAllRecordsInSet(setName, exp, new ScanPolicy(), binNames);
     }
@@ -773,9 +776,9 @@ public class AerospikeConnection {
      * @param <V>
      * @return
      */
-    private <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
-                                                                           final FireflyId fid,
-                                                                           final String mapName) {
+    public <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
+                                                                          final FireflyId fid,
+                                                                          final String mapName) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null || fireflyRecord.record.getMap(mapName).size() == 0)
             throw new NoSuchElementException();

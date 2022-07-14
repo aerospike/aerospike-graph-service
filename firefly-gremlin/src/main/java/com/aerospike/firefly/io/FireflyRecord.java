@@ -149,7 +149,7 @@ public class FireflyRecord {
         return new FireflyRecord(db, key, record, userClass, storageClass);
     }
 
-    protected static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
+    public static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
         if (record == null)
             return null;
         final long idTypeIdx = record.getLong(db.ID_TYPE);

@@ -111,9 +111,9 @@ public class TestAerospikeGraphIntegration {
         db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
         FireflyVertex vertex = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
         FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
-        db.writeVertexProperty(vertex, vpid, "a", "a", "b");
-        VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
-        Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
+        db.vpBackend.writeVertexProperty(vertex, vpid, "a", "a", "b");
+        VertexProperty<Object> p = db.vpBackend.readVertexProperty(vertex, vpid);
+        Map<String, List<VertexProperty>> readBack = db.vpBackend.readVertexProperties(vertex);
         List<VertexProperty> aValue = readBack.get("a");
         assertNotEquals(aValue, null);
         assertEquals(aValue.get(0), p);

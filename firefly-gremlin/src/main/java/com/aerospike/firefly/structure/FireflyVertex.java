@@ -25,11 +25,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     private final FireflyGraph graph;
 
     private Map<String, List<VertexProperty>> readVertexProperties() {
-        return this.graph.getBaseGraph().readVertexProperties(this);
+        return this.graph.getBaseGraph().vpBackend.readVertexProperties(this);
     }
 
     private List<VertexProperty> readVertexProperty(String key) {
-        return this.graph.getBaseGraph().readVertexProperty(this, key);
+        return this.graph.getBaseGraph().vpBackend.readVertexProperty(this, key);
     }
 
 
@@ -97,8 +97,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         } else {
             FireflyId fid = FireflyId.createFromKeyValuesOrManager(graph,FireflyVertexProperty.class,keyValues);
 
-            this.graph.getBaseGraph().writeVertexProperty(this, fid, key, key, value);
-            VertexProperty<Object> vp = this.graph.getBaseGraph().readVertexProperty(this, fid);
+            this.graph.getBaseGraph().vpBackend.writeVertexProperty(this, fid, key, key, value);
+            VertexProperty<Object> vp = this.graph.getBaseGraph().vpBackend.readVertexProperty(this, fid);
             ElementHelper.attachProperties(vp, keyValues);
             return (VertexProperty<V>) vp;
         }

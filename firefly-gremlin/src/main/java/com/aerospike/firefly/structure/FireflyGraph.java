@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
@@ -113,8 +114,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         TraversalStrategies.GlobalCache.registerStrategies(
                 FireflyGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(FireflyGraphCountStrategy.instance()));
+                        .addStrategies(FireflyGraphStepStrategy.instance()));
     }
 
 
@@ -131,6 +131,13 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
+
+        if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY,configuration))){
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    FireflyGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .addStrategies(FireflyGraphCountStrategy.instance()));
+        }
     }
 
     public static FireflyGraph open(Configuration conf) {

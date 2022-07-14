@@ -32,6 +32,7 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
+
         public static class Sets {
 
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
@@ -77,6 +78,10 @@ public final class ConfigurationHelper {
         public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
         public static final String USER_SUPPLIED_ID_EDGE_CACHE = "USER_SUPPLIED_ID_EDGE_CACHE";
         public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
+
+        // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
+        public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
+
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -117,6 +122,8 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
+
+        put(Keys.ENABLE_FAST_COUNT_STRATEGY,"false");
     }};
 
     public static Configuration loadFromFile(final Path path) {

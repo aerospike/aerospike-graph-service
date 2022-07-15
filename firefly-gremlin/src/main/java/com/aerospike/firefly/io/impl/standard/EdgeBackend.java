@@ -2,7 +2,6 @@ package com.aerospike.firefly.io.impl.standard;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
-import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.Backend;
@@ -26,7 +25,7 @@ import java.util.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class EdgeBackend extends AbstractBackend implements Backend.Edge {
-    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public EdgeBackend(AerospikeConnection db) {
         super(db);
@@ -42,7 +41,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public void addEdgeToVertex(FireflyVertex vertex, FireflyId edgeId, String label, Direction direction) {
-        logger.debug("Adding edge {} to vertex {}.", edgeId.value(), vertex);
+        LOG.debug("Adding edge {} to vertex {}.", edgeId.value(), vertex);
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
@@ -80,7 +79,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public void removeEdgeFromVertex(final FireflyGraph graph, final FireflyVertex vertex, final FireflyEdge edge, final Direction direction) {
-        logger.debug("Removing edge {} to vertex {}.", edge.id(), vertex);
+        LOG.debug("Removing edge {} to vertex {}.", edge.id(), vertex);
         if (vertex == null)
             throw new NoSuchElementException(); //@todo transactions for edge removal
         FireflyRecord r = db.vertexBackend.getVertexRecord(vertex.id);
@@ -113,7 +112,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public void removeEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        logger.debug("Removing edge {}.", edgeId.value());
+        LOG.debug("Removing edge {}.", edgeId.value());
         final Key key = FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, edgeId.toNumericId());
         FireflyEdge e = readEdge(graph, edgeId);
         if (e == null) //@todo transactions for edge removal
@@ -133,7 +132,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public FireflyEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        logger.debug("Reading edge {}.", edgeId.value().toString());
+        LOG.debug("Reading edge {}.", edgeId.value().toString());
         final FireflyRecord edgeRecord = FireflyRecord.read(db, db.EDGE_AERO_SET, edgeId.toNumericId());
         if (edgeRecord == null) {
             return null;
@@ -154,7 +153,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public FireflyEdge edgeFromRecord(FireflyGraph graph, FireflyRecord edgeRecord) {
-        logger.debug("Creating edge from record {}.", edgeRecord.key().userKey.toString());
+        LOG.debug("Creating edge from record {}.", edgeRecord.key().userKey.toString());
         return new FireflyEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, FireflyRecord.fromRecord(db, edgeRecord.key(), edgeRecord.record())),
                 edgeRecord.record().getString(db.LABEL),
                 FireflyId.of(FireflyVertex.class, edgeRecord.record().getLong(Direction.OUT.name())),
@@ -181,7 +180,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
                           final FireflyVertex outVertex,
                           final FireflyVertex inVertex,
                           final Object[] keyValues) {
-        logger.debug("Writing edge {} [{}-({})->{}].", edgeId.value(), outVertex.id(), label, inVertex.id());
+        LOG.debug("Writing edge {} [{}-({})->{}].", edgeId.value(), outVertex.id(), label, inVertex.id());
         final Bin labelBin = new Bin(db.LABEL, Value.get(label));
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(db.idToStorageType(inVertex.id())));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(db.idToStorageType(outVertex.id())));
@@ -215,7 +214,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
                                         final FireflyVertex outVertex,
                                         final FireflyVertex inVertex,
                                         final List<Map.Entry<String, Object>> properties) {
-        logger.debug("Writing fully qualified edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
+        LOG.debug("Writing fully qualified edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
 
         addEdgeToVertex(outVertex, edgeId, label, Direction.OUT);
         addEdgeToVertex(inVertex, edgeId, label, Direction.IN);
@@ -262,7 +261,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      */
     @Override
     public boolean edgeExists(final FireflyId edgeId) {
-        logger.debug("Checking if edge {} exists.", edgeId.value());
+        LOG.debug("Checking if edge {} exists.", edgeId.value());
         final Key key = FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, edgeId.toNumericId());
         return db.exists(key);
     }

@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class VertexPropertyBackend extends AbstractBackend implements Backend.VertexProperty {
-    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public VertexPropertyBackend(AerospikeConnection db) {
         super(db);
@@ -43,7 +43,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
      */
     @Override
     public void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp) {
-        logger.debug("Adding vertex property {} to vertex {}.", vp, vertex);
+        LOG.debug("Adding vertex property {} to vertex {}.", vp, vertex);
         final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex.id);
 
         Map<String, List<Long>> labelIds;
@@ -284,7 +284,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
      */
     @Override
     public boolean vertexPropertyExists(final FireflyId vpId) {
-        logger.debug("Checking if vertex property {} exists.", vpId.value());
+        LOG.debug("Checking if vertex property {} exists.", vpId.value());
         final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vpId.toNumericId());
         return db.exists(key);
     }

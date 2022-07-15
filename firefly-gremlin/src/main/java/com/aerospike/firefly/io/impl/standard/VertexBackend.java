@@ -27,7 +27,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.OUT_EDGE_COUNT
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class VertexBackend extends AbstractBackend implements Backend.Vertex {
-    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public VertexBackend(AerospikeConnection db) {
         super(db);
@@ -69,7 +69,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public void writeVertex(final FireflyGraph graph, final FireflyId vertexId, final String label) {
-        logger.debug("Writing Vertex {}.", vertexId.value().toString());
+        LOG.debug("Writing Vertex {}.", vertexId.value().toString());
         final Bin labelBin = new Bin(db.LABEL, Value.get(label));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin);
     }
@@ -82,7 +82,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public void removeVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        logger.debug("Removing Vertex {}.", vertexId.value().toString());
+        LOG.debug("Removing Vertex {}.", vertexId.value().toString());
         final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertexId.toNumericId());
         db.delete(key);
     }
@@ -102,7 +102,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public void writeFullyQualifiedVertex(final FireflyGraph graph, final FireflyId vertexId, final String label, List<Map.Entry<String, Object>> properties) {
-        logger.debug("Writing fully qualified Vertex {}.", vertexId.value().toString());
+        LOG.debug("Writing fully qualified Vertex {}.", vertexId.value().toString());
         final Map<String, List<Long>> vertexPropertyLabelIdMap = new HashMap<>();
         final List<Long> vertexPropertyIdCache = new ArrayList<>();
         properties.forEach(vp -> {
@@ -144,7 +144,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @return Iterator of raw Ids
      */
     public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex vertex) {
-        logger.debug("Getting in edge ids from Vertex {}.", vertex.id().toString());
+        LOG.debug("Getting in edge ids from Vertex {}.", vertex.id().toString());
         FireflyRecord r = getVertexRecord(vertex.id);
         long edge_count = r.record.getLong(db.IN_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(db.CACHE_DISABLED);
@@ -163,7 +163,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @return Iterator of raw Ids
      */
     public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex vertex) {
-        logger.debug("Getting out edge ids from Vertex {}.", vertex.id().toString());
+        LOG.debug("Getting out edge ids from Vertex {}.", vertex.id().toString());
         FireflyRecord r = getVertexRecord(vertex.id);
         long edgeCount = r.record.getLong(OUT_EDGE_COUNTER);
         boolean cacheDisabled = r.record.getBoolean(db.CACHE_DISABLED);
@@ -180,7 +180,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @return Iterator of raw Ids
      */
     public Iterator<Object> getOutEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
-        logger.debug("Getting out edge ids from Vertex {} via scan.", vertex.id().toString());
+        LOG.debug("Getting out edge ids from Vertex {} via scan.", vertex.id().toString());
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(Direction.OUT.name()),
@@ -208,7 +208,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public Map<String, List<Long>> getXXXIdsFromVertexLabelMap(final FireflyVertex vertex, String mapName) {
-        logger.debug("Getting out XXX ids from Vertex {} using label map {}.", vertex.id().toString(), mapName);
+        LOG.debug("Getting out XXX ids from Vertex {} using label map {}.", vertex.id().toString(), mapName);
         FireflyRecord r = getVertexRecord(vertex.id);
         Map<String, List<Long>> labelIds = (Map<String, List<Long>>) r.record.getMap(mapName);
         if (labelIds == null) {
@@ -226,7 +226,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public Iterator<Object> getXXXIdsFromVertexByCache(final FireflyVertex vertex, String mapName) {
-        logger.debug("Getting out XXX ids from Vertex {} using cache {}.", vertex.id().toString(), mapName);
+        LOG.debug("Getting out XXX ids from Vertex {} using cache {}.", vertex.id().toString(), mapName);
         return IteratorUtils.map(
                 IteratorUtils.flatMap(getXXXIdsFromVertexLabelMap(vertex, mapName).entrySet().iterator(),
                         mapEntry -> mapEntry.getValue().iterator()),
@@ -240,7 +240,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @return Iterator of raw ids
      */
     public Iterator<Object> getInEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
-        logger.trace("Getting in edge ids from Vertex by scan {}.", vertex.id().toString());
+        LOG.trace("Getting in edge ids from Vertex by scan {}.", vertex.id().toString());
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(Direction.IN.name()),
@@ -257,7 +257,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public boolean vertexExists(final FireflyId vertexId) {
-        logger.debug("Checking if vertex {} exists.", vertexId.value());
+        LOG.debug("Checking if vertex {} exists.", vertexId.value());
         final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertexId.toNumericId());
         return db.exists(key);
     }
@@ -270,7 +270,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      */
     @Override
     public FireflyRecord getVertexRecord(FireflyId id) {
-        logger.trace("Getting vertex record v[{}].", id.value());
+        LOG.trace("Getting vertex record v[{}].", id.value());
         return FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
     }
 

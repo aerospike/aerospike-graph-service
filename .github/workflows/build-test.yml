@@ -63,20 +63,22 @@ jobs:
           echo "Starting"
           pwd
           ls -l
+          cd ..
+          echo "Downloading gremlin-server"
           wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip
-          echo "gremlin-server downloaded"
-          ls -l
+
+          echo "Unzipping gremlin-server"
           unzip gremlin-server
-          echo "gremlin-server unzipped"
-          ls -l
+          
           echo "Build Firefly"
+          pushd firefly
           mvn clean install -DskipTests
-          ls -l
+          
           echo "Installing Firefly in gremlin-server"
-          ./apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.1.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.1.0-SNAPSHOT'
           
           echo "Starting gremlin-server"
-          /home/ubuntu/apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/ubuntu/firefly/conf/firefly-gremlin-server.yaml
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml
       # - name: Benchmark Firefly
       #   run: |
       #     mvn clean test -Dtest=BenchmarkTest

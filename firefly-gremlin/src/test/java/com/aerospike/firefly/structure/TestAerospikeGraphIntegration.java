@@ -407,6 +407,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        List<Edge> things = g.E().hasLabel("IsA").toList();
         assertEquals(2, (long) g.E().hasLabel("IsA").count().next());
         assertEquals(2, (long) g.V().outE().hasLabel("IsA").count().next());
     }
@@ -606,7 +607,7 @@ public class TestAerospikeGraphIntegration {
         v1.addEdge("SELFLOOP", v1, new Object[0]);
         final HashMap<String, Object> configMap = new HashMap<>();
         graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
-        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, "_1");
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
 
 
         Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));

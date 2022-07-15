@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-import static com.aerospike.firefly.io.AerospikeConnection.IN_EDGES;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -44,7 +43,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
     @Override
     public void addEdgeToVertex(FireflyVertex vertex, FireflyId edgeId, String label, Direction direction) {
         logger.debug("Adding edge {} to vertex {}.", edgeId.value(), vertex);
-        final String directionKey = direction == Direction.IN ? IN_EDGES : db.OUT_EDGES;
+        final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
         final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex);

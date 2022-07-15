@@ -74,7 +74,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        return graph.getBaseGraph().vertexBackend.readVertex(graph,this.vertexId);
+        final FireflyVertex e = graph.getBaseGraph().vertexBackend.readVertex(graph, this.vertexId);
+        return e;
     }
 
     @Override

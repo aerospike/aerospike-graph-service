@@ -13,13 +13,10 @@ import com.aerospike.firefly.io.impl.standard.*;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
-import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
@@ -36,16 +33,21 @@ import java.util.stream.Collectors;
  */
 public class AerospikeConnection {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    public static final String NUMERIC_VP_KV_INDEX = "N_VP_KV";
-    public static final String STRING_VP_KV_INDEX = "S_VP_KV";
-    public static final String STRING_E_KV_INDEX = "S_E_KV";
-    public static final String NUMERIC_E_KV_INDEX = "N_E_KV";
-    private static final String INDEXED_BINS = "indexedBins";
     public static final String LABEL = "label";
-    public static final String V_LABEL_INDEX = "v_label_idx";
-    public static final String E_LABEL_INDEX = "e_label_idx";
-    private static final String E_IN_INDEX = "v_label_idx";
-    private static final String E_OUT_INDEX = "v_label_idx";
+
+    public final String GRAPH_ID;
+
+    public final String NUMERIC_VP_KV_INDEX;
+    public final String STRING_VP_KV_INDEX;
+    public final String STRING_E_KV_INDEX;
+    public final String NUMERIC_E_KV_INDEX;
+    private final String INDEXED_BINS;
+    public final String V_LABEL_INDEX;
+    public final String E_LABEL_INDEX;
+    private final String E_IN_INDEX;
+    private final String E_OUT_INDEX;
+
+
     private static final boolean SUPERNODE_INDEX_ENABLED = false;
 
     private static final int NumLoops = 2;
@@ -59,10 +61,10 @@ public class AerospikeConnection {
     private final AerospikeClient client;
     private final String namespace;
 
-    public static final String IN_EDGES = "IN_EDGES";
-    public static final String OUT_EDGES = "OUT_EDGES";
-    public static final String CACHE_DISABLED = "CACHE_DISABLED";
-    private static final String INDEX_METADATA = "INDEX_META";
+    public final String IN_EDGES;
+    public final String OUT_EDGES;
+    public final String CACHE_DISABLED;
+    private final String INDEX_METADATA;
 
     protected final String GRAPH_METADATA_SET;
     public final String GRAPH_VARIABLES_SET;
@@ -95,7 +97,7 @@ public class AerospikeConnection {
     public final String ID_TYPE;
     public final String GLOBAL;
     public final String TEST_SET;
-    private final Configuration conf;
+    public final Configuration conf;
 
     // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
@@ -128,7 +130,7 @@ public class AerospikeConnection {
         this.clientPolicy = new ClientPolicy();
         this.clientPolicy.eventLoops = this.eventLoops;
         this.client = new AerospikeClient(clientPolicy, hosts);
-
+        GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
         VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_EDGELIST_AERO_SET, conf);
         VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_PROPERTY_AERO_SET, conf);
@@ -159,6 +161,20 @@ public class AerospikeConnection {
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
+        NUMERIC_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_VP_KV_INDEX, conf));
+        STRING_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_VP_KV_INDEX, conf));
+        STRING_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_E_KV_INDEX, conf));
+        NUMERIC_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_E_KV_INDEX, conf));
+        INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
+        V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
+        E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
+        E_IN_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_IN_INDEX, conf));
+        E_OUT_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_OUT_INDEX, conf));
+        IN_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGES, conf);
+        OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
+        CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CACHE_DISABLED, conf);
+        INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
+
 
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -172,6 +188,7 @@ public class AerospikeConnection {
         elementBackend = new ElementBackend(this);
         graphBackend = new GraphBackend(this);
         indexBackend = new IndexBackend(this);
+
     }
 
     /**
@@ -264,9 +281,10 @@ public class AerospikeConnection {
 
         /**
          * Get the number of Records in a Set for a particular namespace
-         * @param setName Name of set to query for number of records
+         *
+         * @param setName   Name of set to query for number of records
          * @param namespace Namespace containing set
-         * @param client AerospikeClient instance
+         * @param client    AerospikeClient instance
          * @return Number of Records in set
          */
         public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
@@ -286,8 +304,9 @@ public class AerospikeConnection {
 
         /**
          * Get a list of all the Sets in a namespace
+         *
          * @param namespace namespace to query
-         * @param client AerospikeClient instance
+         * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
         public static Set<String> getSetList(String namespace, AerospikeClient client) {
@@ -295,10 +314,12 @@ public class AerospikeConnection {
             final Set<String> allSets = parse(infoResponse, namespace).keySet();
             return allSets;
         }
+
         /**
          * Get a list of all the Sets in a namespace that have a number of records > 0
+         *
          * @param namespace namespace to query
-         * @param client AerospikeClient instance
+         * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
@@ -397,36 +418,33 @@ public class AerospikeConnection {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
-        final String graphName = this.conf.get(String.class, ConfigurationHelper.Keys.GRAPH_ID);
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_IN_INDEX, graphName + "_" + Direction.IN.name(),
+                    E_IN_INDEX,  Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_OUT_INDEX, graphName + "_" + Direction.OUT.name(),
+                    E_OUT_INDEX,  Direction.OUT.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         createIndex(getElementPropertySet(FireflyVertex.class),
-                graphName + "_" + V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                graphName + "_" + E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                graphName + "_" + STRING_VP_KV_INDEX,
+                 STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                graphName + "_" + NUMERIC_VP_KV_INDEX,
+                 NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                graphName + "_" + STRING_E_KV_INDEX,
+                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                graphName + "_" + NUMERIC_E_KV_INDEX,
+                 NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-
-
     }
 
     /**
@@ -565,7 +583,11 @@ public class AerospikeConnection {
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
         final QueryPolicy p = new QueryPolicy();
-        return client.query(p, stmt).iterator();
+        try {
+            return client.query(p, stmt).iterator();
+        }catch (AerospikeException ae){
+            throw new RuntimeException(ae);
+        }
     }
 
     /**

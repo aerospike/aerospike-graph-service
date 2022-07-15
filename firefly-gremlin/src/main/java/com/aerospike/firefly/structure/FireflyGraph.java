@@ -123,8 +123,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
-        db.createGraphIndexes();
         this.configuration = conf;
+        db.createGraphIndexes();
         this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
@@ -183,6 +183,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
             if (db.vertexBackend.vertexExists(idValue)) {
+
                 throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
             }
         } else {

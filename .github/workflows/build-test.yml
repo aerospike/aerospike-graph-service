@@ -69,7 +69,7 @@ jobs:
           
           echo "Build Firefly"
           cd firefly
-          mvn clean install -DskipTests -B
+          mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.1.0-SNAPSHOT'
@@ -80,4 +80,5 @@ jobs:
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
-          mvn test -Dtest=BenchmarkTest
+          echo "Running benchmark"
+          mvn test -Dtest=BenchmarkTest --no-transfer-progress

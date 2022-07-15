@@ -115,8 +115,6 @@ public interface Backend {
 
         FireflyRecord getVertexRecord(FireflyId id);
 
-        FireflyRecord getVertexRecord(FireflyVertex vertex);
-
     }
 
     interface Edge {

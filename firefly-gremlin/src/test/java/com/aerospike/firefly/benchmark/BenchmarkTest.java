@@ -40,13 +40,19 @@ public class BenchmarkTest {
 
     @BeforeClass
     public static void setup() {
+        System.out.println("Creating the DriverRemoteConnection.");
         driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
+
+        System.out.println("Creating the GraphTraversalSource.");
         g = traversal().withRemote(driverRemoteConnection);
+
+        System.out.println("Loading the graph.");
         GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
     }
 
     @AfterClass
     public static void shutdown() {
+        System.out.println("Shutting down.");
         if (g != null) {
             try {
                 g.close();

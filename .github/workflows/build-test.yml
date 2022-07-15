@@ -65,7 +65,7 @@ jobs:
           wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
 
           echo "Unzipping gremlin-server"
-          unzip gremlin-server -qq
+          unzip -qq gremlin-server
           
           echo "Build Firefly"
           cd firefly

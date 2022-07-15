@@ -99,17 +99,13 @@ public interface Backend {
 
         void writeFullyQualifiedVertex(FireflyGraph graph, FireflyId vertexId, String label, List<Map.Entry<String, Object>> properties);
 
-        Iterator<Object> getInEdgeIdsFromVertex(FireflyVertex vertex);
+        Iterator<Object> getEdgeIdsFromVertex(FireflyVertex vertex, Direction direction);
 
-        Iterator<Object> getOutEdgeIdsFromVertex(FireflyVertex vertex);
-
-        Iterator<Object> getOutEdgeIdsFromVertexByScan(FireflyVertex vertex);
+        Iterator<Object> getEdgeIdsFromVertexByScan(FireflyVertex vertex, Direction direction);
 
         Map<String, List<Long>> getXXXIdsFromVertexLabelMap(FireflyVertex vertex, String mapName);
 
         Iterator<Object> getXXXIdsFromVertexByCache(FireflyVertex vertex, String mapName);
-
-        Iterator<Object> getInEdgeIdsFromVertexByScan(FireflyVertex vertex);
 
         boolean vertexExists(FireflyId vertexId);
 

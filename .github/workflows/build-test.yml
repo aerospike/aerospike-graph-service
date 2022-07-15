@@ -62,14 +62,14 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
 
           echo "Unzipping gremlin-server"
-          unzip gremlin-server
+          unzip gremlin-server -qq
           
           echo "Build Firefly"
           cd firefly
-          mvn clean install -DskipTests
+          mvn clean install -DskipTests -B
           
           echo "Installing Firefly in gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.1.0-SNAPSHOT'
@@ -80,4 +80,4 @@ jobs:
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
-          mvn clean test -Dtest=BenchmarkTest
+          mvn test -Dtest=BenchmarkTest

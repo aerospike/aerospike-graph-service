@@ -19,12 +19,12 @@ public class FireflyGraphVariables implements Graph.Variables {
 
     @Override
     public Set<String> keys() {
-        return graph.getBaseGraph().readGraphVariableKeys();
+        return graph.getBaseGraph().graphBackend.readGraphVariableKeys();
     }
 
     @Override
     public <R> Optional<R> get(String key) {
-        return Optional.ofNullable(graph.getBaseGraph().readGraphVariable(key));
+        return Optional.ofNullable(graph.getBaseGraph().graphBackend.readGraphVariable(key));
     }
 
     @Override
@@ -34,12 +34,12 @@ public class FireflyGraphVariables implements Graph.Variables {
         if (null == key || key.isEmpty())
             throw Graph.Variables.Exceptions.variableKeyCanNotBeEmpty();
         FireflyHelper.validateGraphVariableValue(value);
-        graph.getBaseGraph().writeGraphVariable(key, value);
+        graph.getBaseGraph().graphBackend.writeGraphVariable(key, value);
     }
 
     @Override
     public void remove(String key) {
-        graph.getBaseGraph().removeGraphVariable(key);
+        graph.getBaseGraph().graphBackend.removeGraphVariable(key);
     }
 
     @Override

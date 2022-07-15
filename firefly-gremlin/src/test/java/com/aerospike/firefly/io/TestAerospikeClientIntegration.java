@@ -258,7 +258,7 @@ public class TestAerospikeClientIntegration {
 
     private long countQueryResults(final String binName, final String testIndex, final Statement stmt) {
         QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.client.query(p, stmt);
+        RecordSet rs = db.getClient().query(p, stmt);
         int count = 0;
         try {
             while (rs.next())
@@ -294,7 +294,7 @@ public class TestAerospikeClientIntegration {
 
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.client.put(null, key, new Bin(binName, choices.next()));
+            db.getClient().put(null, key, new Bin(binName, choices.next()));
         });
         final Statement stringQuery = new Statement();
         stringQuery.setNamespace(db.getNamespace());
@@ -327,7 +327,7 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+            db.getClient().put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         Statement stmt = new Statement();
@@ -335,7 +335,7 @@ public class TestAerospikeClientIntegration {
         stmt.setSetName(db.TEST_SET);
         stmt.setFilter(Filter.range("age", 34, 99));
         QueryPolicy p = new QueryPolicy();
-        RecordSet rs = db.client.query(null, stmt);
+        RecordSet rs = db.getClient().query(null, stmt);
         Iterator<KeyRecord> i = rs.iterator();
         int count = 0;
         while (i.hasNext()) {
@@ -355,10 +355,10 @@ public class TestAerospikeClientIntegration {
         int NUMBER_OF_RECORDS = 100;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.client.put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+            db.getClient().put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
         String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
-        String infoResponse = Info.request(new InfoPolicy(), db.client.getNodes()[0], infoQuery);
+        String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
                 .filter(str -> str.startsWith("objects"))
                 .map(str -> Long.valueOf(str.split("=")[1]))
@@ -392,13 +392,13 @@ public class TestAerospikeClientIntegration {
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.client.put(null, key, bin1, bin2, bin3);
+            db.getClient().put(null, key, bin1, bin2, bin3);
         });
 
         PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
             ThreadLocalRandom tlr = ThreadLocalRandom.current();
             final Key key = new Key(db.getNamespace(), db.TEST_SET, tlr.nextInt(0, 100));
-            final Record data = db.client.get(null, key);
+            final Record data = db.getClient().get(null, key);
             assert data.getLong("age") == 32;
         });
         System.out.println(results);
@@ -561,6 +561,10 @@ public class TestAerospikeClientIntegration {
         }
     }
 
+    @Test
+    public void testIsEnterprise() {
+        assertTrue(AerospikeConnection.InfoOps.isEnterprise( db.getClient()));
+    }
     @Test
     public void testListAllSets() {
         Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());

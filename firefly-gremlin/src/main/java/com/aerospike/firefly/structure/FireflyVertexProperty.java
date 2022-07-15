@@ -25,11 +25,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     private final FireflyGraph graph;
 
     private Map<String, Property> readProperties() {
-        return ((FireflyGraph) this.graph()).getBaseGraph().readProperties(this);
+        return ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.readProperties(this);
     }
 
     private void writeProperty(String k, Object v) {
-        ((FireflyGraph) this.graph()).getBaseGraph().writeProperty(this.id, this.getClass(), k, v);
+        ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
     }
 
 

@@ -230,38 +230,38 @@ public final class FireflyHelper {
     }
 
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.getBaseGraph().queryEdgePropertyStringMatchIndex(graph, key, value);
+        return graph.getBaseGraph().indexBackend.queryEdgePropertyStringMatchIndex(graph, key, value);
     }
 
     public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
         if(predicate.getBiPredicate().equals(Compare.eq))
-            return graph.getBaseGraph().queryEdgePropertyNumberMatchIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberMatchIndex(graph, key, predicate);
         else if (predicate.getBiPredicate().equals(Compare.lt))
-            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberRangeIndex(graph, key, predicate);
         else if(predicate.getBiPredicate().equals(Compare.gt))
-            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberRangeIndex(graph, key, predicate);
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
     public static Iterator<? extends Vertex> queryVertexByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.getBaseGraph().queryVertexLabelStringIndex(graph, value);
+        return graph.getBaseGraph().indexBackend.queryVertexLabelStringIndex(graph, value);
     }
     public static Iterator<? extends Edge> queryEdgeByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.getBaseGraph().queryEdgeLabelStringIndex(graph, value);
+        return graph.getBaseGraph().indexBackend.queryEdgeLabelStringIndex(graph, value);
     }
 
 
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
-        return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
+        return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
     }
 
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
         if(predicate.getBiPredicate().equals(Compare.eq))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
         else if (predicate.getBiPredicate().equals(Compare.lt))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
         else if(predicate.getBiPredicate().equals(Compare.gt))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }

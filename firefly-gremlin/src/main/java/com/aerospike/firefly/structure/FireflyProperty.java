@@ -45,7 +45,7 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public void remove() {
-        ((FireflyGraph) this.element.graph()).getBaseGraph().removeProperty(this.element, this.key);
+        ((FireflyGraph) this.element.graph()).getBaseGraph().elementBackend.removeProperty(this.element, this.key);
     }
 
     @Override

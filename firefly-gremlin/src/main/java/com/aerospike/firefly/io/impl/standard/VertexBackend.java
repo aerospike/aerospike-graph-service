@@ -7,7 +7,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.Backend;
-import com.aerospike.firefly.io.BackendElement;
+import com.aerospike.firefly.io.AbstractBackend;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -26,7 +26,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.OUT_EDGE_COUNT
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class VertexBackend extends BackendElement implements Backend.Vertex {
+public class VertexBackend extends AbstractBackend implements Backend.Vertex {
     private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public VertexBackend(AerospikeConnection db) {

@@ -8,7 +8,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.Backend;
-import com.aerospike.firefly.io.BackendElement;
+import com.aerospike.firefly.io.AbstractBackend;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class VertexPropertyBackend extends BackendElement implements Backend.VertexProperty {
+public class VertexPropertyBackend extends AbstractBackend implements Backend.VertexProperty {
     private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public VertexPropertyBackend(AerospikeConnection db) {
@@ -275,5 +275,19 @@ public class VertexPropertyBackend extends BackendElement implements Backend.Ver
         removeIdFromVertexPropertyList((FireflyVertex) parent, property);
         db.delete(key);
     }
+
+    /**
+     * Determine if a vertexProperty exists
+     *
+     * @param vpId VertexProperty id to check
+     * @return Boolean vertex property exists
+     */
+    @Override
+    public boolean vertexPropertyExists(final FireflyId vpId) {
+        logger.debug("Checking if vertex property {} exists.", vpId.value());
+        final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vpId.toNumericId());
+        return db.exists(key);
+    }
+
 
 }

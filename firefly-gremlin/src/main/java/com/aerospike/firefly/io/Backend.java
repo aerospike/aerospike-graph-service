@@ -2,24 +2,64 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.structure.*;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public interface Backend {
-    public static interface VertexProperty{
+    interface Index {
 
+        Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(FireflyGraph graph, String key, Object value);
+
+        Iterator<FireflyEdge> queryEdgePropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate);
+
+        Iterator<FireflyEdge> queryEdgePropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate);
+
+        Iterator<? extends org.apache.tinkerpop.gremlin.structure.Vertex> queryVertexLabelStringIndex(FireflyGraph graph, Object value);
+
+        Iterator<? extends org.apache.tinkerpop.gremlin.structure.Edge> queryEdgeLabelStringIndex(FireflyGraph graph, Object value);
+
+        Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(FireflyGraph graph, String key, Object value);
+
+        Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate);
+
+        Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate);
+    }
+
+    interface Graph {
+
+        <V> V readGraphVariable(String key);
+
+        Set<String> readGraphVariableKeys();
+
+        <V> void writeGraphVariable(String key, V value);
+
+        <V> void removeGraphVariable(String key);
+    }
+
+    interface Element {
+
+        <V> void writeProperty(FireflyId id, Class<? extends FireflyElement> clazz, String key, V value);
+
+        <V> void removeProperty(FireflyElement element, String key);
+
+        Iterator<?> readElementIds(Class<? extends FireflyElement> type);
+
+        <V> Map<String, Property> readProperties(FireflyElement element);
+
+        <V> Property readProperty(FireflyElement element, String key);
+    }
+
+    interface VertexProperty {
         void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp);
 
         <V> FireflyVertexProperty<V> readVertexProperty(FireflyVertex parent, FireflyId vpId);
@@ -41,8 +81,11 @@ public interface Backend {
         void removeIdFromVertexPropertyList(FireflyVertex vertex, org.apache.tinkerpop.gremlin.structure.VertexProperty vp);
 
         void removeVertexProperty(FireflyVertexProperty property);
+
+        boolean vertexPropertyExists(FireflyId vpId);
     }
-    public static interface Vertex{
+
+    interface Vertex {
 
         long getVertexCount();
 
@@ -75,7 +118,8 @@ public interface Backend {
         FireflyRecord getVertexRecord(FireflyVertex vertex);
 
     }
-    public static interface Edge{
+
+    interface Edge {
 
         void addEdgeToVertex(FireflyVertex vertex, FireflyId edgeId, String label, Direction direction);
 

@@ -6,7 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.Backend;
-import com.aerospike.firefly.io.BackendElement;
+import com.aerospike.firefly.io.AbstractBackend;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -26,7 +26,7 @@ import static com.aerospike.firefly.io.AerospikeConnection.IN_EDGES;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class EdgeBackend extends BackendElement implements Backend.Edge {
+public class EdgeBackend extends AbstractBackend implements Backend.Edge {
     private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
 
     public EdgeBackend(AerospikeConnection db) {
@@ -196,7 +196,7 @@ public class EdgeBackend extends BackendElement implements Backend.Edge {
         while (propIter.hasNext()) {
             final Object propKey = propIter.next();
             final Object propVal = propIter.next();
-            db.writeProperty(edgeId, FireflyEdge.class, (String) propKey, propVal);
+            db.elementBackend.writeProperty(edgeId, FireflyEdge.class, (String) propKey, propVal);
         }
     }
 

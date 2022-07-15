@@ -83,14 +83,14 @@ public class TestAerospikeGraphIntegration {
         String value2 = "c";
         String key2 = "cKey";
         FireflyProperty<String> p = new FireflyProperty<>(edge, key2, value2);
-        db.writeProperty(edge.id, edge.getClass(), key2, value2);
-        Property<String> readback = db.readProperty(edge, key2);
+        db.elementBackend.writeProperty(edge.id, edge.getClass(), key2, value2);
+        Property<String> readback = db.elementBackend.readProperty(edge, key2);
         assertEquals(p.key(), readback.key());
         assertEquals(p.value(), readback.value());
-        db.removeProperty(edge, key);
+        db.elementBackend.removeProperty(edge, key);
         boolean success = false;
         try {
-            Property<String> gone = db.readProperty(edge, key);
+            Property<String> gone = db.elementBackend.readProperty(edge, key);
         } catch (NoSuchElementException nse) {
             success = true;
         }

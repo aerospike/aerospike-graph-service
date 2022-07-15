@@ -17,6 +17,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
@@ -49,6 +50,9 @@ public class BenchmarkTest {
         System.out.println("Creating the GraphTraversalSource.");
         GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
 
+        System.out.println("Clearing the graph.");
+        g.V().drop().iterate();
+
         System.out.println("Loading the graph.");
         GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
 
@@ -70,10 +74,8 @@ public class BenchmarkTest {
         System.out.println("Creating the GraphTraversalSource (setup).");
         g = traversal().withRemote(driverRemoteConnection);
     }
-
-    @AfterClass
-    public static void shutdown() {
-        System.out.println("Shutting down.");
+    @TearDown
+    public void tearDown() {
         if (g != null) {
             try {
                 g.close();

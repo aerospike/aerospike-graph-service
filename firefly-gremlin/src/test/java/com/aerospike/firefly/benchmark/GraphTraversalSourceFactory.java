@@ -2,12 +2,22 @@ package com.aerospike.firefly.benchmark;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.IOUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.BENCHMARK_FIREFLY_PROPERTIES;
+import static com.aerospike.firefly.benchmark.GraphTraversalSourceFactory.DATASET.FLIGHTS;
+import static com.aerospike.firefly.benchmark.GraphTraversalSourceFactory.GRAPH.JANUSGRAPH;
+import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 // TODO This should not create the graph and then return a GraphTraversalSource.
 //      Instead the GraphTraversalSource should be created as a RemoteConnection to
@@ -24,44 +34,20 @@ public class GraphTraversalSourceFactory {
         FLIGHTS
     }
 
-    public static Graph createGraphTraversalSource(GRAPH graph) {
-        switch (graph) {
-            case FIREFLY:
-                return createFireflyGraphTraversalSource();
-            case JANUSGRAPH:
-                return createJanusGraphTraversalSource();
-            default:
-                return createFireflyGraphTraversalSource();
-        }
-    }
-
-    public static void loadGraph(GRAPH graph, DATASET dataset) {
-        switch (graph) {
-            case FIREFLY: {
-                FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
-                AirRoutes.loadAirRoutes50k(fireflyGraph);
-                fireflyGraph.close();
+    public static void loadGraph(GraphTraversalSource g, DATASET dataset) {
+        if (dataset == FLIGHTS) {
+            final File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
+            try {
+                if (!tempFile.exists())
+                    IOUtil.downloadFileFromURL(new URL(AIR_ROUTES_50K_URL), tempFile);
+            } catch (Exception e) {
+                LOG.error("Failed to download graphml file", e);
+                throw new RuntimeException(e);
             }
-            case JANUSGRAPH:
-                AirRoutes.loadAirRoutes50k(null);
-            default: {
-                FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
-                AirRoutes.loadAirRoutes50k(fireflyGraph);
-                fireflyGraph.close();
-            }
+            g.io(tempFile.getAbsolutePath()).read().iterate();
+        } else {
+            throw new RuntimeException("Dataset not supported: " + dataset);
         }
-    }
-
-    // TODO: Connect using remote connection and generate graph traversal source.
-    //  Currently using Graph object so it can be closed after the test.
-    private static Graph createFireflyGraphTraversalSource() {
-        LOG.info("Creating Firefly GraphTraversalSource.");
-        return FireflyGraph.open(ConfigurationHelper.loadFromResources(BENCHMARK_FIREFLY_PROPERTIES));
-    }
-
-    // TODO: Support JanusGraph
-    private static Graph createJanusGraphTraversalSource() {
-        throw new RuntimeException("JanusGraph is not yet supported.");
     }
 
     // TODO: Will need to load via remote connection. i.e GraphTraversalSource.

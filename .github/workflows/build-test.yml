@@ -71,7 +71,7 @@ jobs:
           unzip gremlin-server
           
           echo "Build Firefly"
-          pushd firefly
+          cd firefly
           mvn clean install -DskipTests
           
           echo "Installing Firefly in gremlin-server"
@@ -79,7 +79,5 @@ jobs:
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-      # - name: Benchmark Firefly
-      #   run: |
-      #     mvn clean test -Dtest=BenchmarkTest
-
+          
+          mvn clean test -Dtest=BenchmarkTest

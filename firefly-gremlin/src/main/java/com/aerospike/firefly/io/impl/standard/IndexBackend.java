@@ -14,8 +14,6 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Iterator;
@@ -50,8 +48,15 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
     }
 
+    /**
+     * Lookup Edge by numeric match on property value
+     * @param graph FireflyGraph
+     * @param key Property key to match
+     * @param predicate type of match
+     * @return Iterator of FireflyEdge results
+     */
     @Override
-    public Iterator<FireflyEdge> queryEdgePropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
+    public Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
         final Object value = predicate.getValue();
         Filter filter;
         if (Number.class.isAssignableFrom(value.getClass())) {
@@ -70,8 +75,15 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
+    /**
+     * Lookup Edge by numeric range match on property value
+     * @param graph FireflyGraph
+     * @param key Property key to match
+     * @param predicate type of match (lt or gt) with value embedded
+     * @return Iterator of FireflyEdge results
+     */
     @Override
-    public Iterator<FireflyEdge> queryEdgePropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
+    public Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
         Filter filter;
         if (Number.class.isAssignableFrom(predicate.getValue().getClass())) {
             final long val = Long.class.isAssignableFrom(predicate.getValue().getClass()) ?
@@ -89,16 +101,27 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
-
+    /**
+     * Lookup Vertex by string match on property value
+     * @param graph FireflyGraph
+     * @param value value to match
+     * @return Iterator of FireflyVertex results
+     */
     @Override
-    public Iterator<? extends Vertex> queryVertexLabelStringIndex(FireflyGraph graph, Object value) {
+    public Iterator<FireflyVertex> queryVertexLabelStringIndex(FireflyGraph graph, Object value) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.VERTEX_AERO_SET, db.V_LABEL_INDEX, Filter.contains(db.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, kr ->
                 db.vertexBackend.vertexFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
     }
 
+    /**
+     * Lookup Edge by string match on label value
+     * @param graph FireflyGraph
+     * @param value label value to match
+     * @return Iterator of FireflyEdge results
+     */
     @Override
-    public Iterator<? extends Edge> queryEdgeLabelStringIndex(FireflyGraph graph, Object value) {
+    public Iterator<FireflyEdge> queryEdgeLabelStringIndex(FireflyGraph graph, Object value) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.getElementPropertySet(FireflyEdge.class), db.E_LABEL_INDEX,
                 Filter.contains(db.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, kr ->
@@ -106,12 +129,11 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
     }
 
     /**
-     * Lookup VertexProperties with a particular Value by index
-     *
+     * Lookup VertexProperty with a particular Value by index
      * @param graph FireflyGraph
      * @param key   Property Key
      * @param value Property Value being searched for
-     * @return Iterator of VertexProperties
+     * @return Iterator of VertexProperty results
      */
     @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
@@ -123,6 +145,13 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
 
+    /**
+     * Lookup VertexProperty by numeric range match on property value
+     * @param graph FireflyGraph
+     * @param key Key to match
+     * @param predicate Match Predicate with value embedded
+     * @return Iterator of FireflyVertexProperty results
+     */
     @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate) {
         final Object value = predicate.getValue();
@@ -145,6 +174,13 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
 
+    /**
+     * Lookup VertexProperty by numeric range match on property value
+     * @param graph FireflyGraph
+     * @param key Key to match
+     * @param predicate type of match (lt or gt) with value embedded
+     * @return Iterator of FireflyVertexProperty results
+     */
     @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate) {
         Filter filter;

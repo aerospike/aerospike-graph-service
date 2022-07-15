@@ -249,18 +249,32 @@ public class AerospikeConnection {
                     });
             return results;
         }
-        public static boolean isEnterprise(AerospikeClient client){
+
+        /**
+         * Is the first connected Aerospike instance "Enterprise Edition"
+         *
+         * @param client AerospikeClient connection instance
+         * @return enterprise or not
+         */
+        public static boolean isEnterprise(AerospikeClient client) {
             final String infoQuery = "feature-key";
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
             return (infoResponse != null && !infoResponse.isEmpty());
         }
 
-        /*
-        @todo multi node test
-        Joe Martin
-          Keep in mind the replication Factor. You may need to divide by that
-        */
+        /**
+         * Get the number of Records in a Set for a particular namespace
+         * @param setName Name of set to query for number of records
+         * @param namespace Namespace containing set
+         * @param client AerospikeClient instance
+         * @return Number of Records in set
+         */
         public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
+            /*
+            @todo multi node test
+            Joe Martin
+              Keep in mind the replication Factor. You may need to divide by that
+            */
             final String infoQuery = "sets/" + namespace + "/" + setName;
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
             final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
@@ -270,12 +284,23 @@ public class AerospikeConnection {
             return setSize.isEmpty() ? 0 : setSize.get(0);
         }
 
+        /**
+         * Get a list of all the Sets in a namespace
+         * @param namespace namespace to query
+         * @param client AerospikeClient instance
+         * @return Set of namespaces
+         */
         public static Set<String> getSetList(String namespace, AerospikeClient client) {
             String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
             final Set<String> allSets = parse(infoResponse, namespace).keySet();
             return allSets;
         }
-
+        /**
+         * Get a list of all the Sets in a namespace that have a number of records > 0
+         * @param namespace namespace to query
+         * @param client AerospikeClient instance
+         * @return Set of namespaces
+         */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
             return parse(infoResponse, namespace).entrySet().stream().filter(entry -> {
@@ -419,10 +444,20 @@ public class AerospikeConnection {
         dropIndex(getElementPropertySet(FireflyEdge.class), NUMERIC_E_KV_INDEX);
     }
 
+    /**
+     * Get the AerospikeClient instance used by Firefly
+     *
+     * @return AerospikeClient instance
+     */
     public AerospikeClient getClient() {
         return this.client;
     }
 
+    /**
+     * Get the namespace configured for this instance of FireflyGraph
+     *
+     * @return namespace name
+     */
     public String getNamespace() {
         return this.namespace;
     }
@@ -515,7 +550,14 @@ public class AerospikeConnection {
         return InfoOps.isEnterprise(client);
     }
 
-
+    /**
+     * Issue a query on an index providing a custom filter
+     *
+     * @param setName   Name of Aerospike set
+     * @param indexName Name of Index to query
+     * @param filter    Custom Filter
+     * @return Iterator of KeyRecord pair results
+     */
     public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
@@ -526,10 +568,20 @@ public class AerospikeConnection {
         return client.query(p, stmt).iterator();
     }
 
+    /**
+     * Get the current number of writes since startup on this instance of Firefly
+     *
+     * @return number of writes
+     */
     public long getWriteMetric() {
         return writeMetric.get();
     }
 
+    /**
+     * Get the current number of reads since startup on this instance of Firefly
+     *
+     * @return number of reads
+     */
     public long getReadMetric() {
         return readMetric.get();
     }
@@ -930,7 +982,9 @@ public class AerospikeConnection {
     }
 
     /**
-     * truncate all the sets associated with the Graph
+     * Drop data in all Aerospike sets associated with currently configured graph by issuing a Truncate operation
+     *
+     * @param dropIndices drop graph indices
      */
     public void dropDatabase(boolean dropIndices) {
         LOG.info("Dropping database.");
@@ -947,6 +1001,9 @@ public class AerospikeConnection {
             dropGraphIndices();
     }
 
+    /**
+     * Drop database by truncate, do not drop indices
+     */
     public void dropDatabase() {
         dropDatabase(false);
     }

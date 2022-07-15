@@ -235,11 +235,11 @@ public final class FireflyHelper {
 
     public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
         if(predicate.getBiPredicate().equals(Compare.eq))
-            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberMatchIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericMatchIndex(graph, key, predicate);
         else if (predicate.getBiPredicate().equals(Compare.lt))
-            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericRangeIndex(graph, key, predicate);
         else if(predicate.getBiPredicate().equals(Compare.gt))
-            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericRangeIndex(graph, key, predicate);
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }

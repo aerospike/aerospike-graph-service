@@ -53,7 +53,7 @@ public class ElementBackend extends AbstractBackend implements Backend.Element {
     }
 
     /**
-     * get a list of currently valid ids
+     * Get a list of currently valid ids
      *
      * @param type type of Element
      * @return Iterator of raw Ids

@@ -20,9 +20,9 @@ public interface Backend {
 
         Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(FireflyGraph graph, String key, Object value);
 
-        Iterator<FireflyEdge> queryEdgePropertyNumberMatchIndex(FireflyGraph graph, String key, P<?> predicate);
+        Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(FireflyGraph graph, String key, P<?> predicate);
 
-        Iterator<FireflyEdge> queryEdgePropertyNumberRangeIndex(FireflyGraph graph, String key, P<?> predicate);
+        Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(FireflyGraph graph, String key, P<?> predicate);
 
         Iterator<? extends org.apache.tinkerpop.gremlin.structure.Vertex> queryVertexLabelStringIndex(FireflyGraph graph, Object value);
 

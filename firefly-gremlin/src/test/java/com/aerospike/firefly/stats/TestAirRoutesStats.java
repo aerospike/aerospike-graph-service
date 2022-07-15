@@ -56,22 +56,18 @@ public class TestAirRoutesStats {
         }
     }
 
-    @Before
+    @BeforeClass
     public void fetchAirRoutes50k() {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
-    }
-
-    @Before
-    public void openGraph() {
-        this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
+        g.V().drop().iterate();
+        graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
     }
 
-    @After
+    @AfterClass
     public void closeGraph() {
-        db.dropDatabase();
+        g.V().drop().iterate();
         graph.close();
         db.close();
     }

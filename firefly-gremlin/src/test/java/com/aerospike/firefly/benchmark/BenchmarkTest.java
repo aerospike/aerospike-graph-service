@@ -13,9 +13,12 @@ import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -35,19 +38,37 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Measurement(iterations = 2, time = 2, timeUnit = TimeUnit.MINUTES)
 public class BenchmarkTest {
     private static final GraphTraversalSourceFactory.DATASET DATASET_TYPE = GraphTraversalSourceFactory.DATASET.FLIGHTS;
-    private static DriverRemoteConnection driverRemoteConnection = null;
-    private static GraphTraversalSource g = null;
+    private DriverRemoteConnection driverRemoteConnection = null;
+    private GraphTraversalSource g = null;
 
     @BeforeClass
-    public static void setup() {
+    public static void load() {
         System.out.println("Creating the DriverRemoteConnection.");
-        driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
+        DriverRemoteConnection driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
 
         System.out.println("Creating the GraphTraversalSource.");
-        g = traversal().withRemote(driverRemoteConnection);
+        GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
 
         System.out.println("Loading the graph.");
         GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
+
+        try {
+            g.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            driverRemoteConnection.close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Setup
+    public void setup(BenchmarkParams benchmarkParams) {
+        System.out.println("Creating the DriverRemoteConnection (setup).");
+        driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
+
+        System.out.println("Creating the GraphTraversalSource (setup).");
+        g = traversal().withRemote(driverRemoteConnection);
     }
 
     @AfterClass

@@ -258,14 +258,4 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
         return FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
     }
 
-    /**
-     * Get the backing FireflyRecord for a FireflyVertex
-     * @param vertex FireflyVertex
-     * @return FireflyRecord
-     */
-    @Override
-    public FireflyRecord getVertexRecord(FireflyVertex vertex) {
-        return getVertexRecord(vertex.id);
-    }
-
 }

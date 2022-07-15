@@ -46,7 +46,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
-        final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex);
+        final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex.id);
         long edgeCounter = 0;
         boolean cacheDisabled = false;
         Map<String, List<Long>> labelEdges = new HashMap<>();
@@ -83,7 +83,7 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
         logger.debug("Removing edge {} to vertex {}.", edge.id(), vertex);
         if (vertex == null)
             throw new NoSuchElementException(); //@todo transactions for edge removal
-        FireflyRecord r = db.vertexBackend.getVertexRecord(vertex);
+        FireflyRecord r = db.vertexBackend.getVertexRecord(vertex.id);
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
         if (r == null)

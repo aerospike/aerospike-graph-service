@@ -44,7 +44,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
     @Override
     public void addVPToVertex(FireflyVertex vertex, FireflyVertexProperty vp) {
         logger.debug("Adding vertex property {} to vertex {}.", vp, vertex);
-        final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex);
+        final FireflyRecord fireflyRecord = db.vertexBackend.getVertexRecord(vertex.id);
 
         Map<String, List<Long>> labelIds;
         if (fireflyRecord == null || fireflyRecord.record() == null) {
@@ -147,7 +147,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
      */
     @Override
     public List<VertexProperty> readVertexProperty(final FireflyVertex vertex, final String key) {
-        final FireflyRecord r = db.vertexBackend.getVertexRecord(vertex);
+        final FireflyRecord r = db.vertexBackend.getVertexRecord(vertex.id);
         if (r == null) {
             return new ArrayList<>();
         }
@@ -186,7 +186,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
      */
     @Override
     public Map<String, List<VertexProperty>> readVertexProperties(final FireflyVertex vertex) {
-        FireflyRecord r = db.vertexBackend.getVertexRecord(vertex);
+        FireflyRecord r = db.vertexBackend.getVertexRecord(vertex.id);
         if (r == null) {
             return new HashMap<>();
         }
@@ -238,7 +238,7 @@ public class VertexPropertyBackend extends AbstractBackend implements Backend.Ve
      */
     @Override
     public void removeIdFromVertexPropertyList(final FireflyVertex vertex, final VertexProperty vp) {
-        final FireflyRecord vertexRecord = db.vertexBackend.getVertexRecord(vertex);
+        final FireflyRecord vertexRecord = db.vertexBackend.getVertexRecord(vertex.id);
         if (vertexRecord == null)
             throw new NoSuchElementException();
         Map<String, List<Object>> propertyKeys = (Map<String, List<Object>>) vertexRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);

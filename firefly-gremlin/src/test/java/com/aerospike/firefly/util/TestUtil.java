@@ -37,7 +37,7 @@ public class TestUtil {
         Configuration config_one = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         Configuration config_two = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
 
-        config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID,"2");
+        config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(),"6");
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);
         AerospikeConnection db_two = AerospikeConnection.connect(config_two);
 

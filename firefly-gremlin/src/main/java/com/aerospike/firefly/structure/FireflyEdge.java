@@ -23,11 +23,11 @@ public class FireflyEdge extends FireflyElement implements Edge {
     private final FireflyId outVid;
 
     private void writeProperty(String k, Object v) {
-        this.graph.getBaseGraph().writeProperty(this.id, this.getClass(), k, v);
+        this.graph.getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
     }
 
     private Map<String, Property> readProperties() {
-        return this.graph.getBaseGraph().readProperties(this);
+        return this.graph.getBaseGraph().elementBackend.readProperties(this);
     }
 
 
@@ -40,12 +40,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.getBaseGraph().readVertex(graph, this.outVid);
+        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.getBaseGraph().readVertex(graph, this.inVid);
+        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.inVid);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public void remove() {
         //@todo multi record transactions
-        graph.getBaseGraph().removeEdge(graph, this.id);
+        graph.getBaseGraph().edgeBackend.removeEdge(graph, this.id);
     }
 
     @Override

@@ -123,8 +123,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
-        db.createGraphIndexes();
         this.configuration = conf;
+        db.createGraphIndexes();
         this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
@@ -182,11 +182,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
-            if (db.vertexExists(idValue)) {
+            if (db.vertexBackend.vertexExists(idValue)) {
+
                 throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
             }
         } else {
-            while (db.vertexExists(idValue)) {
+            while (db.vertexBackend.vertexExists(idValue)) {
                 idValue = FireflyId.createFromManager(this, FireflyVertex.class);
             }
         }
@@ -247,14 +248,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         if (!longs.isEmpty() && !longs.stream().map(
-                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db::vertexExists)) {
+                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db.vertexBackend::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
         return new FireflyVertexIterator(this, longs.isEmpty() ?
-                db.readElementIds(FireflyVertex.class) :
+                db.elementBackend.readElementIds(FireflyVertex.class) :
                 longs.iterator());
     }
 
@@ -264,7 +265,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
-                        db.readElementIds(FireflyEdge.class) :
+                        db.elementBackend.readElementIds(FireflyEdge.class) :
                         Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
     }
 

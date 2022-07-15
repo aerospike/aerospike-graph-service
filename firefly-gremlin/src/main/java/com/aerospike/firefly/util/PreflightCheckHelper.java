@@ -31,7 +31,7 @@ public class PreflightCheckHelper {
     }
 
     public static void checkAerospikeEnterprise(AerospikeConnection ac) {
-        if (!ac.aerospikeEnterprise())
+        if (!ac.isEnterprise())
             throw new RuntimeException("Firefly requires aerospike Enterprise Edition");
     }
 }

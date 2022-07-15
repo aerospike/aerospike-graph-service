@@ -83,14 +83,14 @@ public class TestAerospikeGraphIntegration {
         String value2 = "c";
         String key2 = "cKey";
         FireflyProperty<String> p = new FireflyProperty<>(edge, key2, value2);
-        db.writeProperty(edge.id, edge.getClass(), key2, value2);
-        Property<String> readback = db.readProperty(edge, key2);
+        db.elementBackend.writeProperty(edge.id, edge.getClass(), key2, value2);
+        Property<String> readback = db.elementBackend.readProperty(edge, key2);
         assertEquals(p.key(), readback.key());
         assertEquals(p.value(), readback.value());
-        db.removeProperty(edge, key);
+        db.elementBackend.removeProperty(edge, key);
         boolean success = false;
         try {
-            Property<String> gone = db.readProperty(edge, key);
+            Property<String> gone = db.elementBackend.readProperty(edge, key);
         } catch (NoSuchElementException nse) {
             success = true;
         }
@@ -108,12 +108,12 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void testReadWriteVertexProperty() {
-        db.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
-        FireflyVertex vertex = db.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
+        db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
+        FireflyVertex vertex = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
         FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
-        db.writeVertexProperty(vertex, vpid, "a", "a", "b");
-        VertexProperty<Object> p = db.readVertexProperty(vertex, vpid);
-        Map<String, List<VertexProperty>> readBack = db.readVertexProperties(vertex);
+        db.vpBackend.writeVertexProperty(vertex, vpid, "a", "a", "b");
+        VertexProperty<Object> p = db.vpBackend.readVertexProperty(vertex, vpid);
+        Map<String, List<VertexProperty>> readBack = db.vpBackend.readVertexProperties(vertex);
         List<VertexProperty> aValue = readBack.get("a");
         assertNotEquals(aValue, null);
         assertEquals(aValue.get(0), p);
@@ -137,8 +137,8 @@ public class TestAerospikeGraphIntegration {
     @Test
     public void testReadWriteVertex() {
         FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
-        db.writeVertex(graph, id, "aVertexLabel");
-        FireflyVertex v = db.readVertex(graph, id);
+        db.vertexBackend.writeVertex(graph, id, "aVertexLabel");
+        FireflyVertex v = db.vertexBackend.readVertex(graph, id);
         assertEquals(v.label(), "aVertexLabel");
     }
 
@@ -148,7 +148,7 @@ public class TestAerospikeGraphIntegration {
         LongStream.range(0, 10).forEach(l -> {
             FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
             usedIds.add((Long) next.value());
-            db.writeVertex(graph, next, "aVertexLabel");
+            db.vertexBackend.writeVertex(graph, next, "aVertexLabel");
         });
         final AtomicLong ctr = new AtomicLong(0);
         new FireflyVertexIterator<Long>(graph, usedIds.iterator()).forEachRemaining(v -> {
@@ -407,6 +407,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        List<Edge> things = g.E().hasLabel("IsA").toList();
         assertEquals(2, (long) g.E().hasLabel("IsA").count().next());
         assertEquals(2, (long) g.V().outE().hasLabel("IsA").count().next());
     }
@@ -526,7 +527,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        Iterator<Object> i = db.getInEdgeIdsFromVertex((FireflyVertex) fruit);
+        Iterator<Object> i = db.vertexBackend.getEdgeIdsFromVertex((FireflyVertex) fruit,Direction.IN);
         assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         Object next = i.next();
@@ -606,7 +607,7 @@ public class TestAerospikeGraphIntegration {
         v1.addEdge("SELFLOOP", v1, new Object[0]);
         final HashMap<String, Object> configMap = new HashMap<>();
         graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
-        configMap.put(ConfigurationHelper.Keys.GRAPH_ID, "_1");
+        configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
 
 
         Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));
@@ -663,5 +664,6 @@ public class TestAerospikeGraphIntegration {
         Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
         Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
     }
+
 }
 

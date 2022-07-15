@@ -72,7 +72,7 @@ public class TestMovielens1M {
         db.close();
     }
 
-    @Test
+//    @Test
     public void testLoadMovieLens1M() {
         long start = System.currentTimeMillis();
         graph.traversal().io(tempFile.getAbsolutePath()).read().iterate();

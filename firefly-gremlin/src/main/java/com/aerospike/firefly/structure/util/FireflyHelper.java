@@ -33,19 +33,19 @@ public final class FireflyHelper {
     }
 
     public static FireflyVertex readVertex(FireflyGraph graph, FireflyId id) {
-        return graph.getBaseGraph().readVertex(graph, id);
+        return graph.getBaseGraph().vertexBackend.readVertex(graph, id);
     }
 
     public static void writeVertex(FireflyGraph graph, FireflyId id, String label) {
-        graph.getBaseGraph().writeVertex(graph, id, label);
+        graph.getBaseGraph().vertexBackend.writeVertex(graph, id, label);
     }
 
     public static void writeFullyQualifiedVertex(FireflyGraph graph, FireflyId id, String label, List<Map.Entry<String, Object>> properties) {
-        graph.getBaseGraph().writeFullyQualifiedVertex(graph, id, label, properties);
+        graph.getBaseGraph().vertexBackend.writeFullyQualifiedVertex(graph, id, label, properties);
     }
 
     public static void removeVertex(FireflyGraph graph, FireflyId id) {
-        graph.getBaseGraph().removeVertex(graph, id);
+        graph.getBaseGraph().vertexBackend.removeVertex(graph, id);
     }
 
 
@@ -58,11 +58,11 @@ public final class FireflyHelper {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
-            if (graph.getBaseGraph().edgeExists(fid)) {
+            if (graph.getBaseGraph().edgeBackend.edgeExists(fid)) {
                 throw Graph.Exceptions.edgeWithIdAlreadyExists(fid.value());
             }
         } else {
-            while (graph.getBaseGraph().edgeExists(fid)) {
+            while (graph.getBaseGraph().edgeBackend.edgeExists(fid)) {
                 fid = FireflyId.createFromManager(graph, FireflyEdge.class);
             }
         }
@@ -70,7 +70,7 @@ public final class FireflyHelper {
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
-        graph.getBaseGraph().writeFullyQualifiedEdge(graph, fid, label, outVertex, inVertex, properties);
+        graph.getBaseGraph().edgeBackend.writeFullyQualifiedEdge(graph, fid, label, outVertex, inVertex, properties);
 
         // Return FireflyEdge.
         return new FireflyEdge(fid, label, outVertex.id, inVertex.id, graph);
@@ -83,7 +83,7 @@ public final class FireflyHelper {
                 Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported(),
                 Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value()),
                 db,
-                (FireflyId) -> db.vertexExists(idValue));
+                (FireflyId) -> db.vertexBackend.vertexExists(idValue));
     }
 
     public static void validateEdgeId(final FireflyId idValue,
@@ -93,7 +93,7 @@ public final class FireflyHelper {
                 Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported(),
                 Graph.Exceptions.edgeWithIdAlreadyExists(idValue.value()),
                 db,
-                (FireflyId) -> db.edgeExists(idValue));
+                (FireflyId) -> db.edgeBackend.edgeExists(idValue));
     }
 
     public static void validateId(final String cache,
@@ -114,7 +114,7 @@ public final class FireflyHelper {
         }
 
         // Check if id is inside bloom filter.
-        if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.namespace, cache, idLong)
+        if (!BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.getNamespace(), cache, idLong)
                 && existsFunction.exists(idValue)) {
             throw illegalArgumentException;
         }
@@ -160,12 +160,12 @@ public final class FireflyHelper {
         final List<Edge> edges = new ArrayList<>();
 
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id))).ifPresent(edges::add));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id))).ifPresent(edges::add));
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id)));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
+                        Optional<Edge> e = Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
                                 edges.add(edge);
@@ -175,13 +175,13 @@ public final class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> Optional.ofNullable(
-                            db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id))).ifPresent(edges::add));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> Optional.ofNullable(
+                            db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id))).ifPresent(edges::add));
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        Optional<Edge> e = Optional.ofNullable(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
+                        Optional<Edge> e = Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
                                 edges.add(edge);
@@ -197,14 +197,14 @@ public final class FireflyHelper {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).getBaseGraph();
         final List<Vertex> vertices = new ArrayList<>();
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).inVertex());
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
+                        vertices.add(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).inVertex());
                     });
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
+                        Edge e = db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.inVertex());
                     });
@@ -212,14 +212,14 @@ public final class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        vertices.add(db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).outVertex());
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
+                        vertices.add(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).outVertex());
                     });
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
-                        Edge e = db.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
+                        Edge e = db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.outVertex());
                     });
@@ -230,47 +230,47 @@ public final class FireflyHelper {
     }
 
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.getBaseGraph().queryEdgePropertyStringMatchIndex(graph, key, value);
+        return graph.getBaseGraph().indexBackend.queryEdgePropertyStringMatchIndex(graph, key, value);
     }
 
     public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
         if(predicate.getBiPredicate().equals(Compare.eq))
-            return graph.getBaseGraph().queryEdgePropertyNumberMatchIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericMatchIndex(graph, key, predicate);
         else if (predicate.getBiPredicate().equals(Compare.lt))
-            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericRangeIndex(graph, key, predicate);
         else if(predicate.getBiPredicate().equals(Compare.gt))
-            return graph.getBaseGraph().queryEdgePropertyNumberRangeIndex(graph, key, predicate);
+            return graph.getBaseGraph().indexBackend.queryEdgePropertyNumericRangeIndex(graph, key, predicate);
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
     public static Iterator<? extends Vertex> queryVertexByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.getBaseGraph().queryVertexLabelStringIndex(graph, value);
+        return graph.getBaseGraph().indexBackend.queryVertexLabelStringIndex(graph, value);
     }
     public static Iterator<? extends Edge> queryEdgeByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.getBaseGraph().queryEdgeLabelStringIndex(graph, value);
+        return graph.getBaseGraph().indexBackend.queryEdgeLabelStringIndex(graph, value);
     }
 
 
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
-        return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
+        return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyStringIndex(graph, key, value), vp -> vp.element());
     }
 
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
         if(predicate.getBiPredicate().equals(Compare.eq))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberMatchIndex(graph, key, predicate), vp -> vp.element());
         else if (predicate.getBiPredicate().equals(Compare.lt))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
         else if(predicate.getBiPredicate().equals(Compare.gt))
-            return IteratorUtils.map(graph.getBaseGraph().queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
+            return IteratorUtils.map(graph.getBaseGraph().indexBackend.queryVertexPropertyNumberRangeIndex(graph, key, predicate), vp -> vp.element());
         else
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
 
     public static long countVertices(FireflyGraph graph) {
-        return graph.getBaseGraph().getVertexCount();
+        return graph.getBaseGraph().vertexBackend.getVertexCount();
     }
 
     public static long countEdges(FireflyGraph graph) {
-        return graph.getBaseGraph().getEdgeCount();
+        return graph.getBaseGraph().edgeBackend.getEdgeCount();
     }
 }

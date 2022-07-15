@@ -33,6 +33,7 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
+
         public static class Sets {
 
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
@@ -73,6 +74,21 @@ public final class ConfigurationHelper {
         public static final String VP_COUNTER = "VP_COUNTER";
         public static final String GRAPH_ID = "GRAPH_ID";
 
+        public static final String IN_EDGES = "IN_EDGES";
+        public static final String OUT_EDGES = "OUT_EDGES";
+        public static final String CACHE_DISABLED = "CACHE_DISABLED";
+        public static final String INDEX_METADATA = "INDEX_META";
+
+        public static final String NUMERIC_VP_KV_INDEX = "NUMERIC_VP_KV_INDEX";
+        public static final String STRING_VP_KV_INDEX = "STRING_VP_KV_INDEX";
+        public static final String STRING_E_KV_INDEX = "STRING_E_KV_INDEX";
+        public static final String NUMERIC_E_KV_INDEX = "NUMERIC_E_KV_INDEX";
+        public static final String INDEXED_BINS = "INDEXED_BINS";
+        public static final String LABEL = "LABEL";
+        public static final String V_LABEL_INDEX = "V_LABEL_INDEX";
+        public static final String E_LABEL_INDEX = "E_LABEL_INDEX";
+        public static final String E_IN_INDEX = "E_IN_INDEX";
+        public static final String E_OUT_INDEX = "E_OUT_INDEX";
         // User supplied id cache
         public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
         public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
@@ -105,7 +121,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
-        put(Keys.KEY_VALUE, "KEY_VAL");
+        put(Keys.KEY_VALUE, "KEY_VALUE");
         put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
         put(Keys.ID_TYPE, "ID_TYPE");
@@ -117,6 +133,19 @@ public final class ConfigurationHelper {
         put(Keys.ID_CACHE_SIZE, "100000");
         put(Keys.VP_COUNTER, "VP_COUNT");
         put(Keys.GRAPH_ID, "0");
+        put(Keys.IN_EDGES, "IN_EDGES");
+        put(Keys.OUT_EDGES,"OUT_EDGES");
+        put(Keys.CACHE_DISABLED,"CACHE_DISABLED");
+        put(Keys.INDEX_METADATA,"INDEX_META");
+        put(Keys.NUMERIC_VP_KV_INDEX,"N_VP_KV");
+        put(Keys.STRING_VP_KV_INDEX,"S_VP_KV");
+        put(Keys.STRING_E_KV_INDEX,"S_E_KV");
+        put(Keys.NUMERIC_E_KV_INDEX,"N_E_KV");
+        put(Keys.INDEXED_BINS,"indexedBins");
+        put(Keys.V_LABEL_INDEX,"V_LABEL_IDX");
+        put(Keys.E_LABEL_INDEX,"E_LABEL_IDX");
+        put(Keys.E_IN_INDEX,"E_IN_INDEX");
+        put(Keys.E_OUT_INDEX,"E_OUT_INDEX");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
@@ -195,7 +224,7 @@ public final class ConfigurationHelper {
     }
 
     private static String getPrefix(Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID) ? config.get(String.class, Keys.GRAPH_ID) : defaultValues.get(Keys.GRAPH_ID) + "_";
+        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) : defaultValues.get(Keys.GRAPH_ID) + "_";
     }
 
     public static String aerospikeNamespace(Configuration c) {

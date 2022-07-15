@@ -25,11 +25,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     private final FireflyGraph graph;
 
     private Map<String, Property> readProperties() {
-        return ((FireflyGraph) this.graph()).getBaseGraph().readProperties(this);
+        return ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.readProperties(this);
     }
 
     private void writeProperty(String k, Object v) {
-        ((FireflyGraph) this.graph()).getBaseGraph().writeProperty(this.id, this.getClass(), k, v);
+        ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
     }
 
 
@@ -74,7 +74,8 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        return graph.getBaseGraph().readVertex(graph,this.vertexId);
+        final FireflyVertex e = graph.getBaseGraph().vertexBackend.readVertex(graph, this.vertexId);
+        return e;
     }
 
     @Override
@@ -93,7 +94,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     @Override
     public void remove() {
         try {
-            ((FireflyGraph) this.graph()).getBaseGraph().removeVertexProperty(this);
+            ((FireflyGraph) this.graph()).getBaseGraph().vpBackend.removeVertexProperty(this);
         } catch (AerospikeException e) {
             throw new RuntimeException(e);
         }

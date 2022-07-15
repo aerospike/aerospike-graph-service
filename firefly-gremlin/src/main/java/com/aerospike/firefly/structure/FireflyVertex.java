@@ -32,15 +32,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         return this.graph.getBaseGraph().vpBackend.readVertexProperty(this, key);
     }
 
-
-    protected Iterator<Object> getInEdgeIds() {
-        return this.graph.getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(this);
-    }
-
-    protected Iterator<Object> getOutEdgeIds() {
-        return this.graph.getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(this);
-    }
-
     public FireflyVertex(final FireflyId fid, final String label, final FireflyGraph graph) {
         super(fid, label);
         this.graph = graph;

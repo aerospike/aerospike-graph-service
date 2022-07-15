@@ -527,7 +527,7 @@ public class TestAerospikeGraphIntegration {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        Iterator<Object> i = db.vertexBackend.getInEdgeIdsFromVertex((FireflyVertex) fruit);
+        Iterator<Object> i = db.vertexBackend.getEdgeIdsFromVertex((FireflyVertex) fruit,Direction.IN);
         assertTrue(i.hasNext());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         Object next = i.next();

@@ -124,6 +124,16 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin);
     }
 
+    @Override
+    public Iterator<Object> getEdgeIdsFromVertex(FireflyVertex vertex, Direction direction) {
+        if (direction.equals(Direction.IN))
+            return getInEdgeIdsFromVertex(vertex);
+        else if (direction.equals(Direction.OUT))
+            return getOutEdgeIdsFromVertex(vertex);
+        else
+            return IteratorUtils.concat(getInEdgeIdsFromVertex(vertex), getOutEdgeIdsFromVertex(vertex));
+    }
+
 
     /**
      * Get the in-edge ids for a vertex
@@ -133,7 +143,6 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @param vertex Vertex to read in edge ids from
      * @return Iterator of raw Ids
      */
-    @Override
     public Iterator<Object> getInEdgeIdsFromVertex(final FireflyVertex vertex) {
         logger.debug("Getting in edge ids from Vertex {}.", vertex.id().toString());
         FireflyRecord r = getVertexRecord(vertex.id);
@@ -153,7 +162,6 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @param vertex Vertex to read out edge ids from
      * @return Iterator of raw Ids
      */
-    @Override
     public Iterator<Object> getOutEdgeIdsFromVertex(final FireflyVertex vertex) {
         logger.debug("Getting out edge ids from Vertex {}.", vertex.id().toString());
         FireflyRecord r = getVertexRecord(vertex.id);
@@ -171,7 +179,6 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @param vertex Vertex to read out edge ids from
      * @return Iterator of raw Ids
      */
-    @Override
     public Iterator<Object> getOutEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
         logger.debug("Getting out edge ids from Vertex {} via scan.", vertex.id().toString());
         final Expression exp = Exp.build(
@@ -182,6 +189,15 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
         return db.scanFilteredIdsInSet(db.EDGE_AERO_SET, exp);
     }
 
+    @Override
+    public Iterator<Object> getEdgeIdsFromVertexByScan(final FireflyVertex vertex, Direction direction) {
+        if (direction.equals(Direction.IN))
+            return getInEdgeIdsFromVertexByScan(vertex);
+        else if (direction.equals(Direction.OUT))
+            return getOutEdgeIdsFromVertexByScan(vertex);
+        else
+            return IteratorUtils.concat(getInEdgeIdsFromVertexByScan(vertex), getOutEdgeIdsFromVertexByScan(vertex));
+    }
 
     /**
      * read an Id cache from a vertex, return it as a map of label to ids with label
@@ -223,7 +239,6 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
      * @param vertex vertex to read in edge ids from
      * @return Iterator of raw ids
      */
-    @Override
     public Iterator<Object> getInEdgeIdsFromVertexByScan(final FireflyVertex vertex) {
         logger.trace("Getting in edge ids from Vertex by scan {}.", vertex.id().toString());
         final Expression exp = Exp.build(
@@ -249,6 +264,7 @@ public class VertexBackend extends AbstractBackend implements Backend.Vertex {
 
     /**
      * Get the backing FireflyRecord for a FireflyVertex by FireflyId
+     *
      * @param id Id of Vertex
      * @return FireflyRecord
      */

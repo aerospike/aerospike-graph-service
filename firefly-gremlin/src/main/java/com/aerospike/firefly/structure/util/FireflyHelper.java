@@ -160,11 +160,11 @@ public final class FireflyHelper {
         final List<Edge> edges = new ArrayList<>();
 
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id))).ifPresent(edges::add));
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id))).ifPresent(edges::add));
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
@@ -175,12 +175,12 @@ public final class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> Optional.ofNullable(
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> Optional.ofNullable(
                             db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id))).ifPresent(edges::add));
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
                         Optional<Edge> e = Optional.ofNullable(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)));
                         e.ifPresent(edge -> IteratorUtils.asIterator(edgeLabels).forEachRemaining(label -> {
                             if (label.equals(edge.label()))
@@ -197,13 +197,13 @@ public final class FireflyHelper {
         AerospikeConnection db = ((FireflyGraph) vertex.graph()).getBaseGraph();
         final List<Vertex> vertices = new ArrayList<>();
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
                         vertices.add(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).inVertex());
                     });
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getOutEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.OUT).forEachRemaining(id -> {
                         Edge e = db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.inVertex());
@@ -212,13 +212,13 @@ public final class FireflyHelper {
             }
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).hasNext()) {
+            if (((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).hasNext()) {
                 if (edgeLabels.length == 0) {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
                         vertices.add(db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyVertex.class, id)).outVertex());
                     });
                 } else {
-                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getInEdgeIdsFromVertex(vertex).forEachRemaining(id -> {
+                    ((FireflyGraph) vertex.graph()).getBaseGraph().vertexBackend.getEdgeIdsFromVertex(vertex,Direction.IN).forEachRemaining(id -> {
                         Edge e = db.edgeBackend.readEdge((FireflyGraph) vertex.graph(), FireflyId.of(FireflyEdge.class, id));
                         if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
                             vertices.add(e.outVertex());

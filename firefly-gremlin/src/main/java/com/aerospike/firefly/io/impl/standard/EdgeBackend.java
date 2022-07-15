@@ -94,6 +94,8 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
         long edgeCounter = r.record.getLong(counterKey);
         if (edgeCounter > 0)
             edgeCounter--;
+        else
+            LOG.error("edge counter is 0 for {} when calling removeEdgeFromVertex", vertex);
         if (edgeCounter == db.ID_CACHE_SIZE - 1) // if id set size within cache size, restore the cache
             labelEdges = db.vertexBackend.getXXXIdsFromVertexLabelMap(vertex, directionKey);
         List<Long> edges = labelEdges.getOrDefault(edge.label(), new ArrayList<>());

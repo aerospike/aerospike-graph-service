@@ -123,7 +123,7 @@ public interface Backend {
 
         FireflyEdge readEdge(FireflyGraph graph, FireflyId edgeId);
 
-        FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord);
+        FireflyEdge edgeFromRecord(FireflyGraph graph, FireflyRecord edgeRecord);
 
         void writeEdge(FireflyGraph graph,
                        FireflyId edgeId,

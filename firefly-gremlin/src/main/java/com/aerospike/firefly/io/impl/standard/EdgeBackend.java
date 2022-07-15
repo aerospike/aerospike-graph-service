@@ -149,17 +149,16 @@ public class EdgeBackend extends AbstractBackend implements Backend.Edge {
      * Construct a FireflyEdge from a Record
      *
      * @param graph      FireflyGraph
-     * @param key        Aerospike Key
-     * @param edgeRecord Aerospike Record
+     * @param edgeRecord FireflyRecord
      * @return FireflyEdge
      */
     @Override
-    public FireflyEdge edgeFromRecord(FireflyGraph graph, Key key, Record edgeRecord) {
-        logger.debug("Creating edge from record {}.", key.userKey.toString());
-        return new FireflyEdge(FireflyId.of(FireflyEdge.class, key.userKey.toLong()),
-                edgeRecord.getString(db.LABEL),
-                FireflyId.of(FireflyVertex.class, edgeRecord.getLong(Direction.OUT.name())),
-                FireflyId.of(FireflyVertex.class, edgeRecord.getLong(Direction.IN.name())),
+    public FireflyEdge edgeFromRecord(FireflyGraph graph, FireflyRecord edgeRecord) {
+        logger.debug("Creating edge from record {}.", edgeRecord.key().userKey.toString());
+        return new FireflyEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, FireflyRecord.fromRecord(db, edgeRecord.key(), edgeRecord.record())),
+                edgeRecord.record().getString(db.LABEL),
+                FireflyId.of(FireflyVertex.class, edgeRecord.record().getLong(Direction.OUT.name())),
+                FireflyId.of(FireflyVertex.class, edgeRecord.record().getLong(Direction.IN.name())),
                 graph);
     }
 

@@ -44,7 +44,7 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.STRING_E_KV_INDEX,
                 Filter.contains(db.getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr -> db.edgeBackend.edgeFromRecord(graph, kr.key, kr.record));
+        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr -> db.edgeBackend.edgeFromRecord(graph, FireflyRecord.fromRecord(db,kr.key,kr.record)));
         return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
     }
 
@@ -72,7 +72,8 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         }
 
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr -> db.edgeBackend.edgeFromRecord(graph, kr.key, kr.record));
+        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
+                db.edgeBackend.edgeFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
@@ -99,7 +100,8 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
             throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr -> db.edgeBackend.edgeFromRecord(graph, kr.key, kr.record));
+        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
+                db.edgeBackend.edgeFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
@@ -130,7 +132,7 @@ public class IndexBackend extends AbstractBackend implements Backend.Index {
         final Iterator<KeyRecord> iter = db.queryIndex(db.getElementPropertySet(FireflyEdge.class), db.E_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, kr ->
-                db.edgeBackend.edgeFromRecord(graph, kr.key, kr.record));
+                db.edgeBackend.edgeFromRecord(graph, FireflyRecord.fromRecord(db, kr.key, kr.record)));
     }
 
     /**

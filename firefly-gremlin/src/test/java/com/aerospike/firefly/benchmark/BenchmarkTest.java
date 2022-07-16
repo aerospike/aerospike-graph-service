@@ -48,7 +48,7 @@ public class BenchmarkTest {
         DriverRemoteConnection driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
 
         System.out.println("Creating the GraphTraversalSource.");
-        GraphTraversalSource g = traversal().withRemote(driverRemoteConnection).with("evaluationTimeout", 0);
+        GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
 
         System.out.println("Clearing the graph.");
         g.V().drop().iterate();

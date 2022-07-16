@@ -104,16 +104,8 @@ public class BenchmarkTest {
     }
 
     @Benchmark
-    public void testBenchmark1(final Blackhole blackhole) throws Exception {
-        System.out.println("testBenchmark1 g: " + g);
-        List<Vertex> vertices = g.V().has("code", "AUS").out().out().has("code", "SEA").toList();
-        blackhole.consume(vertices);
-    }
-
-    @Benchmark
-    public void testBenchmark2(final Blackhole blackhole) throws Exception {
-        System.out.println("testBenchmark2 g: " + g);
-        List<Vertex> vertices = g.V().has("code", "AUS").out().has("code", "SEA").toList();
+    public void testBenchmark1(final Blackhole blackhole) {
+        List<Vertex> vertices = g.V().has("code", "AUS").out().out().out().has("code", "SEA").toList();
         blackhole.consume(vertices);
     }
 }

@@ -54,14 +54,14 @@ public class BenchmarkTest {
         GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
 
         try {
-            g.close();
-        } catch (Exception e) {
-            System.out.println("Failed to close the GraphTraversalSource.");
-        }
-        try {
             driverRemoteConnection.close();
         } catch (Exception e) {
             System.out.println("Failed to close the DriverRemoteConnection.");
+        }
+        try {
+            g.close();
+        } catch (Exception e) {
+            System.out.println("Failed to close the GraphTraversalSource.");
         }
     }
 
@@ -76,20 +76,20 @@ public class BenchmarkTest {
 
     @TearDown
     public void tearDown() {
-        if (g != null) {
-            try {
-                System.out.println("Closing the GraphTraversalSource.");
-                g.close();
-            } catch (Exception e) {
-                System.out.println("Failed to close the GraphTraversalSource.");
-            }
-        }
         if (driverRemoteConnection != null) {
             try {
                 System.out.println("Closing the DriverRemoteConnection.");
                 driverRemoteConnection.close();
             } catch (Exception e) {
                 System.out.println("Failed to close the DriverRemoteConnection.");
+            }
+        }
+        if (g != null) {
+            try {
+                System.out.println("Closing the GraphTraversalSource.");
+                g.close();
+            } catch (Exception e) {
+                System.out.println("Failed to close the GraphTraversalSource.");
             }
         }
     }

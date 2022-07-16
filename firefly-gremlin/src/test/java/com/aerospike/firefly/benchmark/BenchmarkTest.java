@@ -3,9 +3,7 @@ package com.aerospike.firefly.benchmark;
 
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -13,7 +11,6 @@ import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -58,11 +55,13 @@ public class BenchmarkTest {
 
         try {
             g.close();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            System.out.println("Failed to close the GraphTraversalSource.");
         }
         try {
             driverRemoteConnection.close();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            System.out.println("Failed to close the DriverRemoteConnection.");
         }
     }
 
@@ -81,14 +80,16 @@ public class BenchmarkTest {
             try {
                 System.out.println("Closing the GraphTraversalSource.");
                 g.close();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                System.out.println("Failed to close the GraphTraversalSource.");
             }
         }
         if (driverRemoteConnection != null) {
             try {
                 System.out.println("Closing the DriverRemoteConnection.");
                 driverRemoteConnection.close();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                System.out.println("Failed to close the DriverRemoteConnection.");
             }
         }
     }

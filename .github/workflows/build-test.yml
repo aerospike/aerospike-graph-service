@@ -20,7 +20,7 @@ jobs:
           distribution: 'temurin'
       - name: Build with Maven
         run: |
-          mvn -DskipTests clean package
+          mvn -DskipTests clean package --no-transfer-progress
           docker build -t aerospike/firefly .
   test:
     name: test-firefly
@@ -39,7 +39,7 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn clean test
+          mvn clean test --no-transfer-progress
   benchmark:
     name: benchmark-firefly
     timeout-minutes: 120

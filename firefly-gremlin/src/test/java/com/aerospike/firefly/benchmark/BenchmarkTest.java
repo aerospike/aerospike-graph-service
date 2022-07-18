@@ -1,6 +1,7 @@
 package com.aerospike.firefly.benchmark;
 
 
+import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -35,17 +36,20 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Warmup(iterations = 0)
 @Measurement(iterations = 2, time = 2, timeUnit = TimeUnit.MINUTES)
 public class BenchmarkTest {
+    private static final String HOST = "127.0.0.1";
+    private static final int PORT = 8182;
     private static final GraphTraversalSourceFactory.DATASET DATASET_TYPE = GraphTraversalSourceFactory.DATASET.FLIGHTS;
-    private DriverRemoteConnection driverRemoteConnection = null;
+    private Cluster cluster = null;
     private GraphTraversalSource g = null;
+    private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
 
     @BeforeClass
     public static void load() {
-        System.out.println("Creating the DriverRemoteConnection.");
-        DriverRemoteConnection driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
+        System.out.println("Creating the Cluster.");
+        final Cluster cluster = BUILDER.create();
 
         System.out.println("Creating the GraphTraversalSource.");
-        GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
+        GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster));
 
         System.out.println("Clearing the graph.");
         g.V().drop().iterate();
@@ -54,42 +58,42 @@ public class BenchmarkTest {
         GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
 
         try {
-            driverRemoteConnection.close();
-        } catch (Exception e) {
-            System.out.println("Failed to close the DriverRemoteConnection.");
-        }
-        try {
             g.close();
         } catch (Exception e) {
             System.out.println("Failed to close the GraphTraversalSource.");
+        }
+        try {
+            cluster.close();
+        } catch (Exception e) {
+            System.out.println("Failed to close the Cluster.");
         }
     }
 
     @Setup
     public void setup(BenchmarkParams benchmarkParams) {
-        System.out.println("Creating the DriverRemoteConnection (setup).");
-        driverRemoteConnection = DriverRemoteConnection.using("127.0.0.1", 8182);
+        System.out.println("Creating the Cluster (setup).");
+        cluster = BUILDER.create();
 
         System.out.println("Creating the GraphTraversalSource (setup).");
-        g = traversal().withRemote(driverRemoteConnection);
+        g = traversal().withRemote(DriverRemoteConnection.using(cluster));
     }
 
     @TearDown
     public void tearDown() {
-        if (driverRemoteConnection != null) {
-            try {
-                System.out.println("Closing the DriverRemoteConnection.");
-                driverRemoteConnection.close();
-            } catch (Exception e) {
-                System.out.println("Failed to close the DriverRemoteConnection.");
-            }
-        }
         if (g != null) {
             try {
                 System.out.println("Closing the GraphTraversalSource.");
                 g.close();
             } catch (Exception e) {
                 System.out.println("Failed to close the GraphTraversalSource.");
+            }
+        }
+        if (cluster != null) {
+            try {
+                System.out.println("Closing the Cluster.");
+                cluster.close();
+            } catch (Exception e) {
+                System.out.println("Failed to close the Cluster.");
             }
         }
     }

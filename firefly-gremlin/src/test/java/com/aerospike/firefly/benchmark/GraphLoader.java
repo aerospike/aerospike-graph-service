@@ -10,25 +10,19 @@ import java.io.File;
 import java.net.URL;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
-import static com.aerospike.firefly.benchmark.GraphTraversalSourceFactory.DATASET.FLIGHTS;
 
-// TODO This should not create the graph and then return a GraphTraversalSource.
-//      Instead the GraphTraversalSource should be created as a RemoteConnection to
-//      an instance of gremlin-server that is hosted separately.
-public class GraphTraversalSourceFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(GraphTraversalSourceFactory.class);
-
-    enum GRAPH {
-        FIREFLY,
-        JANUSGRAPH
-    }
+/**
+ * Utility class to load the graph with specified dataset.
+ */
+public class GraphLoader {
+    private static final Logger LOG = LoggerFactory.getLogger(GraphLoader.class);
 
     enum DATASET {
         FLIGHTS
     }
 
-    public static void loadGraph(GraphTraversalSource g, DATASET dataset) {
-        if (dataset == FLIGHTS) {
+    public static void loadGraph(final GraphTraversalSource g, final DATASET dataset) {
+        if (dataset == DATASET.FLIGHTS) {
             final File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
             try {
                 if (!tempFile.exists())

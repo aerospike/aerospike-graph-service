@@ -1,6 +1,5 @@
 package com.aerospike.firefly.benchmark;
 
-
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -30,6 +29,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
+// TODO: We should tune these parameters to provide the benchmark
+//       with results we like - likely add warmup and adjust
+//       iterations.
 @BenchmarkMode(Mode.All)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
@@ -38,24 +40,26 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 public class BenchmarkTest {
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8182;
-    private static final GraphTraversalSourceFactory.DATASET DATASET_TYPE = GraphTraversalSourceFactory.DATASET.FLIGHTS;
+    private static final GraphLoader.DATASET DATASET_TYPE = GraphLoader.DATASET.FLIGHTS;
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
 
+    // Run before the class, this will run before all the benchmarks
+    // and load the graph.
     @BeforeClass
     public static void load() {
         System.out.println("Creating the Cluster.");
         final Cluster cluster = BUILDER.create();
 
         System.out.println("Creating the GraphTraversalSource.");
-        GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster));
+        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster));
 
         System.out.println("Clearing the graph.");
         g.V().drop().iterate();
 
         System.out.println("Loading the graph.");
-        GraphTraversalSourceFactory.loadGraph(g, DATASET_TYPE);
+        GraphLoader.loadGraph(g, DATASET_TYPE);
 
         try {
             g.close();
@@ -69,6 +73,9 @@ public class BenchmarkTest {
         }
     }
 
+    // Setup for the benchmark. Note, BeforeClass won't work to set static variables
+    // because jmh launches a separate JVM for the benchmark and the @BeforeClass
+    // annotation is ignored.
     @Setup
     public void setup(BenchmarkParams benchmarkParams) {
         System.out.println("Creating the Cluster (setup).");
@@ -78,6 +85,7 @@ public class BenchmarkTest {
         g = traversal().withRemote(DriverRemoteConnection.using(cluster));
     }
 
+    // Teardown for benchmark.
     @TearDown
     public void tearDown() {
         if (g != null) {
@@ -98,6 +106,9 @@ public class BenchmarkTest {
         }
     }
 
+    // Use junit test to hook into maven nicely. This test will
+    // use the benchmark framework which runs the benchmarks in a
+    // separate JVM.
     @Test
     public void fireflyBenchmark() throws RunnerException {
         Options opt = new OptionsBuilder()

@@ -18,10 +18,10 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-       - name: Build with Maven
-         run: |
-           mvn -DskipTests clean package
-           docker build -t aerospike/firefly .
+     - name: Build with Maven
+       run: |
+         mvn -DskipTests clean package
+          docker build -t aerospike/firefly .
   test:
     name: test-firefly
     timeout-minutes: 120
@@ -55,7 +55,7 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-      - name: Launch Firefly in Gremlin-Server
+      - name: Launch Firefly in Gremlin-Server and Run Benchmark
         run: |
           echo "Downloading gremlin-server"
           cd ..

@@ -10,8 +10,8 @@ Building Firefly
 $ mvn -DskipTests clean package  
 ... 
 $ ls firefly-gremlin/target/*.jar  
-firefly-gremlin/target/firefly-gremlin-0.1.0-SNAPSHOT-jar-with-dependencies.jar  
-firefly-gremlin/target/firefly-gremlin-0.1.0-SNAPSHOT.jar
+firefly-gremlin/target/firefly-gremlin-0.2.0-SNAPSHOT-jar-with-dependencies.jar  
+firefly-gremlin/target/firefly-gremlin-0.2.0-SNAPSHOT.jar
 ```
 
 Testing Firefly
@@ -47,8 +47,8 @@ $ mkdir -p ~/.groovy/ && cp conf/grapeConfig.xml ~/.groovy/
 ```
 $ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh    
 ...  
-gremlin> :install com.aerospike firefly-gremlin 0.1.0-SNAPSHOT  
-==>Loaded: [com.aerospike, firefly-gremlin, 0.1.0-SNAPSHOT] - restart the console to use [aerospike.firefly]  
+gremlin> :install com.aerospike firefly-gremlin 0.2.0-SNAPSHOT  
+==>Loaded: [com.aerospike, firefly-gremlin, 0.2.0-SNAPSHOT] - restart the console to use [aerospike.firefly]  
 (exit)  
 $ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh  
 ...  

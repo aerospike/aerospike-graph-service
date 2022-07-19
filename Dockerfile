@@ -22,7 +22,7 @@ WORKDIR /opt/aerospike-firefly
 RUN mvn -DskipTests clean install
 RUN gremlin.sh -e scripts/console-setup.groovy &&\
     gremlin.sh -e scripts/console-plugin-enable.groovy &&\
-    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.1.0-SNAPSHOT'
+    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.2.0-SNAPSHOT'
 RUN useradd -m firefly
 USER firefly
 ENTRYPOINT ["gremlin.sh"]

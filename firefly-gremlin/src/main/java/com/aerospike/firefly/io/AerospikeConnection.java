@@ -9,7 +9,6 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.io.impl.GuavaCache;
 import com.aerospike.firefly.io.impl.standard.*;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -34,8 +33,6 @@ import java.util.stream.Collectors;
  */
 public class AerospikeConnection {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    private final Cache cache;
-
     public static final String LABEL = "label";
 
     public final String GRAPH_ID;
@@ -192,7 +189,6 @@ public class AerospikeConnection {
         graphBackend = new GraphBackend(this);
         indexBackend = new IndexBackend(this);
 
-        cache = new GuavaCache(this);
     }
 
     /**
@@ -425,29 +421,29 @@ public class AerospikeConnection {
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_IN_INDEX, Direction.IN.name(),
+                    E_IN_INDEX,  Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_OUT_INDEX, Direction.OUT.name(),
+                    E_OUT_INDEX,  Direction.OUT.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         createIndex(getElementPropertySet(FireflyVertex.class),
-                V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                STRING_VP_KV_INDEX,
+                 STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                NUMERIC_VP_KV_INDEX,
+                 NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                STRING_E_KV_INDEX,
+                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                NUMERIC_E_KV_INDEX,
+                 NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
@@ -540,19 +536,8 @@ public class AerospikeConnection {
      */
     protected Record read(final Key key) {
         this.readMetric.incrementAndGet();
-        return cache.read(key);
+        return client.get(null, key);
     }
-
-    protected void write(final Key key, final Bin... bins) {
-        this.writeMetric.incrementAndGet();
-        cache.write(key, bins);
-    }
-
-    protected Record operate(WritePolicy policy, Key key, Operation... operations) {
-        cache.invalidate(key);
-        return client.operate(policy, key, operations);
-    }
-
 
     /**
      * Determine of a key exists
@@ -570,7 +555,7 @@ public class AerospikeConnection {
      * @param key Aerospike Key to delete
      */
     public void delete(final Key key) {
-        cache.remove(key);
+        client.delete(null, key);
     }
 
 
@@ -600,7 +585,7 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         try {
             return client.query(p, stmt).iterator();
-        } catch (AerospikeException ae) {
+        }catch (AerospikeException ae){
             throw new RuntimeException(ae);
         }
     }
@@ -927,7 +912,7 @@ public class AerospikeConnection {
     public long incrementAndGetIdCounter(final String name, long increment) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, increment);
-        final Record record = this.operate(null, key,
+        final Record record = client.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
         return record.getLong(COUNTER);
@@ -952,7 +937,7 @@ public class AerospikeConnection {
     public long decrementIdCounter(final String name) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, -1);
-        final Record record = this.operate(null, key,
+        final Record record = client.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
         return record.getLong(COUNTER);
@@ -991,7 +976,7 @@ public class AerospikeConnection {
                 Exp.val(offer),
                 Exp.add(Exp.intBin(COUNTER), Exp.val(1))
         ));
-        Record result = this.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
         ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
         return (long) ret.get(1);
     }
@@ -1013,7 +998,7 @@ public class AerospikeConnection {
                 Exp.val(offer),
                 Exp.intBin(COUNTER)
         ));
-        Record result = this.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
         ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
         return (long) ret.get(1);
     }

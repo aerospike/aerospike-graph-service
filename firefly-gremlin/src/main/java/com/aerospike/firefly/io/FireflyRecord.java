@@ -66,10 +66,9 @@ public class FireflyRecord {
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
-    public Key key() {
+    public Key key(){
         return this.key;
     }
-
     public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
         return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
     }
@@ -102,8 +101,7 @@ public class FireflyRecord {
         final long idtypidx = record.getLong(this.ac.ID_TYPE);
         return idStorageTypeToOriginalType(idval, idtypidx);
     }
-
-    public Record record() {
+    public Record record(){
         return record;
     }
 
@@ -172,16 +170,17 @@ public class FireflyRecord {
         listOfBins.add(idTypeBin);
 
         try {
-            db.write(key, listOfBins.toArray(new Bin[0]));
+            db.writeMetric.incrementAndGet();
+            db.getClient().put(sendKeyWritePolicy, key, listOfBins.toArray(new Bin[0]));
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static void writeElement(final AerospikeConnection db,
-                                    final String set,
-                                    final FireflyId id,
-                                    final Bin... bins) {
+                                       final String set,
+                                       final FireflyId id,
+                                       final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
         final Key key = getElementKey(db.getNamespace(), set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));

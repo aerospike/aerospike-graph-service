@@ -69,7 +69,7 @@ jobs:
           mvn -DskipTests clean package --no-transfer-progress
           
           echo "Building docker image"
-          docker build -t $REPOSITORY_NAME/$IMAGE_NAME
+          docker build -t $REPOSITORY_NAME/$IMAGE_NAME .
           
           # Create docker tag.
           echo "Creating docker tag"

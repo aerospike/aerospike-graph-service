@@ -61,12 +61,8 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           
-          echo "Building docker image"
-          docker build -t $REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
-          
-          # Create docker tag.
-          echo "Creating docker tag"
-          docker tag $IMAGE_NAME $REPOSITORY_NAME/$IMAGE_ID:$VERSION
+          echo "Building and tagging docker image"
+          docker build --tag $REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
           
           # Push Docker tag.
           echo "Pushing docker tag"

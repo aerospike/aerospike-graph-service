@@ -28,28 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Build Container
-        run: |
-          echo "Building and tagging docker image"
-          docker build --tag $REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
-      - name: Login to docker
-        run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
-      # - if: $CI_PIPELINE_SOURCE == "push"
-      # - name: Push Container
-      #   run: |
-      #     docker push $REPOSITORY_NAME/$IMAGE_NAME
-
-      - name: Publish Container
-        run: |
-          
+      - name: Get IMAGE_ID
+        run: |  
           # Get image id.
           IMAGE_ID=ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME
           
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          
+
+      - name: Get Version
+        run: |
           # Strip git ref prefix from version
           # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
@@ -61,10 +49,24 @@ jobs:
           
           # Print out the image id and version.
           VERSION=0.0.0-docker-test
-          echo REPOSITORY_NAME=$REPOSITORY_NAME
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-          
+
+      - name: Login to GitHub Container Repository
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+
+      - name: Build Container
+        run: |
+          echo "Building docker image"
+          docker build .
+
+      - name: Tag Container
+        run: |
+          echo "Tagging docker image"
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+
+      - name: Publish Container
+        run: |
           # Push Docker tag.
           echo "Pushing docker tag"
           docker push $IMAGE_ID:$VERSION

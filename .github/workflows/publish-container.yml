@@ -30,6 +30,12 @@ jobs:
 
       - name: Build Container
         run: |
+          echo "Building and tagging docker image"
+          docker build --tag $REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
+      - name: Login to docker
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
       # - if: $CI_PIPELINE_SOURCE == "push"
       # - name: Push Container
       #   run: |
@@ -37,8 +43,6 @@ jobs:
 
       - name: Publish Container
         run: |
-          # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
           
           # Get image id.
           IMAGE_ID=ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME
@@ -61,9 +65,6 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           
-          echo "Building and tagging docker image"
-          docker build --tag $REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
-          
           # Push Docker tag.
           echo "Pushing docker tag"
-          docker push $REPOSITORY_NAME/$IMAGE_NAME:$VERSION
+          docker push $IMAGE_ID:$VERSION

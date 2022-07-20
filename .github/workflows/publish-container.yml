@@ -11,7 +11,7 @@ on:
   #    - 'v*'
 
 env:
-  REPOSITORY_NAME: aerospike
+  REPOSITORY_NAME: citrusleaf
   IMAGE_NAME: firefly
   VERSION: v0.0.1
 

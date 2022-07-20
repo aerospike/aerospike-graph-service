@@ -31,7 +31,7 @@ jobs:
       - name: Login to GitHub Container Repository
         run: |
           # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | REDACTED_GH_TOKEN--username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
 
       - name: Build Container
         run: |
@@ -58,9 +58,10 @@ jobs:
           # Print out the image id and version.
           VERSION=0.0.0-docker-test
           
-          echo "Tagging docker image"
-          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          # Build and tag docker image.
+          echo "Building and tagging docker image"
+          docker build --tag ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
           
           # Push Docker tag.
           echo "Pushing docker tag"
-          docker push $IMAGE_ID:$VERSION
+          docker push ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION

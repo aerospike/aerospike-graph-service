@@ -28,12 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-
       - name: Build Container
         run: |
       # - if: $CI_PIPELINE_SOURCE == "push"
@@ -53,28 +47,27 @@ jobs:
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
           
           # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           
           # Use Docker `latest` tag convention
-          [ "$VERSION" == "main" ] && VERSION=latest
+          # [ "$VERSION" == "main" ] && VERSION=latest
           
           # Print out the image id and version.
+          VERSION=0.0.0-docker-test
+          echo REPOSITORY_NAME=$REPOSITORY_NAME
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
-          
-          echo "Building mvn package"
-          mvn -DskipTests clean package --no-transfer-progress
           
           echo "Building docker image"
           docker build -t $REPOSITORY_NAME/$IMAGE_NAME .
           
           # Create docker tag.
           echo "Creating docker tag"
-          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          docker tag $IMAGE_NAME $REPOSITORY_NAME/$IMAGE_ID:$VERSION
           
           # Push Docker tag.
           echo "Pushing docker tag"
-          docker push $IMAGE_ID:$VERSION
+          docker push $REPOSITORY_NAME/$IMAGE_ID:$VERSION

@@ -66,8 +66,8 @@ jobs:
           
           # Create docker tag.
           echo "Creating docker tag"
-          docker tag $IMAGE_NAME $REPOSITORY_NAME/$IMAGE_ID:$VERSION
+          docker tag $IMAGE_NAME $REPOSITORY_NAME/$IMAGE_ID:0.0.0-docker-test
           
           # Push Docker tag.
           echo "Pushing docker tag"
-          docker push $REPOSITORY_NAME/$IMAGE_ID:$VERSION
+          docker push $REPOSITORY_NAME/$IMAGE_ID:0.0.0-docker-test

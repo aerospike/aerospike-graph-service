@@ -24,6 +24,7 @@ jobs:
   build-firefly-docker:
     name: Build Firefly Docker
     timeout-minutes: 120
+    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -33,7 +34,7 @@ jobs:
   test-firefly:
     name: Test Firefly
     timeout-minutes: 120
-    needs: build-maven
+    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,7 +52,7 @@ jobs:
   benchmark-firefly:
     name: Benchmark Firefly
     timeout-minutes: 120
-    needs: build-maven
+    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

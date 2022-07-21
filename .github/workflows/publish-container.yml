@@ -33,14 +33,14 @@ jobs:
 
       - name: Publish Container
         run: |          
-          # Strip git ref prefix from version
-          # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
-          # Strip "v" prefix from tag name
-          # [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           
-          # Use Docker `latest` tag convention
-          # [ "$VERSION" == "main" ] && VERSION=latest
+          # Use Docker `latest` tag convention if we are a simple main commit.
+          [ "$VERSION" == "main" ] && VERSION=latest
           
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION

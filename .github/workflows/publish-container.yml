@@ -11,13 +11,12 @@ on:
   #    - 'v*'
 
 env:
-  REPOSITORY_NAME: citrusleaf
+  REPOSITORY_NAME: aerospike
   IMAGE_NAME: firefly
   VERSION: v0.0.1
+  REGISTRY_URL: ghcr.io
 
 jobs:
-  # Push image to GitHub Packages.
-  # See also https://docs.docker.com/docker-hub/builds/
   build:
     name: build-firefly-docker
     permissions:
@@ -31,15 +30,14 @@ jobs:
       - name: Login to GitHub Container Registry
         run: |
           # Login to ghcr.io.
-          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login ghcr.io --username ${{ secrets.DOCKER_PUBLISH_USERNAME }} --password-stdin
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
 
       - name: Publish Container
         run: |
           # Get image id.
-          IMAGE_ID=ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME
+          IMAGE_ID=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME
           
           # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
           
           # Strip git ref prefix from version
           # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -52,6 +50,10 @@ jobs:
           
           # Print out the image id and version.
           VERSION=0.0.0-docker-test
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
           # Build and tag docker image.
           echo "Building and tagging docker image"

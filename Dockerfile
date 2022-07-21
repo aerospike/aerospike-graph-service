@@ -3,6 +3,7 @@ FROM openjdk:11
 ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
+LABEL org.opencontainers.image.description "Docker image for Aerospike's Graph Database, Firefly."
 ENV TINKERPOP_VERSION='3.6.0'
 ENV MAVEN_VERSION='3.8.6'
 ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"

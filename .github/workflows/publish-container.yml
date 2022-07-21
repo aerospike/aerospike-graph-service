@@ -13,12 +13,11 @@ on:
 env:
   REPOSITORY_NAME: aerospike
   IMAGE_NAME: firefly
-  VERSION: v0.0.1
   REGISTRY_URL: ghcr.io
 
 jobs:
   build:
-    name: build-firefly-docker
+    name: Publish Firefly Docker Image
     permissions:
       packages: write
       contents: read
@@ -33,12 +32,7 @@ jobs:
           echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
 
       - name: Publish Container
-        run: |
-          # Get image id.
-          IMAGE_ID=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME
-          
-          # Change all uppercase to lowercase
-          
+        run: |          
           # Strip git ref prefix from version
           # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           

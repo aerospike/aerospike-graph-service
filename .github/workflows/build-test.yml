@@ -2,13 +2,13 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [foo]
+    branches: [main]
   pull_request:
-    branches: [foo]
+    branches: [main]
 
 jobs:
-  build:
-    name: build-firefly-docker
+  build-maven:
+    name: Build Firefly Maven
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
@@ -18,12 +18,20 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
-      - name: Build with Maven
+      - name: Build Maven Project
         run: |
-          mvn -DskipTests clean package --no-transfer-progress
+          mvn clean package -DskipTests --no-transfer-progress
+  build-docker:
+    name: Build Firefly Docker
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker Image
+        run: |
           docker build -t aerospike/firefly .
   test:
-    name: test-firefly
+    name: Test Firefly
     timeout-minutes: 120
     needs: build
     runs-on: ubuntu-latest
@@ -39,9 +47,9 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn clean test --no-transfer-progress
+          mvn test --no-transfer-progress
   benchmark:
-    name: benchmark-firefly
+    name: Benchmark Firefly
     timeout-minutes: 120
     needs: build
     runs-on: ubuntu-latest

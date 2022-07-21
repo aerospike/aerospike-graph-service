@@ -33,7 +33,7 @@ jobs:
   test:
     name: Test Firefly
     timeout-minutes: 120
-    needs: build
+    needs: build-maven
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
   benchmark:
     name: Benchmark Firefly
     timeout-minutes: 120
-    needs: build
+    needs: build-maven
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

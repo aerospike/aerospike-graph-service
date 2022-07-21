@@ -3,7 +3,7 @@ name: Publish Firefly Container
 # Publish the container if a tag of 'v*' is made.
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
-  # TODO: Remove pull_request: branches: [main]. This is for testing only.
+  # TODO: Remove this after tag is tested and working.
   pull_request:
     branches: [main]
   push:
@@ -11,12 +11,12 @@ on:
       - 'v*'
 
 env:
-  REPOSITORY_NAME: aerospike
+  REPOSITORY_NAME: citrusleaf
   IMAGE_NAME: firefly
   REGISTRY_URL: ghcr.io
 
 jobs:
-  build:
+  publish:
     name: Publish Firefly Docker Image
     permissions:
       packages: write
@@ -42,18 +42,14 @@ jobs:
           # Use Docker `latest` tag convention
           # [ "$VERSION" == "main" ] && VERSION=latest
           
-          # TODO: Use actual version
-          echo "VERSION=$VERSION"
-          VERSION=0.0.0-docker-test
-          
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
           # Build and tag docker image.
           echo "Building and tagging docker image"
-          docker build --tag ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION .
+          docker build --tag $OUTPUT_IMAGE .
           
           # Push Docker tag.
           echo "Pushing docker tag"
-          docker push ghcr.io/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
+          docker push $OUTPUT_IMAGE

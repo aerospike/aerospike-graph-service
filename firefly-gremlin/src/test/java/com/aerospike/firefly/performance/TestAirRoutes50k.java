@@ -58,6 +58,7 @@ public class TestAirRoutes50k {
     public static void loadAirRoutes() throws IOException {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         db = AerospikeConnection.connect(config);
+        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
         g.V().drop().iterate();

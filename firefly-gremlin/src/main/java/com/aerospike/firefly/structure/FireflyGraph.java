@@ -133,6 +133,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.features = new FireflyGraphFeatures(this);
 
         if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY,configuration))){
+            //@todo
+            // this can be supported by querying all nodes and dividing by replication factor,
+            // but since there is another known issue with Info lagging, and querying all nodes would produce results
+            // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
+            if(db.getClient().getNodes().length > 1)
+                throw new RuntimeException("fast count not supported for multi node");
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class,
                     TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()

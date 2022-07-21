@@ -31,6 +31,10 @@ public final class ConfigurationHelper {
         add(Keys.ID_CACHE_SIZE);
     }};
 
+    public static boolean containsKey(final String key, final Configuration conf) {
+        return conf.containsKey(key);
+    }
+
     public static class Keys {
 
 
@@ -134,25 +138,27 @@ public final class ConfigurationHelper {
         put(Keys.VP_COUNTER, "VP_COUNT");
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
-        put(Keys.OUT_EDGES,"OUT_EDGES");
-        put(Keys.CACHE_DISABLED,"CACHE_DISABLED");
-        put(Keys.INDEX_METADATA,"INDEX_META");
-        put(Keys.NUMERIC_VP_KV_INDEX,"N_VP_KV");
-        put(Keys.STRING_VP_KV_INDEX,"S_VP_KV");
-        put(Keys.STRING_E_KV_INDEX,"S_E_KV");
-        put(Keys.NUMERIC_E_KV_INDEX,"N_E_KV");
-        put(Keys.INDEXED_BINS,"indexedBins");
-        put(Keys.V_LABEL_INDEX,"V_LABEL_IDX");
-        put(Keys.E_LABEL_INDEX,"E_LABEL_IDX");
-        put(Keys.E_IN_INDEX,"E_IN_INDEX");
-        put(Keys.E_OUT_INDEX,"E_OUT_INDEX");
+        put(Keys.OUT_EDGES, "OUT_EDGES");
+        put(Keys.CACHE_DISABLED, "CACHE_DISABLED");
+        put(Keys.INDEX_METADATA, "INDEX_META");
+        put(Keys.NUMERIC_VP_KV_INDEX, "N_VP_KV");
+        put(Keys.STRING_VP_KV_INDEX, "S_VP_KV");
+        put(Keys.STRING_E_KV_INDEX, "S_E_KV");
+        put(Keys.NUMERIC_E_KV_INDEX, "N_E_KV");
+        put(Keys.INDEXED_BINS, "indexedBins");
+        put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");
+        put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
+        put(Keys.E_IN_INDEX, "E_IN_INDEX");
+        put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
 
-        put(Keys.ENABLE_FAST_COUNT_STRATEGY,"false");
+        put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
+        put(Keys.AEROSPIKE_PORT, "3000");
+
     }};
 
     public static Configuration loadFromFile(final Path path) {

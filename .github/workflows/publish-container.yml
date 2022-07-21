@@ -6,9 +6,9 @@ on:
   # TODO: Remove pull_request: branches: [main]. This is for testing only.
   pull_request:
     branches: [main]
-  #push:
-  #  tags:
-  #    - 'v*'
+  push:
+    tags:
+      - 'v*'
 
 env:
   REPOSITORY_NAME: aerospike
@@ -48,7 +48,8 @@ jobs:
           # Use Docker `latest` tag convention
           # [ "$VERSION" == "main" ] && VERSION=latest
           
-          # Print out the image id and version.
+          # TODO: Use actual version
+          echo "VERSION=$VERSION"
           VERSION=0.0.0-docker-test
           
           # Get registry URL and convert to lower case.

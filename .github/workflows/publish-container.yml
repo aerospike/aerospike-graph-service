@@ -3,9 +3,6 @@ name: Publish Firefly Container
 # Publish the container if a tag of 'v*' is made.
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
-  # TODO: Remove this after tag is tested and working.
-  pull_request:
-    branches: [main]
   push:
     tags:
       - 'v*'
@@ -39,8 +36,8 @@ jobs:
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           
-          # Use Docker `latest` tag convention if we are a simple main commit.
-          [ "$VERSION" == "main" ] && VERSION=latest
+          # Use Docker `latest` tag convention if we are a simple main commit. (Not required for tags only).
+          # [ "$VERSION" == "main" ] && VERSION=latest
           
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION

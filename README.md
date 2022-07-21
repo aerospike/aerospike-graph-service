@@ -4,85 +4,139 @@ Firefly is an [Apache TinkerPop3®](http://tinkerpop.apache.org) compliant graph
 
 <img src="https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/tinkerpop-character.png" alt="TinkerPop" width="100"/>
 
-Running Firefly Through Docker
+Building Firefly
 -----------
-### Local Aerospike Instance
-
-If you are running Aerospike locally, you can use the baked in quickstart configuration for Firefly. This is absolutely not recommended for production use.
-
-/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml is the configuration file for the Firefly gremlin-server that is baked into docker with some default configurations.
-
-Note: *Replace <VERSION> with the version you would like.*
 ```
-docker run -t -i -p8182:8182 --entrypoint gremlin-server.sh ghcr.io/citrusleaf/firefly:<VERSION> /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml
+$ mvn -DskipTests clean package  
+... 
+$ ls firefly-gremlin/target/*.jar  
+firefly-gremlin/target/firefly-gremlin-0.2.0-SNAPSHOT-jar-with-dependencies.jar  
+firefly-gremlin/target/firefly-gremlin-0.2.0-SNAPSHOT.jar
 ```
 
-### Remote Aerospike Instance
-
-If Aerospike is running remotely, a path to the directory that contains the configuration file for the Firefly gremlin-server locally must be provided.
-
-This configuration file must also contain the path to firefly-graph.properties, which should be in the same directory.
-
-To pass this to the docker container, replace the <PATH_TO_CONFIGURATION> in the command below with the absolute path of the directory.
+Testing Firefly
+----------
+The integration tests use the configuration at [firefly-gremlin/src/test/resources/integration-test-settings.properties](https://github.com/citrusleaf/firefly/blob/main/firefly-gremlin/src/test/resources/integration-test-settings.properties). Update these setting to point to your Aerospike instance.
 
 ```
-docker run -v <PATH_TO_CONFIGURATION>:/opt/aerospike-firefly/local/conf -t -i -p8182:8182 --entrypoint gremlin-server.sh ghcr.io/citrusleaf/firefly:0.0.0-docker-test /opt/aerospike-firefly/local/conf/firefly-gremlin-server.yaml
+aerospike_host = aerospike-ee.server.domain
+aerospike_port = 3000
+aerospike_namespace = firefly_graph
 ```
 
-
-An example configuration file for `firefly-gremlin-server.yaml` is provided below. Please replace <REPLACE WITH ABSOLUTE PATH TO firefly-graph.properties> with
-the absolute path to the firefly-graph.properties file.
-
-Note, adjusting the evaluationTimeout, among other parameters, is sometimes useful.
-
 ```
-host: 0.0.0.0
-port: 8182
-evaluationTimeout: 30000
-channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
-graphs: {
-graph: <REPLACE WITH ABSOLUTE PATH TO firefly-graph.properties>}
-
-scriptEngines: {
-gremlin-groovy: {
-plugins: { org.apache.tinkerpop.gremlin.server.jsr223.GremlinServerGremlinPlugin: {},
-org.apache.tinkerpop.gremlin.tinkergraph.jsr223.TinkerGraphGremlinPlugin: {},
-org.apache.tinkerpop.gremlin.jsr223.ImportGremlinPlugin: {classImports: [java.lang.Math], methodImports: [java.lang.Math#*]},
-org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {files: [scripts/empty-sample.groovy]}}}}
-serializers:
-- { className: org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0, config: { ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0] }}        # application/json
-- { className: org.apache.tinkerpop.gremlin.driver.ser.GraphBinaryMessageSerializerV1 }                                                                                                           # application/vnd.graphbinary-v1.0
-- { className: org.apache.tinkerpop.gremlin.driver.ser.GraphBinaryMessageSerializerV1, config: { serializeResultToString: true }}                                                                 # application/vnd.graphbinary-v1.0-stringd
-  processors:
-- { className: org.apache.tinkerpop.gremlin.server.op.session.SessionOpProcessor, config: { sessionTimeout: 28800000 }}
-- { className: org.apache.tinkerpop.gremlin.server.op.traversal.TraversalOpProcessor, config: { cacheExpirationTime: 600000, cacheMaxSize: 1000 }}
-  metrics: {
-  consoleReporter: {enabled: true, interval: 180000},
-  csvReporter: {enabled: true, interval: 180000, fileName: /tmp/gremlin-server-metrics.csv},
-  jmxReporter: {enabled: true},
-  slf4jReporter: {enabled: true, interval: 180000}}
-  strictTransactionManagement: false
-  idleConnectionTimeout: 0
-  keepAliveInterval: 0
-  maxInitialLineLength: 4096
-  maxHeaderSize: 8192
-  maxChunkSize: 8192
-  maxContentLength: 10485760
-  maxAccumulationBufferComponents: 1024
-  resultIterationBatchSize: 64
-  writeBufferLowWaterMark: 32768
-  writeBufferHighWaterMark: 65536
-  ssl: {
-  enabled: false}
+$ mvn clean test  
 ```
 
-An example configuration file for `firefly-graph.properties` is provided below.
+![Gremlin](https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/gremlin-gremlin.png)
 
-Please replace <AEROSPIKE_IP_ADDRESS> with the ip address of your Aerospike cluster.
+Installing FireFly in the Gremlin-Console
+-----------
+copy `firefly-gremlin/src/test/resources/integration-test-settings.properties` to `~/firefly-settings.properties`  
+edit `~/firefly-settings.properties` to connect to your Aerospike instance.
 
 ```
-gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike_host=<AEROSPIKE_IP_ADDRESS>
-aerospike_port=3000
-aerospike_namespace=test
+#install to maven local  
+$ mvn -DskipTests clean install  
+#allow gremlin console environment to install from maven local  
+$ mkdir -p ~/.groovy/ && cp conf/grapeConfig.xml ~/.groovy/
+```
+
+![Gremlin-Console](https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/gremlin-console.png)
+
+```
+$ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh    
+...  
+gremlin> :install com.aerospike firefly-gremlin 0.2.0-SNAPSHOT  
+==>Loaded: [com.aerospike, firefly-gremlin, 0.2.0-SNAPSHOT] - restart the console to use [aerospike.firefly]  
+(exit)  
+$ ~/software/apache-tinkerpop-gremlin-console-3.6.0/bin/gremlin.sh  
+...  
+gremlin> :plugin use aerospike.firefly  
+==>aerospike.firefly activated   
+gremlin> graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(System.getProperty("user.home")+"/firefly-settings.properties"))    
+gremlin> g = graph.traversal()  
+==>graphtraversalsource[fireflygraph[172.17.0.1 3000 test], standard]  
+```
+
+**NOTE**: It is required that you restart the console after `:install` in order to get the new `ext/firefly` jars on the classpath.
+
+Installing Firefly for Gremlin-Server
+-----------
+
+![GremlinServer](https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/gremlin-server.png)
+
+Download [GremlinServer](https://tinkerpop.apache.org/download.html).
+
+The shell command below will load GremlinServer configured to `firefly-gremlin-server.yaml` which references `conf/firefly-gremlin.properties`. The latter is the standard `GRAPH.gremlin` properites file denoting a TinkerPop3 implementation and thus, can be opened using `Graph.open()`.
+
+```
+# start GremlinServer
+bin/gremlin-server.sh ~/firefly-gremlin-server.yaml
+```
+
+Gremlin Traversals
+-----------
+
+Gremlin is a concatenative language. There exists a set of approximately 25 'steps' can can be assembled to create complex queries of graph data. The most used 10 steps are presented below for reference.
+
+| step           | example 1                        | example 2                  | description                              |
+| -------------- | -------------------------------- | ---------------------------| -----------------------------------------|
+| `V`            | `g.V()`                          | `g.V(1,2)`                 |                                          |
+| `has`          | `g.V().has('name','gremlin')`    | `g.V().has('age',gt(25))`  |                                          |
+| `out`          | `g.V(1).out('knows')`            | `g.V(1).out().out()`       |                                          |
+| `in`           |                                  |                            |                                          |
+| `count`        | `g.V().count()`                  | `g.V().out().count()`      |                                          |
+| `groupCount`   | `g.V().groupCount().by(label)`   | `g.V().out().count()`      |                                          |
+| `dedup`        | `g.V().values('age').dedup()`    | `g.V().dedup().by('age')`  |                                          |
+| `path`         | `g.V(1).out().out().path()`      |                            |                                          |
+| `repeat`       | `g.V(1).repeat(out()).times(2)`  |                            |                                          |
+| `where`        |                                  |                            |                                          |
+| `select`       |                                  |                            |                                          |
+| `as`           |                                  |                            |                                          |
+
+Docker
+-----------
+
+To build the docker image for firefly-enabled gremlin-console
+```
+docker build --build-arg ENTRYPOINT=gremlin.sh -t firefly-console .
+```
+To use the firefly-gremlin enabled console with 1-touch startup, you may set environment variables to configure your connection,
+and pass the console-env-startup script: 
+```
+$ docker run -t -i -e AEROSPIKE_HOST=172.17.0.1 -e AEROSPIKE_PORT=3000 -e AEROSPIKE_NAMESPACE=test firefly-console -i scripts/console-env-startup.groovy
+...
+Jun 04, 2022 4:03:56 AM java.util.prefs.FileSystemPreferences$1 run
+INFO: Created user preferences directory.
+
+         \,,,/
+         (o o)
+-----oOOo-(3)-oOOo-----
+plugin activated: tinkerpop.server
+plugin activated: tinkerpop.utilities
+plugin activated: aerospike.firefly
+plugin activated: tinkerpop.tinkergraph
+gremlin> graph
+==>fireflygraph[aerospike://172.17.0.1:3000/test]
+gremlin> g
+==>graphtraversalsource[fireflygraph[aerospike://172.17.0.1:3000/test], standard]
+gremlin> 
+
+```
+
+To build the docker image for firefly-enabled gremlin-server
+```
+docker build -t firefly-server .
+```
+To serve Firefly
+```
+docker run -t -i -p8182:8182 --entrypoint gremlin-server.sh firefly-server /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml
+```
+To connect to Firefly from gremlin-console (emptygraph[empty] is expected output for remote traversal sources)
+```
+gremlin> g = traversal().withRemote(DriverRemoteConnection.using("172.17.0.1",8182,"g"));
+==>graphtraversalsource[emptygraph[empty], standard]
+gremlin> g.addV()
+==>v[-13]
 ```

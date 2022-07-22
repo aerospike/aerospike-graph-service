@@ -31,10 +31,6 @@ public final class ConfigurationHelper {
         add(Keys.ID_CACHE_SIZE);
     }};
 
-    public static boolean containsKey(final String key, final Configuration conf) {
-        return conf.containsKey(key);
-    }
-
     public static class Keys {
 
 

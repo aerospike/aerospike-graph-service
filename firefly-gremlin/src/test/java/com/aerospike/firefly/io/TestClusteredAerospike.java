@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_CLUSTER_PROPERTIES;
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -31,9 +32,9 @@ public class TestClusteredAerospike {
 
     @Before
     public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
-            if(graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
-                LOG.warn("nonzero vertex or edge count at start of test");
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
             graph.traversal().V().drop().iterate();
         }
     }

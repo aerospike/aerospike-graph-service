@@ -54,7 +54,6 @@ public class TestPerformance {
     @BeforeClass
     public static void openGraph() {
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
         g.V().drop().iterate();
@@ -62,7 +61,11 @@ public class TestPerformance {
 
     @Before
     public void clearGraph() {
-        g.V().drop().iterate();
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
+            graph.traversal().V().drop().iterate();
+        }
     }
 
     @AfterClass
@@ -179,17 +182,18 @@ public class TestPerformance {
         });
         System.out.println(results);
     }
+
     private static final long ORG_CHART_VERTEX_COUNT = 12;
     private static final long ORG_CHART_EDGE_COUNT = 11;
-    private static final String ORGCHART_VERTEX_LABEL_EMPLOYEE ="employee";
+    private static final String ORGCHART_VERTEX_LABEL_EMPLOYEE = "employee";
     private static final long ORGCHART_EMPLOYEE_COUNT = 7;
-    private static final String ORGCHART_VERTEX_LABEL_MANAGER ="manager";
+    private static final String ORGCHART_VERTEX_LABEL_MANAGER = "manager";
 
     private static final String ORGCHART_EDGE_LABEL_REPORTS = "reportsTo";
     private static final String ORGCHART_EDGE_LABEL_CONTRACTS = "contractsTo";
 
-    private static final String ORGCHART_NAME="name";
-    private static final String ORGCHART_TITLE="title";
+    private static final String ORGCHART_NAME = "name";
+    private static final String ORGCHART_TITLE = "title";
 
     private void createOrgChartData() {
         Vertex p1 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "alice").property(ORGCHART_TITLE, "worker").next();
@@ -249,8 +253,9 @@ public class TestPerformance {
         assertEquals(4, result4ReadMetric - result3ReadMetric);
         assertEquals(result3, result4);
     }
+
     @Test
-    public void testLabelQuery(){
+    public void testLabelQuery() {
         createOrgChartData();
         final long startReadMetric = db.getReadMetric();
         List<Vertex> x = g.V().hasLabel(ORGCHART_VERTEX_LABEL_EMPLOYEE).toList();
@@ -263,8 +268,8 @@ public class TestPerformance {
     public void grateful_V_out_out_profile() {
         Traversal<Vertex, TraversalMetrics> traversal = g.V().out().out().profile();
         this.printTraversalForm(traversal);
-        TraversalMetrics traversalMetrics = (TraversalMetrics)traversal.next();
+        TraversalMetrics traversalMetrics = (TraversalMetrics) traversal.next();
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
-        assertEquals(4,m.size());
+        assertEquals(4, m.size());
     }
 }

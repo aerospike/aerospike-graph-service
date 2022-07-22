@@ -1,10 +1,12 @@
 package com.aerospike.firefly.io.utils;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,12 +35,17 @@ public class TestBloomFilterIdCache {
     @Before
     public void setup() {
         db = AerospikeConnection.connect(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES));
-        db.dropDatabase();
     }
-
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
+            graph.traversal().V().drop().iterate();
+        }
+    }
     @After
     public void cleanup() {
-        db.dropDatabase();
         db.close();
     }
 

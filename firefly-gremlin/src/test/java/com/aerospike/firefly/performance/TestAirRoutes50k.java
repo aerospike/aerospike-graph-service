@@ -58,7 +58,6 @@ public class TestAirRoutes50k {
     public static void loadAirRoutes() throws IOException {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
         g.V().drop().iterate();
@@ -77,7 +76,7 @@ public class TestAirRoutes50k {
     }
     @Before
     public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
             if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
                 LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
             graph.traversal().V().drop().iterate();

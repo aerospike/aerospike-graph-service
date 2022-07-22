@@ -80,7 +80,6 @@ public class TestAerospikeGraphIntegration {
     @BeforeClass
     public static void openGraph() {
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }

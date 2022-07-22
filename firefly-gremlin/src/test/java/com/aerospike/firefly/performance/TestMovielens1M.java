@@ -60,15 +60,20 @@ public class TestMovielens1M {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
-
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
+            graph.traversal().V().drop().iterate();
+        }
+    }
     @After
     public void closeGraph() {
         graph.close();
-        db.dropDatabase();
         db.close();
     }
 

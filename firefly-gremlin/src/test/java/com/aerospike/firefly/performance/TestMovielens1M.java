@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
@@ -34,7 +35,7 @@ public class TestMovielens1M {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private AerospikeConnection db;
@@ -60,15 +61,18 @@ public class TestMovielens1M {
     @Before
     public void openGraph() {
         this.db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
-
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            Util.clearGraph(graph);
+        }
+    }
     @After
     public void closeGraph() {
         graph.close();
-        db.dropDatabase();
         db.close();
     }
 

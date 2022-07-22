@@ -32,7 +32,7 @@ public class TestBloomFilterIdCache {
 
     @Before
     public void setup() {
-        db = AerospikeConnection.connect(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES));
+        db = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES));
         db.dropDatabase();
     }
 

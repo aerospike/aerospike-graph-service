@@ -5,6 +5,7 @@ import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
@@ -44,7 +45,7 @@ public class TestPerformance {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;
@@ -61,7 +62,9 @@ public class TestPerformance {
 
     @Before
     public void clearGraph() {
-        g.V().drop().iterate();
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            Util.clearGraph(graph);
+        }
     }
 
     @AfterClass
@@ -178,17 +181,18 @@ public class TestPerformance {
         });
         System.out.println(results);
     }
+
     private static final long ORG_CHART_VERTEX_COUNT = 12;
     private static final long ORG_CHART_EDGE_COUNT = 11;
-    private static final String ORGCHART_VERTEX_LABEL_EMPLOYEE ="employee";
+    private static final String ORGCHART_VERTEX_LABEL_EMPLOYEE = "employee";
     private static final long ORGCHART_EMPLOYEE_COUNT = 7;
-    private static final String ORGCHART_VERTEX_LABEL_MANAGER ="manager";
+    private static final String ORGCHART_VERTEX_LABEL_MANAGER = "manager";
 
     private static final String ORGCHART_EDGE_LABEL_REPORTS = "reportsTo";
     private static final String ORGCHART_EDGE_LABEL_CONTRACTS = "contractsTo";
 
-    private static final String ORGCHART_NAME="name";
-    private static final String ORGCHART_TITLE="title";
+    private static final String ORGCHART_NAME = "name";
+    private static final String ORGCHART_TITLE = "title";
 
     private void createOrgChartData() {
         Vertex p1 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "alice").property(ORGCHART_TITLE, "worker").next();
@@ -248,8 +252,9 @@ public class TestPerformance {
         assertEquals(4, result4ReadMetric - result3ReadMetric);
         assertEquals(result3, result4);
     }
+
     @Test
-    public void testLabelQuery(){
+    public void testLabelQuery() {
         createOrgChartData();
         final long startReadMetric = db.getReadMetric();
         List<Vertex> x = g.V().hasLabel(ORGCHART_VERTEX_LABEL_EMPLOYEE).toList();
@@ -262,8 +267,8 @@ public class TestPerformance {
     public void grateful_V_out_out_profile() {
         Traversal<Vertex, TraversalMetrics> traversal = g.V().out().out().profile();
         this.printTraversalForm(traversal);
-        TraversalMetrics traversalMetrics = (TraversalMetrics)traversal.next();
+        TraversalMetrics traversalMetrics = (TraversalMetrics) traversal.next();
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
-        assertEquals(4,m.size());
+        assertEquals(4, m.size());
     }
 }

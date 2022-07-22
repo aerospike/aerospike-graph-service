@@ -6,6 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
@@ -36,7 +37,7 @@ public class TestAirRoutes50k {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;
@@ -73,6 +74,12 @@ public class TestAirRoutes50k {
         g.V().drop().iterate();
         graph.close();
         db.close();
+    }
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            Util.clearGraph(graph);
+        }
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.aerospike.firefly.process;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -70,7 +71,7 @@ public class TestAerospikeGraphIntegration {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;
@@ -86,7 +87,9 @@ public class TestAerospikeGraphIntegration {
 
     @Before
     public void clearGraph() {
-        g.V().drop().iterate();
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            Util.clearGraph(graph);
+        }
     }
 
     @AfterClass

@@ -34,13 +34,14 @@ public class TestUtil {
     }
     @Test
     public void canConfigureMultipuleGraphs(){
-        Configuration config_one = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        Configuration config_two = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        Configuration config_one = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        Configuration config_two = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
         config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(),"6");
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);
         AerospikeConnection db_two = AerospikeConnection.connect(config_two);
-
+        db_one.dropDatabase();
+        db_two.dropDatabase();
         FireflyGraph graph_one = FireflyGraph.open(config_one);
         graph_one.traversal().V().drop().iterate();
         FireflyGraph graph_two = FireflyGraph.open(config_two);

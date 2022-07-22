@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -24,6 +25,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -42,17 +45,16 @@ public class TestAerospikeClientIntegration {
 
     private static Configuration configuration;
     private static AerospikeConnection db;
-
     @BeforeClass
     public static void setup() {
-        configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
     }
 
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
-            graph.traversal().V().drop().iterate();
+            Util.clearGraph(graph);
         }
     }
 
@@ -63,7 +65,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testConnectToAerospike() {
-        Configuration configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection test_db = AerospikeConnection.connect(configuration);
         test_db.close();
     }
@@ -563,8 +565,9 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testIsEnterprise() {
-        assertTrue(AerospikeConnection.InfoOps.isEnterprise( db.getClient()));
+        assertTrue(AerospikeConnection.InfoOps.isEnterprise(db.getClient()));
     }
+
     @Test
     public void testListAllSets() {
         Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());
@@ -601,6 +604,5 @@ public class TestAerospikeClientIntegration {
             // counter set
             assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
         }
-
     }
 }

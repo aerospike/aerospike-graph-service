@@ -119,7 +119,6 @@ public class AerospikeConnection {
         LOG.debug("host {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
         LOG.debug("port {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
         LOG.debug("ns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
-
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
@@ -288,11 +287,8 @@ public class AerospikeConnection {
          * @return Number of Records in set
          */
         public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
-            /*
-            @todo multi node test
-            Joe Martin
-              Keep in mind the replication Factor. You may need to divide by that
-            */
+            if(client.getNodes().length > 1)
+                throw new RuntimeException("getSetSize not supported for multi node");
             final String infoQuery = "sets/" + namespace + "/" + setName;
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
             final List<Long> setSize = Arrays.stream(infoResponse.split(":"))

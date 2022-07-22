@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -21,6 +22,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.*;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,9 +48,8 @@ import static org.junit.Assert.*;
 public class TestAerospikeGraphIntegration {
 
     private static final Configuration config;
-
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;
@@ -63,7 +64,9 @@ public class TestAerospikeGraphIntegration {
 
     @Before
     public void clearGraph() {
-        graph.traversal().V().drop().iterate();
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            Util.clearGraph(graph);
+        }
     }
 
     @AfterClass

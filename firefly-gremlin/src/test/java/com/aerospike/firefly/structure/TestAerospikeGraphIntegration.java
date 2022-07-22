@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.*;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,7 +47,6 @@ import static org.junit.Assert.*;
 public class TestAerospikeGraphIntegration {
 
     private static final Configuration config;
-
     static {
         config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
     }
@@ -58,13 +58,16 @@ public class TestAerospikeGraphIntegration {
     @BeforeClass
     public static void openGraph() {
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
         graph = FireflyGraph.open(config);
     }
 
     @Before
     public void clearGraph() {
-        graph.traversal().V().drop().iterate();
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
+            graph.traversal().V().drop().iterate();
+        }
     }
 
     @AfterClass

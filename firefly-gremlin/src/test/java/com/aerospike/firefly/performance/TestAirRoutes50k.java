@@ -75,6 +75,14 @@ public class TestAirRoutes50k {
         graph.close();
         db.close();
     }
+    @Before
+    public void clearGraph() {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
+            graph.traversal().V().drop().iterate();
+        }
+    }
 
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {

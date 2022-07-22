@@ -24,6 +24,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -42,17 +44,17 @@ public class TestAerospikeClientIntegration {
 
     private static Configuration configuration;
     private static AerospikeConnection db;
-
     @BeforeClass
     public static void setup() {
         configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
-        db.dropDatabase();
     }
 
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
             graph.traversal().V().drop().iterate();
         }
     }
@@ -564,8 +566,9 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testIsEnterprise() {
-        assertTrue(AerospikeConnection.InfoOps.isEnterprise( db.getClient()));
+        assertTrue(AerospikeConnection.InfoOps.isEnterprise(db.getClient()));
     }
+
     @Test
     public void testListAllSets() {
         Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());

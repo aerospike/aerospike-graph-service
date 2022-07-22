@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io;
 
 import com.aerospike.client.Bin;
+import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -9,6 +10,8 @@ import org.apache.commons.configuration2.Configuration;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_CLUSTER_PROPERTIES;
 import static org.junit.Assert.assertEquals;
@@ -19,17 +22,18 @@ import static org.junit.Assert.assertEquals;
 public class TestClusteredAerospike {
     private static Configuration configuration;
     private static AerospikeConnection db;
-
+    Logger LOG = LoggerFactory.getLogger(TestClusteredAerospike.class);
     @BeforeClass
     public static void setup() {
         configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_CLUSTER_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
-        db.dropDatabase();
     }
 
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+            if(graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+                LOG.warn("nonzero vertex or edge count at start of test");
             graph.traversal().V().drop().iterate();
         }
     }

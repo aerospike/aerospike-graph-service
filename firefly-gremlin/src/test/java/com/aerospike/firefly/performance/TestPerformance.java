@@ -5,6 +5,7 @@ import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
@@ -62,9 +63,7 @@ public class TestPerformance {
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
-                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
-            graph.traversal().V().drop().iterate();
+            Util.clearGraph(graph);
         }
     }
 

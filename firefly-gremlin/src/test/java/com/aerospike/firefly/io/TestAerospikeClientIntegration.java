@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
+import com.aerospike.firefly.util.Util;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -53,9 +54,7 @@ public class TestAerospikeClientIntegration {
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
-            if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
-                LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
-            graph.traversal().V().drop().iterate();
+            Util.clearGraph(graph);
         }
     }
 

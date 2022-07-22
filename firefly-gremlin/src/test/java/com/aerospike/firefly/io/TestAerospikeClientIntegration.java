@@ -46,7 +46,7 @@ public class TestAerospikeClientIntegration {
     private static AerospikeConnection db;
     @BeforeClass
     public static void setup() {
-        configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         db = AerospikeConnection.connect(configuration);
     }
 
@@ -66,7 +66,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testConnectToAerospike() {
-        Configuration configuration = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         AerospikeConnection test_db = AerospikeConnection.connect(configuration);
         test_db.close();
     }

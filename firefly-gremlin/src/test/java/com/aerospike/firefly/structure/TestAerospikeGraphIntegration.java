@@ -48,7 +48,7 @@ public class TestAerospikeGraphIntegration {
 
     private static final Configuration config;
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;

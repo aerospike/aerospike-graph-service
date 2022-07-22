@@ -44,7 +44,7 @@ public class TestPerformance {
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
 
     private static AerospikeConnection db;
@@ -61,7 +61,7 @@ public class TestPerformance {
 
     @Before
     public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES))) {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
                 LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
             graph.traversal().V().drop().iterate();

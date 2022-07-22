@@ -34,8 +34,8 @@ public class TestUtil {
     }
     @Test
     public void canConfigureMultipuleGraphs(){
-        Configuration config_one = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
-        Configuration config_two = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_PROPERTIES);
+        Configuration config_one = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        Configuration config_two = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
         config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(),"6");
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);

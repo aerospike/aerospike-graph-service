@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -25,7 +26,10 @@ import static java.util.Collections.emptyIterator;
 public class Movielens {
     private static final Logger LOG = LoggerFactory.getLogger(Movielens.class);
     public static final String MOVIELENS_URL = "https://files.grouplens.org/datasets/movielens/ml-1m.zip";
-    private static final Map<String,Long> idCache = new HashMap<>();
+    private static final Map<String, Long> genreIdCache = new HashMap<>();
+    private static final Map<Integer, Long> movieIdCache = new HashMap<>();
+    private static final Map<Integer, Long> userIdCache = new HashMap<>();
+
     public static interface MovielensElement {
     }
 
@@ -78,28 +82,29 @@ public class Movielens {
 
         public Iterator<Vertex> loadVertices(Graph graph, AtomicLong metric, AtomicLong timer) {
             List<Vertex> results = new ArrayList<>();
-            results.add(graph.addVertex(MOVIE_ID, this.movieId, "name", this.movieTitle,T.label, "movie"));
+            Vertex mv = graph.addVertex(MOVIE_ID, this.movieId, "name", this.movieTitle, T.label, "movie");
+            movieIdCache.put(movieId, (Long) mv.id());
+            results.add(mv);
             metric.incrementAndGet();
             periodicLog("movie", metric.get(), timer);
             for (final String genre : this.genres) { // @todo separate
-                boolean hasNext = graph.traversal().V().has("name", genre).hasNext();
-                if (!hasNext) {
-                    Vertex nv = graph.addVertex(T.label, "genre", "name", genre);
-                    idCache.put(genre, (Long) nv.id());
-                    results.add(nv);
-//                        metric.incrementAndGet();
+                if (!genreIdCache.containsKey(genre)) {
+                    Vertex gv = graph.addVertex(T.label, "genre", "name", genre);
+                    genreIdCache.put(genre, (Long) gv.id());
+                    results.add(gv);
+                    metric.incrementAndGet();
                 }
             }
             return results.iterator();
         }
 
         public Iterator<Edge> loadEdges(Graph graph, AtomicLong metric, AtomicLong timer) {
+            GraphTraversalSource g = graph.traversal();
             List<Edge> results = new ArrayList<>();
             final Vertex movieVertex = graph.traversal().V().has("movieId", this.movieId).next();
             for (final String genre : this.genres) {
-                final Vertex genreVertex = graph.traversal().V()
-                        .has("name", genre).next();
-                results.add(movieVertex.addEdge("genre", genreVertex));
+                Edge e = g.addE("genre").from(movieVertex).to(__.V(genreIdCache.get(genre))).next();
+                results.add(e);
                 metric.incrementAndGet();
                 periodicLog("genre edges", metric.get(), timer);
             }
@@ -144,12 +149,14 @@ public class Movielens {
 
         public Iterator<Vertex> loadVertices(final Graph graph, AtomicLong metric, AtomicLong timer) {
             ArrayList<Vertex> results = new ArrayList<Vertex>();
-            results.add(graph.addVertex(T.label, "person",
+            Vertex uv = graph.addVertex(T.label, "person",
                     "userId", this.userId,
                     "gender", this.gender,
                     "age", this.age,
-                    "occupation", this.occupation));
+                    "occupation", this.occupation);
 
+            results.add(uv);
+            userIdCache.put(userId, (Long) uv.id());
             metric.addAndGet(results.size());
             periodicLog("user", metric.get(), timer);
             return results.iterator();
@@ -200,9 +207,9 @@ public class Movielens {
 
         public Iterator<Edge> loadEdges(Graph graph, AtomicLong metric, AtomicLong timer) {
             GraphTraversalSource g = graph.traversal();
-            Edge e = g.V().has("userId", this.userId).next()
+            Edge e = g.V(userIdCache.get(userId)).next()
                     .addEdge("rated",
-                            g.V().has("movieId", this.movieId).next(),
+                            g.V(movieIdCache.get(movieId)).next(),
                             "stars", this.rating, "time", this.timestamp);
             metric.incrementAndGet();
             periodicLog("rating edges", metric.get(), timer);

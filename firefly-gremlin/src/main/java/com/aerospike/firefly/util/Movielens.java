@@ -24,6 +24,8 @@ import static java.util.Collections.emptyIterator;
  */
 
 public class Movielens {
+    public static final long vertexCount = 9941;
+    public static final long edgeCount = 1006617;
     private static final Logger LOG = LoggerFactory.getLogger(Movielens.class);
     public static final String MOVIELENS_URL = "https://files.grouplens.org/datasets/movielens/ml-1m.zip";
     private static final Map<String, Long> genreIdCache = new HashMap<>();
@@ -42,7 +44,7 @@ public class Movielens {
             checkpoint.set(now);
             final double msPerElement = msPerIncrement / (INCREMENT + 0.0d);
             final double elePerSec = SECOND / msPerElement;
-            System.out.println(String.format("loaded %d %s at %d/sec", metric, name, Double.valueOf(elePerSec).longValue()));
+            LOG.info("loaded {} {} at {}/sec", metric, name, Double.valueOf(elePerSec).longValue());
         }
     }
 
@@ -87,7 +89,7 @@ public class Movielens {
             results.add(mv);
             metric.incrementAndGet();
             periodicLog("movie", metric.get(), timer);
-            for (final String genre : this.genres) { // @todo separate
+            for (final String genre : this.genres) {
                 if (!genreIdCache.containsKey(genre)) {
                     Vertex gv = graph.addVertex(T.label, "genre", "name", genre);
                     genreIdCache.put(genre, (Long) gv.id());
@@ -226,11 +228,6 @@ public class Movielens {
         AtomicLong timer2 = new AtomicLong(System.currentTimeMillis());
         User.iterator(basePath.resolve("users.dat")).forEachRemaining(user -> user.loadVertices(graph, m2, timer2));
         LOG.info("User count: {}", m2.get());
-        AtomicLong m3 = new AtomicLong();
-        AtomicLong timer3 = new AtomicLong(System.currentTimeMillis());
-        Rating.iterator(basePath.resolve("ratings.dat")).forEachRemaining(rating -> rating.loadVertices(graph, m3, timer3));
-        LOG.info("Rating count: {}", m3.get());
-
         AtomicLong m4 = new AtomicLong();
         AtomicLong timer4 = new AtomicLong(System.currentTimeMillis());
         Movie.iterator(basePath.resolve("movies.dat")).forEachRemaining(movie -> movie.loadEdges(graph, m4, timer4));

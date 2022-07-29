@@ -55,7 +55,7 @@ public class TestMovielensLoader {
 
     @AfterClass
     public static void closeGraphClearData() throws Exception {
-        db.dropDatabase(z);
+        db.dropDatabase();
         graph.traversal().V().drop().iterate();
         graph.close();
         db.close();

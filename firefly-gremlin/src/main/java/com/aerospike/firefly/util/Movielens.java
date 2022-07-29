@@ -105,7 +105,8 @@ public class Movielens {
             List<Edge> results = new ArrayList<>();
             final Vertex movieVertex = graph.traversal().V().has("movieId", this.movieId).next();
             for (final String genre : this.genres) {
-                Edge e = g.addE("genre").from(movieVertex).to(__.V(genreIdCache.get(genre))).next();
+                Vertex genreV = g.V(genreIdCache.get(genre)).next();
+                Edge e = g.addE("genre").from(movieVertex).to(genreV).next();
                 results.add(e);
                 metric.incrementAndGet();
                 periodicLog("genre edges", metric.get(), timer);

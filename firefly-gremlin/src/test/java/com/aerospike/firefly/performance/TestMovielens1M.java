@@ -6,10 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +52,10 @@ public class TestMovielens1M {
         }
         Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
     }
+    @AfterClass
+    public static void clearDataAfterTest() {
+        FireflyGraph.open(config).getBaseGraph().dropDatabase();
+    }
 
     @Before
     public void openGraphFetchData() {
@@ -65,6 +66,7 @@ public class TestMovielens1M {
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            graph.getBaseGraph().dropDatabase();
             Util.clearGraph(graph);
         }
     }

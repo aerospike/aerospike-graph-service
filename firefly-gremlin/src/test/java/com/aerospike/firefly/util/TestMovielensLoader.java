@@ -48,12 +48,14 @@ public class TestMovielensLoader {
     @Before
     public void clearGraph() {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            db.dropDatabase();
             Util.clearGraph(graph);
         }
     }
 
     @AfterClass
     public static void closeGraphClearData() throws Exception {
+        db.dropDatabase(z);
         graph.traversal().V().drop().iterate();
         graph.close();
         db.close();

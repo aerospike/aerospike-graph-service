@@ -1,14 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
+import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.Util;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -21,8 +18,8 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
-import org.junit.*;
-import org.slf4j.LoggerFactory;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,9 +30,7 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
-import static org.apache.tinkerpop.gremlin.process.traversal.IO.graphson;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -45,38 +40,7 @@ import static org.junit.Assert.*;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestAerospikeGraphIntegration {
-
-    private static final Configuration config;
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-
-    private static AerospikeConnection db;
-    private static FireflyGraph graph;
-
-
-    @BeforeClass
-    public static void openGraph() {
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(true);
-        graph = FireflyGraph.open(config);
-    }
-
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            Util.clearGraph(graph);
-        }
-    }
-
-    @AfterClass
-    public static void closeGraphClearData() throws Exception {
-        graph.traversal().V().drop().iterate();
-        graph.close();
-        db.close();
-    }
-
+public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void testReadWriteRemovePropertyFromEdge() {
         FireflyVertex vertexA = (FireflyVertex) graph.addVertex("label");

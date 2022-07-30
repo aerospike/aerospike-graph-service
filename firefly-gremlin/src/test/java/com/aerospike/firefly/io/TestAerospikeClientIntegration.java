@@ -9,6 +9,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import com.aerospike.firefly.util.Util;
@@ -25,8 +26,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,27 +40,7 @@ import static org.junit.Assert.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class TestAerospikeClientIntegration {
-
-    private static Configuration configuration;
-    private static AerospikeConnection db;
-    @BeforeClass
-    public static void setup() {
-        configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        db = AerospikeConnection.connect(configuration);
-    }
-
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
-            Util.clearGraph(graph);
-        }
-    }
-
-    @AfterClass
-    public static void cleanup() {
-        db.close();
-    }
+public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testConnectToAerospike() {
@@ -107,7 +86,6 @@ public class TestAerospikeClientIntegration {
         assertNull(db.read(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id)));
     }
 
-
     @Test
     public void testCounterOps() {
         db.zeroIdCounter(db.GLOBAL);
@@ -140,7 +118,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanVertexIds() {
-        try (FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
             ArrayList<Long> ids = new ArrayList<>() {{
                 add(0L);
                 add(1L);
@@ -158,9 +136,9 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testSyntheticSupernode() {
-        configuration.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
+        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
 
-        try (FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             Vertex root = graph.addVertex("root");
             IntStream.range(0, 6).forEach(i -> {
@@ -177,7 +155,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testScanEdgeIds() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             graph.traversal().V().drop().iterate();
             ArrayList<Long> vertexIds = new ArrayList<>() {{
                 add(0L);
@@ -231,7 +209,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testFireflyRecordIntegerId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
+        final String ns = ConfigurationHelper.aerospikeNamespace(config);
         FireflyId intId = FireflyId.of(null, 1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
@@ -242,7 +220,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testFireflyRecordLongId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(configuration);
+        final String ns = ConfigurationHelper.aerospikeNamespace(config);
         FireflyId fid = FireflyId.of(null, 1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
@@ -372,7 +350,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testCountElements() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             ArrayList<Vertex> added = new ArrayList<>();
@@ -409,7 +387,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyVertexWithUserSuppliedId() {
         // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             g.addV("user-id-vertex").property(T.id, "123").
@@ -442,7 +420,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyEdgeWithUserSuppliedId() {
         // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             g.addV("vertex").property("type", "a").
@@ -494,7 +472,7 @@ public class TestAerospikeClientIntegration {
     @Test
     public void testFireflyVertexIdEdgeIdCollision() {
         // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             g.addV("user-id-vertex").property(T.id, "1").
@@ -528,7 +506,7 @@ public class TestAerospikeClientIntegration {
 
     @Test
     public void testDropVerticesEdges() {
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             assertEquals(0L, g.V().count().next().longValue());
@@ -583,7 +561,7 @@ public class TestAerospikeClientIntegration {
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
         });
-        try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
 
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)

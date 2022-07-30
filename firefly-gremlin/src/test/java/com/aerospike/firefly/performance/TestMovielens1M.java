@@ -1,14 +1,10 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,19 +18,11 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestMovielens1M {
+public class TestMovielens1M extends AbstractFireflySuite{
 
-    Logger LOG = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
-
-
-    private static final Configuration config;
     private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
     private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
 
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-    private FireflyGraph graph;
     private GraphTraversalSource g;
 
 
@@ -50,7 +38,7 @@ public class TestMovielens1M {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
+        Movielens.parse(Path.of(MOVIELENS_BASEPATH), graph);
     }
     @AfterClass
     public static void clearDataAfterTest() {
@@ -59,23 +47,8 @@ public class TestMovielens1M {
 
     @Before
     public void openGraphFetchData() {
-        graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
-
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            graph.getBaseGraph().dropDatabase();
-            Util.clearGraph(graph);
-        }
-    }
-
-    @After
-    public void closeGraph() {
-        graph.close();
-    }
-
 
     @Test
     public void testQueryMovieLens1M() {

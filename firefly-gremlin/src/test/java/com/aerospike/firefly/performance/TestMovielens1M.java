@@ -17,6 +17,7 @@ import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.Movielens.MOVIELENS_URL;
+import static com.aerospike.firefly.util.Movielens.YEAR;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -34,6 +35,7 @@ public class TestMovielens1M {
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
+
     private FireflyGraph graph;
     private GraphTraversalSource g;
 
@@ -50,11 +52,11 @@ public class TestMovielens1M {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
     }
+
     @AfterClass
     public static void clearDataAfterTest() {
-        FireflyGraph.open(config).getBaseGraph().dropDatabase();
+//        FireflyGraph.open(config).getBaseGraph().dropDatabase();
     }
 
     @Before
@@ -76,9 +78,17 @@ public class TestMovielens1M {
         graph.close();
     }
 
+    @Test
+    public void testYearExtraction() {
+        String title = "Gilda (1946)";
+        String[] tokens = title.split("[()]");
+        assertEquals(tokens.length, 2);
+        assertEquals(tokens[tokens.length - 1], "1946");
+    }
 
     @Test
     public void testQueryMovieLens1M() {
+        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
         long vCountStart = System.currentTimeMillis();
         long vCount = graph.traversal().V().count().next();
         long vCountEnd = System.currentTimeMillis();
@@ -87,7 +97,8 @@ public class TestMovielens1M {
         long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
         long sgrbpEnd = System.currentTimeMillis();
         assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
-
+        long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
+        assertEquals(1L, oneMovie);
         LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
         LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
         LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);

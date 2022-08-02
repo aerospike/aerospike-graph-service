@@ -73,14 +73,16 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
             @Override
             public boolean hasNext() {
                 if (results.size() > 0) return true;
-                else {
-                    try {
-                        semaphore.acquire();
-                        //next call inside wait will block until results or finished
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                if (complete.get())
+                    return false;
+                try {
+                    if (!semaphore.tryAcquire(2, TimeUnit.SECONDS)) //@todo make timeout configurable
+                        throw new RuntimeException("timeout waiting to acquire semaphore in " + this.getClass().getSimpleName());
+                    //next call inside wait will block until results or finished
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
+
                 return waitNext();
             }
 

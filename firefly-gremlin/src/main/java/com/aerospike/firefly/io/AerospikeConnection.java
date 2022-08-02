@@ -691,7 +691,7 @@ public class AerospikeConnection {
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
-        final ScanRecordSequenceListener listener = new ScanRecordSequenceListener(eventLoops,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(eventLoops,
                 throttles,
                 scanMonitor,
                 client,
@@ -700,7 +700,7 @@ public class AerospikeConnection {
         //@todo performance
         // should return custom iterator that produces results while query is running
         // custom iterator .hasNext() should return false once query is complete
-        scanMonitor.waitTillComplete();
+//        scanMonitor.waitTillComplete();
 
         return listener.iterator();
     }

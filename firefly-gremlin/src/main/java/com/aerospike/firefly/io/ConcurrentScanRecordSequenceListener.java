@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -84,16 +85,19 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
             }
 
             private boolean waitNext() {
-                if(results.size()>0)
+                if (results.size() > 0)
                     return true;
-                try {
-                    semaphore.acquire();
-                    //at this point, we should either be finished the query or have a new result
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                if (!complete.get()) {
+                    try {
+                        if (!semaphore.tryAcquire(2, TimeUnit.SECONDS)) //@todo make timeout configurable
+                            throw new RuntimeException("timeout waiting to acquire semaphore in " + this.getClass().getSimpleName());
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+
                 semaphore.release();
-                if(results.size()>0)
+                if (results.size() > 0)
                     return true;
                 return !complete.get();
             }

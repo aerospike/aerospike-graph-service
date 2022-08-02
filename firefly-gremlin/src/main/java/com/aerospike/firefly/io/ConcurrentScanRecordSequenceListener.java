@@ -45,13 +45,8 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     }
 
     public void onRecord(Key key, Record record) throws AerospikeException {
-        triggerNext();
         results.add(new AbstractMap.SimpleEntry<>(key, record));
         semaphore.release();  // progress
-    }
-
-    private void triggerNext() {
-
     }
 
     public void onSuccess() {

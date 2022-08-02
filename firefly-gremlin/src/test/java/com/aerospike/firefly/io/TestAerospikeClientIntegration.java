@@ -583,8 +583,6 @@ public class TestAerospikeClientIntegration {
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
         });
-        while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() != 0)
-            sleep(1000);
         try (final FireflyGraph graph = FireflyGraph.open(configuration)) {
 
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);

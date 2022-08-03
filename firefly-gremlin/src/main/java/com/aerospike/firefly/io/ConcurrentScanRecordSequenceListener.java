@@ -12,9 +12,11 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -22,45 +24,45 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 
 class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
-    private final AerospikeClient client;
-    private final EventLoops eventLoops;
-    private final Throttles throttles;
     private final Monitor scanMonitor;
     private final LinkedBlockingQueue<Map.Entry<Key, Record>> results = new LinkedBlockingQueue<>();
-    private final int progressFreq;
-    private Semaphore semaphore;
-    private AtomicBoolean complete = new AtomicBoolean(false);
+    private final Semaphore semaphore;
+    private final AtomicBoolean complete = new AtomicBoolean(false);
+    private final int maxWaitMs;
 
     public ConcurrentScanRecordSequenceListener(EventLoops eventLoops,
                                                 Throttles throttles,
                                                 Monitor scanMonitor,
                                                 AerospikeClient client,
-                                                int progressFreq) {
-        this.eventLoops = eventLoops;
-        this.throttles = throttles;
+                                                int progressFreq,
+                                                int maxWaitMs) {
         this.scanMonitor = scanMonitor;
-        this.progressFreq = progressFreq;
-        this.client = client;
         this.semaphore = new Semaphore(1);
+        this.maxWaitMs = maxWaitMs;
+        try {
+            this.semaphore.acquire();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void onRecord(Key key, Record record) throws AerospikeException {
         results.add(new AbstractMap.SimpleEntry<>(key, record));
-        semaphore.release();  // progress
+        semaphore.release();
     }
 
     public void onSuccess() {
         this.complete.set(true);
+        semaphore.release();
         scanMonitor.notifyComplete();
-        semaphore.release();  // progress
     }
 
 
     public void onFailure(AerospikeException e) {
         System.out.format("Error: scan failed with exception - %s", e);
         this.complete.set(true);
+        semaphore.release();
         scanMonitor.notifyComplete();
-        semaphore.release();  // progress
     }
 
     public Iterator<Map.Entry<Key, Record>> iterator() {
@@ -68,40 +70,24 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
             @Override
             public boolean hasNext() {
                 if (results.size() > 0) return true;
-                if (complete.get())
-                    return false;
-                try {
-                    if (!semaphore.tryAcquire(2, TimeUnit.SECONDS)) //@todo make timeout configurable
-                        throw new RuntimeException("timeout waiting to acquire semaphore in " + this.getClass().getSimpleName());
-                    //next call inside wait will block until results or finished
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
 
-                return waitNext();
-            }
-
-            private boolean waitNext() {
-                if (results.size() > 0)
-                    return true;
-                if (!complete.get()) {
+                while (!complete.get() && results.size() == 0) {
                     try {
-                        if (!semaphore.tryAcquire(2, TimeUnit.SECONDS)) //@todo make timeout configurable
-                            throw new RuntimeException("timeout waiting to acquire semaphore in " + this.getClass().getSimpleName());
+                        if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS))
+                            throw new RuntimeException("timeout exceeded waiting for new records");
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }
 
-                semaphore.release();
-                if (results.size() > 0)
-                    return true;
-                return !complete.get();
+                return results.size() > 0;
             }
 
             @Override
             public Map.Entry<Key, Record> next() {
                 try {
+                    if (results.size() == 0)
+                        if (!hasNext()) throw new NoSuchElementException();
                     return results.take();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);

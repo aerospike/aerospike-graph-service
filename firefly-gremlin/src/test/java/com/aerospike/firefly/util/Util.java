@@ -11,7 +11,7 @@ public class Util {
         if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
             LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
         graph.traversal().V().drop().iterate();
-//        if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
-//            throw new RuntimeException("nonzero vertex or edge count after drop operation");
+        if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
+            throw new RuntimeException("nonzero vertex or edge count after drop operation");
     }
 }

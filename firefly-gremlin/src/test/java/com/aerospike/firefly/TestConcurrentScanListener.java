@@ -189,4 +189,8 @@ public class TestConcurrentScanListener extends AbstractFireflySuite {
         Assert.assertEquals(1L, listener1.addVertexEventRecorded());
         Assert.assertEquals(1L, listener2.addVertexEventRecorded());
     }
+
+
+
+
 }

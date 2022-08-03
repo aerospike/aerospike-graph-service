@@ -695,7 +695,8 @@ public class AerospikeConnection {
                 throttles,
                 scanMonitor,
                 client,
-                progressFreq);
+                progressFreq,
+                2000);
         client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
         //@todo performance
         // should return custom iterator that produces results while query is running

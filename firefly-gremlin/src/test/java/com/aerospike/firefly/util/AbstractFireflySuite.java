@@ -29,7 +29,7 @@ public abstract class AbstractFireflySuite {
     @BeforeClass
     public static void openGraph() {
         db = AerospikeConnection.connect(config);
-//        db.dropDatabase(false);
+        db.dropDatabase(false);
         graph = FireflyGraph.open(config);
     }
 

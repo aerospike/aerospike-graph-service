@@ -58,19 +58,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
         g = graph.traversal();
     }
 
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            graph.getBaseGraph().dropDatabase();
-            Util.clearGraph(graph);
-        }
-    }
-
-    @After
-    public void closeGraph() {
-        graph.close();
-    }
-
     @Test
     public void testYearExtraction() {
         String title = "Gilda (1946)";

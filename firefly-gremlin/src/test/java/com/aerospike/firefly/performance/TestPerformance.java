@@ -1,14 +1,9 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.PerfUtil;
-import com.aerospike.firefly.util.Util;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
@@ -18,11 +13,8 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +23,6 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.junit.Assert.assertEquals;
@@ -39,44 +30,17 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestPerformance {
-    Logger logger = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
-
-    private static final Configuration config;
-
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-
-    private static AerospikeConnection db;
-    private static FireflyGraph graph;
-    private static GraphTraversalSource g;
-
-    @BeforeClass
-    public static void openGraph() {
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-        g.V().drop().iterate();
-    }
-
+public class TestPerformance extends AbstractFireflySuite {
+    GraphTraversalSource g;
     @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Util.clearGraph(graph);
-        }
-    }
-
-    @AfterClass
-    public static void closeGraph() {
-        db.close();
-        graph.close();
+    public void setupTraversal(){
+       g = graph.traversal();
     }
 
     public void printTraversalForm(final Traversal traversal) {
-        logger.info("   pre-strategy:" + traversal);
+        LOG.info("   pre-strategy:" + traversal);
         if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
-        logger.info("  post-strategy:" + traversal);
+        LOG.info("  post-strategy:" + traversal);
     }
 
     private final Map<String, Long> timers = new HashMap<>();

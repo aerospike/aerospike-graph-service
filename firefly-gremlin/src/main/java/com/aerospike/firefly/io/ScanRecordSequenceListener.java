@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 
-class ScanRecordSequenceListener implements RecordSequenceListener {
+public class ScanRecordSequenceListener implements RecordSequenceListener {
     private final AerospikeClient client;
     private final EventLoops eventLoops;
     private final Throttles throttles;

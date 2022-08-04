@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.traversal.step.sideEffect;
 
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;

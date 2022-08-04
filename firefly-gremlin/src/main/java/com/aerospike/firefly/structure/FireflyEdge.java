@@ -9,26 +9,25 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
 
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyEdge extends FireflyElement implements Edge {
-    protected boolean removed;
-    private final FireflyGraph graph;
-    private final FireflyId inVid;
-    private final FireflyId outVid;
+public abstract class FireflyEdge extends FireflyElement implements Edge {
+    public boolean removed;
+    protected final FireflyGraph graph;
+    protected final FireflyId inVid;
+    protected final FireflyId outVid;
 
-    private void writeProperty(String k, Object v) {
-        this.graph.getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
-    }
-
-    private Map<String, Property> readProperties() {
-        return this.graph.getBaseGraph().elementBackend.readProperties(this);
-    }
+    public abstract void removeEdge();
+    protected abstract FireflyProperty writeProperty(final FireflyElement fireflyElement, final String key, final Object value);
+    protected abstract Map<String, Property> readProperties();
 
 
     public FireflyEdge(FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
@@ -40,12 +39,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.outVid);
+        return graph.readVertex(this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.inVid);
+        return graph.readVertex(this.inVid);
     }
 
     @Override
@@ -68,7 +67,10 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public <V> Property<V> property(final String key) {
-        return null == this.readProperties() ? Property.<V>empty() : this.readProperties().getOrDefault(key, Property.<V>empty());
+        Map<String, Property> properties = readProperties();
+        return properties == null ?
+                Property.empty() :
+                properties.getOrDefault(key, Property.empty());
     }
 
     @Override
@@ -81,14 +83,18 @@ public class FireflyEdge extends FireflyElement implements Edge {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
-        this.writeProperty(key, value);
-        return new FireflyProperty<>(this, key, value);
+        return this.writeProperty(this, key, value);
     }
 
     @Override
     public void remove() {
         //@todo multi record transactions
-        graph.getBaseGraph().edgeBackend.removeEdge(graph, this.id);
+        final FireflyVertex inVertex = graph.readVertex(inVid);
+        final FireflyVertex outVertex = graph.readVertex(inVid);
+        inVertex.removeEdge(Direction.IN, id, label);
+        outVertex.removeEdge(Direction.OUT, id, label);
+        removeEdge();
+        removed = true;
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -16,21 +15,13 @@ import java.util.*;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
+public abstract class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
 
-    private final boolean allowNullPropertyValues = true;
-    private final FireflyId vertexId;
-    private final String key;
-    private final V value;
-    private final FireflyGraph graph;
-
-    private Map<String, Property> readProperties() {
-        return ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.readProperties(this);
-    }
-
-    private void writeProperty(String k, Object v) {
-        ((FireflyGraph) this.graph()).getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
-    }
+    protected final boolean allowNullPropertyValues = true;
+    protected final FireflyId vertexId;
+    protected final String key;
+    protected final V value;
+    protected final FireflyGraph graph;
 
 
     public FireflyVertexProperty(final FireflyGraph graph, final FireflyId id, final FireflyId vertexId, final String key, final V value, final Object... propertyKeyValues) {
@@ -54,7 +45,6 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
         this.vertexId = vertexId;
         this.key = key;
         this.value = value;
-
     }
 
     @Override
@@ -63,7 +53,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
     @Override
-    public V value() throws NoSuchElementException {
+    public V value() {
         return this.value;
     }
 
@@ -74,42 +64,34 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public Vertex element() {
-        final FireflyVertex e = graph.getBaseGraph().vertexBackend.readVertex(graph, this.vertexId);
-        return e;
+        return graph.readVertex(vertexId);
     }
 
     @Override
-    public <U> Property<U> property(String key, U value) {
+    public <U> Property<U> property(final String key, final U value) {
         if (this.removed) throw elementAlreadyRemoved(VertexProperty.class, id);
+
 
         if ((!allowNullPropertyValues && null == value)) {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
 
-        this.writeProperty(key, value);
-        return this.readProperties().get(key);
-    }
-
-    @Override
-    public void remove() {
-        try {
-            ((FireflyGraph) this.graph()).getBaseGraph().vpBackend.removeVertexProperty(this);
-        } catch (AerospikeException e) {
-            throw new RuntimeException(e);
-        }
+        return graph.writeVertexProperty(this.vertexId, graph.readVertex(vertexId), key, value);
     }
 
     @Override
     public <V> Iterator<Property<V>> properties(String... propertyKeys) {
-        Map<String, Property> properties = this.readProperties();
         if (propertyKeys.length == 1) {
-            final Property<V> property = properties.get(propertyKeys[0]);
+            final Property<V> property = graph.readVertex(vertexId).property(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
         } else {
-            return IteratorUtils.map(IteratorUtils.filter(IteratorUtils.asIterator(properties.entrySet()),
-                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)), entry ->
-                    ((AbstractMap.Entry) entry).getValue());
+            Iterator<Map.Entry<String, VertexProperty<Object>>> vertexProperties = graph.readVertex(vertexId).readVertexProperties();
+            return IteratorUtils.map(
+                    IteratorUtils.filter(
+                            IteratorUtils.asIterator(vertexProperties),
+                    entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
+                    entry -> ((AbstractMap.Entry) entry).getValue());
         }
     }
 
@@ -120,8 +102,7 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
 
     @Override
     public boolean equals(final Object object) {
-        boolean areEqual = ElementHelper.areEqual(this, object);
-        return areEqual;
+        return ElementHelper.areEqual(this, object);
     }
 
     @Override

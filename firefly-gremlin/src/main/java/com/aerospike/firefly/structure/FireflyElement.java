@@ -12,7 +12,7 @@ import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedElement;
  */
 public abstract class FireflyElement implements WrappedElement<Record>, Element {
     public final FireflyId id;
-    protected final String label;
+    protected String label;
     protected boolean removed = false;
     protected final boolean allowNullPropertyValues = false;
 

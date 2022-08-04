@@ -1,6 +1,9 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Key;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -13,6 +16,7 @@ import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -29,12 +33,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.structure.util.FireflyHelper.validateVertexId;
-import static com.aerospike.firefly.structure.util.FireflyHelper.writeFullyQualifiedVertex;
-import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -45,84 +47,44 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.TransactionTest",
-        method = "*",
-        reason = "MAKE ACTIVE WHEN TRANSACTIONS IMPLEMENTED",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.TransactionTest", method = "*", reason = "MAKE ACTIVE WHEN TRANSACTIONS IMPLEMENTED", computers = {"ALL"})
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest",
-        method = "*",
-        reason = "MAKE ACTIVE WHEN PARALLEL SCAN RESULT ITERATOR IMPLEMENTED",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest", method = "*", reason = "MAKE ACTIVE WHEN PARALLEL SCAN RESULT ITERATOR IMPLEMENTED", computers = {"ALL"})
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.FeatureSupportTest",
-        method = "*",
-        reason = "THROW PROPER EXCEPTIONS WHEN DESIRED FINAL FEATURE SET IS DETERMINED",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.FeatureSupportTest", method = "*", reason = "THROW PROPER EXCEPTIONS WHEN DESIRED FINAL FEATURE SET IS DETERMINED", computers = {"ALL"})
 
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest",
-        method = "*",
-        reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest", method = "*", reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS", computers = {"ALL"})
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest",
-        method = "*",
-        reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest", method = "*", reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE", computers = {"ALL"})
 
 
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest",
-        method = "*",
-        reason = "MAKE ACTIVE LATER",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest",
-        method = "*",
-        reason = "MAKE ACTIVE LATER",
-        computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 
 
-public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
+public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    private final AerospikeConnection db;
-    private AtomicBoolean closed = new AtomicBoolean(false);
 
-    private final FireflyGraphFeatures features;
-
-    private final Configuration configuration;
+    static {
+        TraversalStrategies.GlobalCache.registerStrategies(FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone().addStrategies(FireflyGraphStepStrategy.instance()));
+    }
 
     public final IdManager<Long> vertexIdManager;
     public final IdManager<Long> edgeIdManager;
-
     public final IdManager<Long> vertexPropertyIdManager;
+    protected final AerospikeConnection db;
+    private final FireflyGraphFeatures features;
+    private final Configuration configuration;
     private final FireflyGraphVariables variables;
 
 
     protected FireflyGraphComputerView graphComputerView = null;
+    private AtomicBoolean closed = new AtomicBoolean(false);
 
-
-    static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
-    }
-
-
-    protected FireflyGraph(final Configuration conf) {
-        this(AerospikeConnection.connect(conf), conf);
-    }
-
-    protected FireflyGraph(AerospikeConnection db, final Configuration conf) {
+    protected FireflyGraph(final AerospikeConnection db, final Configuration conf) {
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
@@ -132,23 +94,49 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
-        if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY,configuration))){
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
             // this can be supported by querying all nodes and dividing by replication factor,
             // but since there is another known issue with Info lagging, and querying all nodes would produce results
             // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-            if(db.getClient().getNodes().length > 1)
+            if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    FireflyGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                            .addStrategies(FireflyGraphCountStrategy.instance()));
+            TraversalStrategies.GlobalCache.registerStrategies(FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone().addStrategies(FireflyGraphCountStrategy.instance()));
         }
     }
 
-    public static FireflyGraph open(Configuration conf) {
-        return new FireflyGraph(conf);
+    public static FireflyGraph open(final Configuration conf) {
+        return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
+
+    public abstract FireflyVertex writeVertex(FireflyId idValue, String label, List<Map.Entry<String, Object>> properties);
+    public abstract FireflyVertex readVertex(final FireflyId idValue);
+    public abstract FireflyEdge writeEdge(FireflyId edgeId, String label, List<Map.Entry<String, Object>> properties, FireflyVertex inVertex, FireflyVertex outVertex);
+    public abstract FireflyEdge readEdge(final FireflyId edgeId);
+    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value);
+    public abstract boolean vertexExists(final FireflyId idValue);
+    public abstract boolean edgeExists(final FireflyId idValue);
+    public abstract boolean vertexPropertyExists(final FireflyId idValue);
+
+    public abstract Set<String> readGraphVariableKeys();
+    public abstract <V> void writeGraphVariable(final String key, final V value);
+    public abstract <V> V readGraphVariable(final String key);
+    public abstract void removeGraphVariable(final String key);
+    public abstract Iterator<?> readElementIds(final Class<? extends FireflyElement> type);
+
+    public abstract void removeProperty(FireflyElement element, String key);
+
+    public abstract long getVertexCount();
+    public abstract long getEdgeCount();
+
+    public abstract Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(String key, Object value);
+    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(String key, P<?> predicate);
+    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(String key, P<?> predicate);
+    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(Object value);
+    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(String key, Object value);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate);
 
 
     @Override
@@ -188,12 +176,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
-            if (db.vertexBackend.vertexExists(idValue)) {
+            if (vertexExists(idValue)) {
 
                 throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
             }
         } else {
-            while (db.vertexBackend.vertexExists(idValue)) {
+            while (vertexExists(idValue)) {
                 idValue = FireflyId.createFromManager(this, FireflyVertex.class);
             }
         }
@@ -202,12 +190,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         // Write fully qualified Vertex.
-        final List<Map.Entry<String, Object>> properties =
-                convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
-        writeFullyQualifiedVertex(this, idValue, label, properties);
-
-        // Return FireflyVertex.
-        return new FireflyVertex(idValue, label, this);
+        final List<Map.Entry<String, Object>> properties = convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
+        return writeVertex(idValue, label, properties);
     }
 
     public List<Map.Entry<String, Object>> convertFullyQualified(final boolean supportNullProperties, final Object... propertyKeyValues) {
@@ -249,21 +233,19 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
         // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).
-                map(NumericIdManager::convert).collect(Collectors.toList());
+        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(NumericIdManager::convert).collect(Collectors.toList());
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
-        if (!longs.isEmpty() && !longs.stream().map(
-                id -> FireflyId.of(FireflyVertex.class, id)).allMatch(db.vertexBackend::vertexExists)) {
+        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyId.of(FireflyVertex.class, id)).allMatch(this::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyVertexIterator(this, longs.isEmpty() ?
-                db.elementBackend.readElementIds(FireflyVertex.class) :
-                longs.iterator());
+        return new FireflyVertexIterator(this, longs.isEmpty() ? scanAllVertices() : longs.iterator());
     }
+
+    protected abstract Iterator<Long> scanAllVertices();
 
     @Override
     public Iterator<Edge> edges(Object... edgeIds) {
@@ -271,7 +253,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
-                        db.elementBackend.readElementIds(FireflyEdge.class) :
+                readElementIds(FireflyEdge.class) :
                         Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
     }
 

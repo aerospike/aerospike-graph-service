@@ -108,7 +108,7 @@ final public class LinkedVertex extends FireflyVertex {
 
         // Get id and label for vertex.
         final FireflyId id = FireflyId.loadFromAerospike(db, FireflyVertex.class, record);
-        final String label = record.record.getString(db.V_LABEL_INDEX);
+        final String label = record.record.getString(AerospikeConnection.LABEL);
 
         // If cache is disabled, inEdgeIds and outEdgeIds are null.
         final boolean cacheDisabled = record.record.getBoolean(db.CACHE_DISABLED);
@@ -191,7 +191,7 @@ final public class LinkedVertex extends FireflyVertex {
         ));
 
         // Create vertex bins for vertex label, property ids, and property counter.
-        final Bin labelBin = new Bin(db.V_LABEL_INDEX, Value.get(label));
+        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyLabelIdMap));
         final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdCache.size())));
 

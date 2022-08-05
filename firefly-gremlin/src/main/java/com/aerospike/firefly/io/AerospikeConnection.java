@@ -1060,10 +1060,10 @@ public class AerospikeConnection {
      * close the connection to Aerospike
      */
     public void close() {
-        LOG.info("Closing client.");
+        LOG.debug("Closing client.");
         this.client.close();
 
-        LOG.info("Closing event loop.");
+        LOG.debug("Closing event loop.");
         this.eventLoops.close();
     }
 }

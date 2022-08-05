@@ -263,6 +263,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     @Override
     public void close() {
+        LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
         this.db.close();
     }

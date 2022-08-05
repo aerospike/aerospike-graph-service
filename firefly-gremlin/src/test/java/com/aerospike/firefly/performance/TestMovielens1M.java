@@ -23,9 +23,6 @@ import static org.junit.Assert.assertEquals;
 */
 public class TestMovielens1M extends AbstractFireflySuite {
 
-    Logger LOG = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
-
-
     private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
     private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
 

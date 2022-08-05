@@ -111,6 +111,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
 
     @Override
     public void remove() {
+        LOG.info("Removing vertex property {}", id.value());
         graph.readVertex(vertexId).removeVertexProperty(label, id);
         removeVertexProperty(graph, id);
     }

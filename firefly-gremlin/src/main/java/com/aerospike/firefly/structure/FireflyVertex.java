@@ -196,27 +196,14 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                     Collections.emptyIterator();
         }
 
-        final Map<String, VertexProperty<V>> propertiesMap = new HashMap<>();
+        // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties();
-        final Set<String> propertyKeySet = new HashSet<>(Arrays.asList(propertyKeys));
-
-        // Loop through vertex properties and add them to the map if they are in the property keys.
-        while (vertexProperties.hasNext()) {
-            // If the property key is in the property keys, add it to the map.
-            final Map.Entry<String, VertexProperty<V>> entry = vertexProperties.next();
-            if (propertyKeySet.contains(entry.getKey())) {
-                propertiesMap.put(entry.getKey(), entry.getValue());
-            }
-        }
 
         // Return an iterator over the map.
-        return (propertiesMap.isEmpty()) ? Collections.emptyIterator() : IteratorUtils.asIterator(propertiesMap.entrySet().stream().
-                // Filter for keys that exist.
-                        filter(e -> ElementHelper.keyExists(e.getKey(), propertyKeys)).
-                // Map from {String:List<List>} to List<List>.
-                        map((Map.Entry::getValue)).
-                // Collect and convert to iterator.
-                        collect(Collectors.toList()));
+        return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
+                IteratorUtils.map(IteratorUtils.filter(vertexProperties,
+                                e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
+                Map.Entry::getValue);
     }
 
     @Override

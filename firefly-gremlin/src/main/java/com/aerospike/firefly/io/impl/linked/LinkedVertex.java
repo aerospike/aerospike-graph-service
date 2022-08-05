@@ -18,6 +18,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
+import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -376,17 +377,19 @@ final public class LinkedVertex extends FireflyVertex {
         }
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
-        final Map<String, FireflyVertexProperty<V>> vertexProperties = new HashMap<>();
-        for (final Map.Entry<String, List<Long>> vertexPropertyId : vertexPropertyIds.entrySet()) {
+        final List<Map.Entry<String, FireflyVertexProperty<V>>> vertexProperties = new ArrayList<>();
+        for (final Map.Entry<String, List<Long>> vertexPropertyIds : vertexPropertyIds.entrySet()) {
             // Get the properties for the entry.
             final List<FireflyVertexProperty<V>> vertexPropertyList = new ArrayList<>();
+            vertexPropertyIds.getValue().forEach(id -> {
+                // Create the property.
+                final FireflyVertexProperty<V> property = LinkedVertexProperty.readVertexProperty(
+                        graph, this, FireflyId.of(FireflyVertexProperty.class, id));
+                vertexProperties.add(new MapEntry(vertexPropertyIds.getKey(), property));
+            });
 
-            // Create the property.
-            final FireflyVertexProperty<V> property = LinkedVertexProperty.readVertexProperty(
-                    graph, this, FireflyId.of(FireflyVertexProperty.class, vertexPropertyId.getValue()));
-            vertexPropertyList.add(property);
-            vertexProperties.put(vertexPropertyId.getKey(), property);
         }
+
         return IteratorUtils.asIterator(vertexProperties);
     }
 

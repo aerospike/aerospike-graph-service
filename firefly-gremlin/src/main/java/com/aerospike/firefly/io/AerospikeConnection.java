@@ -439,11 +439,11 @@ public class AerospikeConnection {
      * @return name of Aerospike set
      */
     public String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
-        if (elementClass.equals(FireflyEdge.class))
+        if (FireflyEdge.class.isAssignableFrom(elementClass))
             return EDGE_AERO_SET;
-        else if (elementClass.equals(FireflyVertex.class))
+        else if (FireflyVertex.class.isAssignableFrom(elementClass))
             return VERTEX_AERO_SET;
-        else if (elementClass.equals(FireflyVertexProperty.class))
+        else if (FireflyVertexProperty.class.isAssignableFrom(elementClass))
             return VERTEX_PROPERTY_AERO_SET;
         throw new UnsupportedOperationException("Element not supported " + elementClass.getName());
     }

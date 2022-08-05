@@ -8,6 +8,8 @@ import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.Throttles;
 import com.aerospike.client.listener.RecordSequenceListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
@@ -29,6 +31,7 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final Semaphore semaphore;
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
+    private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
 
     public ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
                                                 final int maxWaitMs) {
@@ -54,8 +57,8 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     }
 
 
-    public void onFailure(AerospikeException e) {
-        System.out.format("Error: scan failed with exception - %s", e);
+    public void onFailure(final AerospikeException e) {
+        LOG.error("Error: scan failed with exception - %s", e);
         this.complete.set(true);
         semaphore.release();
         scanMonitor.notifyComplete();

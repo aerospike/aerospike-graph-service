@@ -691,7 +691,7 @@ public class AerospikeConnection {
             policy.filterExp = exp;
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
                 scanMonitor,
-                2000);
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT,conf)));
         client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
 
         return listener.iterator();

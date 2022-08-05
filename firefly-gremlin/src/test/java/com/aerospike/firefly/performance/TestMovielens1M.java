@@ -1,82 +1,86 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.IOUtil;
-import com.aerospike.firefly.util.Util;
-import org.apache.commons.configuration2.Configuration;
+import com.aerospike.firefly.util.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 
-import static com.aerospike.firefly.Tokens.*;
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.Movielens.MOVIELENS_URL;
+import static com.aerospike.firefly.util.Movielens.YEAR;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestMovielens1M {
+public class TestMovielens1M extends AbstractFireflySuite {
 
-    Logger logger = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
+    private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
+    private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
 
-    private static final Configuration config;
 
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-
-    private AerospikeConnection db;
-    private FireflyGraph graph;
     private GraphTraversalSource g;
-    private static final File tempFile;
-    private static final URL movieLensUrl;
 
-    static {
+
+    @BeforeClass
+    public static void fetchData() {
         try {
-            movieLensUrl = new URL(MOVIELENS_1M_URL);
-            tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens.kryo");
+            URL movieLensUrl = new URL(MOVIELENS_URL);
+            File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
+            if (!tempFile.exists()) {
+                IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
+                Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    @Before
-    public void fetchMovieLens1M() {
-        if (!tempFile.exists()) IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
-    }
-
-    @Before
-    public void openGraph() {
-        this.db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-    }
-    @Before
-    public void clearGraph() {
+    @AfterClass
+    public static void clearDataAfterTest() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Util.clearGraph(graph);
+            graph.getBaseGraph().dropDatabase();
         }
     }
-    @After
-    public void closeGraph() {
-        graph.close();
-        db.close();
+
+    @Before
+    public void openGraphFetchData() {
+        g = graph.traversal();
     }
 
-//    @Test
-    public void testLoadMovieLens1M() {
-        long start = System.currentTimeMillis();
-        graph.traversal().io(tempFile.getAbsolutePath()).read().iterate();
-        long finish = System.currentTimeMillis();
-        long delta = finish - start;
-        System.out.println(String.format("%d milliseconds elapsed", delta));
+
+    @Test
+    public void testYearExtraction() {
+        String title = "Gilda (1946)";
+        String[] tokens = title.split("[()]");
+        assertEquals(tokens.length, 2);
+        assertEquals(tokens[tokens.length - 1], "1946");
+    }
+
+    @Test
+    public void testQueryMovieLens1M() {
+        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
+        long vCountStart = System.currentTimeMillis();
+        long vCount = graph.traversal().V().count().next();
+        long vCountEnd = System.currentTimeMillis();
+        long searchPeopleRatedGilda = g.V().hasLabel("person").out().has("name", "Gilda (1946)").count().next();
+        long sprgEnd = System.currentTimeMillis();
+        long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
+        long sgrbpEnd = System.currentTimeMillis();
+        assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
+        long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
+        assertEquals(1L, oneMovie);
+        LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
+        LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
+        LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
     }
 
 }

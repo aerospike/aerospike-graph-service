@@ -2,10 +2,7 @@ package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.IOUtil;
-import com.aerospike.firefly.util.PerfUtil;
-import com.aerospike.firefly.util.Util;
+import com.aerospike.firefly.util.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
@@ -27,15 +24,7 @@ import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestAirRoutes50k {
-    private static final Configuration config;
-
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-
-    private static AerospikeConnection db;
-    private static FireflyGraph graph;
+public class TestAirRoutes50k extends AbstractFireflySuite {
     private static GraphTraversalSource g;
     private static final File tempFile;
     private static final URL airRoutesUrl;
@@ -52,8 +41,6 @@ public class TestAirRoutes50k {
     @BeforeClass
     public static void loadAirRoutes() throws IOException {
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
         g = graph.traversal();
         g.V().drop().iterate();
         long start = System.currentTimeMillis();
@@ -63,18 +50,6 @@ public class TestAirRoutes50k {
         System.out.printf("Air Routes 50k Load Test: %d milliseconds elapsed%n", delta);
     }
 
-    @AfterClass
-    public static void closeGraph() {
-        g.V().drop().iterate();
-        graph.close();
-        db.close();
-    }
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Util.clearGraph(graph);
-        }
-    }
 
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {

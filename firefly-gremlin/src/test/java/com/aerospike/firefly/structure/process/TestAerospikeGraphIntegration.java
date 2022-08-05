@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure.process;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
@@ -63,45 +64,19 @@ import static org.junit.Assert.*;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestAerospikeGraphIntegration {
+public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     Logger logger = LoggerFactory.getLogger(TestAerospikeGraphIntegration.class);
-
-    private static final Configuration config;
-
-    static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    }
-
-    private static AerospikeConnection db;
-    private static FireflyGraph graph;
-    private static GraphTraversalSource g;
-
-    @BeforeClass
-    public static void openGraph() {
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-    }
-
-    @Before
-    public void clearGraph() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            Util.clearGraph(graph);
-        }
-    }
-
-    @AfterClass
-    public static void closeGraphClearData() {
-        graph.close();
-        db.close();
-    }
+    GraphTraversalSource g;
 
     public void printTraversalForm(final Traversal traversal) {
         logger.info("   pre-strategy:" + traversal);
         if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
         logger.info("  post-strategy:" + traversal);
     }
-
+    @Before
+    public void setupTraversal(){
+        g = graph.traversal();
+    }
     @Test
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();

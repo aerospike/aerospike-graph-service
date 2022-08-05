@@ -97,10 +97,10 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
             return VertexProperty.empty();
         }
 
-        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        if (optionalVertexProperty.isPresent()) {
-            return optionalVertexProperty.get();
-        }
+        // final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+        // if (optionalVertexProperty.isPresent()) {
+        //     return optionalVertexProperty.get();
+        // }
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         }

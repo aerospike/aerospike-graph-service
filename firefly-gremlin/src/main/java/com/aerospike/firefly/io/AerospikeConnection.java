@@ -685,23 +685,14 @@ public class AerospikeConnection {
      */
     protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
         LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", namespace, setName, Arrays.toString(binNames), exp);
-        final Throttles throttles = initializeThrottles(this.eventLoops.getSize(), this.commandsPerLoop);
         final Monitor scanMonitor = new Monitor();
-        final int progressFreq = 100;
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(eventLoops,
-                throttles,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
                 scanMonitor,
-                client,
-                progressFreq,
                 2000);
         client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
-        //@todo performance
-        // should return custom iterator that produces results while query is running
-        // custom iterator .hasNext() should return false once query is complete
-//        scanMonitor.waitTillComplete();
 
         return listener.iterator();
     }

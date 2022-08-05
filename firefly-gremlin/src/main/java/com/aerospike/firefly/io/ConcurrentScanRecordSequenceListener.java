@@ -30,11 +30,7 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
 
-    public ConcurrentScanRecordSequenceListener(EventLoops eventLoops,
-                                                Throttles throttles,
-                                                Monitor scanMonitor,
-                                                AerospikeClient client,
-                                                int progressFreq,
+    public ConcurrentScanRecordSequenceListener(Monitor scanMonitor,
                                                 int maxWaitMs) {
         this.scanMonitor = scanMonitor;
         this.semaphore = new Semaphore(1);

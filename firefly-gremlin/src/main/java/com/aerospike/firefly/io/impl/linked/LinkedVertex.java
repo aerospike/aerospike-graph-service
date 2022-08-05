@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -358,6 +359,7 @@ final public class LinkedVertex extends FireflyVertex {
     @Override
     protected <V> Iterator<Map.Entry<String, VertexProperty<V>>> readVertexProperties() {
         refreshVertexIfInvalid();
+        LOG.debug("Read vertex properties");
 
         // If vertex properties are not cached, read them from scan.
         if (vertexPropertyIds == null) {
@@ -454,6 +456,7 @@ final public class LinkedVertex extends FireflyVertex {
      */
     private <V> Iterator<VertexProperty<V>> getVertexPropertyByScan(final String key) {
         // TODO: Can we filter on key?
+        LOG.debug("Getting vertex property by scan for {}", key);
         final Long storageId = (Long) db.idToStorageType(id());
         final Expression exp = Exp.build(
                 Exp.eq(
@@ -536,12 +539,13 @@ final public class LinkedVertex extends FireflyVertex {
     @Override
     protected <V> Iterator<VertexProperty<V>> readVertexProperty(final String key) {
         refreshVertexIfInvalid();
+        LOG.debug("Read vertex property {}", key);
 
         if (vertexPropertyIds == null) {
             return getVertexPropertyByScan(key);
         }
         if (!vertexPropertyIds.containsKey(key)) {
-            throw new NoSuchElementException("Vertex property with key " + key + " does not exist.");
+            return Collections.emptyIterator();
         }
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.

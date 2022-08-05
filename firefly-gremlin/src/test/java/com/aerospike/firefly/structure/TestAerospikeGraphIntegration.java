@@ -11,7 +11,11 @@ import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
@@ -20,12 +24,21 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.core.IsInstanceOf;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -33,11 +46,17 @@ import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -45,6 +64,7 @@ import static org.junit.Assert.*;
 public class TestAerospikeGraphIntegration {
 
     private static final Configuration config;
+
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
@@ -205,6 +225,8 @@ public class TestAerospikeGraphIntegration {
     public void testWriteMultipleThenIterate() {
         GraphTraversalSource g = graph.traversal();
         g.addV("penguin").property("color", "red").next();
+        assertEquals(1L, g.V().count().next().longValue());
+        assertEquals(1L, g.V().hasLabel("penguin").count().next().longValue());
         assertEquals("red", g.V().hasLabel("penguin").next().values("color").next());
     }
 
@@ -227,7 +249,7 @@ public class TestAerospikeGraphIntegration {
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("a","b").iterate();
+                .addE("IsA").from("b").to("a").property("a", "b").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         List<Edge> things = g.E().has("a", "b").toList();
@@ -267,17 +289,16 @@ public class TestAerospikeGraphIntegration {
                 .property("type", "plant")
                 .next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
-        g.V()
-                .has("type", "taxonomy").as("a")
+        g.V().has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3L).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3L).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Edge> nEdge = g.E().has("n", 3L).toList();
-        assertEquals(2,nEdge.size());
-        List<Edge> ltnEdge = g.E().has("n",  P.lt(4L)).toList();
-        assertEquals(2,ltnEdge.size());
-        List<Edge> gtnEdge = g.E().has("n",  P.gt(1L)).toList();
-        assertEquals(2,gtnEdge.size());
+        assertEquals(2, nEdge.size());
+        List<Edge> ltnEdge = g.E().has("n", P.lt(4L)).toList();
+        assertEquals(2, ltnEdge.size());
+        List<Edge> gtnEdge = g.E().has("n", P.gt(1L)).toList();
+        assertEquals(2, gtnEdge.size());
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
         if (g.V(fruit.id()).outE().count().next() > 0) {
@@ -293,16 +314,16 @@ public class TestAerospikeGraphIntegration {
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3L).next();
+                .property("spots", 3L).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2L).next();
+                .property("spots", 2L).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2L).toList();
         List<Vertex> slt = g.V().has("spots", P.lt(4L)).toList();
@@ -315,29 +336,30 @@ public class TestAerospikeGraphIntegration {
             fail();
         }
     }
+
     @Test
     public void testVertexNumericIndexInteger() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3).next();
+                .property("spots", 3).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2).next();
+                .property("spots", 2).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2).toList();
-        assertEquals(1,twoSpots.size());
+        assertEquals(1, twoSpots.size());
         List<Vertex> slt = g.V().has("spots", P.lt(4)).toList();
-        assertEquals(2,slt.size());
+        assertEquals(2, slt.size());
         List<Vertex> sgt = g.V().has("spots", P.gt(1)).toList();
-        assertEquals(2,sgt.size());
+        assertEquals(2, sgt.size());
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
@@ -353,23 +375,23 @@ public class TestAerospikeGraphIntegration {
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3.14d).next();
+                .property("spots", 3.14d).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2.33d).next();
+                .property("spots", 2.33d).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2.33d).toList();
-        assertEquals(1,twoSpots.size());
+        assertEquals(1, twoSpots.size());
         List<Vertex> slt = g.V().has("spots", P.lt(4d)).toList();
-        assertEquals(2,slt.size());
+        assertEquals(2, slt.size());
         List<Vertex> sgt = g.V().has("spots", P.gt(1d)).toList();
-        assertEquals(2,sgt.size());
+        assertEquals(2, sgt.size());
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
@@ -488,30 +510,32 @@ public class TestAerospikeGraphIntegration {
                 }
             }
         }
-        assertEquals(0L, IteratorUtils.count(start.edges(Direction.IN, new String[0])));
-        assertEquals((long) branchSize, IteratorUtils.count(start.edges(Direction.OUT, new String[0])));
-        Iterator var9 = IteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
+        assertEquals(0L, IteratorUtils.count(start.edges(Direction.IN)));
+        assertEquals(branchSize, IteratorUtils.count(start.edges(Direction.OUT)));
+        final Iterator<Edge> outEdges = IteratorUtils.list(start.edges(Direction.OUT)).iterator();
 
-        while (var9.hasNext()) {
-            Edge a = (Edge) var9.next();
+        while (outEdges.hasNext()) {
+            final Edge a = outEdges.next();
+
             Assert.assertEquals("test1", a.label());
+            Assert.assertEquals(branchSize, IteratorUtils.count(a.inVertex().vertices(Direction.OUT)));
+            Assert.assertEquals(1L, IteratorUtils.count(a.inVertex().vertices(Direction.IN)));
 
-            Assert.assertEquals((long) branchSize, IteratorUtils.count(a.inVertex().vertices(Direction.OUT, new String[0])));
-            Assert.assertEquals(1L, IteratorUtils.count(a.inVertex().vertices(Direction.IN, new String[0])));
-            Iterator var12 = IteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
+            final Iterator<Edge> outInEdges = IteratorUtils.list(a.inVertex().edges(Direction.OUT)).iterator();
+            while (outInEdges.hasNext()) {
+                final Edge b = outInEdges.next();
 
-            while (var12.hasNext()) {
-                Edge b = (Edge) var12.next();
                 Assert.assertEquals("test2", b.label());
-                Assert.assertEquals((long) branchSize, IteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
-                Assert.assertEquals(1L, IteratorUtils.count(b.inVertex().vertices(Direction.IN, new String[0])));
-                Iterator var14 = IteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
+                Assert.assertEquals(branchSize, IteratorUtils.count(b.inVertex().vertices(Direction.OUT)));
+                Assert.assertEquals(1L, IteratorUtils.count(b.inVertex().vertices(Direction.IN)));
 
-                while (var14.hasNext()) {
-                    Edge c = (Edge) var14.next();
+                final Iterator<Edge> outInOutEdges = IteratorUtils.list(b.inVertex().edges(Direction.OUT)).iterator();
+                while (outInOutEdges.hasNext()) {
+                    final Edge c = outInOutEdges.next();
+
                     Assert.assertEquals("test3", c.label());
-                    Assert.assertEquals(0L, IteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
-                    Assert.assertEquals(1L, IteratorUtils.count(c.inVertex().vertices(Direction.IN, new String[0])));
+                    Assert.assertEquals(0L, IteratorUtils.count(c.inVertex().vertices(Direction.OUT)));
+                    Assert.assertEquals(1L, IteratorUtils.count(c.inVertex().vertices(Direction.IN)));
                 }
             }
         }
@@ -599,14 +623,14 @@ public class TestAerospikeGraphIntegration {
 
     @Test
     public void shouldReadWriteSelfLoopingEdges() throws Exception {
-        GraphSONMapper mapper = ((GraphSONIo)this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
+        GraphSONMapper mapper = ((GraphSONIo) this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
         Graph source = this.graph;
         Vertex v1 = source.addVertex(new Object[0]);
         Vertex v2 = source.addVertex(new Object[0]);
         v1.addEdge("CONTROL", v2, new Object[0]);
         v1.addEdge("SELFLOOP", v1, new Object[0]);
         final HashMap<String, Object> configMap = new HashMap<>();
-        graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
+        graph.configuration().getKeys().forEachRemaining(k -> configMap.put(k, graph.configuration().get(String.class, k)));
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
 
 
@@ -617,12 +641,12 @@ public class TestAerospikeGraphIntegration {
             Throwable var8 = null;
 
             try {
-                ((GraphSONIo)source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
+                ((GraphSONIo) source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
                 ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
                 Throwable var10 = null;
 
                 try {
-                    ((GraphSONIo)targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
+                    ((GraphSONIo) targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
                 } catch (Throwable var35) {
                     var10 = var35;
                     throw var35;

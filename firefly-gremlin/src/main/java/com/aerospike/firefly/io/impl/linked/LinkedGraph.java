@@ -150,7 +150,7 @@ final public class LinkedGraph extends FireflyGraph {
                                  final FireflyVertex outVertex) {
         // Add edge to inVertex and outVertex.
         inVertex.writeEdge(Direction.IN, edgeId, label);
-        inVertex.writeEdge(Direction.OUT, edgeId, label);
+        outVertex.writeEdge(Direction.OUT, edgeId, label);
 
         // Write edge to Aerospike and return FireflyEdge.
         return LinkedEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
@@ -285,7 +285,7 @@ final public class LinkedGraph extends FireflyGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.STRING_E_KV_INDEX,
                 Filter.contains(db.getElementPropertySet(FireflyEdge.class), IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(FireflyId.createFromUser(this, FireflyEdge.class, kr.key.userKey.getObject())));
+                readEdge(FireflyId.of(FireflyEdge.class, kr.key.userKey.getObject())));
         return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
     }
 
@@ -313,7 +313,7 @@ final public class LinkedGraph extends FireflyGraph {
 
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(FireflyId.createFromUser(this, FireflyEdge.class, kr.key.userKey.getObject())));
+                readEdge(FireflyId.of(FireflyEdge.class, kr.key.userKey.getObject())));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
@@ -340,7 +340,7 @@ final public class LinkedGraph extends FireflyGraph {
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(FireflyId.createFromUser(this, FireflyEdge.class, kr.key.userKey.getObject())));
+                readEdge(FireflyId.of(FireflyEdge.class, kr.key.userKey.getObject())));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
@@ -355,7 +355,7 @@ final public class LinkedGraph extends FireflyGraph {
         final Iterator<KeyRecord> iter = db.queryIndex(db.VERTEX_AERO_SET, db.V_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, kr ->
-                readVertex(FireflyId.createFromUser(this, FireflyVertex.class, kr.key.userKey.getObject())));
+                readVertex(FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
     }
 
     /**
@@ -369,7 +369,7 @@ final public class LinkedGraph extends FireflyGraph {
         final Iterator<KeyRecord> iter = db.queryIndex(db.getElementPropertySet(FireflyEdge.class), db.E_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, kr ->
-                readEdge(FireflyId.createFromUser(this, FireflyEdge.class, kr.key.userKey.getObject())));
+                readEdge(FireflyId.of(FireflyEdge.class, kr.key.userKey.getObject())));
     }
 
     /**

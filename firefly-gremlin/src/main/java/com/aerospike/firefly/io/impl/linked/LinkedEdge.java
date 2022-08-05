@@ -109,16 +109,16 @@ final public class LinkedEdge extends FireflyEdge {
      * @param graph      handle to Graph
      * @param edgeId     Id of Edge to write
      * @param label      label for Edge to write
-     * @param outVertex  out Vertex for new Edge
      * @param inVertex   in Vertex for new Edge
+     * @param outVertex  out Vertex for new Edge
      * @param properties Edge properties
      */
     public static LinkedEdge writeEdge(final FireflyGraph graph,
                                        final FireflyId edgeId,
                                        final String label,
                                        final List<Map.Entry<String, Object>> properties,
-                                       final FireflyVertex outVertex,
-                                       final FireflyVertex inVertex) {
+                                       final FireflyVertex inVertex,
+                                       final FireflyVertex outVertex) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();

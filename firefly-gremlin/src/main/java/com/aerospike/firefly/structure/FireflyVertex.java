@@ -109,7 +109,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         final FireflyId vertexPropertyId = FireflyId.createFromKeyValuesOrManager(graph, FireflyVertexProperty.class, keyValues);
 
         // Write vertex property to graph.
-        VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
+        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
 
         // Return vertex property.
         return vertexProperty;

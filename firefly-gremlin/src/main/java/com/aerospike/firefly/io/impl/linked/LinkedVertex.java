@@ -41,11 +41,13 @@ import java.util.Set;
 final public class LinkedVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertex.class);
 
-    private Map<String, Long> vertexPropertyIds;
+    private Map<String, List<Long>> vertexPropertyIds;
     private long vertexPropertyCount;
     private AerospikeConnection db;
     private Map<String, List<Long>> inEdgeIds;
     private Map<String, List<Long>> outEdgeIds;
+    private long inEdgeCount;
+    private long outEdgeCount;
     private boolean valid;
 
     /**
@@ -56,6 +58,8 @@ final public class LinkedVertex extends FireflyVertex {
      * @param graph               graph.
      * @param inEdgeIds           incoming edge ids - null if invalid (cache disabled or too many).
      * @param outEdgeIds          outgoing edge ids - null if invalid (cache disabled or too many).
+     * @param inEdgeCount         incoming edge count.
+     * @param outEdgeCount        outgoing edge count.
      * @param vertexPropertyIds   vertex property ids.
      * @param vertexPropertyCount vertex property count.
      * @param db                  Aerospike connection.
@@ -65,7 +69,9 @@ final public class LinkedVertex extends FireflyVertex {
                          final FireflyGraph graph,
                          final Map<String, List<Long>> inEdgeIds,
                          final Map<String, List<Long>> outEdgeIds,
-                         final Map<String, Long> vertexPropertyIds,
+                         final long inEdgeCount,
+                         final long outEdgeCount,
+                         final Map<String, List<Long>> vertexPropertyIds,
                          final long vertexPropertyCount,
                          final AerospikeConnection db) {
         super(fid, label, graph);
@@ -74,6 +80,8 @@ final public class LinkedVertex extends FireflyVertex {
         this.vertexPropertyIds = vertexPropertyIds;
         this.inEdgeIds = inEdgeIds;
         this.outEdgeIds = outEdgeIds;
+        this.inEdgeCount = inEdgeCount;
+        this.outEdgeCount = outEdgeCount;
         this.db = db;
     }
 
@@ -107,12 +115,12 @@ final public class LinkedVertex extends FireflyVertex {
         final Long vertexPropertyCount = record.record.getLong(db.VP_COUNTER);
         if (cacheDisabled) {
             // Set inEdgeIds and outEdgeIds to null (invalid).
-            return new LinkedVertex(id, label, graph, null, null, null, vertexPropertyCount, db);
+            return new LinkedVertex(id, label, graph, null, null, -1, -1, null, vertexPropertyCount, db);
         }
 
         // Get vertex properties and vertex property counter from record.
-        final Map<String, Long> vertexProperties = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                (Map<String, Long>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : null;
+        final Map<String, List<Long>> vertexProperties = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                (Map<String, List<Long>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : null;
 
         // Get incoming and outgoing edge count.
         final long inEdgeCount = record.record.getLong(db.IN_EDGE_COUNTER);
@@ -125,7 +133,15 @@ final public class LinkedVertex extends FireflyVertex {
                 (Map<String, List<Long>>) record.record.getMap(db.OUT_EDGES) : null;
 
         // Create LinkedVertex.
-        return new LinkedVertex(id, label, graph, inEdgeIds, outEdgeIds, vertexProperties, vertexPropertyCount, db);
+        System.out.println("Vertex: " + id.value());
+        System.out.println("\tlabel: " + label);
+        System.out.println("\tinE: " + inEdgeIds);
+        System.out.println("\toutE: " + outEdgeIds);
+        System.out.println("\tinECount: " + inEdgeCount);
+        System.out.println("\toutECount: " + outEdgeCount);
+        System.out.println("\tvp: " + vertexProperties);
+        System.out.println("\tvp count: " + vertexPropertyCount);
+        return new LinkedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexProperties, vertexPropertyCount, db);
     }
 
 
@@ -150,36 +166,47 @@ final public class LinkedVertex extends FireflyVertex {
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Loop through properties and populate the vertex property id cache and vertex property label id map.
-        final Map<String, Long> vertexPropertyLabelIdMap = new HashMap<>();
+        final Map<String, List<Long>> vertexPropertyLabelIdMap = new HashMap<>();
         final List<Long> vertexPropertyIdCache = new ArrayList<>();
+        final Map<String, List<Object>> vertexPropertyValueMap = new HashMap<>();
         properties.forEach(vp -> {
-            // Get id for vertex property.
-            final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
-
-            // Create a bin for the vertex property name (key) and a bin for the vertex property id.
-            final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, vp.getKey());
-            final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, db.idToStorageType(vertexId.value()));
-
-            // Write vertex property with type hint.
-            db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, vp.getKey(), vp.getValue(), vpkBin, pviBin);
-
-            // Add to label id map.
-            vertexPropertyLabelIdMap.put(vp.getKey(), NumericIdManager.convert(vertexPropertyId.value()));
-
-            // If we have not exceeded our cache, append to the cache.
-            if (vertexPropertyIdCache.size() < db.ID_CACHE_SIZE)
-                vertexPropertyIdCache.add(NumericIdManager.convert(vertexPropertyId.value()));
+            if (!vertexPropertyValueMap.containsKey(vp.getKey())) {
+                vertexPropertyValueMap.put(vp.getKey(), new ArrayList<>());
+            }
+            vertexPropertyValueMap.get(vp.getKey()).add(vp.getValue());
         });
+        vertexPropertyValueMap.forEach((key, value) -> value.forEach(v -> {
+                    // Get id for vertex property.
+                    final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+
+                    // Create a bin for the vertex property name (key) and a bin for the vertex property id.
+                    final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
+                    final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, db.idToStorageType(vertexId.value()));
+
+                    // Write vertex property with type hint.
+                    db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
+
+                    // Add to vertex property ids to map.
+                    if (!vertexPropertyLabelIdMap.containsKey(key)) {
+                        vertexPropertyLabelIdMap.put(key, new ArrayList<>());
+                    }
+                    vertexPropertyLabelIdMap.get(key).add(NumericIdManager.convert(vertexPropertyId.value()));
+
+                    // If we have not exceeded our cache, append to the cache.
+                    if (vertexPropertyIdCache.size() < db.ID_CACHE_SIZE)
+                        vertexPropertyIdCache.add(NumericIdManager.convert(vertexPropertyId.value()));
+                }
+        ));
 
         // Create vertex bins for vertex label, property ids, and property counter.
-        final Bin labelBin = new Bin(db.LABEL, Value.get(label));
+        final Bin labelBin = new Bin(db.V_LABEL_INDEX, Value.get(label));
         final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyLabelIdMap));
         final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdCache.size())));
 
         // Write vertex bins to Aerospike.
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin);
 
-        return new LinkedVertex(vertexId, label, graph, null, null, vertexPropertyLabelIdMap, vertexPropertyIdCache.size(), db);
+        return new LinkedVertex(vertexId, label, graph, null, null, -1, -1, vertexPropertyLabelIdMap, vertexPropertyIdCache.size(), db);
     }
 
     /**
@@ -212,12 +239,12 @@ final public class LinkedVertex extends FireflyVertex {
 
 
         // Remove vertex properties.
-        Set<Map.Entry<String, Long>> vpids = new HashSet<>(vertexPropertyIds.entrySet());
+        Set<Map.Entry<String, List<Long>>> vpids = new HashSet<>(vertexPropertyIds.entrySet());
         vpids.forEach(entry ->
                 // Note, use removeVertexProperty() function because it
                 // negates trying to remove the vertex property from the vertex.
                 removeVertexProperty(entry.getKey(),
-                        FireflyId.createFromUser(graph, FireflyVertexProperty.class, entry.getValue())));
+                        FireflyId.of(FireflyVertexProperty.class, entry.getValue())));
 
         // Remove vertex.
         LOG.debug("Removing Vertex {}.", id.value().toString());
@@ -255,11 +282,13 @@ final public class LinkedVertex extends FireflyVertex {
      * @return Iterator of all incoming edge ids.
      */
     private Iterator<Long> getInEdgeIds() {
+        refreshVertexIfInvalid();
+
         final List<Long> data = new ArrayList<>();
         if (inEdgeIds != null) {
             inEdgeIds.values().forEach(data::addAll);
         }
-        return (this.inEdgeIds != null) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.IN);
+        return (inEdgeCount != -1) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.IN);
     }
 
     /**
@@ -268,11 +297,13 @@ final public class LinkedVertex extends FireflyVertex {
      * @return Iterator of all outgoing edge ids.
      */
     private Iterator<Long> getOutEdgeIds() {
+        refreshVertexIfInvalid();
+
         final List<Long> data = new ArrayList<>();
         if (outEdgeIds != null) {
             outEdgeIds.values().forEach(data::addAll);
         }
-        return (this.outEdgeIds != null) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.OUT);
+        return (outEdgeCount != -1) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.OUT);
     }
 
     /**
@@ -335,7 +366,7 @@ final public class LinkedVertex extends FireflyVertex {
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
         final Map<String, FireflyVertexProperty<V>> vertexProperties = new HashMap<>();
-        for (final Map.Entry<String, Long> vertexPropertyId : vertexPropertyIds.entrySet()) {
+        for (final Map.Entry<String, List<Long>> vertexPropertyId : vertexPropertyIds.entrySet()) {
             // Get the properties for the entry.
             final List<FireflyVertexProperty<V>> vertexPropertyList = new ArrayList<>();
 
@@ -469,8 +500,9 @@ final public class LinkedVertex extends FireflyVertex {
                     vertexPropertyId.value(), id.value(), key);
             return;
         }
-        final Long vertexPropertyIdForKey = vertexPropertyIds.get(key);
-        if (!vertexPropertyIdForKey.equals(vertexPropertyId.value())) {
+
+        final List<Long> vertexPropertyIdsForKey = vertexPropertyIds.get(key);
+        if (!vertexPropertyIdsForKey.equals(vertexPropertyId.value())) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
                     vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
             return;
@@ -480,7 +512,7 @@ final public class LinkedVertex extends FireflyVertex {
         vertexPropertyIds.remove(key);
 
         // Decrement counter
-        final long vpCounter = getVertexPropertyCount() - 1;
+        final long vpCounter = getVertexPropertyCount() - vertexPropertyIdsForKey.size();
 
         // Write back.
         if (vpCounter <= db.ID_CACHE_SIZE - 1) {
@@ -493,8 +525,6 @@ final public class LinkedVertex extends FireflyVertex {
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesCounter);
         }
-
-        // Vertex is still valid since we removed the property from the id map.
     }
 
     /**
@@ -515,15 +545,17 @@ final public class LinkedVertex extends FireflyVertex {
         }
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
-        final Long vertexPropertyId = vertexPropertyIds.get(key);
+        final List<Long> vertexPropertyIdList = vertexPropertyIds.get(key);
         final List<FireflyVertexProperty<?>> vertexProperties = new ArrayList<>();
-        final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, vertexPropertyId);
-        final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
-                db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
-        final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
-                new LinkedVertexProperty(graph, fid, this.id, null, null) :
-                new LinkedVertexProperty(graph, fid, this.id, kv.get().getKey(), kv.get().getValue());
-        vertexProperties.add(vertexProperty);
+        vertexPropertyIdList.forEach(vertexPropertyId -> {
+            final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, vertexPropertyId);
+            final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
+                    db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
+            final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
+                    new LinkedVertexProperty(graph, fid, this.id, null, null) :
+                    new LinkedVertexProperty(graph, fid, this.id, kv.get().getKey(), kv.get().getValue());
+            vertexProperties.add(vertexProperty);
+        });
         return IteratorUtils.asIterator(vertexProperties);
     }
 
@@ -563,12 +595,14 @@ final public class LinkedVertex extends FireflyVertex {
             if (linkedVertex == null) {
                 // TODO: Proper exception type.
                 throw new IllegalStateException("Vertex has been removed.");
-            };
+            }
             this.label = linkedVertex.label;
             this.inEdgeIds = linkedVertex.inEdgeIds;
             this.outEdgeIds = linkedVertex.outEdgeIds;
             this.vertexPropertyCount = linkedVertex.vertexPropertyCount;
             this.vertexPropertyIds = linkedVertex.vertexPropertyIds;
+            this.inEdgeCount = linkedVertex.inEdgeCount;
+            this.outEdgeCount = linkedVertex.outEdgeCount;
             this.valid = true;
         }
     }
@@ -661,6 +695,7 @@ final public class LinkedVertex extends FireflyVertex {
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeIdsBin, edgeCounterBin);
+        valid = false;
     }
 
     /**
@@ -671,7 +706,7 @@ final public class LinkedVertex extends FireflyVertex {
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        LOG.debug("Adding edge {} to vertex {}.", edgeId.value(), id.value());
+        LOG.debug("Adding {} {} edge {} to vertex {}.", edgeLabel, direction.name(), edgeId.value(), id.value());
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
@@ -693,7 +728,7 @@ final public class LinkedVertex extends FireflyVertex {
         }
 
         // Add the edge to the cache in the vertex if the cache has not grown too big.
-        final List<Long> edges = labelEdges.getOrDefault(label, new ArrayList<>());
+        final List<Long> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
         if (edgeCounter < db.ID_CACHE_SIZE)
             edges.add(NumericIdManager.convert(edgeId.value()));
         else
@@ -708,5 +743,6 @@ final public class LinkedVertex extends FireflyVertex {
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(cacheDisabled));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeDataBin, edgeCounterBin, cacheDisabledBin);
+        valid = false;
     }
 }

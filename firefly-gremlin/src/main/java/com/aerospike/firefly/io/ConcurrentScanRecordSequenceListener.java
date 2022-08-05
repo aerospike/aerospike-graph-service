@@ -30,8 +30,8 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
 
-    public ConcurrentScanRecordSequenceListener(Monitor scanMonitor,
-                                                int maxWaitMs) {
+    public ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
+                                                final int maxWaitMs) {
         this.scanMonitor = scanMonitor;
         this.semaphore = new Semaphore(1);
         this.maxWaitMs = maxWaitMs;
@@ -42,7 +42,7 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
         }
     }
 
-    public void onRecord(Key key, Record record) throws AerospikeException {
+    public void onRecord(final Key key, final Record record) throws AerospikeException {
         results.add(new AbstractMap.SimpleEntry<>(key, record));
         semaphore.release();
     }

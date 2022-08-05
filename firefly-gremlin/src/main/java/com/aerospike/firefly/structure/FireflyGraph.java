@@ -109,11 +109,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
 
-    public abstract FireflyVertex writeVertex(FireflyId idValue, String label, List<Map.Entry<String, Object>> properties);
+    public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
     public abstract FireflyVertex readVertex(final FireflyId idValue);
-    public abstract FireflyEdge writeEdge(FireflyId edgeId, String label, List<Map.Entry<String, Object>> properties, FireflyVertex inVertex, FireflyVertex outVertex);
+    public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
-    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value);
+    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
     public abstract boolean vertexExists(final FireflyId idValue);
     public abstract boolean edgeExists(final FireflyId idValue);
     public abstract boolean vertexPropertyExists(final FireflyId idValue);
@@ -122,21 +122,20 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract <V> void writeGraphVariable(final String key, final V value);
     public abstract <V> V readGraphVariable(final String key);
     public abstract void removeGraphVariable(final String key);
-    public abstract Iterator<?> readElementIds(final Class<? extends FireflyElement> type);
 
-    public abstract void removeProperty(FireflyElement element, String key);
+    public abstract void removeProperty(final FireflyElement element, final String key);
 
     public abstract long getVertexCount();
     public abstract long getEdgeCount();
 
-    public abstract Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(String key, Object value);
-    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(String key, P<?> predicate);
-    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(String key, P<?> predicate);
-    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(Object value);
-    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value);
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(String key, Object value);
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate);
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate);
+    public abstract Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(final String key, final Object value);
+    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(final String key, final P<?> predicate);
+    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(final String key, final P<?> predicate);
+    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(final String key, final P<?> predicate);
+    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(final String key, final P<?> predicate);
 
 
     @Override
@@ -253,7 +252,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
-                readElementIds(FireflyEdge.class) :
+                db.readElementIds(FireflyEdge.class) :
                         Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
     }
 

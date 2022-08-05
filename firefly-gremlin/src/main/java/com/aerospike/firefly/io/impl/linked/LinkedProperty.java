@@ -6,6 +6,10 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class LinkedProperty<V> extends FireflyProperty<V> {
     private final FireflyGraph graph;
     private final FireflyElement fireflyElement;

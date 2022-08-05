@@ -96,14 +96,15 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         // Write the vertex property to the database
         final AerospikeConnection db = graph.getBaseGraph();
         final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, db.idToStorageType(vertex.id()));
+        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, AerospikeConnection.idToStorageType(vertex.id()));
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
 
         // Return the vertex property.
         return new LinkedVertexProperty<>(graph, vpid, vertex.id, key, value);
     }
 
-    public static void removeVertexProperty(FireflyGraph graph, FireflyId id) {
+    public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
+        LOG.debug("Removing vertex property {}", id.value());
         final AerospikeConnection db = graph.getBaseGraph();
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
     }

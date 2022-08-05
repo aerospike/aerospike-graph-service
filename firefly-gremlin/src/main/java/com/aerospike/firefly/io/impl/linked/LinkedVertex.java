@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -134,14 +133,6 @@ final public class LinkedVertex extends FireflyVertex {
                 (Map<String, List<Long>>) record.record.getMap(db.OUT_EDGES) : null;
 
         // Create LinkedVertex.
-        System.out.println("Vertex: " + id.value());
-        System.out.println("\tlabel: " + label);
-        System.out.println("\tinE: " + inEdgeIds);
-        System.out.println("\toutE: " + outEdgeIds);
-        System.out.println("\tinECount: " + inEdgeCount);
-        System.out.println("\toutECount: " + outEdgeCount);
-        System.out.println("\tvp: " + vertexProperties);
-        System.out.println("\tvp count: " + vertexPropertyCount);
         return new LinkedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexProperties, vertexPropertyCount, db);
     }
 
@@ -219,20 +210,37 @@ final public class LinkedVertex extends FireflyVertex {
         refreshVertexIfInvalid();
 
         // Collect edges in both directions.
-        Iterator<Long> edgeIds = getEdgeIdsFromVertex(Direction.BOTH);
+        Iterator<Long> inEdgeIds = getEdgeIdsFromVertex(Direction.IN);
+        Iterator<Long> outEdgeIds = getEdgeIdsFromVertex(Direction.OUT);
 
         // Take list of ids and convert to a set so we can remove duplicates.
-        final Set<Long> edgeIdSet = new HashSet<>();
-        while (edgeIds.hasNext()) {
-            edgeIdSet.add(edgeIds.next());
+        final Set<Long> inEdgeIdSet = new HashSet<>();
+        final Set<Long> outEdgeIdSet = new HashSet<>();
+        while (inEdgeIds.hasNext()) {
+            inEdgeIdSet.add(inEdgeIds.next());
+        }
+        while (outEdgeIds.hasNext()) {
+            outEdgeIdSet.add(outEdgeIds.next());
         }
 
-        // Remove edge. Note, using removeEdge() function because it
-        // negates trying to remove the edge from the vertex.
-        edgeIdSet.forEach(edgeId -> {
-            FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
+        // Remove edge. Note, using removeEdge() function because it negates trying to remove the edge from the vertex.
+        // Also remove edge from vertex.
+        inEdgeIdSet.forEach(edgeId -> {
+            final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
                 edge.removeEdge();
+                final LinkedVertex vertex = (LinkedVertex) edge.outVertex();
+                vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
+            } else {
+                LOG.warn("Edge {} not found when removing vertex {}.", edgeId, id.value());
+            }
+        });
+        outEdgeIdSet.forEach(edgeId -> {
+            final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
+            if (edge != null) {
+                edge.removeEdge();
+                final LinkedVertex vertex = (LinkedVertex) edge.inVertex();
+                vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
             } else {
                 LOG.warn("Edge {} not found when removing vertex {}.", edgeId, id.value());
             }
@@ -240,15 +248,16 @@ final public class LinkedVertex extends FireflyVertex {
 
 
         // Remove vertex properties.
-        Set<Map.Entry<String, List<Long>>> vpids = new HashSet<>(vertexPropertyIds.entrySet());
-        vpids.forEach(entry ->
-                // Note, use removeVertexProperty() function because it
-                // negates trying to remove the vertex property from the vertex.
-                removeVertexProperty(entry.getKey(),
-                        FireflyId.of(FireflyVertexProperty.class, entry.getValue())));
+        final Set<Map.Entry<String, List<Long>>> vertexPropertyIdMap = new HashSet<>(vertexPropertyIds.entrySet());
+        vertexPropertyIdMap.forEach(entry -> {
+            // Note, use LinkedVertexProperty.removeVertexProperty() function because it negates trying to remove
+            // the vertex property from the vertex.
+            final List<Long> vertexPropertyIdList = entry.getValue();
+            vertexPropertyIdList.forEach(id -> LinkedVertexProperty.removeVertexProperty(graph, FireflyId.of(FireflyVertexProperty.class, id)));
+        });
 
         // Remove vertex.
-        LOG.debug("Removing Vertex {}.", id.value().toString());
+        LOG.debug("Removing vertex {}.", id.value().toString());
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id.toNumericId()));
 
         // Set flags to indicate vertex has been removed.
@@ -495,7 +504,7 @@ final public class LinkedVertex extends FireflyVertex {
      */
     @Override
     public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
-        LOG.debug("Removing vertex property {} to vertex {}.", vertexPropertyId.value(), id.value());
+        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
         refreshVertexIfInvalid();
 
         if (!vertexPropertyIds.containsKey(key)) {

@@ -64,74 +64,6 @@ final public class LinkedGraph extends FireflyGraph {
                 db.getElementPropertySet(element.getClass()), key);
     }
 
-    /**
-     * Get a list of currently valid ids
-     *
-     * @param type type of Element
-     * @return Iterator of raw Ids
-     */
-    @Override
-    public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
-        final AerospikeConnection.IdConfig cfg = new AerospikeConnection.IdConfig(db, type);
-        return scanAllIdsInSet(cfg.getAeroSet());
-    }
-
-    /**
-     * Return an iterator of all the (raw) ids in a set
-     *
-     * @param setName name of Aerospike set to scan
-     * @return an Iterator of raw Long id values
-     */
-    private Iterator<Long> scanAllIdsInSet(final String setName) {
-        //@todo performance
-        LOG.trace("Scanning {} ids.", setName);
-        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
-    }
-
-    @Override
-    protected Iterator<Long> scanAllVertices() {
-        //@todo performance
-        LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
-    }
-
-    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
-        LOG.trace("Scanning all ids in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(setName, exp, policy, binNames);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param setName  Aerospike set name to scan
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of Map.Entry Key, Record
-     */
-    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
-        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", db.getNamespace(), setName, Arrays.toString(binNames), exp);
-        final Throttles throttles = new Throttles(db.getEventLoops().getSize(), db.getCommandsPerLoop());
-        final Monitor scanMonitor = new Monitor();
-        final int progressFreq = 100;
-        policy.sendKey = true;
-        if (exp != null) policy.filterExp = exp;
-        final ScanRecordSequenceListener listener = new ScanRecordSequenceListener(db.getEventLoops(), throttles, scanMonitor, db.getClient(), progressFreq);
-        db.getClient().scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), setName, binNames);
-        //@todo performance
-        // should return custom iterator that produces results while query is running
-        // custom iterator .hasNext() should return false once query is complete
-        scanMonitor.waitTillComplete();
-
-        return listener.iterator();
-    }
-
     @Override
     public FireflyVertex writeVertex(FireflyId idValue, String label, List<Map.Entry<String, Object>> properties) {
         return LinkedVertex.writeVertex(this, idValue, label, properties);
@@ -450,6 +382,13 @@ final public class LinkedGraph extends FireflyGraph {
                 LinkedVertexProperty.fromRecord(this, FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+    }
+
+    protected Iterator<Long> scanAllVertices() {
+        //@todo performance
+        LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
+        final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
     }
 
     @Override

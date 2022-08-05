@@ -182,7 +182,7 @@ final public class LinkedEdge extends FireflyEdge {
     @Override
     public void removeEdge() {
         // Remove edge.
-        LOG.debug("Removing Edge {}.", this.id.value().toString());
+        LOG.debug("Removing edge {}.", this.id.value().toString());
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, id.toNumericId()));
 
         // Set flags to indicate vertex has been removed.

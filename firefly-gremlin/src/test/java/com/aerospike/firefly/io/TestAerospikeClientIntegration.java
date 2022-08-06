@@ -128,6 +128,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
             assertTrue(i.hasNext());
             Long a = i.next();
+            assertTrue(i.hasNext());
             assertTrue(ids.contains(a));
             Long b = i.next();
             assertTrue(ids.contains(b));

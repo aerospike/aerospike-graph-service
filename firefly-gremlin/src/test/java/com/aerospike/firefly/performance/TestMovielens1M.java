@@ -1,12 +1,12 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,12 +20,11 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- */
+*/
 public class TestMovielens1M extends AbstractFireflySuite {
 
     private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
     private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
-
 
     private GraphTraversalSource g;
 
@@ -52,10 +51,9 @@ public class TestMovielens1M extends AbstractFireflySuite {
     }
 
     @Before
-    public void openGraphFetchData() {
+    public void createTraversal() {
         g = graph.traversal();
     }
-
 
     @Test
     public void testYearExtraction() {

@@ -92,10 +92,10 @@ public class Movielens {
                 {
                     add(MOVIE_ID);
                     add(movieId);
-                    add("name");
+                    add(NAME);
                     add(movieTitle);
                     add(T.label);
-                    add("movie");
+                    add(MOVIE);
                 }
             };
             int movieYear = -1;
@@ -120,7 +120,7 @@ public class Movielens {
             movieIdCache.put(movieId, (Long) mv.id());
             results.add(mv);
             metric.incrementAndGet();
-            periodicLog("movie", metric.get(), timer);
+            periodicLog(MOVIE, metric.get(), timer);
 
             return results.iterator();
         }
@@ -135,6 +135,7 @@ public class Movielens {
         private static final List<String> format = List.of("UserID::Gender::Age::Occupation::Zip-code".split("::"));
         private static final String USER_ID = "userId";
         private static final String AGE = "age";
+        private static final String PERSON = "person";
         public final int userId;
         public final boolean gender;
         public final int age;
@@ -171,7 +172,7 @@ public class Movielens {
 
         public Iterator<Vertex> loadVertices(final Graph graph, AtomicLong metric, AtomicLong timer) {
             ArrayList<Vertex> results = new ArrayList<Vertex>();
-            Vertex uv = graph.addVertex(T.label, "person",
+            Vertex uv = graph.addVertex(T.label, PERSON,
                     USER_ID, this.userId,
                     GENDER, this.gender,
                     AGE, this.age,

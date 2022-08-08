@@ -34,6 +34,7 @@ public final class ConfigurationHelper {
     public static class Keys {
 
 
+
         public static class Sets {
 
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
@@ -46,6 +47,7 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
         }
 
+        public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
@@ -146,6 +148,7 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
+        put(Keys.SCAN_MAX_WAIT,"2000");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");

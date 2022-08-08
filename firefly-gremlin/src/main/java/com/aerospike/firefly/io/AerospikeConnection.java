@@ -241,13 +241,11 @@ public class AerospikeConnection {
         final int progressFreq = 100;
         policy.sendKey = true;
         if (exp != null) policy.filterExp = exp;
-        final ScanRecordSequenceListener listener = new ScanRecordSequenceListener(getEventLoops(), throttles, scanMonitor, getClient(), progressFreq);
-        getClient().scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
-        //@todo performance
-        // should return custom iterator that produces results while query is running
-        // custom iterator .hasNext() should return false once query is complete
-        scanMonitor.waitTillComplete();
 
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
+                scanMonitor,
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
+        client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
         return listener.iterator();
     }
 

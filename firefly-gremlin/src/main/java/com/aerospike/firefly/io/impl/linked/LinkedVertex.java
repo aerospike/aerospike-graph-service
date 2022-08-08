@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.linked;
 
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
@@ -10,14 +11,15 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.ScanRecordSequenceListener;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -449,14 +451,11 @@ final public class LinkedVertex extends FireflyVertex {
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
-        final ScanRecordSequenceListener listener = new ScanRecordSequenceListener(
-                db.getEventLoops(), throttles, scanMonitor, db.getClient(), progressFreq);
-        db.getClient().scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), db.EDGE_AERO_SET);
-        //  TODO: performance
-        //      should return custom iterator that produces results while query is running
-        //      custom iterator .hasNext() should return false once query is complete
-        scanMonitor.waitTillComplete();
-
+        final AerospikeClient client = db.getClient();
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
+                scanMonitor,
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)));
+        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
         return listener.iterator();
     }
 
@@ -650,6 +649,8 @@ final public class LinkedVertex extends FireflyVertex {
         final Bin edgeData = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(labelIds));
         final Bin edgeCounterBin = new Bin(db.VP_COUNTER, Value.get(vpCounter));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeData, edgeCounterBin);
+
+        // TODO: Update vertex and do not invalidate.
         valid = false;
     }
 
@@ -670,6 +671,7 @@ final public class LinkedVertex extends FireflyVertex {
         // Get existing firefly record for the vertex.
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
         if (fireflyRecord == null || fireflyRecord.record == null) {
+            // TODO: Update vertex and do not invalidate.
             valid = false;
             return;
         }
@@ -711,6 +713,8 @@ final public class LinkedVertex extends FireflyVertex {
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeIdsBin, edgeCounterBin);
+
+        // TODO: Update vertex and do not invalidate.
         valid = false;
     }
 
@@ -759,6 +763,8 @@ final public class LinkedVertex extends FireflyVertex {
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(cacheDisabled));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeDataBin, edgeCounterBin, cacheDisabledBin);
+
+        // TODO: Update vertex and do not invalidate.
         valid = false;
     }
 }

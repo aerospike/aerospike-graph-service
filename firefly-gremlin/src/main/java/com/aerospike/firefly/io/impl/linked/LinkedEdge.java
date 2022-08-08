@@ -54,37 +54,6 @@ final public class LinkedEdge extends FireflyEdge {
         this.db = graph.getBaseGraph();
     }
 
-    protected FireflyProperty writeProperty(final FireflyElement element, final String key, final Object value) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        FireflyHelper.validatePropertyValue(value);
-        db.writeTypeHintedValueToMap(
-                db.getElementPropertySet(FireflyEdge.class),
-                id,
-                db.getElementPropertySet(FireflyEdge.class),
-                key,
-                value);
-        return new LinkedProperty<>(graph, this, key, value);
-    }
-
-    protected Map<String, Property> readProperties() {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db,
-                db.getElementPropertySet(FireflyEdge.class), FireflyId.fromElement(this).toNumericId());
-        if (fireflyRecord == null)
-            return new HashMap<>();
-
-        final Map<String, Property> result = new HashMap<>();
-        final Map<String, Object> data = (Map<String, Object>) fireflyRecord.record.getMap(
-                db.getElementPropertySet(FireflyEdge.class));
-        if (data == null)
-            return result;
-        data.forEach((key1, value) -> {
-            Property<Object> prop = readProperty(this, key1);
-            result.put(key1, prop);
-        });
-        return result;
-    }
-
     /**
      * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
      * construct and return a Property from the value associated with k in the ELEMENT_PROPERTIES map

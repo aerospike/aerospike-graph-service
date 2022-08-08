@@ -97,19 +97,20 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
             return VertexProperty.empty();
         }
 
-        // final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        // if (optionalVertexProperty.isPresent()) {
-        //     return optionalVertexProperty.get();
-        // }
+        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+        if (optionalVertexProperty.isPresent()) {
+            return optionalVertexProperty.get();
+        }
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         }
 
         // Create Firefly id for vertex property.
-        final FireflyId vertexPropertyId = FireflyId.createFromKeyValuesOrManager(graph, FireflyVertexProperty.class, keyValues);
+        final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
+        ElementHelper.attachProperties(vertexProperty, keyValues);
 
         // Return vertex property.
         return vertexProperty;

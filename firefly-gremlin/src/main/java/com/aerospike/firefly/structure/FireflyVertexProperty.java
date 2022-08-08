@@ -71,25 +71,24 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
     public <U> Property<U> property(final String key, final U value) {
         if (this.removed) throw elementAlreadyRemoved(VertexProperty.class, id);
 
-
         if ((!allowNullPropertyValues && null == value)) {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
 
-        return graph.writeVertexProperty(this.vertexId, graph.readVertex(vertexId), key, value);
+        return graph.writeProperty(this, key, value);
     }
 
     @Override
-    public <V> Iterator<Property<V>> properties(String... propertyKeys) {
+    public <V> Iterator<Property<V>> properties(final String... propertyKeys) {
         if (propertyKeys.length == 1) {
-            final Property<V> property = graph.readVertex(vertexId).property(propertyKeys[0]);
+            final Property<V> property = graph.readProperty(this, propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
         } else {
-            Iterator<Map.Entry<String, VertexProperty<Object>>> vertexProperties = graph.readVertex(vertexId).readVertexProperties();
+            Iterator<Map.Entry<String, Property<Object>>> properties = graph.readProperties(this).entrySet().iterator();
             return IteratorUtils.map(
                     IteratorUtils.filter(
-                            IteratorUtils.asIterator(vertexProperties),
+                            IteratorUtils.asIterator(properties),
                     entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),
                     entry -> ((AbstractMap.Entry) entry).getValue());
         }

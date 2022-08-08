@@ -26,11 +26,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     protected final FireflyId outVid;
 
     public abstract void removeEdge();
-    protected abstract FireflyProperty writeProperty(final FireflyElement fireflyElement, final String key, final Object value);
-    protected abstract Map<String, Property> readProperties();
 
-
-    public FireflyEdge(FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
+    public FireflyEdge(final FireflyId id, final String label, final FireflyId outVid, final FireflyId inVid, final FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;
@@ -67,14 +64,14 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public <V> Property<V> property(final String key) {
-        Map<String, Property> properties = readProperties();
+        final Map<String, Property<V>> properties = graph.readProperties(this);
         return properties == null ?
                 Property.empty() :
                 properties.getOrDefault(key, Property.empty());
     }
 
     @Override
-    public <V> Property<V> property(String key, V value) {
+    public <V> Property<V> property(final String key, final V value) {
         FireflyHelper.legalPropertyKeyValueArray(key, value);
         if (isHidden(key))
             throw Edge.Exceptions.labelCanNotBeAHiddenKey(key);
@@ -83,7 +80,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
-        return this.writeProperty(this, key, value);
+        return graph.writeProperty(this, key, value);
     }
 
     @Override
@@ -100,8 +97,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     }
 
     @Override
-    public <V> Iterator<Property<V>> properties(String... propertyKeys) {
-        Map<String, Property> properties = this.readProperties();
+    public <V> Iterator<Property<V>> properties(final String... propertyKeys) {
+        Map<String, Property<V>> properties = graph.readProperties(this);
         if (propertyKeys.length == 1) {
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);

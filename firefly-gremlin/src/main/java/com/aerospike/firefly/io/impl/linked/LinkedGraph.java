@@ -2,19 +2,15 @@ package com.aerospike.firefly.io.impl.linked;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.async.Monitor;
-import com.aerospike.client.async.Throttles;
-import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.ScanRecordSequenceListener;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -24,11 +20,11 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -390,6 +386,22 @@ final public class LinkedGraph extends FireflyGraph {
         final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
         return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
     }
+
+    @Override
+    public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
+        return LinkedProperty.writeProperty(this, element, key, value);
+    }
+
+    @Override
+    public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
+        return LinkedProperty.readProperties(this, element);
+    }
+
+    @Override
+    public <V> Property<V> readProperty(final FireflyElement element, final String key) {
+        return LinkedProperty.readProperty(this, element, key);
+    }
+
 
     @Override
     public long getVertexCount() {

@@ -1120,4 +1120,24 @@ public class AerospikeConnection {
         LOG.info("Closing event loop.");
         this.eventLoops.close();
     }
+
+
+
+    Iterator<Record> outEdgesBulk(){
+        return null;
+    }
+    Iterator<Record> getNeighborhood(FireflyId startingPoint){
+        FireflyRecord startingRecord = vertexBackend.getVertexRecord(startingPoint);
+        return null;
+    }
+
+
+
+
+
+
+
+
+
+
 }

@@ -4,6 +4,8 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPrimeCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPurgeCacheStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -14,6 +16,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -32,9 +35,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.structure.util.FireflyHelper.validateVertexId;
 import static com.aerospike.firefly.structure.util.FireflyHelper.writeFullyQualifiedVertex;
-import static com.aerospike.firefly.structure.util.FireflyHelper.writeVertex;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -114,7 +115,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         TraversalStrategies.GlobalCache.registerStrategies(
                 FireflyGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(OptionsStrategy.build().create())
+                        .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
+                        .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
     }
 
 

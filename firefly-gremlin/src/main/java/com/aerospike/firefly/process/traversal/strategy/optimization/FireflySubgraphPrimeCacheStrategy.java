@@ -1,0 +1,57 @@
+package com.aerospike.firefly.process.traversal.strategy.optimization;
+
+import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ */
+public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy> implements TraversalStrategy.ProviderOptimizationStrategy {
+    Logger LOG = LoggerFactory.getLogger(FireflySubgraphPrimeCacheStrategy.class);
+    private static final FireflySubgraphPrimeCacheStrategy INSTANCE = new FireflySubgraphPrimeCacheStrategy();
+
+    private FireflySubgraphPrimeCacheStrategy() {
+    }
+
+    @Override
+    public void apply(final Traversal.Admin<?, ?> traversal) {
+        if (TraversalHelper.onGraphComputer(traversal))
+            return;
+
+        //Do we have a specific starting point? if not, don't run
+        if (((FireflyGraphStep) traversal.getStartStep()).getIds().length != 1)
+            return;
+        List<Step> outSteps = traversal.getSteps().stream().filter(step -> VertexStep.class.isAssignableFrom(step.getClass())).filter(vertexStep -> {
+            return ((VertexStep) vertexStep).getDirection() == Direction.OUT;
+        }).collect(Collectors.toList());
+        //@todo this is to simple, it should be 2 out steps off the starting point
+        if (outSteps.size() < 2)
+            return;
+
+        UUID cacheId = UUID.randomUUID();
+        LOG.info("will init cache with id: " + cacheId);
+
+        final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
+        traversal.addStep(0, cacheStep);
+    }
+
+    public static FireflySubgraphPrimeCacheStrategy instance() {
+        return INSTANCE;
+    }
+}

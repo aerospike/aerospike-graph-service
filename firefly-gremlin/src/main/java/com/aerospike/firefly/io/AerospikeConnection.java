@@ -658,7 +658,7 @@ public class AerospikeConnection {
                                             final String mapKey) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null || !fireflyRecord.record.getMap(mapName).containsKey(mapKey))
-            throw new NoSuchElementException();
+            return null;
         final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
         if (!map.isPresent())
             return null;
@@ -688,7 +688,7 @@ public class AerospikeConnection {
                                                                           final String mapName) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null || fireflyRecord.record == null || fireflyRecord.record.getMap(mapName).size() == 0)
-            throw new NoSuchElementException();
+            return null;
         final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
         if (!map.isPresent())
             return null;

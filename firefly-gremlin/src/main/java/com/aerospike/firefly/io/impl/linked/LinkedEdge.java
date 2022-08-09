@@ -27,10 +27,9 @@ import java.util.Map;
  */
 final public class LinkedEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedEdge.class);
-
-    private List<Map.Entry<String, Object>> edgeProperties;
     private AerospikeConnection db;
-    private boolean valid;
+
+    // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
     /**
      * Constructor for LinkedEdge.
@@ -38,38 +37,16 @@ final public class LinkedEdge extends FireflyEdge {
      * @param fid            FireflyId to use.
      * @param label          Edge label.
      * @param graph          FireflyGraph to use.
-     * @param edgeProperties Edge properties
      * @param outVertex      Edge out vertex.
      * @param inVertex       Edge in vertex.
      */
     private LinkedEdge(final FireflyId fid,
                        final String label,
                        final FireflyGraph graph,
-                       final List<Map.Entry<String, Object>> edgeProperties,
                        final FireflyId outVertex,
                        final FireflyId inVertex) {
         super(fid, label, outVertex, inVertex, graph);
-        this.valid = true;
-        this.edgeProperties = edgeProperties;
         this.db = graph.getBaseGraph();
-    }
-
-    /**
-     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
-     * construct and return a Property from the value associated with k in the ELEMENT_PROPERTIES map
-     *
-     * @param element Element to read property from
-     * @param key     property key
-     * @param <V>     type
-     * @return Property
-     */
-    private <V> Property<V> readProperty(final FireflyElement element, final String key) {
-        return new LinkedProperty<>(graph, element, key,
-                db.readTypeHintedValueFromMap(
-                        db.getElementPropertySet(FireflyEdge.class),
-                        FireflyId.fromElement(element).toNumericId(),
-                        db.getElementPropertySet(FireflyEdge.class),
-                        key));
     }
 
     /**
@@ -123,11 +100,11 @@ final public class LinkedEdge extends FireflyEdge {
         final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints));
         FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, labelBin, inVbin, outVBin, valueBin, typeHintBin);
-        return new LinkedEdge(edgeId, label, graph, properties, outVertex.id, inVertex.id);
+        return new LinkedEdge(edgeId, label, graph, outVertex.id, inVertex.id);
     }
 
     /**
-     * Read an Edge by id
+     * Read an Edge by the id.
      *
      * @param graph  Graph handle
      * @param edgeId Edge id to read
@@ -143,11 +120,13 @@ final public class LinkedEdge extends FireflyEdge {
         return new LinkedEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, edgeRecord),
                 edgeRecord.record.getString(AerospikeConnection.LABEL),
                 graph,
-                new ArrayList<>(((Map<String, Object>) edgeRecord.record.getMap(db.EDGE_AERO_SET)).entrySet()),
                 FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
                 FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())));
     }
 
+    /**
+     * Remove edge from Aerospike.
+     */
     @Override
     public void removeEdge() {
         // Remove edge.
@@ -156,6 +135,5 @@ final public class LinkedEdge extends FireflyEdge {
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
-        this.valid = false;
     }
 }

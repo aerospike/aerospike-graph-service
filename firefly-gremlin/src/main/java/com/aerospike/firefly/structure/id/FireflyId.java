@@ -86,4 +86,8 @@ public class FireflyId {
         return maybeId.map(o -> createFromUser(graph, type, o)).orElseGet(() -> createFromManager(graph, type));
     }
 
+    @Override
+    public String toString() {
+        return value.toString();
+    }
 }

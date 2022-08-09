@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 
 import java.util.HashMap;
@@ -28,10 +29,14 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
 
     @Override
     public void remove() {
-        final AerospikeConnection db = graph.getBaseGraph();
-        db.removeTypeHintedValueFromMap(db.getElementPropertySet(fireflyElement.getClass()),
-                FireflyId.fromElement(fireflyElement), db.getElementPropertySet(fireflyElement.getClass()), key());
-        graph.removeProperty(fireflyElement, key());
+        try {
+            final AerospikeConnection db = graph.getBaseGraph();
+            db.removeTypeHintedValueFromMap(db.getElementPropertySet(fireflyElement.getClass()),
+                    FireflyId.fromElement(fireflyElement), db.getElementPropertySet(fireflyElement.getClass()), key());
+            graph.removeProperty(fireflyElement, key());
+        } catch (Exception ignored) {
+            // Removing a property that is already removed SHOULD NOT yield an error.
+        }
     }
 
     public static <V> Property<V> writeProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
@@ -43,7 +48,7 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
                 db.getElementPropertySet(element.getClass()),
                 key,
                 value);
-        return new LinkedProperty<V>(graph, element, key, value);
+        return new LinkedProperty<>(graph, element, key, value);
     }
 
     public static <V> Map<String, Property<V>> readProperties(final FireflyGraph graph, final FireflyElement element) {

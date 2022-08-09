@@ -55,7 +55,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_PROPERTY_AERO_SET, id);
         if (fireflyRecord == null)
-            throw new NoSuchElementException();
+            return new LinkedVertexProperty<>(graph, id, parent.id, null, null);
 
         // Read vertex property from record.
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
@@ -111,8 +111,12 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
 
     @Override
     public void remove() {
-        LOG.info("Removing vertex property {}", id.value());
-        graph.readVertex(vertexId).removeVertexProperty(label, id);
-        removeVertexProperty(graph, id);
+        try {
+            LOG.info("Removing vertex property {}", id.value());
+            graph.readVertex(vertexId).removeVertexProperty(label, id);
+            removeVertexProperty(graph, id);
+        } catch (Exception ignored) {
+            // Removing a vertex property that is already removed SHOULD NOT yield an error.
+        }
     }
 }

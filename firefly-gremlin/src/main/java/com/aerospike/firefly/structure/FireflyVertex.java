@@ -79,9 +79,12 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         // If single cardinality, we are setting key to value.
         if (graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single) ||
                 VertexProperty.Cardinality.single.equals(cardinality)) {
-            // If we do not support null and the value is null, we should remove the value.
+            // If single cardinality we should remove existing properties with the same key.
+            properties(key).forEachRemaining(Property::remove);
+
+            // If we do not support null and the value is null, we should return empty.
             if (!allowNullPropertyValues && null == value) {
-                properties(key).forEachRemaining(Property::remove);
+                return VertexProperty.empty();
             }
         }
 
@@ -89,12 +92,15 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         // cardinality is single.
         // If it is list/set then we can just ignore the null.
         final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-        if (!allowNullPropertyValues && null == value) {
-            if (VertexProperty.Cardinality.single == card ||
+        if ((!allowNullPropertyValues && null == value) || VertexProperty.Cardinality.single == card ||
                     graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-                properties(key).forEachRemaining(Property::remove);
+            // If single cardinality we should remove existing properties with the same key.
+            properties(key).forEachRemaining(Property::remove);
+
+            // If we do not support null and the value is null, we should return empty.
+            if (!allowNullPropertyValues && null == value) {
+                return VertexProperty.empty();
             }
-            return VertexProperty.empty();
         }
 
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);

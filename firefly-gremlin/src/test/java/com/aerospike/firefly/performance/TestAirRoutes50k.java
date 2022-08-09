@@ -50,7 +50,6 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         System.out.printf("Air Routes 50k Load Test: %d milliseconds elapsed%n", delta);
     }
 
-
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {
         PerfUtil.Results results = PerfUtil.runTestBatch(200, () -> {

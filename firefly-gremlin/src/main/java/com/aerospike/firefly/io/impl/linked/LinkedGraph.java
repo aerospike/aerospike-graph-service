@@ -148,19 +148,6 @@ final public class LinkedGraph extends FireflyGraph {
     }
 
     /**
-     * Determine if a vertex property exists.
-     *
-     * @param vpId vertex property id to check.
-     * @return true if vertex property exists, false otherwise.
-     */
-    @Override
-    public boolean vertexPropertyExists(final FireflyId vpId) {
-        LOG.debug("Checking if vertex property {} exists.", vpId.value());
-        final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vpId.toNumericId());
-        return db.exists(key);
-    }
-
-    /**
      * Return a Graph variable value by name
      *
      * @param key Graph variable key
@@ -206,7 +193,6 @@ final public class LinkedGraph extends FireflyGraph {
     public void removeGraphVariable(final String key) {
         db.removeTypeHintedValueFromMap(db.GRAPH_VARIABLES_SET, FireflyId.of(null, db.GRAPH_VARIABLES_RECORD), db.GRAPH_VARIABLES_MAP, key);
     }
-
 
     /**
      * Lookup Edges with a particular property value by index
@@ -411,7 +397,6 @@ final public class LinkedGraph extends FireflyGraph {
     public <V> Property<V> readProperty(final FireflyElement element, final String key) {
         return LinkedProperty.readProperty(this, element, key);
     }
-
 
     @Override
     public long getVertexCount() {

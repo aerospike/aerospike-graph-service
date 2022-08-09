@@ -110,7 +110,6 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
 //        return FireflyGraph.DefaultIdManager.ANY;
     }
 
-
     @Override
     public Map<String, Object> getBaseConfiguration(final String graphName,
                                                     final Class<?> test,

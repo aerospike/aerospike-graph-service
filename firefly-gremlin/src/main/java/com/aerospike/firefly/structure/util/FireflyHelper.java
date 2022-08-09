@@ -146,7 +146,6 @@ public final class FireflyHelper {
         return graph.queryEdgeLabelStringIndex(value);
     }
 
-
     public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
         return IteratorUtils.map(graph.queryVertexPropertyStringIndex(key, value), FireflyVertexProperty::element);
     }

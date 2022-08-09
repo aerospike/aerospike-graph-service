@@ -185,7 +185,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(0, (long) g.V().count().next());
     }
 
-
     @Test
     public void testWrite2VertexWithEdge() {
         GraphTraversalSource g = graph.traversal();
@@ -222,7 +221,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
     }
 
-
     @Test
     public void testEdgeNumericIndexLong() {
         GraphTraversalSource g = graph.traversal();
@@ -253,7 +251,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             fail();
         }
     }
-
 
     @Test
     public void testVertexNumericIndexLong() {
@@ -346,7 +343,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             fail();
         }
     }
-
 
     @Test
     public void testReadWriteRemoveEdgeProperty() {
@@ -503,11 +499,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     //     assertTrue(x.contains(next));
     // }
 
-
     public static void validateException(final Throwable expected, final Throwable actual) {
         assertThat(actual, instanceOf(expected.getClass()));
     }
-
 
     public void tryCommit(final Graph graph, final Consumer<Graph> assertFunction) {
         assertFunction.accept(graph);
@@ -576,7 +570,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final HashMap<String, Object> configMap = new HashMap<>();
         graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
-
 
         Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));
         targetGraph.traversal().V().drop().iterate();

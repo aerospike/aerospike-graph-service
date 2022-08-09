@@ -109,7 +109,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
     }
 
-
 //    @Test
 //    public void testScanVertexIds() {
 //        try (FireflyGraph graph = FireflyGraph.open(config)) {
@@ -146,7 +145,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
         }
     }
-
 
     //@Test
     //public void testScanEdgeIds() {
@@ -475,7 +473,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                     addV("user-id-vertex").property(T.id, 3L).
                     iterate();
             assertEquals(3L, g.V().count().next().longValue());
-
 
             // "1", 2, and 3L were inserted and should be retrieved as such.
             final Set<Vertex> actualVertices = g.V().toSet();

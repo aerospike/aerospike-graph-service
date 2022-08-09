@@ -24,7 +24,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     /**
      * Constructor for LinkedVertexProperty.
      *
-     * @param graph  Graph to use.
+     * @param graph  Graph that vertex property exists on.
      * @param id     Id of vertex property.
      * @param vertex Vertex.
      * @param key    Key of vertex property.
@@ -39,6 +39,15 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         this.vertex = vertex;
     }
 
+    /**
+     * Additional private constructor for creating a property from a record.
+     *
+     * @param graph    Graph that vertex property exists on.
+     * @param id       Id of vertex property.
+     * @param vertexId Id of vertex.
+     * @param key      Key of vertex property.
+     * @param value    Value of vertex property.
+     */
     private LinkedVertexProperty(final FireflyGraph graph,
                                  final FireflyId id,
                                  final FireflyId vertexId,
@@ -77,6 +86,15 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
                 new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, kv.get().getKey(), kv.get().getValue());
     }
 
+    /**
+     * Create vertex property from a record.
+     *
+     * @param graph         Graph that property exists on.
+     * @param fireflyRecord Record to create vertex property from
+     * @param parentId      Id of parent vertex.
+     * @param <V>           Type of value.
+     * @return The vertex property.
+     */
     public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
@@ -113,12 +131,21 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
     }
 
+    /**
+     * Remove a vertex property.
+     *
+     * @param graph Graph to remove vertex property from.
+     * @param id    Id of vertex property.
+     */
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
         LOG.debug("Removing vertex property {}", id.value());
         final AerospikeConnection db = graph.getBaseGraph();
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
     }
 
+    /**
+     * Remove this vertex property.
+     */
     @Override
     public void remove() {
         try {

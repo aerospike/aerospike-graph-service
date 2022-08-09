@@ -61,7 +61,6 @@ public class TestPerformance extends AbstractFireflySuite {
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
 
-
     @Test
     public void createAndIterateTree() {
         final String ADD_ELEMENTS = "addElements";

@@ -249,7 +249,6 @@ public class AerospikeConnection {
         return listener.iterator();
     }
 
-
     public EventLoops getEventLoops() {
         return eventLoops;
     }
@@ -296,7 +295,6 @@ public class AerospikeConnection {
             return ID_BIN;
         }
     }
-
 
     public static class InfoOps {
         private static class Keys {
@@ -385,7 +383,6 @@ public class AerospikeConnection {
         }
     }
 
-
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
         put(Integer.class, Long.class);
@@ -457,7 +454,6 @@ public class AerospikeConnection {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
         return SupportedValueTypes.get(clazz);
     }
-
 
     /**
      * Create Indexes for Firefly
@@ -590,7 +586,6 @@ public class AerospikeConnection {
     public void delete(final Key key) {
         client.delete(null, key);
     }
-
 
     /**
      * query if the connected Aerospike instance is licenced for Enterprise Edition
@@ -963,7 +958,6 @@ public class AerospikeConnection {
     public void dropDatabase() {
         dropDatabase(false);
     }
-
 
     /**
      * drop an Aerospike Index

@@ -12,7 +12,6 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import java.io.Serializable;
 import java.util.Optional;
 
-
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -33,7 +32,6 @@ public class FireflyId {
     public FireflyId toNumericId() {
         return new FireflyId(type, NumericIdManager.convert(value));
     }
-
 
     public Object value() {
         return value;

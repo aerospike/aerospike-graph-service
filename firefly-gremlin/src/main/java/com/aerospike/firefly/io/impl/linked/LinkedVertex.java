@@ -144,7 +144,6 @@ final public class LinkedVertex extends FireflyVertex {
         return new LinkedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexProperties, vertexPropertyCount, db);
     }
 
-
     /**
      * Write and construct a FireflyVertex using the provided parameters.
      * This function is static because it is used by the LinkedGraph
@@ -251,7 +250,6 @@ final public class LinkedVertex extends FireflyVertex {
                 LOG.warn("Edge {} not found when removing vertex {}.", edgeId, id.value());
             }
         });
-
 
         // Remove vertex properties.
         final Set<Map.Entry<String, List<Long>>> vertexPropertyIdMap = new HashSet<>(vertexPropertyIds.entrySet());
@@ -401,7 +399,6 @@ final public class LinkedVertex extends FireflyVertex {
         return IteratorUtils.asIterator(vertexProperties);
     }
 
-
     /**
      * Read the vertex properties for the associated Vertex.
      * the vertex record has a Map[String,List[ID]] inside it.
@@ -519,8 +516,8 @@ final public class LinkedVertex extends FireflyVertex {
         }
 
         final List<Long> vertexPropertyIdsForKey = vertexPropertyIds.get(key);
-        if (vertexPropertyIdsForKey.contains((Long)vertexPropertyId.value())) {
-            vertexPropertyIdsForKey.remove((Long)vertexPropertyId.value());
+        if (vertexPropertyIdsForKey.contains((Long) vertexPropertyId.value())) {
+            vertexPropertyIdsForKey.remove((Long) vertexPropertyId.value());
         } else {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
                     vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
@@ -600,6 +597,11 @@ final public class LinkedVertex extends FireflyVertex {
                 vertexPropertyIds.keySet();
     }
 
+    /**
+     * Write vertex property to vertex.
+     *
+     * @param vertexProperty Vertex property to write to vertex.
+     */
     @Override
     public void writeVertexProperty(final FireflyVertexProperty vertexProperty) {
         LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
@@ -631,6 +633,13 @@ final public class LinkedVertex extends FireflyVertex {
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeData, edgeCounterBin);
     }
 
+    /**
+     * Remove edge from vertex property JVM cache (cache inside this vertex object).
+     *
+     * @param direction Direction of edge.
+     * @param edgeId    Id of edge.
+     * @param edgeLabel Label of edge.
+     */
     private void removeEdgeFromJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         final Map<String, List<Long>> edgeCache = direction == Direction.IN ? inEdgeIds : outEdgeIds;
         if (edgeCache.containsKey(edgeLabel)) {
@@ -638,6 +647,13 @@ final public class LinkedVertex extends FireflyVertex {
         }
     }
 
+    /**
+     * Add edge to vertex property JVM cache (cache inside this vertex object).
+     *
+     * @param direction Direction of edge.
+     * @param edgeId    Id of edge.
+     * @param edgeLabel Label of edge.
+     */
     private void addEdgeToJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         final Map<String, List<Long>> edgeCache = direction == Direction.IN ? inEdgeIds : outEdgeIds;
         if (!edgeCache.containsKey(edgeLabel)) {
@@ -651,6 +667,7 @@ final public class LinkedVertex extends FireflyVertex {
      *
      * @param direction Direction of edge.
      * @param edgeId    Id of edge.
+     * @param edgeLabel Label of edge.
      */
     @Override
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
@@ -715,6 +732,7 @@ final public class LinkedVertex extends FireflyVertex {
      *
      * @param direction Direction of edge.
      * @param edgeId    Id of edge.
+     * @param edgeLabel Label of edge.
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {

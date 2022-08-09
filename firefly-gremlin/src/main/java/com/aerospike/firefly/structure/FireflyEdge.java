@@ -18,6 +18,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyEdge extends FireflyElement implements Edge {
     public boolean removed;
@@ -107,7 +108,6 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
                     entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)), entry -> ((AbstractMap.Entry) entry).getValue());
         }
     }
-
 
     @Override
     public String toString() {

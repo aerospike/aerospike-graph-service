@@ -15,22 +15,19 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
@@ -167,7 +164,6 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
         return graph.writeEdge(edgeId, label, properties, (FireflyVertex)vertex, this);
     }
-
 
     @Override
     public Iterator<Edge> edges(Direction direction, String... edgeLabels) {

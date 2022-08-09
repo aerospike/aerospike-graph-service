@@ -33,10 +33,7 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
-
-
         public static class Sets {
-
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
             public static final String VERTEX_AERO_SET = "VERTEX_AERO_SET";

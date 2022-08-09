@@ -7,7 +7,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 
 import java.util.HashMap;
@@ -21,12 +20,23 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
     private final FireflyGraph graph;
     private final FireflyElement fireflyElement;
 
+    /**
+     * Constructor for LinkedProperty.
+     *
+     * @param graph   Graph that property exists in.
+     * @param element Element that property exists on.
+     * @param key     Key of property.
+     * @param value   Value of property.
+     */
     public LinkedProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
         super(element, key, value);
         this.graph = graph;
         this.fireflyElement = element;
     }
 
+    /**
+     * Remove this property from the graph.
+     */
     @Override
     public void remove() {
         try {
@@ -39,6 +49,16 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
         }
     }
 
+    /**
+     * Write a single property to the element.
+     *
+     * @param graph   Graph to write to.
+     * @param element Element to add property to.
+     * @param key     Key of property.
+     * @param value   Value of property.
+     * @param <V>     Type of property.
+     * @return Property that was written.
+     */
     public static <V> Property<V> writeProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
         final AerospikeConnection db = graph.getBaseGraph();
         FireflyHelper.validatePropertyValue(value);
@@ -51,6 +71,14 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
         return new LinkedProperty<>(graph, element, key, value);
     }
 
+    /**
+     * Read properties from element.
+     *
+     * @param graph   Graph to read from.
+     * @param element Element to read properties of.
+     * @param <V>     Type of property value.
+     * @return Map of label to properties.
+     */
     public static <V> Map<String, Property<V>> readProperties(final FireflyGraph graph, final FireflyElement element) {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.getElementPropertySet(element.getClass()), element.id.toNumericId());
@@ -69,13 +97,13 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
     }
 
     /**
-     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
-     * construct and return a Property from the value associated with k in the ELEMENT_PROPERTIES map
+     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET.
+     * construct and return a Property from the value associated with k in the ELEMENT_PROPERTIES map.
      *
-     * @param element Element to read property from
-     * @param key     property key
-     * @param <V>     type
-     * @return Property
+     * @param element Element to read property from.
+     * @param key     property key.
+     * @param <V>     type.
+     * @return Property.
      */
     public static <V> Property<V> readProperty(final FireflyGraph graph, final FireflyElement element, final String key) {
         final AerospikeConnection db = graph.getBaseGraph();

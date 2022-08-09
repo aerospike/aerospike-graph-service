@@ -3,7 +3,6 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.commons.collections.iterators.EmptyIterator;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -15,6 +14,7 @@ import java.util.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
 
@@ -23,7 +23,6 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
     protected final String key;
     protected final V value;
     protected final FireflyGraph graph;
-
 
     public FireflyVertexProperty(final FireflyGraph graph, final FireflyId id, final FireflyId vertexId, final String key, final V value, final Object... propertyKeyValues) {
         super(id, key);

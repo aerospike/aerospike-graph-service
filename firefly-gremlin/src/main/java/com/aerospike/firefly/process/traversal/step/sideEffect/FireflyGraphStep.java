@@ -31,7 +31,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     private final List<HasContainer> hasContainers = new ArrayList<>();
     private final List<Iterator> iterators = new ArrayList<>();
 
-
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
@@ -143,7 +142,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
         return list.iterator();
     }
-
 
     @Override
     public List<HasContainer> getHasContainers() {

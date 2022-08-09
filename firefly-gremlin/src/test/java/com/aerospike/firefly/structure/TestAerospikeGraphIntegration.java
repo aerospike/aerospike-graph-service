@@ -43,30 +43,6 @@ import static org.junit.Assert.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
-    // @Test
-    // public void testReadWriteRemovePropertyFromEdge() {
-    //     FireflyVertex vertexA = (FireflyVertex) graph.addVertex("label");
-    //     FireflyVertex vertexB = (FireflyVertex) graph.addVertex("label");
-    //     String value = "b";
-    //     String key = "bKey";
-    //     FireflyEdge edge = (FireflyEdge) vertexA.addEdge("label", vertexB, key, value);
-    //     String value2 = "c";
-    //     String key2 = "cKey";
-    //     FireflyProperty<String> p = new FireflyProperty<>(edge, key2, value2);
-    //     db.elementBackend.writeProperty(edge.id, edge.getClass(), key2, value2);
-    //     Property<String> readback = db.elementBackend.readProperty(edge, key2);
-    //     assertEquals(p.key(), readback.key());
-    //     assertEquals(p.value(), readback.value());
-    //     db.elementBackend.removeProperty(edge, key);
-    //     boolean success = false;
-    //     try {
-    //         Property<String> gone = db.elementBackend.readProperty(edge, key);
-    //     } catch (NoSuchElementException nse) {
-    //         success = true;
-    //     }
-    //     assertTrue(success);
-    // }
-
     @Test
     public void testReadWriteRemoveGraphVariables() throws InterruptedException {
         graph.variables().set("this", "that");

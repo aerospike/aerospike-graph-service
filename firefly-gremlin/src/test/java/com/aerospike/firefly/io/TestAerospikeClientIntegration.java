@@ -95,25 +95,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
     }
 
-//    @Test
-//    public void testScanVertexIds() {
-//        try (FireflyGraph graph = FireflyGraph.open(config)) {
-//            ArrayList<Long> ids = new ArrayList<>() {{
-//                add(0L);
-//                add(1L);
-//            }};
-//            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
-//            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
-//            Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
-//            assertTrue(i.hasNext());
-//            Long a = i.next();
-//            assertTrue(i.hasNext());
-//            assertTrue(ids.contains(a));
-//            Long b = i.next();
-//            assertTrue(ids.contains(b));
-//        }
-//    }
-
     @Test
     public void testSyntheticSupernode() {
         config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");

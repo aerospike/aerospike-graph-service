@@ -431,8 +431,8 @@ final public class LinkedVertex extends FireflyVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
-                    new LinkedVertexProperty(graph, fid, id, null, null) :
-                    new LinkedVertexProperty(graph, fid, id, kv.get().getKey(), kv.get().getValue());
+                    new LinkedVertexProperty(graph, fid, this, null, null) :
+                    new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
             results.put(vp.label(), vp);
         });
         return results;
@@ -494,8 +494,8 @@ final public class LinkedVertex extends FireflyVertex {
                 final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                         db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
                 final VertexProperty<?> vp = (kv.isEmpty()) ?
-                        new LinkedVertexProperty(graph, fid, id, null, null) :
-                        new LinkedVertexProperty(graph, fid, id, kv.get().getKey(), kv.get().getValue());
+                        new LinkedVertexProperty(graph, fid, this, null, null) :
+                        new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
                 results.add(vp);
             }
         });
@@ -571,8 +571,8 @@ final public class LinkedVertex extends FireflyVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
-                    new LinkedVertexProperty(graph, fid, this.id, key, null) :
-                    new LinkedVertexProperty(graph, fid, this.id, kv.get().getKey(), kv.get().getValue());
+                    new LinkedVertexProperty(graph, fid, this, key, null) :
+                    new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
             vertexProperties.add(vertexProperty);
         });
         return IteratorUtils.asIterator(vertexProperties);

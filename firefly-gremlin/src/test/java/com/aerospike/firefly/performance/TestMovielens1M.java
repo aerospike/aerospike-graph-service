@@ -26,56 +26,56 @@ public class TestMovielens1M extends AbstractFireflySuite {
     private GraphTraversalSource g;
 
 
-    @BeforeClass
-    public static void fetchData() {
-        try {
-            URL movieLensUrl = new URL(MOVIELENS_URL);
-            File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
-            if (!tempFile.exists()) {
-                IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
-                Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @AfterClass
-    public static void clearDataAfterTest() {
-        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            graph.getBaseGraph().dropDatabase();
-        }
-    }
-
-    @Before
-    public void createTraversal() {
-        g = graph.traversal();
-    }
-
-    @Test
-    public void testYearExtraction() {
-        String title = "Gilda (1946)";
-        String[] tokens = title.split("[()]");
-        assertEquals(tokens.length, 2);
-        assertEquals(tokens[tokens.length - 1], "1946");
-    }
-
-    @Test
-    public void testQueryMovieLens1M() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
-        long vCountStart = System.currentTimeMillis();
-        long vCount = graph.traversal().V().count().next();
-        long vCountEnd = System.currentTimeMillis();
-        long searchPeopleRatedGilda = g.V().hasLabel("person").out().has("name", "Gilda (1946)").count().next();
-        long sprgEnd = System.currentTimeMillis();
-        long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
-        long sgrbpEnd = System.currentTimeMillis();
-        assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
-        long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
-        assertEquals(1L, oneMovie);
-        LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
-        LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
-        LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
-    }
+    //@BeforeClass
+    //public static void fetchData() {
+    //    try {
+    //        URL movieLensUrl = new URL(MOVIELENS_URL);
+    //        File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
+    //        if (!tempFile.exists()) {
+    //            IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
+    //            Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);
+    //        }
+    //    } catch (IOException e) {
+    //        throw new RuntimeException(e);
+    //    }
+    //}
+//
+    //@AfterClass
+    //public static void clearDataAfterTest() {
+    //    try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+    //        graph.getBaseGraph().dropDatabase();
+    //    }
+    //}
+//
+    //@Before
+    //public void createTraversal() {
+    //    g = graph.traversal();
+    //}
+//
+    //@Test
+    //public void testYearExtraction() {
+    //    String title = "Gilda (1946)";
+    //    String[] tokens = title.split("[()]");
+    //    assertEquals(tokens.length, 2);
+    //    assertEquals(tokens[tokens.length - 1], "1946");
+    //}
+//
+    //@Test
+    //public void testQueryMovieLens1M() {
+    //    Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
+    //    long vCountStart = System.currentTimeMillis();
+    //    long vCount = graph.traversal().V().count().next();
+    //    long vCountEnd = System.currentTimeMillis();
+    //    long searchPeopleRatedGilda = g.V().hasLabel("person").out().has("name", "Gilda (1946)").count().next();
+    //    long sprgEnd = System.currentTimeMillis();
+    //    long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
+    //    long sgrbpEnd = System.currentTimeMillis();
+    //    assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
+    //    long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
+    //    assertEquals(1L, oneMovie);
+    //    LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
+    //    LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
+    //    LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
+    //}
 
 }

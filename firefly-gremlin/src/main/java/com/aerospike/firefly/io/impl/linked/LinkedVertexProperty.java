@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 /**
@@ -20,22 +19,33 @@ import java.util.Optional;
  */
 final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
+    private final LinkedVertex vertex;
 
     /**
      * Constructor for LinkedVertexProperty.
      *
-     * @param graph    Graph to use.
-     * @param id       Id of vertex property.
-     * @param vertexId Id of vertex.
-     * @param key      Key of vertex property.
-     * @param value    Value of vertex property.
+     * @param graph  Graph to use.
+     * @param id     Id of vertex property.
+     * @param vertex Vertex.
+     * @param key    Key of vertex property.
+     * @param value  Value of vertex property.
      */
     public LinkedVertexProperty(final FireflyGraph graph,
                                 final FireflyId id,
-                                final FireflyId vertexId,
+                                final LinkedVertex vertex,
                                 final String key,
                                 final Object value) {
+        super(graph, id, vertex.id, key, (V) value);
+        this.vertex = vertex;
+    }
+
+    private LinkedVertexProperty(final FireflyGraph graph,
+                                 final FireflyId id,
+                                 final FireflyId vertexId,
+                                 final String key,
+                                 final Object value) {
         super(graph, id, vertexId, key, (V) value);
+        this.vertex = null;
     }
 
     /**
@@ -55,7 +65,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_PROPERTY_AERO_SET, id);
         if (fireflyRecord == null)
-            return new LinkedVertexProperty<>(graph, id, parent.id, null, null);
+            return new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, null, null);
 
         // Read vertex property from record.
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
@@ -63,8 +73,8 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
 
         // Return the vertex property.
         return (kv.isEmpty()) ?
-                new LinkedVertexProperty<>(graph, id, parent.id, null, null) :
-                new LinkedVertexProperty<>(graph, id, parent.id, kv.get().getKey(), kv.get().getValue());
+                new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, null, null) :
+                new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, kv.get().getKey(), kv.get().getValue());
     }
 
     public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
@@ -100,7 +110,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
 
         // Return the vertex property.
-        return new LinkedVertexProperty<>(graph, vpid, vertex.id, key, value);
+        return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
     }
 
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
@@ -113,7 +123,11 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public void remove() {
         try {
             LOG.info("Removing vertex property {}", id.value());
-            graph.readVertex(vertexId).removeVertexProperty(label, id);
+            if (vertex == null) {
+                graph.readVertex(vertexId).removeVertexProperty(label, id);
+            } else {
+                vertex.removeVertexProperty(label, id);
+            }
             removeVertexProperty(graph, id);
         } catch (Exception ignored) {
             // Removing a vertex property that is already removed SHOULD NOT yield an error.

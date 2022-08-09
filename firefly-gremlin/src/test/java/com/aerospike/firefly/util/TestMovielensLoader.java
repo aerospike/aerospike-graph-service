@@ -24,28 +24,28 @@ public class TestMovielensLoader extends AbstractFireflySuite {
     private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
     private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
 
-    @BeforeClass
-    public static void openGraphFetchData() {
-        try {
-            URL movieLensUrl = new URL(MOVIELENS_URL);
-            File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
-            if (!tempFile.exists()) {
-                IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
-                Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Test
-    public void testLoadMovieLens() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), graph);
-        final Long verticesLoaded = graph.traversal().V().count().next();
-        final Long edgesLoaded = graph.traversal().E().count().next();
-        System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));
-        graph.traversal().V().drop().iterate();
-        verifyClean(graph);
-    }
+    //@BeforeClass
+    //public static void openGraphFetchData() {
+    //    try {
+    //        URL movieLensUrl = new URL(MOVIELENS_URL);
+    //        File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
+    //        if (!tempFile.exists()) {
+    //            IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
+    //            Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);
+    //        }
+    //    } catch (IOException e) {
+    //        throw new RuntimeException(e);
+    //    }
+    //}
+    //
+    //@Test
+    //public void testLoadMovieLens() {
+    //    Movielens.parse(Path.of(MOVIELENS_BASEPATH), graph);
+    //    final Long verticesLoaded = graph.traversal().V().count().next();
+    //    final Long edgesLoaded = graph.traversal().E().count().next();
+    //    System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));
+    //    graph.traversal().V().drop().iterate();
+    //    verifyClean(graph);
+    //}
 
 }

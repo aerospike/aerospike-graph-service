@@ -139,7 +139,7 @@ final public class LinkedVertex extends FireflyVertex {
         AerospikeConnection db = graph.getBaseGraph();
 
         // Get id and label for vertex.
-        final FireflyId id = FireflyId.fromObject(FireflyVertex.class, keyRecord.key.userKey.toLong());
+        final FireflyId id = FireflyId.loadFromAerospike(db, FireflyVertex.class, FireflyRecord.fromRecord(db, keyRecord.key, record));
         final String label = record.getString(AerospikeConnection.LABEL);
 
         // If cache is disabled, inEdgeIds and outEdgeIds are null.

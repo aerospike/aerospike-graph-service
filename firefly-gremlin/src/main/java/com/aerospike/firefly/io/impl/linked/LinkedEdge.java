@@ -33,11 +33,11 @@ final public class LinkedEdge extends FireflyEdge {
     /**
      * Constructor for LinkedEdge.
      *
-     * @param fid            FireflyId to use.
-     * @param label          Edge label.
-     * @param graph          FireflyGraph to use.
-     * @param outVertex      Edge out vertex.
-     * @param inVertex       Edge in vertex.
+     * @param fid       FireflyId to use.
+     * @param label     Edge label.
+     * @param graph     FireflyGraph to use.
+     * @param outVertex Edge out vertex.
+     * @param inVertex  Edge in vertex.
      */
     private LinkedEdge(final FireflyId fid,
                        final String label,
@@ -126,7 +126,7 @@ final public class LinkedEdge extends FireflyEdge {
     /**
      * Construct edge from record.
      *
-     * @param graph  Graph handle.
+     * @param graph     Graph handle.
      * @param keyRecord Record to construct from.
      * @return Edge.
      */
@@ -139,7 +139,9 @@ final public class LinkedEdge extends FireflyEdge {
         if (record == null) {
             return null;
         }
-        return new LinkedEdge(FireflyId.fromObject(FireflyEdge.class, keyRecord.key.userKey.toLong()),
+        return new LinkedEdge(
+                FireflyId.loadFromAerospike(
+                        graph.getBaseGraph(), FireflyVertex.class, FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record)),
                 record.getString(AerospikeConnection.LABEL),
                 graph,
                 FireflyId.of(FireflyVertex.class, record.getLong(Direction.OUT.name())),

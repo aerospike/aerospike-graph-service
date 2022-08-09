@@ -7,7 +7,6 @@ import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -44,6 +43,12 @@ final public class LinkedGraph extends FireflyGraph {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedGraph.class);
     public static final String DATA_MODEL = "linked";
 
+    /**
+     * Constructor for LinkedGraph.
+     *
+     * @param db   AerospikeConnection.
+     * @param conf Configuration.
+     */
     public LinkedGraph(AerospikeConnection db, final Configuration conf) {
         super(db, conf);
     }
@@ -70,16 +75,53 @@ final public class LinkedGraph extends FireflyGraph {
                 db.getElementPropertySet(element.getClass()), key);
     }
 
+    /**
+     * Function to write vertex to Aerospike.
+     *
+     * @param idValue Id of vertex.
+     * @param label Label of vertex.
+     * @param properties List of vertex properties.
+     * @return Vertex.
+     */
     @Override
-    public FireflyVertex writeVertex(FireflyId idValue, String label, List<Map.Entry<String, Object>> properties) {
+    public FireflyVertex writeVertex(final FireflyId idValue,
+                                     final String label,
+                                     final List<Map.Entry<String, Object>> properties) {
         return LinkedVertex.writeVertex(this, idValue, label, properties);
     }
 
+    /**
+     * Function to read vertex from Aerospike.
+     *
+     * @param idValue Id of vertex.
+     * @return Vertex.
+     */
     @Override
     public FireflyVertex readVertex(final FireflyId idValue) {
         return LinkedVertex.readVertex(this, idValue);
     }
 
+    /**
+     * Function to create vertex from a record.
+     *
+     * @param keyRecord Record to use.
+     * @return Vertex.
+     */
+    @Override
+    public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
+        return LinkedVertex.fromRecord(this, keyRecord);
+    }
+
+    /**
+     * Function to write edge to Aerospike.
+     *
+     * @param edgeId Edge id.
+     * @param label Edge label.
+     * @param properties Edge properties.
+     * @param inVertex In vertex of edge.
+     * @param outVertex Out vertex of edge.
+     * @return Edge.
+     */
     @Override
     public FireflyEdge writeEdge(final FireflyId edgeId,
                                  final String label,
@@ -94,9 +136,26 @@ final public class LinkedGraph extends FireflyGraph {
         return LinkedEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
     }
 
+    /**
+     * Function to read edge from Aerospike.
+     *
+     * @param edgeId Edge id.
+     * @return Edge.
+     */
     @Override
     public FireflyEdge readEdge(final FireflyId edgeId) {
         return LinkedEdge.readEdge(this, edgeId);
+    }
+
+    /**
+     * Function to create edge from a record.
+     * 
+     * @param keyRecord Record to use.
+     * @return Edge.
+     */
+    @Override
+    public FireflyEdge edgeFromRecord(final KeyRecord keyRecord) {
+        return LinkedEdge.fromRecord(this, keyRecord);
     }
 
     /**
@@ -278,8 +337,7 @@ final public class LinkedGraph extends FireflyGraph {
     public Iterator<FireflyVertex> queryVertexLabelStringIndex(Object value) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.VERTEX_AERO_SET, db.V_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
-        return IteratorUtils.map(iter, kr ->
-                readVertex(FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+        return IteratorUtils.map(iter, this::vertexFromRecord);
     }
 
     /**
@@ -292,8 +350,7 @@ final public class LinkedGraph extends FireflyGraph {
     public Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.getElementPropertySet(FireflyEdge.class), db.E_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
-        return IteratorUtils.map(iter, kr ->
-                readEdge(FireflyId.of(FireflyEdge.class, kr.key.userKey.getObject())));
+        return IteratorUtils.map(iter, this::edgeFromRecord);
     }
 
     /**

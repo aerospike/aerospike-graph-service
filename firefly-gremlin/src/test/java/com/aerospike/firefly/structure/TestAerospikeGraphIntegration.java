@@ -1,5 +1,7 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.impl.linked.LinkedVertex;
+import com.aerospike.firefly.io.impl.linked.LinkedVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -74,18 +76,24 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(graph.variables().keys().iterator().hasNext());
     }
 
-    // @Test
-    // public void testReadWriteVertexProperty() {
-    //     db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, 2L), "aVertexLabel");
-    //     FireflyVertex vertex = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, 2L));
-    //     FireflyId vpid = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
-    //     db.vpBackend.writeVertexProperty(vertex, vpid, "a", "a", "b");
-    //     VertexProperty<Object> p = db.vpBackend.readVertexProperty(vertex, vpid);
-    //     Map<String, List<VertexProperty>> readBack = db.vpBackend.readVertexProperties(vertex);
-    //     List<VertexProperty> aValue = readBack.get("a");
-    //     assertNotEquals(aValue, null);
-    //     assertEquals(aValue.get(0), p);
-    // }
+    @Test
+    public void testReadWriteVertexProperty() {
+        final FireflyId vertexId = FireflyId.createFromManager(graph, LinkedVertex.class);
+        final FireflyId vpid = FireflyId.createFromManager(graph, LinkedVertexProperty.class);
+        final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
+        final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
+
+        // Try read from scratch.
+        final FireflyVertex vertexRead = graph.readVertex(vertexId);
+        final Iterator<VertexProperty<Object>> fireflyVertexPropertyIterator = vertexRead.readVertexProperty("aKey");
+        assertTrue(fireflyVertexPropertyIterator.hasNext());
+        final VertexProperty<Object> fireflyVertexPropertyRead = fireflyVertexPropertyIterator.next();
+        assertEquals("aKey", fireflyVertexPropertyRead.key());
+        assertEquals("aValue", fireflyVertexPropertyRead.value());
+        assertEquals(vertexId.value(), fireflyVertexPropertyRead.element().id());
+        assertFalse(fireflyVertexPropertyIterator.hasNext());
+
+    }
 
     @Test
     public void testReadWriteRemoveVertexPropertyTraversal() {
@@ -102,29 +110,29 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertTrue(success);
     }
 
-    // @Test
-    // public void testReadWriteVertex() {
-    //     FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
-    //     db.vertexBackend.writeVertex(graph, id, "aVertexLabel");
-    //     FireflyVertex v = db.vertexBackend.readVertex(graph, id);
-    //     assertEquals(v.label(), "aVertexLabel");
-    // }
+    @Test
+    public void testReadWriteVertex() {
+        FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
+        graph.writeVertex(id, "aVertexLabel", new ArrayList<>());
+        FireflyVertex v = graph.readVertex(id);
+        assertEquals(v.label(), "aVertexLabel");
+    }
 
-    //@Test
-    //public void testVertexIterator() {
-    //    List<Long> usedIds = new ArrayList<>();
-    //    LongStream.range(0, 10).forEach(l -> {
-    //        FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
-    //        usedIds.add((Long) next.value());
-    //        db.vertexBackend.writeVertex(graph, next, "aVertexLabel");
-    //    });
-    //    final AtomicLong ctr = new AtomicLong(0);
-    //    new FireflyVertexIterator<Long>(graph, usedIds.iterator()).forEachRemaining(v -> {
-    //        ctr.addAndGet(1);
-    //        assertEquals("aVertexLabel", v.label());
-    //    });
-    //    assertEquals(10, ctr.get());
-    //}
+    @Test
+    public void testVertexIterator() {
+        List<Long> usedIds = new ArrayList<>();
+        LongStream.range(0, 10).forEach(l -> {
+            FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
+            usedIds.add((Long) next.value());
+            graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
+        });
+        final AtomicLong ctr = new AtomicLong(0);
+        new FireflyVertexIterator<>(graph, usedIds.iterator()).forEachRemaining(v -> {
+            ctr.addAndGet(1);
+            assertEquals("aVertexLabel", v.label());
+        });
+        assertEquals(10, ctr.get());
+    }
 
     @Test
     public void testGraph() {

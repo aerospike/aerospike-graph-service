@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Key;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.GraphFactory;
@@ -105,11 +106,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     protected abstract Iterator<Long> scanAllVertices();
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
     public abstract FireflyVertex readVertex(final FireflyId idValue);
+    public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
     public abstract boolean vertexExists(final FireflyId idValue);
 
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
+    public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
     public abstract boolean edgeExists(final FireflyId idValue);
 
     // Graph variable functions.

@@ -139,7 +139,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(0, IteratorUtils.count(g.E()));
     }
 
-
     private static void assertId(final Graph g, final boolean lossyForId, final Element e, final Object expected) {
         // it is possible that a Graph (e.g. elastic-gremlin) can supportUserSuppliedIds but internally
         // represent them as a value other than Numeric (which is what's in all of the test/toy data).
@@ -416,7 +415,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         IoTest.assertModernGraph(this.graph, false, true);
     }
 
-
     public static void assertModernGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId) {
         assertToyGraph(g1, assertDouble, lossyForId, true);
     }
@@ -431,7 +429,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertModernGraph(graph, false, true);
 
     }
-
 
     @Test
     public void shouldDetachVertexPropertyWhenChanged() {
@@ -512,8 +509,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         v.property("to-change", "blah");
 
         final MutationListener listener = new AbstractMutationListener() {
-
-
             @Override
             public void vertexPropertyChanged(final Vertex element, final VertexProperty oldValue, final Object setValue, final Object... vertexPropertyKeyValues) {
                 assertThat(element, instanceOf(ReferenceVertex.class));
@@ -539,7 +534,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(1, IteratorUtils.count(g.V(v).properties()));
         assertThat(triggered.get(), is(true));
     }
-
 
     public Edge convertToEdge(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
         return graph.traversal().V().has("name", outVertexName).outE(edgeLabel).as("e").inV().has("name", inVertexName).<Edge>select("e").toList().get(0);
@@ -729,7 +723,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertEquals(7L, IteratorUtils.count(this.g.V(new Object[0])));
     }
 
-
     @Test
     public void g_V_outE_propertyXweight_nullX() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
@@ -740,7 +733,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             MatcherAssert.assertThat(e.properties(new String[]{"weight"}).hasNext(), Is.is(false));
         });
     }
-
 
     @Test
     public void g_mergeVXlabel_person_name_markoX_optionXonMatch_age_19X_option() {
@@ -1105,7 +1097,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
         return true;
     }
-
 
     public static <T> void checkResults(final List<T> expectedResults, final Traversal<?, T> traversal) {
         final List<T> results = traversal.toList();

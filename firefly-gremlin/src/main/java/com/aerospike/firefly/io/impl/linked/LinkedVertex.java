@@ -9,6 +9,7 @@ import com.aerospike.client.async.Monitor;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -114,13 +115,36 @@ final public class LinkedVertex extends FireflyVertex {
             return null;
         }
 
+        return fromRecord(graph, new KeyRecord(record.key(), record.record()));
+    }
+
+    /**
+     * Construct vertex from Record.
+     *
+     * @param graph  FireflyGraph to use.
+     * @param keyRecord Record to construct vertex with.
+     * @return FireflyVertex.
+     */
+    protected static FireflyVertex fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
+        if (keyRecord == null) {
+            return null;
+        }
+
+        final Record record = keyRecord.record;
+
+        // Read the vertex's firefly record from the database
+        if (record == null) {
+            return null;
+        }
+        AerospikeConnection db = graph.getBaseGraph();
+
         // Get id and label for vertex.
-        final FireflyId id = FireflyId.loadFromAerospike(db, FireflyVertex.class, record);
-        final String label = record.record.getString(AerospikeConnection.LABEL);
+        final FireflyId id = FireflyId.fromObject(FireflyVertex.class, keyRecord.key.userKey.toLong());
+        final String label = record.getString(AerospikeConnection.LABEL);
 
         // If cache is disabled, inEdgeIds and outEdgeIds are null.
-        final boolean cacheDisabled = record.record.getBoolean(db.CACHE_DISABLED);
-        final Long vertexPropertyCount = record.record.getLong(db.VP_COUNTER);
+        final boolean cacheDisabled = record.getBoolean(db.CACHE_DISABLED);
+        final Long vertexPropertyCount = record.getLong(db.VP_COUNTER);
         if (cacheDisabled) {
             // Set inEdgeIds and outEdgeIds to null (invalid).
             return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
@@ -128,17 +152,17 @@ final public class LinkedVertex extends FireflyVertex {
 
         // Get vertex properties and vertex property counter from record.
         final Map<String, List<Long>> vertexProperties = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                (Map<String, List<Long>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
+                (Map<String, List<Long>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
 
         // Get incoming and outgoing edge count.
-        final long inEdgeCount = record.record.getLong(db.IN_EDGE_COUNTER);
-        final long outEdgeCount = record.record.getLong(db.OUT_EDGE_COUNTER);
+        final long inEdgeCount = record.getLong(db.IN_EDGE_COUNTER);
+        final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER);
 
         // Get inEdgeIds and outEdgeIds, if the number of either exceeds the cache size, set to null (invalid).
         final Map<String, List<Long>> inEdgeIds = (inEdgeCount < db.ID_CACHE_SIZE) ?
-                (Map<String, List<Long>>) record.record.getMap(db.IN_EDGES) : new HashMap<>();
+                (Map<String, List<Long>>) record.getMap(db.IN_EDGES) : new HashMap<>();
         final Map<String, List<Long>> outEdgeIds = (outEdgeCount < db.ID_CACHE_SIZE) ?
-                (Map<String, List<Long>>) record.record.getMap(db.OUT_EDGES) : new HashMap<>();
+                (Map<String, List<Long>>) record.getMap(db.OUT_EDGES) : new HashMap<>();
 
         // Create LinkedVertex.
         return new LinkedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexProperties, vertexPropertyCount, db);

@@ -2,6 +2,7 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.client.*;
 import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.*;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -51,21 +52,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), bin1, bin2, bin3);
         assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
     }
-
-    //@Test
-    //public void testBasicReadWriteGetValueOfKey() {
-    //    FireflyId id = FireflyId.of(null, "foo");
-    //    Bin bin1 = new Bin("name", "John Doe");
-    //    Bin bin2 = new Bin("age", 32);
-    //    Bin bin3 = new Bin("greeting", "Hello World!");
-//
-//
-    //    Policy rp = new Policy();
-    //    rp.sendKey = true;
-    //    FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
-    //    Key key = db.scanAllRecordsInSet(db.TEST_SET).next().getKey();
-    //    assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, id)).record.getInt("age"), 32);
-    //}
 
     @Test
     public void testBasicDelete() {

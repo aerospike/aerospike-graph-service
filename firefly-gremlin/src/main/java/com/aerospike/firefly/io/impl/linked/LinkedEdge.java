@@ -1,7 +1,9 @@
 package com.aerospike.firefly.io.impl.linked;
 
 import com.aerospike.client.Bin;
+import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -49,12 +51,12 @@ final public class LinkedEdge extends FireflyEdge {
     /**
      * Write edge including caching IN/OUT vertices and edge properties.
      *
-     * @param graph      handle to Graph
-     * @param edgeId     Id of Edge to write
-     * @param label      label for Edge to write
-     * @param inVertex   in Vertex for new Edge
-     * @param outVertex  out Vertex for new Edge
-     * @param properties Edge properties
+     * @param graph      handle to Graph.
+     * @param edgeId     Id of Edge to write.
+     * @param label      label for Edge to write.
+     * @param inVertex   in Vertex for new Edge.
+     * @param outVertex  out Vertex for new Edge.
+     * @param properties Edge properties.
      */
     public static LinkedEdge writeEdge(final FireflyGraph graph,
                                        final FireflyId edgeId,
@@ -103,9 +105,9 @@ final public class LinkedEdge extends FireflyEdge {
     /**
      * Read an Edge by the id.
      *
-     * @param graph  Graph handle
-     * @param edgeId Edge id to read
-     * @return Edge
+     * @param graph  Graph handle.
+     * @param edgeId Edge id to read.
+     * @return Edge.
      */
     public static LinkedEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
         LOG.debug("Reading edge {}.", edgeId.value().toString());
@@ -119,6 +121,29 @@ final public class LinkedEdge extends FireflyEdge {
                 graph,
                 FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
                 FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())));
+    }
+
+    /**
+     * Construct edge from record.
+     *
+     * @param graph  Graph handle.
+     * @param keyRecord Record to construct from.
+     * @return Edge.
+     */
+    public static LinkedEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
+        LOG.trace("Constructing edge from record.");
+        if (keyRecord == null) {
+            return null;
+        }
+        final Record record = keyRecord.record;
+        if (record == null) {
+            return null;
+        }
+        return new LinkedEdge(FireflyId.fromObject(FireflyEdge.class, keyRecord.key.userKey.toLong()),
+                record.getString(AerospikeConnection.LABEL),
+                graph,
+                FireflyId.of(FireflyVertex.class, record.getLong(Direction.OUT.name())),
+                FireflyId.of(FireflyVertex.class, record.getLong(Direction.IN.name())));
     }
 
     /**

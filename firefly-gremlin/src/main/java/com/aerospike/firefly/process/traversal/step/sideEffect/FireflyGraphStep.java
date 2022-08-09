@@ -1,5 +1,8 @@
 package com.aerospike.firefly.process.traversal.step.sideEffect;
 
+import com.aerospike.firefly.io.impl.linked.LinkedEdge;
+import com.aerospike.firefly.io.impl.linked.LinkedGraph;
+import com.aerospike.firefly.io.impl.linked.LinkedVertex;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -39,7 +42,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
         // do we have an index over edges
-        final HasContainer indexedContainer = getIndexKey(FireflyEdge.class);
+        final HasContainer indexedContainer = getIndexKey(LinkedEdge.class);
         Iterator<? extends Edge> iterator;
         // ids are present, filter on them first
         if (null == this.ids)
@@ -65,7 +68,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
     private Iterator<? extends Vertex> vertices() {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-        final HasContainer indexedContainer = getIndexKey(FireflyVertex.class);
+        final HasContainer indexedContainer = getIndexKey(LinkedVertex.class);
         Iterator<? extends Vertex> iterator;
         if (null == this.ids)
             iterator = Collections.emptyIterator();
@@ -99,7 +102,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         }};
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
             // we indices for String exact match and Numeric {match,lt,gt} over vertex properties and edge properties
-            if (indexedClass.isAssignableFrom(FireflyVertex.class) || indexedClass.isAssignableFrom(FireflyEdge.class)) {
+            if (indexedClass.isAssignableFrom(LinkedVertex.class) || indexedClass.isAssignableFrom(LinkedEdge.class)) {
                 if (hasContainer == null || hasContainer.getValue() == null)
                     return false;
                 if (Long.class.isAssignableFrom(hasContainer.getValue().getClass()) || Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))

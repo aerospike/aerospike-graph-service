@@ -285,8 +285,8 @@ final public class LinkedVertex extends FireflyVertex {
             return getInEdgeIds();
         } else {
             // Both.
-            Future<Iterator<Long>> inIds = executorService.submit(this::getInEdgeIds);
-            Future<Iterator<Long>> outIds = executorService.submit(this::getOutEdgeIds);
+            final Future<Iterator<Long>> inIds = executorService.submit(this::getInEdgeIds);
+            final Future<Iterator<Long>> outIds = executorService.submit(this::getOutEdgeIds);
             try {
                 return IteratorUtils.concat(inIds.get(), outIds.get());
             } catch (InterruptedException | ExecutionException e) {

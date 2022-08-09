@@ -74,13 +74,13 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         else if (indexedContainer == null || indexedContainer.getKey() == null )
             iterator = this.iteratorList(graph.vertices());
         else if (indexedContainer.getKey().equals("~label"))
-            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+            iterator = this.iteratorList(FireflyHelper.queryVertexByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
         else if (indexedContainer.getKey().startsWith("~"))
             iterator = this.iteratorList(graph.vertices());
         else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class) || indexedContainer.getKey().equals("~label"))
-            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+            iterator = this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
-            iterator = (Iterator<FireflyVertex>) this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+            iterator = this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
         else
             iterator = Collections.emptyIterator();
 

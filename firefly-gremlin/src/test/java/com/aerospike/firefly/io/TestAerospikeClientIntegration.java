@@ -557,13 +557,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
         });
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
                 sleep(1000);
             graph.traversal().V().drop().iterate();
-            sleep(1000);
-            assertEquals(0, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            sleep(10000);
+
+            // counter set
+            assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
@@ -571,7 +572,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             assertEquals(3, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
-            sleep(1000);
+            sleep(10000);
             // counter set
             assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
         }

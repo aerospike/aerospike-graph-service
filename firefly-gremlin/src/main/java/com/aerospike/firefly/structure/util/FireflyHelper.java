@@ -91,7 +91,6 @@ public final class FireflyHelper {
     }
 
     public static Iterator<Vertex> getVertices(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
-        AerospikeConnection db = ((FireflyGraph) vertex.graph()).getBaseGraph();
         final List<Vertex> vertices = new ArrayList<>();
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
             if (vertex.getEdgeIdsFromVertex(Direction.OUT).hasNext()) {

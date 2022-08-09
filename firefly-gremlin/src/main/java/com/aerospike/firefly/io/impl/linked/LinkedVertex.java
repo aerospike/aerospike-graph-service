@@ -236,8 +236,6 @@ final public class LinkedVertex extends FireflyVertex {
                 edge.removeEdge();
                 final LinkedVertex vertex = (LinkedVertex) edge.outVertex();
                 vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
-            } else {
-                LOG.warn("Edge {} not found when removing vertex {}.", edgeId, id.value());
             }
         });
         outEdgeIdSet.forEach(edgeId -> {
@@ -246,8 +244,6 @@ final public class LinkedVertex extends FireflyVertex {
                 edge.removeEdge();
                 final LinkedVertex vertex = (LinkedVertex) edge.inVertex();
                 vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
-            } else {
-                LOG.warn("Edge {} not found when removing vertex {}.", edgeId, id.value());
             }
         });
 

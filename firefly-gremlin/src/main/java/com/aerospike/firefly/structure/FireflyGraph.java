@@ -90,6 +90,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
             if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    LinkedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .addStrategies(FireflyGraphCountStrategy.instance()));
         }
     }
 

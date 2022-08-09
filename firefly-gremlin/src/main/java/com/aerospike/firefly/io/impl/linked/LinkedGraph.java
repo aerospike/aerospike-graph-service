@@ -52,7 +52,7 @@ final public class LinkedGraph extends FireflyGraph {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance(), FireflyGraphCountStrategy.instance()));
+                        .addStrategies(FireflyGraphStepStrategy.instance()));
     }
 
     /**

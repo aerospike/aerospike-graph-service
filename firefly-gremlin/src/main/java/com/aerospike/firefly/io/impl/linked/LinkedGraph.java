@@ -457,11 +457,11 @@ final public class LinkedGraph extends FireflyGraph {
 
     @Override
     public long getVertexCount() {
-        return 0;
+        return AerospikeConnection.InfoOps.getSetSize(db.VERTEX_AERO_SET, db.getNamespace(), db.getClient());
     }
 
     @Override
     public long getEdgeCount() {
-        return 0;
+        return AerospikeConnection.InfoOps.getSetSize(db.EDGE_AERO_SET, db.getNamespace(), db.getClient());
     }
 }

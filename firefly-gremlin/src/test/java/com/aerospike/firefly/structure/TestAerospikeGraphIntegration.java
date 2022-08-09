@@ -489,23 +489,23 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
     }
 
-    // @Test
-    // public void testEdgeIdScan() {
-    //     GraphTraversalSource g = graph.traversal();
-    //     Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
-    //     Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
-    //     Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
-    //     g.V()
-    //             .has("type", "taxonomy").as("a")
-    //             .V().has("type", "plant").as("b")
-    //             .addE("IsA").from("b").to("a").property("this", "that").iterate();
-    //     Iterator<Object> i = db.vertexBackend.getEdgeIdsFromVertex((FireflyVertex) fruit,Direction.IN);
-    //     assertTrue(i.hasNext());
-    //     List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
-    //     Object next = i.next();
-    //     assertTrue(x.contains(next));
-    //     assertTrue(x.contains(next));
-    // }
+    @Test
+    public void testEdgeIdScan() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        Iterator<Long> i = graph.readVertex(FireflyId.fromObject(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        assertTrue(i.hasNext());
+        List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
+        Object next = i.next();
+        assertTrue(x.contains(next));
+        assertTrue(x.contains(next));
+    }
 
     public static void validateException(final Throwable expected, final Throwable actual) {
         assertThat(actual, instanceOf(expected.getClass()));

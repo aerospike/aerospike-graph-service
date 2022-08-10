@@ -194,7 +194,7 @@ public class TestPerformance extends AbstractFireflySuite {
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result1ReadMetric = db.getReadMetric();
         // when using label, reads are much higher
-        assertEquals(38, result1ReadMetric - readStart);
+        assertEquals(31, result1ReadMetric - readStart);
 
         List<Object> result2 = g.V()
                 .has(ORGCHART_NAME, "bob")
@@ -206,7 +206,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
-        assertEquals(14, result3ReadMetric - result2ReadMetric);
+        assertEquals(7, result3ReadMetric - result2ReadMetric);
         List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
         assertEquals(3, result4ReadMetric - result3ReadMetric);

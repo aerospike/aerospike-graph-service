@@ -50,6 +50,10 @@ import java.util.concurrent.TimeUnit;
 final public class LinkedVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertex.class);
     private static final int THREAD_COUNT = 2;
+
+    // TODO (https://aerospike.atlassian.net/browse/GRAPH-90)
+    //  Switch to a single thread with aggregate ids in a bulk request
+    //  as opposed to 2 requests running in parallel.
     private static final ExecutorService executorService = new ThreadPoolExecutor(THREAD_COUNT, THREAD_COUNT, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
     private Map<String, List<Long>> vertexPropertyIds;

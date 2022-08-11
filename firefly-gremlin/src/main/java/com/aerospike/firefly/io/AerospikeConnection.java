@@ -9,6 +9,7 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
+import com.aerospike.firefly.io.impl.SubgraphCache;
 import com.aerospike.firefly.io.impl.standard.*;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -104,6 +105,7 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
+    private final SubgraphCache cache;
 
     /**
      * Construct a new AerospikeConnection
@@ -188,6 +190,7 @@ public class AerospikeConnection {
         graphBackend = new GraphBackend(this);
         indexBackend = new IndexBackend(this);
 
+        cache = new SubgraphCache(this);
     }
 
     /**
@@ -198,6 +201,10 @@ public class AerospikeConnection {
      */
     public static AerospikeConnection connect(final Configuration conf) {
         return new AerospikeConnection(conf);
+    }
+
+    public void primeSubgraphCache(int i, UUID cacheId, Object startVertex) {
+
     }
 
 
@@ -287,7 +294,7 @@ public class AerospikeConnection {
          * @return Number of Records in set
          */
         public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
-            if(client.getNodes().length > 1)
+            if (client.getNodes().length > 1)
                 throw new RuntimeException("getSetSize not supported for multi node");
             final String infoQuery = "sets/" + namespace + "/" + setName;
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
@@ -417,29 +424,29 @@ public class AerospikeConnection {
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_IN_INDEX,  Direction.IN.name(),
+                    E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_OUT_INDEX,  Direction.OUT.name(),
+                    E_OUT_INDEX, Direction.OUT.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         createIndex(getElementPropertySet(FireflyVertex.class),
-                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                 STRING_VP_KV_INDEX,
+                STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                 NUMERIC_VP_KV_INDEX,
+                NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 STRING_E_KV_INDEX,
+                STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 NUMERIC_E_KV_INDEX,
+                NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
@@ -474,18 +481,6 @@ public class AerospikeConnection {
      */
     public String getNamespace() {
         return this.namespace;
-    }
-
-    /**
-     * Initialize the Aerospike Throttles
-     *
-     * @param numLoops
-     * @param commandsPerEventLoop
-     * @return
-     */
-    Throttles initializeThrottles(final int numLoops, final int commandsPerEventLoop) {
-        final Throttles throttles = new Throttles(numLoops, commandsPerEventLoop);
-        return throttles;
     }
 
     /**
@@ -532,8 +527,14 @@ public class AerospikeConnection {
      */
     protected Record read(final Key key) {
         this.readMetric.incrementAndGet();
-        return client.get(null, key);
+        return cache.read(key);
     }
+
+    protected void write(final Key key, final Bin... bins) {
+        this.writeMetric.incrementAndGet();
+        cache.write(key, bins);
+    }
+
 
     /**
      * Determine of a key exists
@@ -581,7 +582,7 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         try {
             return client.query(p, stmt).iterator();
-        }catch (AerospikeException ae){
+        } catch (AerospikeException ae) {
             throw new RuntimeException(ae);
         }
     }
@@ -614,7 +615,11 @@ public class AerospikeConnection {
         //@todo performance
         LOG.trace("Scanning {} ids.", setName);
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
+        return IteratorUtils.map(i, keyRecordEntry -> {
+            Key key = keyRecordEntry.getKey();
+            Value userKey = key.userKey;
+            return NumericIdManager.convert(userKey.getObject());
+        });
     }
 
     /**
@@ -691,7 +696,7 @@ public class AerospikeConnection {
             policy.filterExp = exp;
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
                 scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT,conf)));
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
         client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
 
         return listener.iterator();
@@ -1122,22 +1127,14 @@ public class AerospikeConnection {
     }
 
 
-
-    Iterator<Record> outEdgesBulk(){
+    Iterator<Record> outEdgesBulk() {
         return null;
     }
-    Iterator<Record> getNeighborhood(FireflyId startingPoint){
+
+    Iterator<Record> getNeighborhood(FireflyId startingPoint) {
         FireflyRecord startingRecord = vertexBackend.getVertexRecord(startingPoint);
         return null;
     }
-
-
-
-
-
-
-
-
 
 
 }

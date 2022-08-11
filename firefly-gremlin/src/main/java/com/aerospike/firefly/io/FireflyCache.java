@@ -7,7 +7,7 @@ import com.aerospike.client.Record;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public interface Cache {
+public interface FireflyCache {
     Record read(Key key);
     void write(Key key, Bin... bins);
     void remove(Key key);

@@ -1,7 +1,9 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -31,6 +33,7 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        final AerospikeConnection db = ((FireflyGraph) traversal.getGraph().get()).getBaseGraph();
         if (TraversalHelper.onGraphComputer(traversal))
             return;
 
@@ -46,6 +49,8 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
         UUID cacheId = UUID.randomUUID();
         LOG.info("will init cache with id: " + cacheId);
+        Object startVertex = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
+        db.primeSubgraphCache(2, cacheId, startVertex);
 
         final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
         traversal.addStep(0, cacheStep);

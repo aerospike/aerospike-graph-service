@@ -6,23 +6,29 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.Cache;
+import com.aerospike.firefly.io.FireflyCache;
 import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 
-import java.util.concurrent.ExecutionException;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class GuavaCache implements Cache {
+public class SubgraphCache implements FireflyCache {
+    public static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+
+    static {
+        sendKeyWritePolicy.sendKey = true;
+    }
     private final CacheLoader<Key, Optional<Record>> loader;
-    private final LoadingCache<Key, Optional<Record>> cache;
+
+    //Non-loading cache does not cache new results
+    private final Cache<Key, Optional<Record>> cache;
     private final AerospikeConnection db;
 
-    public GuavaCache(AerospikeConnection db) {
+    public SubgraphCache(AerospikeConnection db) {
         this.db = db;
         loader = new CacheLoader<Key, Optional<Record>>() {
             @Override
@@ -31,28 +37,25 @@ public class GuavaCache implements Cache {
                 return result;
             }
         };
-        cache = CacheBuilder.newBuilder().build(loader);
+//        cache = CacheBuilder.newBuilder().build(loader);
+        cache = CacheBuilder.newBuilder().build();
     }
 
     @Override
     public Record read(Key key) {
-        try {
-            Optional<Record> or = cache.get(key);
-            if (or.isPresent()) {
-                return or.get();
-            } else {
-                cache.invalidate(key);
-                return null;
-            }
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+        Optional<Record> or = cache.getIfPresent(key);
+        if (or != null && or.isPresent()) {
+            return or.get();
+        } else {
+            cache.invalidate(key);
+            return db.getClient().get(null, key);
         }
     }
 
     @Override
     public void write(Key key, Bin... bins) {
         cache.invalidate(key);
-        db.getClient().put(new WritePolicy(), key, bins);
+        db.getClient().put(sendKeyWritePolicy, key, bins);
     }
 
     public void remove(Key key) {
@@ -61,7 +64,7 @@ public class GuavaCache implements Cache {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        db.getClient().delete(new WritePolicy(), key);
+        db.getClient().delete(sendKeyWritePolicy, key);
     }
 
     @Override

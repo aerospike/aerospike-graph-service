@@ -1,5 +1,7 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Bin;
+import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -632,6 +634,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
         Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
     }
+
 
 }
 

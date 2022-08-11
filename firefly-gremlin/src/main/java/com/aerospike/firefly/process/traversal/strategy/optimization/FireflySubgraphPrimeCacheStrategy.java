@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
@@ -33,12 +34,15 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        if(!FireflyGraph.class.isAssignableFrom(traversal.getGraph().getClass()))
+            return;
         final AerospikeConnection db = ((FireflyGraph) traversal.getGraph().get()).getBaseGraph();
         if (TraversalHelper.onGraphComputer(traversal))
             return;
-
+        if(!GraphStep.class.isAssignableFrom(traversal.getStartStep().getClass()))
+            return;
         //Do we have a specific starting point? if not, don't run
-        if (((FireflyGraphStep) traversal.getStartStep()).getIds().length != 1)
+        if (((GraphStep) traversal.getStartStep()).getIds().length != 1)
             return;
         List<Step> outSteps = traversal.getSteps().stream().filter(step -> VertexStep.class.isAssignableFrom(step.getClass())).filter(vertexStep -> {
             return ((VertexStep) vertexStep).getDirection() == Direction.OUT;
@@ -49,11 +53,12 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
         UUID cacheId = UUID.randomUUID();
         LOG.info("will init cache with id: " + cacheId);
-        Object startVertex = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
-        db.primeSubgraphCache(2, cacheId, startVertex);
+        Object startVertexId = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
+        db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(),2, cacheId, startVertexId);
 
         final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
         traversal.addStep(0, cacheStep);
+
     }
 
     public static FireflySubgraphPrimeCacheStrategy instance() {

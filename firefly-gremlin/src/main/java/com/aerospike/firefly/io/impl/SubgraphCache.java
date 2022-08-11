@@ -22,6 +22,7 @@ public class SubgraphCache implements FireflyCache {
     static {
         sendKeyWritePolicy.sendKey = true;
     }
+
     private final CacheLoader<Key, Optional<Record>> loader;
 
     //Non-loading cache does not cache new results
@@ -71,4 +72,10 @@ public class SubgraphCache implements FireflyCache {
     public void invalidate(Key key) {
         cache.invalidate(key);
     }
+
+    @Override
+    public void insert(Key key, Record record) {
+        cache.put(key, Optional.of(record));
+    }
+
 }

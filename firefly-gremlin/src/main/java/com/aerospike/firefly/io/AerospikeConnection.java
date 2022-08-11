@@ -203,7 +203,44 @@ public class AerospikeConnection {
         return new AerospikeConnection(conf);
     }
 
-    public void primeSubgraphCache(int i, UUID cacheId, Object startVertex) {
+
+    /**
+     * Givin an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
+     *
+     * @param edgeList  array o Records
+     * @param direction the other end we should be retrieving
+     * @return an array of Vertex records
+     */
+    public Record[] vertexRecordsFromEdgeRecords(Record[] edgeList, Direction direction) {
+        return read((Key[]) Arrays.stream(edgeList)
+                .map(record -> record.getLong(direction.name()))
+                .map(id -> new Key(namespace, VERTEX_AERO_SET, id)).toArray());
+    }
+
+    /**
+     * Take the startVertexId and find all the records in a subgraph out to radius hops
+     * put these records in the subgraph cache tagged with cacheId
+     *
+     * @param graph
+     * @param radius
+     * @param cacheId
+     * @param startVertexId
+     */
+    public void primeSubgraphCache(FireflyGraph graph, int radius, UUID cacheId, Object startVertexId) {
+        List<Key> cachedKeys = new ArrayList<>();
+        FireflyId id = FireflyId.of(FireflyVertex.class, startVertexId);
+        FireflyVertex startVertex = vertexBackend.readVertex(graph, id);
+        List<Object> outEdgeIds = IteratorUtils.list(vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.OUT));
+        List<Object> inEdgeIds = IteratorUtils.list(vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.IN));
+        Key[] outEdgeKeys = (Key[]) outEdgeIds.stream().map(edgeId ->
+                        new Key(namespace, EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList()).toArray();
+        Key[] inEdgeKeys = (Key[])
+                inEdgeIds.stream().map(edgeId ->
+                        new Key(namespace, EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList()).toArray();
+        Record[] outEdgeRecords = read(outEdgeKeys);
+        Record[] inEdgeRecords = read(inEdgeKeys);
+        Record[] outVertexRecords = vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT);
+        Record[] inVertexRecords = vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN);
 
     }
 
@@ -528,6 +565,11 @@ public class AerospikeConnection {
     protected Record read(final Key key) {
         this.readMetric.incrementAndGet();
         return cache.read(key);
+    }
+
+    protected Record[] read(final Key[] keys) {
+        this.readMetric.addAndGet(keys.length);
+        return client.get(null, keys);
     }
 
     protected void write(final Key key, final Bin... bins) {

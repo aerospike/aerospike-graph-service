@@ -582,4 +582,16 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
         }
     }
+
+    @Test
+    public void shouldReadBatchRecords() {
+        Key aKey = new Key(db.getNamespace(), db.TEST_SET, "aKey");
+        Key bKey = new Key(db.getNamespace(), db.TEST_SET, "bKey");
+        Key cKey = new Key(db.getNamespace(), db.TEST_SET, "cKey");
+        db.write(aKey, new Bin("bin", 1));
+        db.write(bKey, new Bin("bin", 1));
+        db.write(cKey, new Bin("bin", 1));
+        Record[] data = db.read(new Key[]{aKey, bKey, cKey});
+        assertEquals(3, data.length);
+    }
 }

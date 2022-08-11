@@ -15,6 +15,7 @@ import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.*;
@@ -25,6 +26,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -136,12 +138,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
-        if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY,configuration))){
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
             // this can be supported by querying all nodes and dividing by replication factor,
             // but since there is another known issue with Info lagging, and querying all nodes would produce results
             // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-            if(db.getClient().getNodes().length > 1)
+            if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class,
@@ -209,7 +211,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final List<Map.Entry<String, Object>> properties =
                 convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
         writeFullyQualifiedVertex(this, idValue, label, properties);
-
         // Return FireflyVertex.
         return new FireflyVertex(idValue, label, this);
     }

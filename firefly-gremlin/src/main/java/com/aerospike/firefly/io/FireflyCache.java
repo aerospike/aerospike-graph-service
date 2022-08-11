@@ -13,4 +13,5 @@ public interface FireflyCache {
     void remove(Key key);
 
     void invalidate(Key key);
+    void insert(Key key , Record record);
 }

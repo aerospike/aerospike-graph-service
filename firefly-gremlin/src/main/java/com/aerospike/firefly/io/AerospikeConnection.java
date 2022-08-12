@@ -9,8 +9,8 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.io.impl.standard.*;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -180,14 +180,6 @@ public class AerospikeConnection {
         USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
-
-        vertexBackend = new VertexBackend(this);
-        edgeBackend = new EdgeBackend(this);
-        vpBackend = new VertexPropertyBackend(this);
-        elementBackend = new ElementBackend(this);
-        graphBackend = new GraphBackend(this);
-        indexBackend = new IndexBackend(this);
-
     }
 
     /**
@@ -200,6 +192,69 @@ public class AerospikeConnection {
         return new AerospikeConnection(conf);
     }
 
+    /**
+     * Get a list of currently valid ids
+     *
+     * @param type type of Element
+     * @return Iterator of raw Ids
+     */
+    public Iterator<?> readElementIds(final Class<? extends FireflyElement> type) {
+        final AerospikeConnection.IdConfig cfg = new AerospikeConnection.IdConfig(this, type);
+        return scanAllIdsInSet(cfg.getAeroSet());
+    }
+
+    /**
+     * Return an iterator of all the (raw) ids in a set
+     *
+     * @param setName name of Aerospike set to scan
+     * @return an Iterator of raw Long id values
+     */
+    private Iterator<Long> scanAllIdsInSet(final String setName) {
+        //@todo performance
+        LOG.trace("Scanning {} ids.", setName);
+        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
+        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
+    }
+
+    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
+        LOG.trace("Scanning all ids in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
+        ScanPolicy policy = new ScanPolicy();
+        policy.includeBinData = false;
+        return scanAllRecordsInSet(setName, exp, policy, binNames);
+    }
+
+    /**
+     * Issue a scan query for all the records in a set.
+     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
+     *
+     * @param setName  Aerospike set name to scan
+     * @param exp      Expression to apply to Scan
+     * @param policy   ScanPolicy to use during Scan
+     * @param binNames Bin names to read into Records returned
+     * @return Iterator of Map.Entry Key, Record
+     */
+    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
+        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
+        final Throttles throttles = new Throttles(getEventLoops().getSize(), getCommandsPerLoop());
+        final Monitor scanMonitor = new Monitor();
+        final int progressFreq = 100;
+        policy.sendKey = true;
+        if (exp != null) policy.filterExp = exp;
+
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
+                scanMonitor,
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
+        client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
+        return listener.iterator();
+    }
+
+    public EventLoops getEventLoops() {
+        return eventLoops;
+    }
+    public int getCommandsPerLoop() {
+        return commandsPerLoop;
+    }
 
     /**
      * manage the set names for an element type
@@ -240,7 +295,6 @@ public class AerospikeConnection {
             return ID_BIN;
         }
     }
-
 
     public static class InfoOps {
         private static class Keys {
@@ -329,7 +383,6 @@ public class AerospikeConnection {
         }
     }
 
-
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
         put(Integer.class, Long.class);
@@ -358,13 +411,6 @@ public class AerospikeConnection {
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
 
-    public final Backend.Edge edgeBackend;
-    public final Backend.Vertex vertexBackend;
-    public final Backend.VertexProperty vpBackend;
-    public final Backend.Element elementBackend;
-    public final Backend.Graph graphBackend;
-    public final Backend.Index indexBackend;
-
     /**
      * Cast an Id to its on-disk storage type
      *
@@ -388,13 +434,13 @@ public class AerospikeConnection {
      * @return name of Aerospike set
      */
     public String getElementPropertySet(final Class<? extends FireflyElement> elementClass) {
-        if (elementClass.equals(FireflyEdge.class))
+        if (FireflyEdge.class.isAssignableFrom(elementClass))
             return EDGE_AERO_SET;
-        else if (elementClass.equals(FireflyVertex.class))
+        else if (FireflyVertex.class.isAssignableFrom(elementClass))
             return VERTEX_AERO_SET;
-        else if (elementClass.equals(FireflyVertexProperty.class))
+        else if (FireflyVertexProperty.class.isAssignableFrom(elementClass))
             return VERTEX_PROPERTY_AERO_SET;
-        throw new UnsupportedOperationException("ele not supported " + elementClass.getClass());
+        throw new UnsupportedOperationException("Element not supported " + elementClass.getName());
     }
 
     /**
@@ -408,7 +454,6 @@ public class AerospikeConnection {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
         return SupportedValueTypes.get(clazz);
     }
-
 
     /**
      * Create Indexes for Firefly
@@ -477,18 +522,6 @@ public class AerospikeConnection {
     }
 
     /**
-     * Initialize the Aerospike Throttles
-     *
-     * @param numLoops
-     * @param commandsPerEventLoop
-     * @return
-     */
-    Throttles initializeThrottles(final int numLoops, final int commandsPerEventLoop) {
-        final Throttles throttles = new Throttles(numLoops, commandsPerEventLoop);
-        return throttles;
-    }
-
-    /**
      * Initialize the Aerospike event loops
      *
      * @param eventLoopType
@@ -554,7 +587,6 @@ public class AerospikeConnection {
         client.delete(null, key);
     }
 
-
     /**
      * query if the connected Aerospike instance is licenced for Enterprise Edition
      *
@@ -605,99 +637,6 @@ public class AerospikeConnection {
     }
 
     /**
-     * Return an iterator of all the (raw) ids in a set
-     *
-     * @param setName name of Aerospike set to scan
-     * @return an Iterator of raw Long id values
-     */
-    public Iterator<Long> scanAllIdsInSet(final String setName) {
-        //@todo performance
-        LOG.trace("Scanning {} ids.", setName);
-        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
-    }
-
-    /**
-     * Scan a set for keys matched by the provided Expression. convert them to their raw id.
-     *
-     * @param setName Aerospike set to scan
-     * @param exp     Aerospike filter Expression to apply to Scan
-     * @return Iterator of raw Object ids
-     */
-    public Iterator<Object> scanFilteredIdsInSet(final String setName, final Expression exp) {
-        LOG.trace("Scanning {} ids with filter {}.", setName, exp);
-        final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, exp);
-        return IteratorUtils.map(i, keyRecordEntry -> {
-            return keyRecordEntry.getKey().userKey.getObject();
-        });
-    }
-
-    /**
-     * Issue a Scan query to for all the Keys in a set
-     *
-     * @param setName  Aerospike set to scan
-     * @param exp      Aerospike filter Expression to apply to scan
-     * @param binNames array of Bin names to read into Records returned
-     * @return Iterator of Map.Entry Key, Record matched by Scan query
-     */
-    protected Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
-        LOG.trace("Scanning all ids in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(setName, exp, policy, binNames);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     *
-     * @param setName Aerospike set name to scan
-     * @return Iterator of Map.Entry Key, Record
-     */
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName) {
-        LOG.trace("Scanning all records in {}.", setName);
-        return scanAllRecordsInSet(setName, null);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, optionally provide binNames to return
-     *
-     * @param setName  Aerospike set name to scan
-     * @param exp      Expression to apply to Scan
-     * @param binNames Bin names to read into Records returned by Scan
-     * @return Iterator of Map.Entry Key, Record
-     */
-    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, String... binNames) {
-        LOG.trace("Scanning all records in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
-        return scanAllRecordsInSet(setName, exp, new ScanPolicy(), binNames);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param setName  Aerospike set name to scan
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of Map.Entry Key, Record
-     */
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
-        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", namespace, setName, Arrays.toString(binNames), exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = true;
-        if (exp != null)
-            policy.filterExp = exp;
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
-                scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT,conf)));
-        client.scanAll(this.eventLoops.next(), listener, policy, this.namespace, setName, binNames);
-
-        return listener.iterator();
-    }
-
-    /**
      * Return a named key-value from a map
      * read its associated type-hint and reconstruct the correct JVM type for the value
      *
@@ -713,8 +652,10 @@ public class AerospikeConnection {
                                             final String mapName,
                                             final String mapKey) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || !fireflyRecord.record.getMap(mapName).containsKey(mapKey))
-            throw new NoSuchElementException();
+        if (fireflyRecord == null || fireflyRecord.record == null ||
+                fireflyRecord.record.getMap(mapName) == null ||
+                !fireflyRecord.record.getMap(mapName).containsKey(mapKey))
+            return null;
         final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
         if (!map.isPresent())
             return null;
@@ -743,8 +684,8 @@ public class AerospikeConnection {
                                                                           final FireflyId fid,
                                                                           final String mapName) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || fireflyRecord.record.getMap(mapName).size() == 0)
-            throw new NoSuchElementException();
+        if (fireflyRecord == null || fireflyRecord.record == null || fireflyRecord.record.getMap(mapName).size() == 0)
+            return null;
         final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
         if (!map.isPresent())
             return null;
@@ -1018,7 +959,6 @@ public class AerospikeConnection {
         dropDatabase(false);
     }
 
-
     /**
      * drop an Aerospike Index
      *
@@ -1114,10 +1054,10 @@ public class AerospikeConnection {
      * close the connection to Aerospike
      */
     public void close() {
-        LOG.info("Closing client.");
+        LOG.debug("Closing client.");
         this.client.close();
 
-        LOG.info("Closing event loop.");
+        LOG.debug("Closing event loop.");
         this.eventLoops.close();
     }
 }

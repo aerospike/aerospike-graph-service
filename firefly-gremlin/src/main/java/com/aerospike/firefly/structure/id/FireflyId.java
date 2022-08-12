@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -10,7 +11,6 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import java.io.Serializable;
 import java.util.Optional;
-
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -32,7 +32,6 @@ public class FireflyId {
     public FireflyId toNumericId() {
         return new FireflyId(type, NumericIdManager.convert(value));
     }
-
 
     public Object value() {
         return value;
@@ -85,4 +84,12 @@ public class FireflyId {
         return maybeId.map(o -> createFromUser(graph, type, o)).orElseGet(() -> createFromManager(graph, type));
     }
 
+    public static FireflyId fromObject(final Class<? extends FireflyElement> type, final Object value) {
+        return new FireflyId(type, value);
+    }
+
+    @Override
+    public String toString() {
+        return value.toString();
+    }
 }

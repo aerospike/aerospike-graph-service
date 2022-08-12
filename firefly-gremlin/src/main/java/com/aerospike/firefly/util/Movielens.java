@@ -188,8 +188,6 @@ public class Movielens {
         public Iterator<Edge> loadEdges(final Graph graph, AtomicLong metric, AtomicLong timer) {
             return emptyIterator();
         }
-
-
     }
 
     public static class Rating implements MovielensElement {
@@ -197,12 +195,10 @@ public class Movielens {
         private static final String TIME = "time";
         public static final String RATED = "rated";
         public static final String STARS = "stars";
-
         public final int userId;
         public final int movieId;
         public final int rating;
         public final long timestamp;
-
 
         private Rating(int userId, int movieId, int rating, long timestamp) {
             this.userId = userId;

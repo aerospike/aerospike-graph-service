@@ -1,6 +1,5 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -16,8 +15,6 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -63,7 +60,6 @@ public class TestPerformance extends AbstractFireflySuite {
         long loadtime = stopTimer(LOAD_TIMER);
         System.out.println(String.format("load time for tinkerpop-grateful.kryo: %d ms", loadtime));
     }
-
 
     @Test
     public void createAndIterateTree() {
@@ -198,22 +194,22 @@ public class TestPerformance extends AbstractFireflySuite {
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result1ReadMetric = db.getReadMetric();
         // when using label, reads are much higher
-        assertEquals(40, result1ReadMetric - readStart);
+        assertEquals(31, result1ReadMetric - readStart);
 
         List<Object> result2 = g.V()
                 .has(ORGCHART_NAME, "bob")
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result2ReadMetric = db.getReadMetric();
-        assertEquals(6, result2ReadMetric - result1ReadMetric);
+        assertEquals(3, result2ReadMetric - result1ReadMetric);
         assertEquals(result1, result2);
 
         List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
-        assertEquals(14, result3ReadMetric - result2ReadMetric);
+        assertEquals(7, result3ReadMetric - result2ReadMetric);
         List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
-        assertEquals(4, result4ReadMetric - result3ReadMetric);
+        assertEquals(3, result4ReadMetric - result3ReadMetric);
         assertEquals(result3, result4);
     }
 

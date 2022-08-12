@@ -5,14 +5,11 @@ import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.*;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
-import com.aerospike.firefly.util.Util;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
@@ -22,9 +19,6 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.*;
@@ -57,21 +51,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), bin1, bin2, bin3);
         assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
-    }
-
-    @Test
-    public void testBasicReadWriteGetValueOfKey() {
-        FireflyId id = FireflyId.of(null, "foo");
-        Bin bin1 = new Bin("name", "John Doe");
-        Bin bin2 = new Bin("age", 32);
-        Bin bin3 = new Bin("greeting", "Hello World!");
-
-
-        Policy rp = new Policy();
-        rp.sendKey = true;
-        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
-        Key key = db.scanAllRecordsInSet(db.TEST_SET).next().getKey();
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, id)).record.getInt("age"), 32);
     }
 
     @Test
@@ -117,25 +96,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testScanVertexIds() {
-        try (FireflyGraph graph = FireflyGraph.open(config)) {
-            ArrayList<Long> ids = new ArrayList<>() {{
-                add(0L);
-                add(1L);
-            }};
-            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(0)), "a");
-            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, ids.get(1)), "b");
-            Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
-            assertTrue(i.hasNext());
-            Long a = i.next();
-            assertTrue(i.hasNext());
-            assertTrue(ids.contains(a));
-            Long b = i.next();
-            assertTrue(ids.contains(b));
-        }
-    }
-
-    @Test
     public void testSyntheticSupernode() {
         config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE, "5");
 
@@ -151,61 +111,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             assertEquals(4L, graph.traversal().V(root).bothE().count().next().longValue());
         }
-    }
-
-
-    @Test
-    public void testScanEdgeIds() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            graph.traversal().V().drop().iterate();
-            ArrayList<Long> vertexIds = new ArrayList<>() {{
-                add(0L);
-                add(1L);
-            }};
-            ArrayList<Long> edgeIds = new ArrayList<>() {{
-                add(2L);
-                add(3L);
-            }};
-            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)), "a");
-            FireflyVertex va = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(0)));
-            db.vertexBackend.writeVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)), "b");
-            FireflyVertex vb = db.vertexBackend.readVertex(graph, FireflyId.of(FireflyVertex.class, vertexIds.get(1)));
-            Iterator<Long> i = db.scanAllIdsInSet(db.VERTEX_AERO_SET);
-            assertTrue(i.hasNext());
-            Long a = i.next();
-            assertTrue(vertexIds.contains(a));
-            Long b = i.next();
-            assertTrue(vertexIds.contains(b));
-
-            db.edgeBackend.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(0)), "anything", va, vb, new Object[]{});
-            db.edgeBackend.writeEdge(graph, FireflyId.of(FireflyEdge.class, edgeIds.get(1)), "anything", vb, va, new Object[]{});
-
-            Iterator<Long> ie = db.scanAllIdsInSet(db.EDGE_AERO_SET);
-            assertTrue(ie.hasNext());
-            Long ae = ie.next();
-            assertTrue(edgeIds.contains(ae));
-            Long be = ie.next();
-            assertTrue(edgeIds.contains(be));
-        }
-    }
-
-    @Test
-    public void testScanQuery() {
-        FireflyId id1 = FireflyId.of(null, 1L);
-        Bin bin1 = new Bin("name", "John Doe");
-        Bin bin2 = new Bin("age", 32);
-        Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, id1, bin1, bin2, bin3);
-        FireflyId id2 = FireflyId.of(null, 2L);
-        Bin bin21 = new Bin("name", "Jane Doe");
-        Bin bin22 = new Bin("age", 32);
-        Bin bin23 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, id2, bin21, bin22, bin23);
-        Iterator<Map.Entry<Key, Record>> i = db.scanAllRecordsInSet(db.TEST_SET);
-        HashMap<Key, Record> results = new HashMap<>();
-        i.forEachRemaining(entry -> {
-            results.put(entry.getKey(), entry.getValue());
-        });
     }
 
     @Test
@@ -350,23 +255,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testCountElements() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            GraphTraversalSource g = graph.traversal();
-            g.V().drop().iterate();
-            ArrayList<Vertex> added = new ArrayList<>();
-            IntStream.range(0, 10).forEach(i -> {
-                Vertex nv = graph.addVertex();
-                added.add(nv);
-                if (i != 0)
-                    nv.addEdge("test", added.get(0));
-            });
-            assertEquals((long) graph.traversal().E().count().next(), db.edgeBackend.getEdgeCount());
-            assertEquals((long) graph.traversal().V().count().next(), db.vertexBackend.getVertexCount());
-        }
-    }
-
-    @Test
     public void testAerospikeReadLatency() {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
@@ -482,7 +370,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                     iterate();
             assertEquals(3L, g.V().count().next().longValue());
 
-
             // "1", 2, and 3L were inserted and should be retrieved as such.
             final Set<Vertex> actualVertices = g.V().toSet();
             final Set<Object> expectedVertexIds = ImmutableSet.of("1", 2, 3L);
@@ -563,13 +450,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
         });
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
                 sleep(1000);
             graph.traversal().V().drop().iterate();
-            sleep(1000);
-            assertEquals(0, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            sleep(10000);
+
+            // counter set
+            assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
@@ -577,7 +465,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             assertEquals(3, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
-            sleep(1000);
+            sleep(10000);
             // counter set
             assertEquals(1, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
         }

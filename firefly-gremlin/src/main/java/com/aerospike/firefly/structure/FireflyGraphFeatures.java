@@ -15,9 +15,7 @@ public class FireflyGraphFeatures implements Graph.Features {
     private final FireflyEdgeFeatures edgeFeatures;
     private final FireflyVertexFeatures vertexFeatures;
     private final FireflyVertexPropertyFeatures vertexPropertyFeatures;
-
     private final FireflyGraphGraphFeatures graphFeatures;
-
 
     FireflyGraphFeatures(FireflyGraph fireflyGraph) {
         this.fireflyGraph = fireflyGraph;
@@ -42,12 +40,10 @@ public class FireflyGraphFeatures implements Graph.Features {
         return vertexFeatures;
     }
 
-
     @Override
     public String toString() {
         return StringFactory.featureString(this);
     }
-
 
     public class FireflyGraphGraphFeatures implements Graph.Features.GraphFeatures {
 
@@ -173,17 +169,16 @@ public class FireflyGraphFeatures implements Graph.Features {
             }
         }
 
-
     }
 
     public class FireflyVertexFeatures implements Graph.Features.VertexFeatures {
         private final IdManager vertexIdManager;
+        private final FireflyVertexPropertyFeatures vertexPropertyFeatures =
+                new FireflyVertexPropertyFeatures(fireflyGraph.vertexPropertyIdManager);
 
         public FireflyVertexFeatures(IdManager vertexIdManager) {
             this.vertexIdManager = vertexIdManager;
         }
-
-        private final FireflyVertexPropertyFeatures vertexPropertyFeatures = new FireflyVertexPropertyFeatures(fireflyGraph.vertexPropertyIdManager);
 
 
         @Override
@@ -205,7 +200,6 @@ public class FireflyGraphFeatures implements Graph.Features {
             return false;
         }
 
-
         @Override
         public boolean supportsAnyIds() {
             return false;
@@ -225,7 +219,6 @@ public class FireflyGraphFeatures implements Graph.Features {
         public boolean supportsUuidIds() {
             return false;
         }
-
 
         @Override
         public boolean willAllowId(final Object id) {
@@ -282,7 +275,6 @@ public class FireflyGraphFeatures implements Graph.Features {
             return false;
         }
 
-
         @Override
         public boolean willAllowId(final Object id) {
             return supportsUserSuppliedIds() && edgeIdManager.allow(id.getClass());
@@ -293,7 +285,6 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         FireflyEdgePropertyFeatures() {
         }
-
 
         @Override
         public boolean supportsBooleanArrayValues() {
@@ -423,7 +414,6 @@ public class FireflyGraphFeatures implements Graph.Features {
         public boolean supportsStringArrayValues() {
             return false;
         }
-
 
         //@todo
         @Override

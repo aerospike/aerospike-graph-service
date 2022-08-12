@@ -9,29 +9,26 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
 
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyEdge extends FireflyElement implements Edge {
-    protected boolean removed;
-    private final FireflyGraph graph;
-    private final FireflyId inVid;
-    private final FireflyId outVid;
+public abstract class FireflyEdge extends FireflyElement implements Edge {
+    public boolean removed;
+    protected final FireflyGraph graph;
+    protected final FireflyId inVid;
+    protected final FireflyId outVid;
 
-    private void writeProperty(String k, Object v) {
-        this.graph.getBaseGraph().elementBackend.writeProperty(this.id, this.getClass(), k, v);
-    }
+    public abstract void removeEdge();
 
-    private Map<String, Property> readProperties() {
-        return this.graph.getBaseGraph().elementBackend.readProperties(this);
-    }
-
-
-    public FireflyEdge(FireflyId id, String label, FireflyId outVid, FireflyId inVid, FireflyGraph graph) {
+    public FireflyEdge(final FireflyId id, final String label, final FireflyId outVid, final FireflyId inVid, final FireflyGraph graph) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;
@@ -40,12 +37,12 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Vertex outVertex() {
-        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.outVid);
+        return graph.readVertex(this.outVid);
     }
 
     @Override
     public Vertex inVertex() {
-        return graph.getBaseGraph().vertexBackend.readVertex(graph, this.inVid);
+        return graph.readVertex(this.inVid);
     }
 
     @Override
@@ -68,11 +65,14 @@ public class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public <V> Property<V> property(final String key) {
-        return null == this.readProperties() ? Property.<V>empty() : this.readProperties().getOrDefault(key, Property.<V>empty());
+        final Map<String, Property<V>> properties = graph.readProperties(this);
+        return properties == null ?
+                Property.empty() :
+                properties.getOrDefault(key, Property.empty());
     }
 
     @Override
-    public <V> Property<V> property(String key, V value) {
+    public <V> Property<V> property(final String key, final V value) {
         FireflyHelper.legalPropertyKeyValueArray(key, value);
         if (isHidden(key))
             throw Edge.Exceptions.labelCanNotBeAHiddenKey(key);
@@ -81,19 +81,25 @@ public class FireflyEdge extends FireflyElement implements Edge {
             properties(key).forEachRemaining(Property::remove);
             return Property.empty();
         }
-        this.writeProperty(key, value);
-        return new FireflyProperty<>(this, key, value);
+        return graph.writeProperty(this, key, value);
     }
 
     @Override
     public void remove() {
         //@todo multi record transactions
-        graph.getBaseGraph().edgeBackend.removeEdge(graph, this.id);
+        final FireflyVertex inVertex = graph.readVertex(inVid);
+        final FireflyVertex outVertex = graph.readVertex(inVid);
+        if (inVertex != null)
+            inVertex.removeEdge(Direction.IN, id, label);
+        if (outVertex != null)
+            outVertex.removeEdge(Direction.OUT, id, label);
+        removeEdge();
+        removed = true;
     }
 
     @Override
-    public <V> Iterator<Property<V>> properties(String... propertyKeys) {
-        Map<String, Property> properties = this.readProperties();
+    public <V> Iterator<Property<V>> properties(final String... propertyKeys) {
+        Map<String, Property<V>> properties = graph.readProperties(this);
         if (propertyKeys.length == 1) {
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
@@ -102,7 +108,6 @@ public class FireflyEdge extends FireflyElement implements Edge {
                     entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)), entry -> ((AbstractMap.Entry) entry).getValue());
         }
     }
-
 
     @Override
     public String toString() {

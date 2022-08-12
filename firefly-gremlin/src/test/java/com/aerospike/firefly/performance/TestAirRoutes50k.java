@@ -1,24 +1,18 @@
 package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.process.TestAerospikeGraphIntegration;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Date;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
@@ -55,7 +49,6 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         long delta = finish - start;
         System.out.printf("Air Routes 50k Load Test: %d milliseconds elapsed%n", delta);
     }
-
 
     @Test
     public void testAirRoutes50KQueryLatency1() throws IOException {

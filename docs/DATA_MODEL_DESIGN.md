@@ -17,6 +17,7 @@ The diagram below gives a rough idea of the hierarchy of the data model.
 This diagram ignores the relationship between vertex/edge/vertex property and element
 as this just obfuscates the diagram.
 
+```mermaid
 classDiagram-v2
     FireflyGraph<--Graph
     Graph : Interface for TinkerPop required functionality
@@ -38,13 +39,14 @@ classDiagram-v2
     Vertex: Vertex interface used by Graph
     Edge: Edge interface by Graph
     VertexProperty: VertexProperty interface used by Graph
-
+```
 
 ## Graph of Objects
 
 The Graph below shows how objects are connected
 VertexProperty is abbreviated as VP and Firefly is abbreviated as FF
 
+```mermaid
 graph TB
     TinkerPopFramework-->Graph
     Graph-->FFGraph
@@ -59,3 +61,4 @@ graph TB
     Graph-->Vertex
     Graph-->Edge
     Graph-->VP
+```

@@ -1,12 +1,9 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.Monitor;
-import com.aerospike.client.async.Throttles;
 import com.aerospike.client.listener.RecordSequenceListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,14 +15,13 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 
-class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
+public class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final Monitor scanMonitor;
     private final LinkedBlockingQueue<Map.Entry<Key, Record>> results = new LinkedBlockingQueue<>();
     private final Semaphore semaphore;
@@ -55,7 +51,6 @@ class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
         semaphore.release();
         scanMonitor.notifyComplete();
     }
-
 
     public void onFailure(final AerospikeException e) {
         LOG.error("Error: scan failed with exception - %s", e);

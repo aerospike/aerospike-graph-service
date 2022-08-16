@@ -2,15 +2,9 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
-import com.aerospike.firefly.util.Util;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
@@ -18,7 +12,6 @@ import java.io.IOException;
 import java.net.URL;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.Util.verifyClean;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 

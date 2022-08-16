@@ -9,8 +9,9 @@ import java.util.NoSuchElementException;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyProperty<V> implements Property<V> {
+public abstract class FireflyProperty<V> implements Property<V> {
     private final FireflyElement element;
     private final String key;
     private final V value;
@@ -33,19 +34,12 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public boolean isPresent() {
-
-//        return true;
         return null != this.value;
     }
 
     @Override
     public Element element() {
         return this.element;
-    }
-
-    @Override
-    public void remove() {
-        ((FireflyGraph) this.element.graph()).getBaseGraph().elementBackend.removeProperty(this.element, this.key);
     }
 
     @Override
@@ -60,7 +54,6 @@ public class FireflyProperty<V> implements Property<V> {
 
     @Override
     public int hashCode() {
-        int hashCode = ElementHelper.hashCode(this);
-        return hashCode;
+        return ElementHelper.hashCode(this);
     }
 }

@@ -170,27 +170,21 @@ public class TestConcurrentScanListener extends AbstractFireflySuite {
     }
     @Test
     public void shouldTriggerAddVertexViaMergeV() {
-        StubMutationListener listener1 = new StubMutationListener();
-        StubMutationListener listener2 = new StubMutationListener();
-        EventStrategy.Builder builder = EventStrategy.build().addListener(listener1).addListener(listener2);
-        if (this.graph.features().graph().supportsTransactions()) {
-            builder.eventQueue(new EventStrategy.TransactionalEventQueue(this.graph));
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build().addListener(listener1).addListener(listener2);
+        if (graph.features().graph().supportsTransactions()) {
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
         }
 
-        EventStrategy eventStrategy = builder.create();
-        this.graph.addVertex(new Object[]{"some", "thing"});
-        GraphTraversalSource gts = this.create(eventStrategy);
-        Map<Object, Object> m = new HashMap();
+        final EventStrategy eventStrategy = builder.create();
+        graph.addVertex("some", "thing");
+        final GraphTraversalSource gts = this.create(eventStrategy);
+        final Map<Object, Object> m = new HashMap<>();
         m.put("any", "thing");
-        gts.V(new Object[0]).mergeV(m).property("any", "thing", new Object[0]).next();
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals(1L, IteratorUtils.count(gts.V(new Object[0]).has("any", "thing")));
-        });
+        gts.V().mergeV(m).property("any", "thing").next();
+        this.tryCommit(graph, (g) -> Assert.assertEquals(1L, IteratorUtils.count(gts.V(new Object[0]).has("any", "thing"))));
         Assert.assertEquals(1L, listener1.addVertexEventRecorded());
         Assert.assertEquals(1L, listener2.addVertexEventRecorded());
     }
-
-
-
-
 }

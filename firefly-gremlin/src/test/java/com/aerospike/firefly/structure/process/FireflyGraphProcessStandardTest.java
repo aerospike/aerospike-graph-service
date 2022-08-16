@@ -1,4 +1,4 @@
-package com.aerospike.firefly.process;
+package com.aerospike.firefly.structure.process;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyGraphProvider;

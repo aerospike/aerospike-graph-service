@@ -96,7 +96,6 @@ public class FireflyRecord {
         return AerospikeConnection.SupportedValueTypes.get(clazz);
     }
 
-
     public Object id() {
         final long idval = key.userKey.toLong();
         final long idtypidx = record.getLong(this.ac.ID_TYPE);
@@ -106,7 +105,6 @@ public class FireflyRecord {
     public Record record() {
         return record;
     }
-
 
     public static Key getKey(final String namespace, final String set, final FireflyId id) {
         final Key key;

@@ -17,14 +17,12 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 public abstract class AbstractFireflySuite {
     protected static final Configuration config;
     protected Logger LOG;
+    protected static AerospikeConnection db;
+    protected static FireflyGraph graph;
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
-
-    protected static AerospikeConnection db;
-    protected static FireflyGraph graph;
-
 
     @BeforeClass
     public static void openGraph() {

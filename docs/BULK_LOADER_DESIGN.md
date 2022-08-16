@@ -25,6 +25,9 @@ Some challenges to consider before we get into the design:
 - Can pack original id as a property if type doesn't match
 - Can be recording id's in a separate file and then bulk loading the edges with them
 - Can auto generate id's in a way that can be reverse engineered, so we can get the id of any vertex any time
+- Can front-load the vertices and allow auto-generated ids, then look up the id during edge loading. 
+  - This makes edge loading slower, but it is the most flexible option
+- Can pre-parse edge files and make a mapping file
 
 ## Bulk Loader to Firefly Loading Interface Options
 
@@ -102,6 +105,9 @@ model examples have been listed in the diagram.
 
 The idea is to have a number of read and write threads running at the same time. The read and write threads share a 
 block queue, this way we avoid reading too much, or writing too much. Most likely we will be constrained by writes.
+
+The bulk loader should provide an interface that "power users" can take advantage of to implement their own Loader 
+when their data source is to large to serialize into a supported format.
 
 ## Bulk Loader Inputs
 

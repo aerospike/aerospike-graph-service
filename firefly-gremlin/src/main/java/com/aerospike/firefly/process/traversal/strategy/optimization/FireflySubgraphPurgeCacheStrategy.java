@@ -35,9 +35,9 @@ public class FireflySubgraphPurgeCacheStrategy extends AbstractTraversalStrategy
             return;
 
 
-        if(FireflyCacheStep.class.isAssignableFrom(traversal.getSteps().get(0).getClass())) {
+        if (traversal.getSteps().size() > 0 && FireflyCacheStep.class.isAssignableFrom(traversal.getSteps().get(0).getClass())) {
             LOG.info("purge cache " + ((FireflyCacheStep) traversal.getSteps().get(0)).cacheId);
-            ((FireflyCacheStep)traversal.getSteps().get(0)).getCacheKeys();
+            ((FireflyCacheStep) traversal.getSteps().get(0)).getCacheKeys();
         }
     }
 

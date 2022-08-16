@@ -289,12 +289,13 @@ public class AerospikeConnection {
             });
             results.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));
             results.addAll(db.vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN));
-            db.vertexBackend.getXXXIdsFromVertexByCache()
+//            db.vertexBackend.getXXXIdsFromVertexByCache()
 
         }
 
         public static EgoNetwork create(final FireflyId egoId) {
-            return new EgoNetwork(egoId, db);
+//            return new EgoNetwork(egoId, db);
+            return null;
         }
 
         public List<Object> vertexNeighborhood() {
@@ -302,7 +303,7 @@ public class AerospikeConnection {
         }
 
         public Iterator<KeyRecord> records() {
-            return IteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator())
+            return IteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator());
         }
     }
 

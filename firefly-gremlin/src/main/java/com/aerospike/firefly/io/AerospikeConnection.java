@@ -111,7 +111,7 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
-    private final SubgraphCache cache;
+    final SubgraphCache cache;
 
     /**
      * Construct a new AerospikeConnection

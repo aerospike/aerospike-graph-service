@@ -31,11 +31,11 @@ public class Subgraph {
     public Key[] primeSubgraphCache(FireflyGraph graph, Object egoId) {
         ConcurrentLinkedQueue<Key> cachedKeys = new ConcurrentLinkedQueue<>();
 
-        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId))
+        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
                 .vertexRecords
                 .parallelStream()
                 .forEach(kr -> {
-                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey))
+                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey), graph)
                             .records()
                             .forEachRemaining(subKr -> {
                                 cachedKeys.add(subKr.key);

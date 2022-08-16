@@ -19,7 +19,7 @@ import java.util.stream.IntStream;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 class EgoNetwork {
-    public final FireflyId egoId;
+    public final FireflyVertex ego;
     public final List<KeyRecord> vertexRecords;
     public final List<KeyRecord> edgeRecords;
     public final List<KeyRecord> propertyRecords;
@@ -27,43 +27,39 @@ class EgoNetwork {
     private final FireflyGraph graph;
 
     private EgoNetwork(final FireflyId egoId, FireflyGraph graph) {
-        this.egoId = egoId;
+        this.ego = graph.readVertex(egoId);
         this.graph = graph;
         this.db = graph.getBaseGraph();
-        vertexRecords = new ArrayList<>();
-        edgeRecords = new ArrayList<>();
-        propertyRecords = new ArrayList<>();
+        this.vertexRecords = new ArrayList<>();
+        this.edgeRecords = new ArrayList<>();
+        this.propertyRecords = new ArrayList<>();
     }
 
     private void read() {
-        FireflyId id = FireflyId.of(FireflyVertex.class, egoId);
-        FireflyVertex startVertex = db.vertexBackend.readVertex(graph, id);
-        List<Object> outEdgeIds = IteratorUtils.list(db.vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.OUT));
-        List<Object> inEdgeIds = IteratorUtils.list(db.vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.IN));
+        List<Long> outEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.OUT));
+        List<Long> inEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.IN));
 
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList());
+                new Key(db.getNamespace(), db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
         List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList());
-        List<KeyRecord> results = new ArrayList<>();
+                new Key(db.getNamespace(), db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
+
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));
         IntStream.range(0, outEdgeRecords.length).forEach(i -> {
-            results.add(new KeyRecord(outEdgeKeys.get(i), outEdgeRecords[i]));
+            this.edgeRecords.add(new KeyRecord(outEdgeKeys.get(i), outEdgeRecords[i]));
         });
         Record[] inEdgeRecords = db.read(inEdgeKeys.toArray(new Key[]{}));
         IntStream.range(0, inEdgeRecords.length).forEach(i -> {
-            results.add(new KeyRecord(inEdgeKeys.get(i), inEdgeRecords[i]));
+            this.edgeRecords.add(new KeyRecord(inEdgeKeys.get(i), inEdgeRecords[i]));
         });
-        results.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));
-        results.addAll(db.vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN));
-//            db.vertexBackend.getXXXIdsFromVertexByCache()
 
+        this.vertexRecords.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));
+        this.vertexRecords.addAll(db.vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN));
     }
 
-    public static EgoNetwork create(final FireflyId egoId) {
-//            return new EgoNetwork(egoId, db);
-        return null;
+    public static EgoNetwork create(final FireflyId egoId, final FireflyGraph graph) {
+        return new EgoNetwork(egoId, graph);
     }
 
     public List<Object> vertexNeighborhood() {

@@ -55,7 +55,7 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
         UUID cacheId = UUID.randomUUID();
         LOG.info("will init cache with id: " + cacheId);
         Object startVertexId = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
-        db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(),startVertexId);
+//        db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(),startVertexId);
 
         final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
         traversal.addStep(0, cacheStep);

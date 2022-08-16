@@ -11,21 +11,24 @@ import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.SubgraphCache;
 import com.aerospike.firefly.io.impl.standard.*;
-import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -223,95 +226,6 @@ public class AerospikeConnection {
             krl.add(new KeyRecord(vertexKeys[i], vertexRecords[i]));
         });
         return krl;
-    }
-
-    /**
-     * Starting from egoId, collect all the Records associated with
-     * the EgoNetwork of egoId, and the EgoNetworks of all vertices adjacent
-     * to egoId, put them in the cache, and return the list of Keys associated with them.
-     * @param graph
-     * @param egoId
-     */
-    public Key[] primeSubgraphCache(FireflyGraph graph, Object egoId) {
-        ConcurrentLinkedQueue<Key> cachedKeys = new ConcurrentLinkedQueue<>();
-
-        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId))
-                .vertexRecords
-                .parallelStream()
-                .forEach(kr -> {
-                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey))
-                            .records()
-                            .forEachRemaining(subKr -> {
-                                cachedKeys.add(subKr.key);
-                                cache.insert(kr.key, kr.record);
-                            });
-                });
-
-        return (Key[]) cachedKeys.stream().toArray();
-    }
-
-    private static class EgoNetwork {
-        public final FireflyId egoId;
-        public final List<KeyRecord> vertexRecords;
-        public final List<KeyRecord> edgeRecords;
-        public final List<KeyRecord> propertyRecords;
-        private final AerospikeConnection db;
-        private final FireflyGraph graph;
-
-        private EgoNetwork(final FireflyId egoId, FireflyGraph graph) {
-            this.egoId = egoId;
-            this.graph = graph;
-            this.db = graph.getBaseGraph();
-            vertexRecords = new ArrayList<>();
-            edgeRecords = new ArrayList<>();
-            propertyRecords = new ArrayList<>();
-        }
-
-        private void read() {
-            FireflyId id = FireflyId.of(FireflyVertex.class, egoId);
-            FireflyVertex startVertex = db.vertexBackend.readVertex(graph, id);
-            List<Object> outEdgeIds = IteratorUtils.list(db.vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.OUT));
-            List<Object> inEdgeIds = IteratorUtils.list(db.vertexBackend.getEdgeIdsFromVertex(startVertex, Direction.IN));
-
-            List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                    new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList());
-            List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                    new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId)).collect(Collectors.toList());
-            List<KeyRecord> results = new ArrayList<>();
-
-            Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));
-            IntStream.range(0, outEdgeRecords.length).forEach(i -> {
-                results.add(new KeyRecord(outEdgeKeys.get(i), outEdgeRecords[i]));
-            });
-            Record[] inEdgeRecords = db.read(inEdgeKeys.toArray(new Key[]{}));
-            IntStream.range(0, inEdgeRecords.length).forEach(i -> {
-                results.add(new KeyRecord(inEdgeKeys.get(i), inEdgeRecords[i]));
-            });
-            results.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));
-            results.addAll(db.vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN));
-//            db.vertexBackend.getXXXIdsFromVertexByCache()
-
-        }
-
-        public static EgoNetwork create(final FireflyId egoId) {
-//            return new EgoNetwork(egoId, db);
-            return null;
-        }
-
-        public List<Object> vertexNeighborhood() {
-            return vertexRecords.stream().map(kr -> kr.key.userKey).collect(Collectors.toList());
-        }
-
-        public Iterator<KeyRecord> records() {
-            return IteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator());
-        }
-    }
-
-
-    public void updateSubgraphCache(Key[] key, Record[] record) {
-        IntStream.range(0, key.length).forEach(i -> {
-            cache.insert(key[i], record[i]);
-        });
     }
 
 

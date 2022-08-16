@@ -35,7 +35,7 @@ class EgoNetwork {
         this.propertyRecords = new ArrayList<>();
     }
 
-    private void read() {
+    private EgoNetwork read() {
         List<Long> outEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.OUT));
         List<Long> inEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.IN));
 
@@ -56,10 +56,11 @@ class EgoNetwork {
 
         this.vertexRecords.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));
         this.vertexRecords.addAll(db.vertexRecordsFromEdgeRecords(inEdgeRecords, Direction.IN));
+        return this;
     }
 
     public static EgoNetwork create(final FireflyId egoId, final FireflyGraph graph) {
-        return new EgoNetwork(egoId, graph);
+        return new EgoNetwork(egoId, graph).read();
     }
 
     public List<Object> vertexNeighborhood() {

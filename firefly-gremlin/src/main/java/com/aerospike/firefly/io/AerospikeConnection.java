@@ -15,7 +15,6 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.*;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -30,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -111,7 +112,7 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
-    final SubgraphCache cache;
+    final SubgraphCache subgraphCache;
 
     /**
      * Construct a new AerospikeConnection
@@ -190,8 +191,34 @@ public class AerospikeConnection {
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
 
 
-        cache = new SubgraphCache(this);
+        subgraphCache = new SubgraphCache(this);
 
+    }
+
+    /**
+     * Starting from egoId, collect all the Records associated with
+     * the EgoNetwork of egoId, and the EgoNetworks of all vertices adjacent
+     * to egoId, put them in the cache, and return the list of Keys associated with them.
+     *
+     * @param graph
+     * @param egoId
+     */
+    public Key[] primeSubgraphCache(FireflyGraph graph, Object egoId) {
+        ConcurrentHashMap<Key,Boolean> cachedKeys = new ConcurrentHashMap<>();
+
+        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
+                .vertexRecords
+                .stream() // todo: parallelStream
+                .forEach(kr -> {
+                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
+                            .records()
+                            .forEachRemaining(subKr -> {
+                                cachedKeys.put(subKr.key,true);
+                                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
+                            });
+                });
+
+        return cachedKeys.keySet().toArray(new Key[]{});
     }
 
     /**
@@ -264,6 +291,7 @@ public class AerospikeConnection {
     public EventLoops getEventLoops() {
         return eventLoops;
     }
+
     public int getCommandsPerLoop() {
         return commandsPerLoop;
     }
@@ -276,15 +304,25 @@ public class AerospikeConnection {
      * @return an array of Vertex records
      */
     public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
-        Key[] vertexKeys = (Key[]) Arrays.stream(edgeRecords)
+        List<Key> vertexKeys = Arrays.stream(edgeRecords)
                 .map(record -> record.getLong(direction.name()))
-                .map(id -> new Key(namespace, VERTEX_AERO_SET, id)).toArray();
-        Record[] vertexRecords = read(vertexKeys);
+                .map(id -> new Key(namespace, VERTEX_AERO_SET, id)).collect(Collectors.toList());
+        Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
         List<KeyRecord> krl = new ArrayList<>();
-        IntStream.range(0, vertexKeys.length).forEach(i -> {
-            krl.add(new KeyRecord(vertexKeys[i], vertexRecords[i]));
+        IntStream.range(0, vertexKeys.size()).forEach(i -> {
+            krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
         });
         return krl;
+    }
+
+    /**
+     * Take an array of Key and remove them from the subgraph cache
+     * this is done at the end of the traversal
+     *
+     * @param cacheKeys
+     */
+    public void purgeFromSubgraphCache(Key[] cacheKeys) {
+        Arrays.stream(cacheKeys).forEach(subgraphCache::invalidate);
     }
 
 
@@ -597,7 +635,7 @@ public class AerospikeConnection {
      */
     protected Record read(final Key key) {
         this.readMetric.incrementAndGet();
-        return cache.read(key);
+        return subgraphCache.read(key);
     }
 
     protected Record[] read(final Key[] keys) {
@@ -607,7 +645,7 @@ public class AerospikeConnection {
 
     protected void write(final Key key, final Bin... bins) {
         this.writeMetric.incrementAndGet();
-        cache.write(key, bins);
+        subgraphCache.write(key, bins);
     }
 
 

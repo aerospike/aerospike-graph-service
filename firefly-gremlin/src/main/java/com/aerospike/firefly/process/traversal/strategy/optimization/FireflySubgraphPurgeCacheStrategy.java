@@ -1,7 +1,9 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.client.Key;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -37,7 +39,8 @@ public class FireflySubgraphPurgeCacheStrategy extends AbstractTraversalStrategy
 
         if (traversal.getSteps().size() > 0 && FireflyCacheStep.class.isAssignableFrom(traversal.getSteps().get(0).getClass())) {
             LOG.info("purge cache " + ((FireflyCacheStep) traversal.getSteps().get(0)).cacheId);
-            ((FireflyCacheStep) traversal.getSteps().get(0)).getCacheKeys();
+            Key[] cacheKeys = ((FireflyCacheStep) traversal.getSteps().get(0)).getCacheKeys();
+            ((FireflyGraph)traversal.getGraph().get()).getBaseGraph().purgeFromSubgraphCache(cacheKeys);
         }
     }
 

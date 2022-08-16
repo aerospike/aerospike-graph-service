@@ -12,12 +12,16 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class SubgraphCache implements FireflyCache {
     public static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+    private final AtomicLong hitCounter = new AtomicLong(0);
+    private final AtomicLong missCounter = new AtomicLong(0);
 
     static {
         sendKeyWritePolicy.sendKey = true;
@@ -29,6 +33,7 @@ public class SubgraphCache implements FireflyCache {
     private final Cache<Key, Optional<Record>> cache;
     private final AerospikeConnection db;
 
+
     public SubgraphCache(AerospikeConnection db) {
         this.db = db;
         loader = new CacheLoader<Key, Optional<Record>>() {
@@ -38,7 +43,6 @@ public class SubgraphCache implements FireflyCache {
                 return result;
             }
         };
-//        cache = CacheBuilder.newBuilder().build(loader);
         cache = CacheBuilder.newBuilder().build();
     }
 
@@ -46,8 +50,10 @@ public class SubgraphCache implements FireflyCache {
     public Record read(Key key) {
         Optional<Record> or = cache.getIfPresent(key);
         if (or != null && or.isPresent()) {
+            hitCounter.incrementAndGet();
             return or.get();
         } else {
+            missCounter.incrementAndGet();
             cache.invalidate(key);
             return db.getClient().get(null, key);
         }
@@ -77,5 +83,6 @@ public class SubgraphCache implements FireflyCache {
     public void insert(Key key, Record record) {
         cache.put(key, Optional.of(record));
     }
-
+    public long getHitCount(){return hitCounter.get();}
+    public long getMissCount(){return missCounter.get();}
 }

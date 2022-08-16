@@ -8,6 +8,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPrimeCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPurgeCacheStrategy;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -20,6 +22,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -57,7 +60,10 @@ final public class LinkedGraph extends FireflyGraph {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(OptionsStrategy.build().create())
+                        .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
+                        .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
     }
 
     /**

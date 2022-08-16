@@ -1,9 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Key;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
@@ -20,7 +18,6 @@ import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
@@ -32,15 +29,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -81,13 +70,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
 
     static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create())
-                        .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
-                        .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
+//        TraversalStrategies.GlobalCache.registerStrategies(
+//                LinkedGraph.class,
+//                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+//                        .addStrategies(FireflyGraphStepStrategy.instance())
+//                        .addStrategies(OptionsStrategy.build().create())
+//                        .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
+//                        .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
     }
 
 

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.client.Key;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
@@ -34,7 +35,9 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if(!FireflyGraph.class.isAssignableFrom(traversal.getGraph().getClass()))
+        if(!traversal.getGraph().isPresent())
+            return;
+        if(!FireflyGraph.class.isAssignableFrom(traversal.getGraph().get().getClass()))
             return;
         final AerospikeConnection db = ((FireflyGraph) traversal.getGraph().get()).getBaseGraph();
         if (TraversalHelper.onGraphComputer(traversal))
@@ -55,11 +58,9 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
         UUID cacheId = UUID.randomUUID();
         LOG.info("will init cache with id: " + cacheId);
         Object startVertexId = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
-//        db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(),startVertexId);
-
-        final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
+        Key[] cacheKeys = db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(), startVertexId);
+        final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId, cacheKeys);
         traversal.addStep(0, cacheStep);
-
     }
 
     public static FireflySubgraphPrimeCacheStrategy instance() {

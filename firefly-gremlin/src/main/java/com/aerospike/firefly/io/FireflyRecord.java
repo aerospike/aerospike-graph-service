@@ -170,7 +170,6 @@ public class FireflyRecord {
         listOfBins.add(idTypeBin);
 
         try {
-            db.writeMetric.incrementAndGet();
             db.write(key, listOfBins.toArray(new Bin[0]));
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);
@@ -187,7 +186,6 @@ public class FireflyRecord {
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         try {
-            db.writeMetric.incrementAndGet();
             db.write(key, listOfBins.toArray(new Bin[0]));
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);

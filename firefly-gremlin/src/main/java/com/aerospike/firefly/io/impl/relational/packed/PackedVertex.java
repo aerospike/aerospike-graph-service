@@ -32,6 +32,7 @@ final public class PackedVertex extends RelationalVertex {
 
     private Map<String, Long> vertexPropertyIds;
     private Map<String, Object> vertexPropertyValues;
+    private Map<String, Long> vertexPropertyValuesTypeHints;
     private long vertexPropertyCount;
     private AerospikeConnection db;
 
@@ -59,6 +60,7 @@ final public class PackedVertex extends RelationalVertex {
                         final long outEdgeCount,
                         final Map<String, Long> vertexPropertyIds,
                         final Map<String, Object> vertexPropertyValues,
+                        final Map<String, Long> vertexPropertyValuesTypeHints,
                         final long vertexPropertyCount,
                         final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
@@ -71,6 +73,7 @@ final public class PackedVertex extends RelationalVertex {
         this.vertexPropertyCount = vertexPropertyCount;
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
         this.vertexPropertyValues = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValues;
+        this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValuesTypeHints;
         this.db = db;
     }
 
@@ -78,6 +81,7 @@ final public class PackedVertex extends RelationalVertex {
     protected void removeVertexProperties() {
         vertexPropertyIds = new HashMap<>();
         vertexPropertyValues = new HashMap<>();
+        vertexPropertyValuesTypeHints = new HashMap<>();
     }
 
     /**
@@ -114,7 +118,7 @@ final public class PackedVertex extends RelationalVertex {
      */
     @Override
     protected <V> Iterator<VertexProperty<V>> readVertexProperty(final String key) {
-        LOG.debug("Read vertex property {}", key);
+        LOG.debug("Reading vertex property {}", key);
 
         if (!vertexPropertyValues.containsKey(key)) {
             return Collections.emptyIterator();
@@ -123,6 +127,8 @@ final public class PackedVertex extends RelationalVertex {
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
         final Object vertexProperty = vertexPropertyValues.get(key);
         final Long vertexPropertyId = vertexPropertyIds.get(key);
+
+        System.out.println("Reading vertex property " + key + " : " + vertexPropertyValues.get(key).getClass() + "(" + vertexPropertyValues.get(key) + ")");
         final List<VertexProperty<V>> vertexProperties = new ArrayList<>();
         vertexProperties.add(
                 new PackedVertexProperty<>(graph,
@@ -156,22 +162,20 @@ final public class PackedVertex extends RelationalVertex {
             return;
         }
 
-        System.out.println("Before: " + vertexPropertyValues);
-
         // Remove the vertex property from vertex property list.
         vertexPropertyIds.remove(key);
         vertexPropertyValues.remove(key);
+        vertexPropertyValuesTypeHints.remove(key);
         vertexPropertyCount--;
-
-        System.out.println("After: " + vertexPropertyValues);
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
         final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
+        final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints));
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesCounterBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vertexPropertiesCounterBin);
     }
 
     /**
@@ -184,17 +188,20 @@ final public class PackedVertex extends RelationalVertex {
         LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
 
         // Update maps for vertex properties and ids.
+        System.out.println("Writing vertex property: " + vertexProperty.key() + " : " + vertexProperty.value().getClass() + "(" + vertexProperty.value() + ")");
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
         vertexPropertyIds.put(vertexProperty.key(), (Long) vertexProperty.id.toNumericId().value());
+        vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));
         vertexPropertyCount++;
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
+        final Bin vertexPropertiesValuesTypeHintBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, vertexPropertyValuesTypeHints);
         final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesCounterBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin, vertexPropertiesCounterBin);
     }
 
     /**

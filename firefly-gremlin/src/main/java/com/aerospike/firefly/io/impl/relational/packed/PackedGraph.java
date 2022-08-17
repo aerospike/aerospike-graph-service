@@ -22,8 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE;
-
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)

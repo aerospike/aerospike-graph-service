@@ -22,6 +22,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
@@ -41,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
@@ -532,10 +534,17 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
 
         // Write vertex bins to Aerospike.
+        final Map<String, Long> vertexPropertyTypeHintMap;
         if (vertexPropertyValueMap != null) {
             final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, typeHint);
+            vertexPropertyTypeHintMap = new HashMap<>();
+            for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
+                vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
+            }
+            final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
         } else {
+            vertexPropertyTypeHintMap = null;
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
         }
 
@@ -543,7 +552,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             case LinkedVertex.VERTEX_TYPE_HINT:
                 return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>)vertexPropertyIds, vertexPropertyIds.size(), db);
             case PackedVertex.VERTEX_TYPE_HINT:
-                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>)vertexPropertyIds, vertexPropertyValueMap, vertexPropertyIds.size(), db);
+                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>)vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -608,7 +617,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 case LinkedVertex.VERTEX_TYPE_HINT:
                     return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
                 case PackedVertex.VERTEX_TYPE_HINT:
-                    return new PackedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), new HashMap<>(), vertexPropertyCount, db);
+                    return new PackedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), new HashMap<>(), new HashMap<>(), vertexPropertyCount, db);
                 default:
                     // Should never happen.
                     throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -637,9 +646,14 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Get vertex properties and vertex property counter from record.
                 final Map<String, Object> vertexPropertyValues = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
                         (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE) : new HashMap<>();
+                final Map<String, Long> vertexPropertyTypeHints = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                        (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT) : new HashMap<>();
+                for (String key : vertexPropertyValues.keySet()) {
+                    vertexPropertyValues.put(key, db.convertValuetoTypeUsingHint(vertexPropertyValues.get(key), vertexPropertyTypeHints.get(key)));
+                }
                 final Map<String, Long> vertexPropertyIds = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
                         (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
-                return new PackedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds, vertexPropertyValues, vertexPropertyCount, db);
+                return new PackedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyCount, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);

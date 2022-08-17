@@ -58,27 +58,6 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     }
 
     /**
-     * Construct vertex property from value.
-     *
-     * @param graph  the graph to read from.
-     * @param parent Vertex that owns the VertexProperty being looked up
-     * @param value  the value of the VertexProperty.
-     * @param <V>    the type of the value.
-     * @param key    the key of the property.
-     * @return VertexProperty
-     */
-    public static <V> FireflyVertexProperty<V> createVertexProperty(final FireflyGraph graph,
-                                                                    final FireflyVertex parent,
-                                                                    final String key,
-                                                                    final V value) {
-        // Read record from Aerospike.
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // TODO.
-        return null;
-    }
-
-    /**
      * Create vertex property from a record.
      *
      * @param graph         Graph that property exists on.

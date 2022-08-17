@@ -121,6 +121,7 @@ public class AerospikeConnection {
     protected final String VERTEX_PROPERTY_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_ID;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE;
+    public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT;
     public final String VERTEX_PROPERTY_NAME;
     public final String PARENT_VERTEX_ID;
 
@@ -181,6 +182,7 @@ public class AerospikeConnection {
         VERTEX_PROPERTY_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_BIN, conf);
         VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
         VERTEX_PROPERTY_NAME_TO_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE, conf);
+        VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
         PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
         EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
@@ -752,6 +754,14 @@ public class AerospikeConnection {
                 .filter(entry -> typeHint.equals(entry.getValue()))
                 .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
         return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
+    }
+
+    public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {
+        final Class clazz = SupportedValueTypes.entrySet()
+                .stream()
+                .filter(entry -> typeHint.equals(entry.getValue()))
+                .map(Map.Entry::getKey).findFirst().orElse(null);
+        return (clazz == null) ? value : typeCast(clazz, value);
     }
 
     /**

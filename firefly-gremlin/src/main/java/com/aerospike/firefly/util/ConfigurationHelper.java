@@ -59,6 +59,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_ID_BIN = "VERTEX_PROPERTY_ID_BIN";
         public static final String VERTEX_PROPERTY_NAME_TO_ID = "VERTEX_PROPERTY_NAME_TO_ID";
         public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
+        public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";
         public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
         public static final String PARENT_VERTEX_ID = "PARENT_VERTEX_ID";
         public static final String EDGE_PROPERTIES = "EDGE_PROPERTIES";
@@ -122,6 +123,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_ID_BIN, "VP_P_ID_B");
         put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_N_ID");
         put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE, "VP_N_V");
+        put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, "VP_N_TH");
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");

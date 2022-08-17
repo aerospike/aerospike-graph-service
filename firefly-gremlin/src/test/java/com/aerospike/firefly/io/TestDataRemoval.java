@@ -19,6 +19,12 @@ import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestDataRemoval extends AbstractFireflySuite {
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     private static final File tempFile;
     private static final URL airRoutesUrl;
 

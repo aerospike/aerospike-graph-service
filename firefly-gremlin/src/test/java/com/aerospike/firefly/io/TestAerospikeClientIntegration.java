@@ -54,6 +54,11 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     @Test
     public void testConnectToAerospike() {
         Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);

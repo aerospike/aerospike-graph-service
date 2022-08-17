@@ -261,4 +261,9 @@ public class TestPerformance extends AbstractFireflySuite {
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
         assertEquals(4, m.size());
     }
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
 }

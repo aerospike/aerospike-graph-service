@@ -43,6 +43,12 @@ import static org.junit.Assert.*;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     @Test
     public void testReadWriteRemoveGraphVariables() {
         graph.variables().set("this", "that");

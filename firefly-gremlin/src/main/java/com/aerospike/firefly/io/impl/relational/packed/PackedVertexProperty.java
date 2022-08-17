@@ -73,7 +73,9 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                                                           final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
         final Map<String, Object> propertyValueMap = (Map<String, Object>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+        final Map<String, Long> propertyValueTypeHintsMap = (Map<String, Long>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
         final Map<String, Long> propertyIdMap = (Map<String, Long>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+        propertyValueMap.replaceAll((k, v) -> db.convertValuetoTypeUsingHint(v, propertyValueTypeHintsMap.get(k)));
         final Object property = propertyValueMap.get(key);
         if (property == null) {
             // Cannot get id.
@@ -97,11 +99,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             final FireflyId vpid,
             final String key,
             final V value) {
-        // Write the vertex property to the database
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, AerospikeConnection.idToStorageType(vertex.id()));
-        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
+        // Do nothing.
 
         // Return the vertex property.
         return new PackedVertexProperty<>(graph, vpid, (PackedVertex) vertex, key, value);
@@ -115,8 +113,8 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
      */
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
         LOG.debug("Removing vertex property {}", id.value());
-        final AerospikeConnection db = graph.getBaseGraph();
-        db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
+
+        // Do nothing.
     }
 
     /**

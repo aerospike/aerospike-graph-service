@@ -567,6 +567,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         return graph.traversal().withStrategies(strategies);
     }
 
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     static abstract class AbstractMutationListener implements MutationListener {
         @Override
         public void vertexAdded(final Vertex vertex) {

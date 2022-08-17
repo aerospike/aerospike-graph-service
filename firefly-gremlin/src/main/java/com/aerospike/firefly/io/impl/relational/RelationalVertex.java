@@ -116,7 +116,8 @@ public abstract class RelationalVertex extends FireflyVertex {
             if (edge != null) {
                 edge.removeEdge();
                 final RelationalVertex vertex = (RelationalVertex) edge.outVertex();
-                vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
+                if (vertex != null)
+                    vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
             }
         });
         outEdgeIdSet.forEach(edgeId -> {
@@ -124,7 +125,8 @@ public abstract class RelationalVertex extends FireflyVertex {
             if (edge != null) {
                 edge.removeEdge();
                 final RelationalVertex vertex = (RelationalVertex) edge.inVertex();
-                vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
+                if (vertex != null)
+                    vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
             }
         });
 
@@ -326,7 +328,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         long edgeCounter = (fireflyRecord.record.getLong(counterKey) - 1);
         if (edgeCounter < 0) {
             edgeCounter = 0;
-            LOG.error("edge counter is 0 for {} when calling removeEdgeFromVertex", this);
+            LOG.warn("edge counter is 0 for {} when calling removeEdgeFromVertex", this);
         }
 
         // Get edges.

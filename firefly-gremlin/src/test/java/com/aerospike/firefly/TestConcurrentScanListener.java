@@ -22,6 +22,11 @@ import java.util.function.Consumer;
  */
 public class TestConcurrentScanListener extends AbstractFireflySuite {
 
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     static class StubMutationListener implements MutationListener {
         private final AtomicLong addEdgeEvent = new AtomicLong(0);
         private final AtomicLong addVertexEvent = new AtomicLong(0);

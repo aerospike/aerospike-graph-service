@@ -99,7 +99,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
 
-    protected abstract String getDataModel();
+    public abstract String getDataModel();
 
     // Vertex functions.
     protected abstract Iterator<Long> scanAllVertices();

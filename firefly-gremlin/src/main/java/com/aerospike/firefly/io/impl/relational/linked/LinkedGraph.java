@@ -52,7 +52,7 @@ final public class LinkedGraph extends RelationalGraph {
     }
 
     @Override
-    protected String getDataModel() {
+    public String getDataModel() {
         return DATA_MODEL;
     }
 

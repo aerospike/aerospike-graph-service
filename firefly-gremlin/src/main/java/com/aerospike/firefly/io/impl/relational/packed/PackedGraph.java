@@ -53,7 +53,7 @@ final public class PackedGraph extends RelationalGraph {
     }
 
     @Override
-    protected String getDataModel() {
+    public String getDataModel() {
         return DATA_MODEL;
     }
 
@@ -134,7 +134,7 @@ final public class PackedGraph extends RelationalGraph {
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
                         FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
     /**
@@ -163,7 +163,7 @@ final public class PackedGraph extends RelationalGraph {
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
                         FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
     /**
@@ -192,6 +192,6 @@ final public class PackedGraph extends RelationalGraph {
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
                         FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 }

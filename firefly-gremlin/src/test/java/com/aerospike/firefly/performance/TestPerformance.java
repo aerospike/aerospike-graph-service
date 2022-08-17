@@ -1,5 +1,7 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
+import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -187,29 +189,57 @@ public class TestPerformance extends AbstractFireflySuite {
         final long writeStart = db.getWriteMetric();
 
         createOrgChartData();
-        assertEquals(36, db.getWriteMetric() - writeStart);
+
+        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            assertEquals(36, db.getWriteMetric() - writeStart);
+        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+            assertEquals(12, db.getWriteMetric() - writeStart);
+        }
+
         List<Object> result1 = g.V()
                 .has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "bob")
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result1ReadMetric = db.getReadMetric();
+
         // when using label, reads are much higher
-        assertEquals(31, result1ReadMetric - readStart);
+        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            assertEquals(31, result1ReadMetric - readStart);
+        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+            assertEquals(0, result1ReadMetric - readStart);
+        }
 
         List<Object> result2 = g.V()
                 .has(ORGCHART_NAME, "bob")
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result2ReadMetric = db.getReadMetric();
-        assertEquals(3, result2ReadMetric - result1ReadMetric);
+
+        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            assertEquals(3, result2ReadMetric - result1ReadMetric);
+        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+            assertEquals(1, result2ReadMetric - result1ReadMetric);
+        }
         assertEquals(result1, result2);
 
         List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
-        assertEquals(7, result3ReadMetric - result2ReadMetric);
+
+        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            assertEquals(7, result3ReadMetric - result2ReadMetric);
+        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+            assertEquals(0, result3ReadMetric - result2ReadMetric);
+        }
+
         List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
-        assertEquals(3, result4ReadMetric - result3ReadMetric);
+
+        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            assertEquals(3, result4ReadMetric - result3ReadMetric);
+        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+            assertEquals(1, result4ReadMetric - result3ReadMetric);
+        }
+        
         assertEquals(result3, result4);
     }
 

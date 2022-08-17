@@ -44,6 +44,7 @@ public class TestMovielens1M extends AbstractFireflySuite {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
     }
 
     @AfterClass
@@ -68,7 +69,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
 
     @Test
     public void testQueryMovieLens1M() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
         long vCountStart = System.currentTimeMillis();
         long vCount = graph.traversal().V().count().next();
         long vCountEnd = System.currentTimeMillis();
@@ -86,7 +86,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
 
     @Test
     public void testLoadMovieLens() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), graph);
         final Long verticesLoaded = graph.traversal().V().count().next();
         final Long edgesLoaded = graph.traversal().E().count().next();
         System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));

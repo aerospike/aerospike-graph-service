@@ -513,7 +513,7 @@ public class AerospikeConnection {
     /**
      * Create Indexes for Firefly
      */
-    public void createGraphIndexes(final String dataModel) {
+    public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),

@@ -19,7 +19,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
@@ -31,9 +35,10 @@ import static org.junit.Assert.assertEquals;
  */
 public class TestPerformance extends AbstractFireflySuite {
     GraphTraversalSource g;
+
     @Before
-    public void setupTraversal(){
-       g = graph.traversal();
+    public void setupTraversal() {
+        g = graph.traversal();
     }
 
     public void printTraversalForm(final Traversal traversal) {
@@ -192,7 +197,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(36, db.getWriteMetric() - writeStart);
-        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(12, db.getWriteMetric() - writeStart);
         }
 
@@ -205,7 +210,7 @@ public class TestPerformance extends AbstractFireflySuite {
         // when using label, reads are much higher
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(31, result1ReadMetric - readStart);
-        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result1ReadMetric - readStart);
         }
 
@@ -217,7 +222,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(3, result2ReadMetric - result1ReadMetric);
-        }else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(1, result2ReadMetric - result1ReadMetric);
         }
         assertEquals(result1, result2);
@@ -239,7 +244,7 @@ public class TestPerformance extends AbstractFireflySuite {
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(1, result4ReadMetric - result3ReadMetric);
         }
-        
+
         assertEquals(result3, result4);
     }
 

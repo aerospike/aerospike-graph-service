@@ -451,6 +451,15 @@ public class AerospikeConnection {
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
     }};
+    public static final Map<Long, Class<? extends Serializable>> SupportedTypeValues = new HashMap<>() {{
+        put(1L, Long.class);
+        put(2L, Integer.class);
+        put(3L, Double.class);
+        put(4L, byte[].class);
+        put(5L, String.class);
+        put(6L, Boolean.class);
+        put(7L, ArrayList.class);
+    }};
 
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
@@ -717,10 +726,7 @@ public class AerospikeConnection {
         final Long typeHint = (Long) fireflyRecord.record.getMap(TYPE_HINTS).get(mapKey);
         if (val == null)
             return null;
-        final Class clazz = SupportedValueTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        final Class clazz = SupportedTypeValues.get(typeHint);
         return (V) typeCast(clazz, val);
     }
 
@@ -749,18 +755,12 @@ public class AerospikeConnection {
 
         if (val == null)
             return null;
-        final Class clazz = SupportedValueTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        final Class clazz = SupportedTypeValues.get(typeHint);
         return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
     }
 
     public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {
-        final Class clazz = SupportedValueTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).findFirst().orElse(null);
+        final Class clazz = SupportedTypeValues.get(typeHint);
         return (clazz == null) ? value : typeCast(clazz, value);
     }
 

@@ -22,7 +22,6 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
@@ -42,7 +41,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
@@ -421,9 +419,9 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Property id map.
      */
     public static Map<String, List<Long>> getPropertyIdMap(final FireflyGraph graph,
-                                                  final List<Map.Entry<String, Object>> properties,
-                                                  final FireflyId vertexId,
-                                                  final boolean writeProperties) {
+                                                           final List<Map.Entry<String, Object>> properties,
+                                                           final FireflyId vertexId,
+                                                           final boolean writeProperties) {
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Loop through properties and populate the vertex property id cache and vertex property label id map.
@@ -552,9 +550,9 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
-                return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>)vertexPropertyIds, vertexPropertyIds.size(), db);
+                return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>) vertexPropertyIds, vertexPropertyIds.size(), db);
             case PackedVertex.VERTEX_TYPE_HINT:
-                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>)vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
+                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>) vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);

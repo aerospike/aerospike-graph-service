@@ -1,14 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Key;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.linked.LinkedGraph;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -76,7 +73,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraph(final AerospikeConnection db, final Configuration conf) {
         this.configuration = conf;
-        db.createGraphIndexes();
+        db.createGraphIndexes(getDataModel());
         this.db = db;
         this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
         this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
@@ -101,6 +98,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static FireflyGraph open(final Configuration conf) {
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
+
+    protected abstract String getDataModel();
 
     // Vertex functions.
     protected abstract Iterator<Long> scanAllVertices();

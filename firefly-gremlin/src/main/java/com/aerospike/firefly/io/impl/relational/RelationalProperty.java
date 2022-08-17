@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.linked;
+package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -16,19 +16,19 @@ import java.util.Map;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class LinkedProperty<V> extends FireflyProperty<V> {
+public class RelationalProperty<V> extends FireflyProperty<V> {
     private final FireflyGraph graph;
     private final FireflyElement fireflyElement;
 
     /**
-     * Constructor for LinkedProperty.
+     * Constructor for RelationalProperty.
      *
      * @param graph   Graph that property exists in.
      * @param element Element that property exists on.
      * @param key     Key of property.
      * @param value   Value of property.
      */
-    public LinkedProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
+    public RelationalProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
         super(element, key, value);
         this.graph = graph;
         this.fireflyElement = element;
@@ -68,7 +68,7 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
                 db.getElementPropertySet(element.getClass()),
                 key,
                 value);
-        return new LinkedProperty<>(graph, element, key, value);
+        return new RelationalProperty<>(graph, element, key, value);
     }
 
     /**
@@ -107,7 +107,7 @@ public class LinkedProperty<V> extends FireflyProperty<V> {
      */
     public static <V> Property<V> readProperty(final FireflyGraph graph, final FireflyElement element, final String key) {
         final AerospikeConnection db = graph.getBaseGraph();
-        return new LinkedProperty<>(graph, element, key,
+        return new RelationalProperty<>(graph, element, key,
                 db.readTypeHintedValueFromMap(
                         db.getElementPropertySet(element.getClass()),
                         FireflyId.fromElement(element).toNumericId(),

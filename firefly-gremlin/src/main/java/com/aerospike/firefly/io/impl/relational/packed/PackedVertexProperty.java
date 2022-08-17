@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.linked;
+package com.aerospike.firefly.io.impl.relational.packed;
 
 import com.aerospike.client.Bin;
 import com.aerospike.firefly.io.AerospikeConnection;
@@ -10,19 +10,19 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
-    private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
-    private final LinkedVertex vertex;
+final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
+    private static final Logger LOG = LoggerFactory.getLogger(PackedVertexProperty.class);
+    private final PackedVertex vertex;
 
     /**
-     * Constructor for LinkedVertexProperty.
+     * Constructor for PackedVertexProperty.
      *
      * @param graph  Graph that vertex property exists on.
      * @param id     Id of vertex property.
@@ -30,9 +30,9 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param key    Key of vertex property.
      * @param value  Value of vertex property.
      */
-    public LinkedVertexProperty(final FireflyGraph graph,
+    public PackedVertexProperty(final FireflyGraph graph,
                                 final FireflyId id,
-                                final LinkedVertex vertex,
+                                final PackedVertex vertex,
                                 final String key,
                                 final Object value) {
         super(graph, id, vertex.id, key, (V) value);
@@ -48,7 +48,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param key      Key of vertex property.
      * @param value    Value of vertex property.
      */
-    private LinkedVertexProperty(final FireflyGraph graph,
+    private PackedVertexProperty(final FireflyGraph graph,
                                  final FireflyId id,
                                  final FireflyId vertexId,
                                  final String key,
@@ -58,52 +58,49 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     }
 
     /**
-     * Read a single VertexProperty from its id
+     * Construct vertex property from value.
      *
      * @param graph  the graph to read from.
      * @param parent Vertex that owns the VertexProperty being looked up
-     * @param id     the id of the VertexProperty to read.
+     * @param value  the value of the VertexProperty.
+     * @param <V>    the type of the value.
+     * @param key    the key of the property.
      * @return VertexProperty
      */
-    public static <V> FireflyVertexProperty<V> readVertexProperty(final FireflyGraph graph,
-                                                                  final FireflyVertex parent,
-                                                                  final FireflyId id) {
-        LOG.debug("Reading vertex property {} from {}", id.value(), parent.id());
-
+    public static <V> FireflyVertexProperty<V> createVertexProperty(final FireflyGraph graph,
+                                                                    final FireflyVertex parent,
+                                                                    final String key,
+                                                                    final V value) {
         // Read record from Aerospike.
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_PROPERTY_AERO_SET, id);
-        if (fireflyRecord == null)
-            return new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, null, null);
 
-        // Read vertex property from record.
-        final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
-                db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, id, db.KEY_VALUE));
-
-        // Return the vertex property.
-        return (kv.isEmpty()) ?
-                new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, null, null) :
-                new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, kv.get().getKey(), kv.get().getValue());
+        // TODO.
+        return null;
     }
 
     /**
      * Create vertex property from a record.
      *
      * @param graph         Graph that property exists on.
+     * @param key           Key of property.
      * @param fireflyRecord Record to create vertex property from
      * @param parentId      Id of parent vertex.
      * @param <V>           Type of value.
      * @return The vertex property.
      */
-    public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
+    public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph,
+                                                          final String key,
+                                                          final FireflyRecord fireflyRecord,
+                                                          final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
-        final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
-        if (kv.isEmpty())
-            return new LinkedVertexProperty<>(graph, fid, parentId, null, null);
-        final String vpKey = kv.get().getKey();
-        final Object vpVal = kv.get().getValue();
-        return new LinkedVertexProperty<>(graph, fid, parentId, vpKey, (V) vpVal);
+        final Map<String, Object> propertyValueMap = (Map<String, Object>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+        final Map<String, Long> propertyIdMap = (Map<String, Long>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+        final Object property = propertyValueMap.get(key);
+        if (property == null) {
+            // Cannot get id.
+            return new PackedVertexProperty<>(graph, null, parentId, null, null);
+        }
+        return new PackedVertexProperty<>(graph, FireflyId.of(FireflyVertexProperty.class, propertyIdMap.get(key)), parentId, key, propertyValueMap.get(key));
     }
 
     /**
@@ -128,7 +125,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
 
         // Return the vertex property.
-        return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
+        return new PackedVertexProperty<>(graph, vpid, (PackedVertex) vertex, key, value);
     }
 
     /**

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.impl.linked.LinkedVertex;
-import com.aerospike.firefly.io.impl.linked.LinkedVertexProperty;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -44,7 +44,7 @@ import static org.junit.Assert.*;
  */
 public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
-    public void testReadWriteRemoveGraphVariables() throws InterruptedException {
+    public void testReadWriteRemoveGraphVariables() {
         graph.variables().set("this", "that");
         assertEquals("that", graph.variables().get("this").get().toString());
         assertEquals("this", graph.variables().keys().iterator().next());

@@ -1,29 +1,65 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.*;
-import com.aerospike.client.async.*;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Host;
+import com.aerospike.client.Info;
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
+import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
+import com.aerospike.client.Value;
+import com.aerospike.client.async.EventLoops;
+import com.aerospike.client.async.EventPolicy;
+import com.aerospike.client.async.Monitor;
+import com.aerospike.client.async.NettyEventLoops;
+import com.aerospike.client.async.NioEventLoops;
+import com.aerospike.client.async.Throttles;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.*;
-import com.aerospike.client.query.*;
+import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.Policy;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -39,6 +75,8 @@ public class AerospikeConnection {
 
     public final String NUMERIC_VP_KV_INDEX;
     public final String STRING_VP_KV_INDEX;
+    public final String NUMERIC_V_VP_KV_INDEX;
+    public final String STRING_V_VP_KV_INDEX;
     public final String STRING_E_KV_INDEX;
     public final String NUMERIC_E_KV_INDEX;
     private final String INDEXED_BINS;
@@ -64,6 +102,7 @@ public class AerospikeConnection {
     public final String IN_EDGES;
     public final String OUT_EDGES;
     public final String CACHE_DISABLED;
+    public final String RELATIONAL_VERTEX_TYPE_HINT;
     private final String INDEX_METADATA;
 
     protected final String GRAPH_METADATA_SET;
@@ -81,6 +120,7 @@ public class AerospikeConnection {
     protected final String VERTEX_PROPERTY_ID_KEY;
     protected final String VERTEX_PROPERTY_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_ID;
+    public final String VERTEX_PROPERTY_NAME_TO_VALUE;
     public final String VERTEX_PROPERTY_NAME;
     public final String PARENT_VERTEX_ID;
 
@@ -114,11 +154,11 @@ public class AerospikeConnection {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            LOG.debug(String.format("config: [%s]:[%s]", key, conf.get(String.class, key)));
+            LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key)));
         });
-        LOG.debug("host {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
-        LOG.debug("port {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
-        LOG.debug("ns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+        LOG.debug("\thost {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
+        LOG.debug("\tport {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
+        LOG.debug("\tns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
@@ -140,6 +180,7 @@ public class AerospikeConnection {
         VERTEX_PROPERTY_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_KEY, conf);
         VERTEX_PROPERTY_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_BIN, conf);
         VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
+        VERTEX_PROPERTY_NAME_TO_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
         PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
         EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
@@ -162,6 +203,8 @@ public class AerospikeConnection {
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
         NUMERIC_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_VP_KV_INDEX, conf));
         STRING_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_VP_KV_INDEX, conf));
+        NUMERIC_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_V_VP_KV_INDEX, conf));
+        STRING_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_V_VP_KV_INDEX, conf));
         STRING_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_E_KV_INDEX, conf));
         NUMERIC_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_E_KV_INDEX, conf));
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
@@ -173,6 +216,7 @@ public class AerospikeConnection {
         OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
         CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CACHE_DISABLED, conf);
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
+        RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
 
 
         // User supplied id cache.
@@ -458,7 +502,7 @@ public class AerospikeConnection {
     /**
      * Create Indexes for Firefly
      */
-    public void createGraphIndexes() {
+    public void createGraphIndexes(final String dataModel) {
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
@@ -475,11 +519,19 @@ public class AerospikeConnection {
                  E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                 STRING_VP_KV_INDEX,
+                STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
-                 NUMERIC_VP_KV_INDEX,
+                NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
+        createIndex(getElementPropertySet(FireflyVertex.class),
+                STRING_V_VP_KV_INDEX,
+                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyVertex.class),
+                NUMERIC_V_VP_KV_INDEX,
+                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
         createIndex(getElementPropertySet(FireflyEdge.class),
                  STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
@@ -795,7 +847,7 @@ public class AerospikeConnection {
                 FireflyRecord.write(this, aeroSet, fid, valueBin, typeHintBin);
             }
         } else {
-            List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
+            final List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
             listOfBins.add(valueBin);
             listOfBins.add(typeHintBin);
             if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {

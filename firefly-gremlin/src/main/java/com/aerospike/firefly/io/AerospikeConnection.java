@@ -10,10 +10,6 @@ import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.SubgraphCache;
-import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyElement;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -30,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -478,8 +473,8 @@ public class AerospikeConnection {
 
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
-    static AtomicLong readMetric = new AtomicLong(0);
-    static AtomicLong writeMetric = new AtomicLong(0);
+    AtomicLong readMetric = new AtomicLong(0);
+    AtomicLong writeMetric = new AtomicLong(0);
 
     /**
      * Cast an Id to its on-disk storage type
@@ -638,11 +633,21 @@ public class AerospikeConnection {
         return subgraphCache.read(key);
     }
 
+    /**
+     * Perform a batch Aerospike read for a group of keys
+     * @param keys Array of Key to return records for
+     * @return Array of Record
+     */
     protected Record[] read(final Key[] keys) {
         this.readMetric.addAndGet(keys.length);
         return client.get(null, keys);
     }
 
+    /**
+     * Write to Aerospike, notify the cache implementation
+     * @param key Key to write Bins into
+     * @param bins Data Bin(s) to write
+     */
     protected void write(final Key key, final Bin... bins) {
         this.writeMetric.incrementAndGet();
         subgraphCache.write(key, bins);
@@ -1141,16 +1146,4 @@ public class AerospikeConnection {
         LOG.debug("Closing event loop.");
         this.eventLoops.close();
     }
-
-
-    Iterator<Record> outEdgesBulk() {
-        return null;
-    }
-
-    Iterator<Record> getNeighborhood(FireflyId startingPoint) {
-//        FireflyRecord startingRecord = getVertexRecord(startingPoint);
-        return null;
-    }
-
-
 }

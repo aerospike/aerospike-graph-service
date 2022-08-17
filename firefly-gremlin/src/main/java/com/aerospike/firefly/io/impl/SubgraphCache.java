@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
+
 public class SubgraphCache implements FireflyCache {
     public static final WritePolicy sendKeyWritePolicy = new WritePolicy();
     private final AtomicLong hitCounter = new AtomicLong(0);
@@ -59,12 +60,22 @@ public class SubgraphCache implements FireflyCache {
         }
     }
 
+    /**
+     * Write data into Aerospike.
+     * @param key Key to write
+     * @param bins Data to write
+     */
     @Override
     public void write(Key key, Bin... bins) {
         cache.invalidate(key);
         db.getClient().put(sendKeyWritePolicy, key, bins);
     }
 
+    /**
+     * Delete an entry from Aerospike, and remove it from the cache
+     * @param key Key to remove
+     */
+    @Override
     public void remove(Key key) {
         try {
             cache.invalidate(key);
@@ -74,15 +85,34 @@ public class SubgraphCache implements FireflyCache {
         db.getClient().delete(sendKeyWritePolicy, key);
     }
 
+    /**
+     * Remove a cache entry by Key
+     * @param key Key to remove
+     */
     @Override
     public void invalidate(Key key) {
         cache.invalidate(key);
     }
 
+    /**
+     * Add a Key/Record cache entry
+     * @param key Key to add
+     * @param record Record to add
+     */
     @Override
     public void insert(Key key, Record record) {
         cache.put(key, Optional.of(record));
     }
+
+    /**
+     * Statistic on data served from cache
+     * @return hit count
+     */
     public long getHitCount(){return hitCounter.get();}
+
+    /**
+     * Statistic on data served that was not in the cache
+     * @return miss count
+     */
     public long getMissCount(){return missCounter.get();}
 }

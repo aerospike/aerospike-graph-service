@@ -69,17 +69,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     private AtomicBoolean closed = new AtomicBoolean(false);
 
 
-    static {
-//        TraversalStrategies.GlobalCache.registerStrategies(
-//                LinkedGraph.class,
-//                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-//                        .addStrategies(FireflyGraphStepStrategy.instance())
-//                        .addStrategies(OptionsStrategy.build().create())
-//                        .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
-//                        .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
-    }
-
-
     protected FireflyGraph(final Configuration conf) {
         this(AerospikeConnection.connect(conf), conf);
     }

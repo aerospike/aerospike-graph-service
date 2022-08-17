@@ -18,6 +18,10 @@ import java.util.stream.IntStream;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
+
+/**
+ * Represents a "ego" vertex, all its neighbors, and all associated records
+ */
 class EgoNetwork {
     public final FireflyVertex ego;
     public final List<KeyRecord> vertexRecords;
@@ -59,14 +63,28 @@ class EgoNetwork {
         return this;
     }
 
+    /**
+     * Generate an ego network by reading data from Aerospike
+     * @param egoId The central vertex to start from
+     * @param graph FireflyGraph instance
+     * @return EgoNetwork
+     */
     public static EgoNetwork create(final FireflyId egoId, final FireflyGraph graph) {
         return new EgoNetwork(egoId, graph).read();
     }
 
+    /**
+     * return all the Id's of Verticies in the ego network
+     * @return
+     */
     public List<Object> vertexNeighborhood() {
         return vertexRecords.stream().map(kr -> kr.key.userKey).collect(Collectors.toList());
     }
 
+    /**
+     * return an Iterator of all Records in the ego network
+     * @return Iterator of all Records in the ego network
+     */
     public Iterator<KeyRecord> records() {
         return IteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator());
     }

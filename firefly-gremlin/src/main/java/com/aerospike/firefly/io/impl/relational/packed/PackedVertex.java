@@ -128,7 +128,6 @@ final public class PackedVertex extends RelationalVertex {
         final Object vertexProperty = vertexPropertyValues.get(key);
         final Long vertexPropertyId = vertexPropertyIds.get(key);
 
-        System.out.println("Reading vertex property " + key + " : " + vertexPropertyValues.get(key).getClass() + "(" + vertexPropertyValues.get(key) + ")");
         final List<VertexProperty<V>> vertexProperties = new ArrayList<>();
         vertexProperties.add(
                 new PackedVertexProperty<>(graph,
@@ -188,7 +187,6 @@ final public class PackedVertex extends RelationalVertex {
         LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
 
         // Update maps for vertex properties and ids.
-        System.out.println("Writing vertex property: " + vertexProperty.key() + " : " + vertexProperty.value().getClass() + "(" + vertexProperty.value() + ")");
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
         vertexPropertyIds.put(vertexProperty.key(), (Long) vertexProperty.id.toNumericId().value());
         vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));

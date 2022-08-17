@@ -47,6 +47,7 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
         //Do we have a specific starting point? if not, don't run
         if (((GraphStep) traversal.getStartStep()).getIds().length != 1)
             return;
+
         List<Step> outSteps = traversal.getSteps().stream().filter(step -> VertexStep.class.isAssignableFrom(step.getClass())).filter(vertexStep -> {
             return ((VertexStep) vertexStep).getDirection() == Direction.OUT;
         }).collect(Collectors.toList());

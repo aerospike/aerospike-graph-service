@@ -1,11 +1,19 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
+import com.aerospike.firefly.util.Util;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,13 +21,38 @@ import java.net.URL;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestSubgraphCache extends AbstractFireflySuite {
+public class TestSubgraphCache  {
+    protected static final Configuration config;
+    protected Logger LOG;
+    protected static AerospikeConnection db;
+    protected static FireflyGraph graph;
+
+    static {
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    }
+
+    @BeforeClass
+    public static void openGraph() throws IOException {
+        db = AerospikeConnection.connect(config);
+        graph = FireflyGraph.open(config);
+        loadAirRoutes();
+    }
+
+
+    @AfterClass
+    public static void closeGraphClearData() {
+        Util.clearGraph(graph);
+        graph.close();
+        db.close();
+    }
     private static GraphTraversalSource g;
     private static final File tempFile;
     private static final URL airRoutesUrl;
@@ -44,7 +77,6 @@ public class TestSubgraphCache extends AbstractFireflySuite {
 
     @Test
     public void twoHopTest() throws IOException {
-        loadAirRoutes();
         long startHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
         long startMissCount = graph.getBaseGraph().subgraphCache.getMissCount();
         Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
@@ -53,5 +85,23 @@ public class TestSubgraphCache extends AbstractFireflySuite {
         long secondHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
         long secondMissCount = graph.getBaseGraph().subgraphCache.getMissCount();
         assertTrue(secondHitCount > startHitCount);
+    }
+    @Test
+    public void testDoesNotTriggerOnScans(){
+        long startHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
+        List<Vertex> res = g.V().has("code", "AUS").out().out().dedup().toList();
+        long secondHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
+        assertEquals(secondHitCount, startHitCount);
+    }
+    @Test
+    public void testDoesTriggerOnTwoOut(){
+        long startHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
+        List<Vertex> res = g.V(1).out().out().dedup().toList();
+        long secondHitCount = graph.getBaseGraph().subgraphCache.getHitCount();
+        assertTrue(secondHitCount > startHitCount);
+    }
+    @Test
+    public void testDoesNotTrigger(){
+
     }
 }

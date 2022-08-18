@@ -67,7 +67,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
-
+    static {
+        TraversalStrategies.GlobalCache.registerStrategies(
+                LinkedGraph.class,
+                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(OptionsStrategy.build().create()));
+    }
 
     protected FireflyGraph(final Configuration conf) {
         this(AerospikeConnection.connect(conf), conf);
@@ -92,9 +98,17 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
             TraversalStrategies.GlobalCache.registerStrategies(
-                    LinkedGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                    FireflyGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
                             .addStrategies(FireflyGraphCountStrategy.instance()));
+        }
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    FireflyGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
+                            .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
+                            .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
         }
     }
 

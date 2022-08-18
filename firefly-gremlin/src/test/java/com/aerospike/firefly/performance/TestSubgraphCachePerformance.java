@@ -1,5 +1,6 @@
-package com.aerospike.firefly.io;
+package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
@@ -7,6 +8,7 @@ import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,7 +28,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestSubgraphCache {
+public class TestSubgraphCachePerformance {
     protected static final Configuration config;
     protected Logger LOG;
     protected static AerospikeConnection db;
@@ -37,10 +39,25 @@ public class TestSubgraphCache {
     }
 
     @BeforeClass
-    public static void openGraph() throws IOException {
+    public static void preloadData() throws IOException {
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         loadAirRoutes();
+        graph.close();
+        db.close();
+    }
+
+    public static void openGraphCacheEnabled() {
+        db = AerospikeConnection.connect(config);
+        graph = FireflyGraph.open(config);
+        g = graph.traversal();
+    }
+
+    public static void openGraphCacheDisabled() {
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "false");
+        db = AerospikeConnection.connect(config);
+        graph = FireflyGraph.open(config);
+        g = graph.traversal();
     }
 
 
@@ -74,7 +91,8 @@ public class TestSubgraphCache {
 
 
     @Test
-    public void twoHopTest() throws IOException {
+    public void twoHopTestCacheEnabled() throws IOException {
+        openGraphCacheEnabled();
         long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
         long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
         Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
@@ -86,23 +104,15 @@ public class TestSubgraphCache {
     }
 
     @Test
-    public void testDoesNotTriggerOnScans() {
+    public void twoHopTestCacheDisabled() throws IOException {
+        openGraphCacheDisabled();
         long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-        List<Vertex> res = g.V().has("code", "AUS").out().out().dedup().toList();
+        long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
+        Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
+        Long res = g.V(aus).out().out().dedup().count().next();
+        List<Vertex> airports = g.V().has("code").sample(3).toList();
         long secondHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-        assertEquals(secondHitCount, startHitCount);
-    }
-
-    @Test
-    public void testDoesTriggerOnTwoOut() {
-        long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-        List<Vertex> res = g.V(1).out().out().dedup().toList();
-        long secondHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
+        long secondMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
         assertTrue(secondHitCount > startHitCount);
-    }
-
-    @Test
-    public void testDoesNotTrigger() {
-
     }
 }

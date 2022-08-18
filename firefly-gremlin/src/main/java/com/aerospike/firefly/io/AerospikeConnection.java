@@ -107,7 +107,7 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
-    final SubgraphCache subgraphCache;
+    private final SubgraphCache subgraphCache;
 
     /**
      * Construct a new AerospikeConnection
@@ -214,6 +214,14 @@ public class AerospikeConnection {
                 });
 
         return cachedKeys.keySet().toArray(new Key[]{});
+    }
+
+    /**
+     * Get a refrence to the Subgraph Cache
+     * @return the Subgraph Cache
+     */
+    public SubgraphCache getSubgraphCache(){
+        return subgraphCache;
     }
 
     /**
@@ -473,8 +481,8 @@ public class AerospikeConnection {
 
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
-    AtomicLong readMetric = new AtomicLong(0);
-    AtomicLong writeMetric = new AtomicLong(0);
+    static AtomicLong readMetric = new AtomicLong(0);
+    static AtomicLong writeMetric = new AtomicLong(0);
 
     /**
      * Cast an Id to its on-disk storage type

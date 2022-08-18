@@ -96,6 +96,8 @@ public final class ConfigurationHelper {
 
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
+        public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
+
 
     }
 
@@ -145,7 +147,7 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
-        put(Keys.SCAN_MAX_WAIT,"2000");
+        put(Keys.SCAN_MAX_WAIT, "2000");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
@@ -153,6 +155,7 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
 
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
+        put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
         put(Keys.AEROSPIKE_PORT, "3000");
 
     }};

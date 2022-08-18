@@ -44,8 +44,9 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
             return;
         if(!GraphStep.class.isAssignableFrom(traversal.getStartStep().getClass()))
             return;
+
         //Do we have a specific starting point? if not, don't run
-        if (((GraphStep) traversal.getStartStep()).getIds().length != 1)
+        if (((GraphStep) traversal.getStartStep()).getIds() == null || ((GraphStep) traversal.getStartStep()).getIds().length != 1)
             return;
 
         List<Step> outSteps = traversal.getSteps().stream().filter(step -> VertexStep.class.isAssignableFrom(step.getClass())).filter(vertexStep -> {
@@ -58,7 +59,7 @@ public class FireflySubgraphPrimeCacheStrategy extends AbstractTraversalStrategy
 
         UUID cacheId = UUID.randomUUID();
         LOG.info("will init cache with id: " + cacheId);
-        Object startVertexId = ((FireflyGraphStep) traversal.getStartStep()).getIds()[0];
+        Object startVertexId = ((GraphStep) traversal.getStartStep()).getIds()[0];
         Key[] cacheKeys = db.primeSubgraphCache((FireflyGraph) traversal.getGraph().get(), startVertexId);
         final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId, cacheKeys);
         traversal.addStep(0, cacheStep);

@@ -1,12 +1,9 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.*;
-import org.apache.commons.configuration2.Configuration;
+import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.IOUtil;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -16,9 +13,12 @@ import java.net.URL;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.apache.tinkerpop.gremlin.process.traversal.Operator.sum;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.path;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.sack;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.unfold;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.union;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 /**
@@ -63,5 +63,10 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         });
         System.out.println("Air routes 50k Query Latency:");
         System.out.println(results);
+    }
+    
+    @Override
+    protected boolean clearData() {
+        return false;
     }
 }

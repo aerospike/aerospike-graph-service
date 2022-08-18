@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.linked;
+package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Record;
@@ -24,14 +24,14 @@ import java.util.Map;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-final public class LinkedEdge extends FireflyEdge {
-    private static final Logger LOG = LoggerFactory.getLogger(LinkedEdge.class);
+final public class RelationalEdge extends FireflyEdge {
+    private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
     private AerospikeConnection db;
 
     // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
     /**
-     * Constructor for LinkedEdge.
+     * Constructor for RelationalEdge.
      *
      * @param fid       FireflyId to use.
      * @param label     Edge label.
@@ -39,7 +39,7 @@ final public class LinkedEdge extends FireflyEdge {
      * @param outVertex Edge out vertex.
      * @param inVertex  Edge in vertex.
      */
-    private LinkedEdge(final FireflyId fid,
+    private RelationalEdge(final FireflyId fid,
                        final String label,
                        final FireflyGraph graph,
                        final FireflyId outVertex,
@@ -58,7 +58,7 @@ final public class LinkedEdge extends FireflyEdge {
      * @param outVertex  out Vertex for new Edge.
      * @param properties Edge properties.
      */
-    public static LinkedEdge writeEdge(final FireflyGraph graph,
+    public static RelationalEdge writeEdge(final FireflyGraph graph,
                                        final FireflyId edgeId,
                                        final String label,
                                        final List<Map.Entry<String, Object>> properties,
@@ -99,7 +99,7 @@ final public class LinkedEdge extends FireflyEdge {
         final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints));
         FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, labelBin, inVbin, outVBin, valueBin, typeHintBin);
-        return new LinkedEdge(edgeId, label, graph, outVertex.id, inVertex.id);
+        return new RelationalEdge(edgeId, label, graph, outVertex.id, inVertex.id);
     }
 
     /**
@@ -109,14 +109,14 @@ final public class LinkedEdge extends FireflyEdge {
      * @param edgeId Edge id to read.
      * @return Edge.
      */
-    public static LinkedEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
+    public static RelationalEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
         LOG.debug("Reading edge {}.", edgeId.value().toString());
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord edgeRecord = FireflyRecord.read(db, db.EDGE_AERO_SET, edgeId.toNumericId());
         if (edgeRecord == null) {
             return null;
         }
-        return new LinkedEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, edgeRecord),
+        return new RelationalEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, edgeRecord),
                 edgeRecord.record.getString(AerospikeConnection.LABEL),
                 graph,
                 FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
@@ -130,7 +130,7 @@ final public class LinkedEdge extends FireflyEdge {
      * @param keyRecord Record to construct from.
      * @return Edge.
      */
-    public static LinkedEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
+    public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
         LOG.trace("Constructing edge from record.");
         if (keyRecord == null) {
             return null;
@@ -139,7 +139,7 @@ final public class LinkedEdge extends FireflyEdge {
         if (record == null) {
             return null;
         }
-        return new LinkedEdge(
+        return new RelationalEdge(
                 FireflyId.loadFromAerospike(
                         graph.getBaseGraph(), FireflyVertex.class, FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record)),
                 record.getString(AerospikeConnection.LABEL),

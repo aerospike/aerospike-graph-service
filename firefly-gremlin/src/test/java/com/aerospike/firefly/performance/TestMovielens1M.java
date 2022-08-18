@@ -28,6 +28,11 @@ import static org.junit.Assert.assertEquals;
  */
 public class TestMovielens1M extends AbstractFireflySuite {
 
+    @Override
+    protected boolean clearData() {
+        return false;
+    }
+
     private static final String MOVIELENS_TMP = System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "movielens" + System.getProperty("file.separator");
     private static final String MOVIELENS_BASEPATH = MOVIELENS_TMP + System.getProperty("file.separator") + "ml-1m";
     private GraphTraversalSource g;
@@ -44,6 +49,7 @@ public class TestMovielens1M extends AbstractFireflySuite {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
     }
 
     @AfterClass
@@ -68,7 +74,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
 
     @Test
     public void testQueryMovieLens1M() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config));
         long vCountStart = System.currentTimeMillis();
         long vCount = graph.traversal().V().count().next();
         long vCountEnd = System.currentTimeMillis();
@@ -79,14 +84,11 @@ public class TestMovielens1M extends AbstractFireflySuite {
         assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
         long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
         assertEquals(1L, oneMovie);
+
         LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
         LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
         LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
-    }
 
-    @Test
-    public void testLoadMovieLens() {
-        Movielens.parse(Path.of(MOVIELENS_BASEPATH), graph);
         final Long verticesLoaded = graph.traversal().V().count().next();
         final Long edgesLoaded = graph.traversal().E().count().next();
         System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));

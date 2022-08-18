@@ -58,6 +58,8 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_ID_KEY = "VERTEX_PROPERTY_ID_KEY";
         public static final String VERTEX_PROPERTY_ID_BIN = "VERTEX_PROPERTY_ID_BIN";
         public static final String VERTEX_PROPERTY_NAME_TO_ID = "VERTEX_PROPERTY_NAME_TO_ID";
+        public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
+        public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";
         public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
         public static final String PARENT_VERTEX_ID = "PARENT_VERTEX_ID";
         public static final String EDGE_PROPERTIES = "EDGE_PROPERTIES";
@@ -77,9 +79,12 @@ public final class ConfigurationHelper {
         public static final String OUT_EDGES = "OUT_EDGES";
         public static final String CACHE_DISABLED = "CACHE_DISABLED";
         public static final String INDEX_METADATA = "INDEX_META";
+        public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
 
         public static final String NUMERIC_VP_KV_INDEX = "NUMERIC_VP_KV_INDEX";
         public static final String STRING_VP_KV_INDEX = "STRING_VP_KV_INDEX";
+        public static final String NUMERIC_V_VP_KV_INDEX = "NUMERIC_V_VP_KV_INDEX";
+        public static final String STRING_V_VP_KV_INDEX = "STRING_V_VP_KV_INDEX";
         public static final String STRING_E_KV_INDEX = "STRING_E_KV_INDEX";
         public static final String NUMERIC_E_KV_INDEX = "NUMERIC_E_KV_INDEX";
         public static final String INDEXED_BINS = "INDEXED_BINS";
@@ -117,6 +122,8 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_ID_KEY, "VP_ID_K");
         put(Keys.VERTEX_PROPERTY_ID_BIN, "VP_P_ID_B");
         put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_N_ID");
+        put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE, "VP_N_V");
+        put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, "VP_N_TH");
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
@@ -136,8 +143,11 @@ public final class ConfigurationHelper {
         put(Keys.OUT_EDGES, "OUT_EDGES");
         put(Keys.CACHE_DISABLED, "CACHE_DISABLED");
         put(Keys.INDEX_METADATA, "INDEX_META");
+        put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
         put(Keys.NUMERIC_VP_KV_INDEX, "N_VP_KV");
         put(Keys.STRING_VP_KV_INDEX, "S_VP_KV");
+        put(Keys.NUMERIC_V_VP_KV_INDEX, "N_V_VP_KV");
+        put(Keys.STRING_V_VP_KV_INDEX, "S_V_VP_KV");
         put(Keys.STRING_E_KV_INDEX, "S_E_KV");
         put(Keys.NUMERIC_E_KV_INDEX, "N_E_KV");
         put(Keys.INDEXED_BINS, "indexedBins");

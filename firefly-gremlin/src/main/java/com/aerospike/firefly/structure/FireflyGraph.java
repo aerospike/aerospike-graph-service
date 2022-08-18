@@ -1,14 +1,11 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Key;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.linked.LinkedGraph;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -48,6 +45,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
+@Graph.OptIn("com.aerospike.firefly.structure.process.CustomGraphProcessStandardTest")
 
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.TransactionTest", method = "*", reason = "MAKE ACTIVE WHEN TRANSACTIONS IMPLEMENTED", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest", method = "*", reason = "MAKE ACTIVE WHEN PARALLEL SCAN RESULT ITERATOR IMPLEMENTED", computers = {"ALL"})
@@ -101,6 +99,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static FireflyGraph open(final Configuration conf) {
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
+
+    public abstract String getDataModel();
 
     // Vertex functions.
     protected abstract Iterator<Long> scanAllVertices();

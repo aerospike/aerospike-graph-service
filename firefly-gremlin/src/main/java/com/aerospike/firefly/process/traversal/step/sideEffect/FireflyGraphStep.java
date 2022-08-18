@@ -83,7 +83,8 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         else if (indexedContainer.getKey().startsWith("~"))
             iterator = this.iteratorList(graph.vertices());
         else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class) || indexedContainer.getKey().equals("~label"))
-            iterator = this.iteratorList(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+            iterator = this.iteratorList(FireflyHelper.
+                    queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
             iterator = this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
         else

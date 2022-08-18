@@ -35,7 +35,7 @@ public class Movielens {
     private static final Map<Integer, Long> movieIdCache = new HashMap<>();
     private static final Map<Integer, Long> userIdCache = new HashMap<>();
 
-    public static interface MovielensElement {
+    public interface MovielensElement {
     }
 
     private static void periodicLog(String name, long metric, AtomicLong checkpoint) {
@@ -222,10 +222,6 @@ public class Movielens {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        public void loadVertices(Graph graph, AtomicLong metric, AtomicLong timer) {
-
         }
 
         public Iterator<Edge> loadEdges(Graph graph, AtomicLong metric, AtomicLong timer) {

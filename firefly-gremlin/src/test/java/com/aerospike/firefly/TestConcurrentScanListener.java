@@ -1,12 +1,9 @@
 package com.aerospike.firefly;
 
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
@@ -24,6 +21,11 @@ import java.util.function.Consumer;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestConcurrentScanListener extends AbstractFireflySuite {
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
 
     static class StubMutationListener implements MutationListener {
         private final AtomicLong addEdgeEvent = new AtomicLong(0);

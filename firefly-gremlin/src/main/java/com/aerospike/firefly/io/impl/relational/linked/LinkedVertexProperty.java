@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.linked;
+package com.aerospike.firefly.io.impl.relational.linked;
 
 import com.aerospike.client.Bin;
 import com.aerospike.firefly.io.AerospikeConnection;
@@ -103,7 +103,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
             return new LinkedVertexProperty<>(graph, fid, parentId, null, null);
         final String vpKey = kv.get().getKey();
         final Object vpVal = kv.get().getValue();
-        return new LinkedVertexProperty<>(graph, fid, parentId, vpKey, (V) vpVal);
+        return new LinkedVertexProperty<>(graph, fid, parentId, vpKey, vpVal);
     }
 
     /**

@@ -20,6 +20,9 @@ public abstract class AbstractFireflySuite {
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
 
+
+    protected abstract boolean clearData();
+
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     }
@@ -32,7 +35,9 @@ public abstract class AbstractFireflySuite {
 
     @Before
     public void beforeTest() {
-        Util.clearGraph(graph);
+        if (clearData()) {
+            Util.clearGraph(graph);
+        }
         LOG = LoggerFactory.getLogger(this.getClass());
     }
 

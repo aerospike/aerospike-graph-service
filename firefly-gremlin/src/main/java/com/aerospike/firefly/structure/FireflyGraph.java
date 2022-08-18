@@ -3,7 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.linked.LinkedGraph;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -42,6 +42,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
+@Graph.OptIn("com.aerospike.firefly.structure.process.CustomGraphProcessStandardTest")
 
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.TransactionTest", method = "*", reason = "MAKE ACTIVE WHEN TRANSACTIONS IMPLEMENTED", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest", method = "*", reason = "MAKE ACTIVE WHEN PARALLEL SCAN RESULT ITERATOR IMPLEMENTED", computers = {"ALL"})
@@ -67,6 +68,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
+
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
@@ -116,44 +118,68 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
 
+    public abstract String getDataModel();
+
     // Vertex functions.
     protected abstract Iterator<Long> scanAllVertices();
+
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
+
     public abstract FireflyVertex readVertex(final FireflyId idValue);
+
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
+
     public abstract boolean vertexExists(final FireflyId idValue);
 
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
+
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
+
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
+
     public abstract boolean edgeExists(final FireflyId idValue);
 
     // Graph variable functions.
     public abstract Set<String> readGraphVariableKeys();
+
     public abstract <V> void writeGraphVariable(final String key, final V value);
+
     public abstract <V> V readGraphVariable(final String key);
+
     public abstract void removeGraphVariable(final String key);
 
     // Vertex property and property functions.
     public abstract void removeProperty(final FireflyElement element, final String key);
+
     public abstract <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value);
+
     public abstract <V> Map<String, Property<V>> readProperties(final FireflyElement element);
+
     public abstract <V> Property<V> readProperty(final FireflyElement element, final String key);
+
     public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
 
     // Counting functions.
     public abstract long getVertexCount();
+
     public abstract long getEdgeCount();
 
     // Index functions.
     public abstract Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(final String key, final Object value);
+
     public abstract Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(final String key, final P<?> predicate);
+
     public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(final String key, final P<?> predicate);
+
     public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final Object value);
+
     public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final Object value);
+
     public abstract Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value);
+
     public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(final String key, final P<?> predicate);
+
     public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(final String key, final P<?> predicate);
 
     @Override
@@ -268,7 +294,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
-                db.readElementIds(FireflyEdge.class) :
+                        db.readElementIds(FireflyEdge.class) :
                         Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
     }
 

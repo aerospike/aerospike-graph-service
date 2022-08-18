@@ -42,6 +42,8 @@ public class AerospikeConnection {
 
     public final String NUMERIC_VP_KV_INDEX;
     public final String STRING_VP_KV_INDEX;
+    public final String NUMERIC_V_VP_KV_INDEX;
+    public final String STRING_V_VP_KV_INDEX;
     public final String STRING_E_KV_INDEX;
     public final String NUMERIC_E_KV_INDEX;
     private final String INDEXED_BINS;
@@ -67,6 +69,7 @@ public class AerospikeConnection {
     public final String IN_EDGES;
     public final String OUT_EDGES;
     public final String CACHE_DISABLED;
+    public final String RELATIONAL_VERTEX_TYPE_HINT;
     private final String INDEX_METADATA;
 
     protected final String GRAPH_METADATA_SET;
@@ -84,6 +87,8 @@ public class AerospikeConnection {
     protected final String VERTEX_PROPERTY_ID_KEY;
     protected final String VERTEX_PROPERTY_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_ID;
+    public final String VERTEX_PROPERTY_NAME_TO_VALUE;
+    public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT;
     public final String VERTEX_PROPERTY_NAME;
     public final String PARENT_VERTEX_ID;
 
@@ -118,11 +123,11 @@ public class AerospikeConnection {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> {
-            LOG.debug(String.format("config: [%s]:[%s]", key, conf.get(String.class, key)));
+            LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key)));
         });
-        LOG.debug("host {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
-        LOG.debug("port {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
-        LOG.debug("ns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+        LOG.debug("\thost {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
+        LOG.debug("\tport {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
+        LOG.debug("\tns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
@@ -144,6 +149,8 @@ public class AerospikeConnection {
         VERTEX_PROPERTY_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_KEY, conf);
         VERTEX_PROPERTY_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_BIN, conf);
         VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
+        VERTEX_PROPERTY_NAME_TO_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE, conf);
+        VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
         PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
         EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
@@ -166,6 +173,8 @@ public class AerospikeConnection {
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
         NUMERIC_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_VP_KV_INDEX, conf));
         STRING_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_VP_KV_INDEX, conf));
+        NUMERIC_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_V_VP_KV_INDEX, conf));
+        STRING_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_V_VP_KV_INDEX, conf));
         STRING_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_E_KV_INDEX, conf));
         NUMERIC_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_E_KV_INDEX, conf));
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
@@ -177,6 +186,7 @@ public class AerospikeConnection {
         OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
         CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CACHE_DISABLED, conf);
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
+        RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
 
 
         // User supplied id cache.
@@ -478,6 +488,15 @@ public class AerospikeConnection {
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
     }};
+    public static final Map<Long, Class<? extends Serializable>> SupportedTypeValues = new HashMap<>() {{
+        put(1L, Long.class);
+        put(2L, Integer.class);
+        put(3L, Double.class);
+        put(4L, byte[].class);
+        put(5L, String.class);
+        put(6L, Boolean.class);
+        put(7L, ArrayList.class);
+    }};
 
     private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
@@ -553,6 +572,14 @@ public class AerospikeConnection {
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
                 NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
+        createIndex(getElementPropertySet(FireflyVertex.class),
+                STRING_V_VP_KV_INDEX,
+                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        createIndex(getElementPropertySet(FireflyVertex.class),
+                NUMERIC_V_VP_KV_INDEX,
+                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+
         createIndex(getElementPropertySet(FireflyEdge.class),
                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
@@ -757,10 +784,7 @@ public class AerospikeConnection {
         final Long typeHint = (Long) fireflyRecord.record.getMap(TYPE_HINTS).get(mapKey);
         if (val == null)
             return null;
-        final Class clazz = SupportedValueTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        final Class clazz = SupportedTypeValues.get(typeHint);
         return (V) typeCast(clazz, val);
     }
 
@@ -789,11 +813,13 @@ public class AerospikeConnection {
 
         if (val == null)
             return null;
-        final Class clazz = SupportedValueTypes.entrySet()
-                .stream()
-                .filter(entry -> typeHint.equals(entry.getValue()))
-                .map(Map.Entry::getKey).collect(Collectors.toList()).get(0);
+        final Class clazz = SupportedTypeValues.get(typeHint);
         return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
+    }
+
+    public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {
+        final Class clazz = SupportedTypeValues.get(typeHint);
+        return (clazz == null) ? value : typeCast(clazz, value);
     }
 
     /**
@@ -889,7 +915,7 @@ public class AerospikeConnection {
                 FireflyRecord.write(this, aeroSet, fid, valueBin, typeHintBin);
             }
         } else {
-            List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
+            final List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
             listOfBins.add(valueBin);
             listOfBins.add(typeHintBin);
             if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {

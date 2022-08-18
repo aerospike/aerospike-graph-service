@@ -567,6 +567,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         return graph.traversal().withStrategies(strategies);
     }
 
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
     static abstract class AbstractMutationListener implements MutationListener {
         @Override
         public void vertexAdded(final Vertex vertex) {
@@ -925,16 +930,16 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         StubMutationListener listener1 = new StubMutationListener();
         StubMutationListener listener2 = new StubMutationListener();
         EventStrategy.Builder builder = EventStrategy.build().addListener(listener1).addListener(listener2);
-        if (this.graph.features().graph().supportsTransactions()) {
-            builder.eventQueue(new EventStrategy.TransactionalEventQueue(this.graph));
+        if (graph.features().graph().supportsTransactions()) {
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
         }
 
         EventStrategy eventStrategy = builder.create();
-        Vertex vSome = this.graph.addVertex(new Object[]{"some", "thing"});
-        vSome.property(VertexProperty.Cardinality.single, "that", "thing", new Object[0]);
-        GraphTraversalSource gts = this.create(eventStrategy);
-        gts.V(new Object[0]).addV().property("any", "thing", new Object[0]).property(VertexProperty.Cardinality.single, "this", "thing", new Object[0]).next();
-        this.tryCommit(this.graph, (g) -> {
+        Vertex vSome = graph.addVertex("some", "thing");
+        vSome.property(VertexProperty.Cardinality.single, "that", "thing");
+        GraphTraversalSource gts = create(eventStrategy);
+        gts.V().addV().property("any", "thing").property(VertexProperty.Cardinality.single, "this", "thing").next();
+        tryCommit(graph, (g) -> {
             long val = IteratorUtils.count(gts.V(new Object[0]).has("this", "thing"));
             Assert.assertEquals(1L, val);
         });

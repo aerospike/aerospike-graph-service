@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class Util {
-    public static void clearGraph(FireflyGraph graph) {
+    public static void clearGraph(final FireflyGraph graph) {
         if (graph.traversal().V().count().next() > 0 || graph.traversal().E().count().next() > 0)
             LoggerFactory.getLogger("clearGraph").warn("nonzero vertex or edge count at start of test");
         graph.getBaseGraph().dropDatabase();

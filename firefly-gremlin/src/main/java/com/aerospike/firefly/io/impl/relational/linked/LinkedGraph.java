@@ -179,4 +179,14 @@ final public class LinkedGraph extends RelationalGraph {
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
+    @Override
+    public void close() {
+        super.close();
+        TraversalStrategies.GlobalCache
+                .getStrategies(LinkedGraph.class)
+                .removeStrategies(
+                        FireflySubgraphPrimeCacheStrategy.class,
+                        FireflySubgraphPurgeCacheStrategy.class,
+                        FireflyGraphStepStrategy.class);
+    }
 }

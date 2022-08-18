@@ -307,6 +307,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
+        TraversalStrategies.GlobalCache
+                .getStrategies(FireflyGraph.class)
+                .removeStrategies(
+                        FireflySubgraphPrimeCacheStrategy.class,
+                        FireflySubgraphPurgeCacheStrategy.class,
+                        FireflyGraphStepStrategy.class);
         this.db.close();
     }
 

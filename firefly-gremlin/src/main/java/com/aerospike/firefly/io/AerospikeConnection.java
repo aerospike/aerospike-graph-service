@@ -1176,7 +1176,6 @@ public class AerospikeConnection {
     public void close() {
         LOG.debug("Closing client.");
         this.client.close();
-
         LOG.debug("Closing event loop.");
         this.eventLoops.close();
     }

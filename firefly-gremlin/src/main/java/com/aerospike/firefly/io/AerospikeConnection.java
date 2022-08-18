@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -210,18 +211,24 @@ public class AerospikeConnection {
      */
     public Key[] primeSubgraphCache(FireflyGraph graph, Object egoId) {
         ConcurrentHashMap<Key,Boolean> cachedKeys = new ConcurrentHashMap<>();
+        CompletableFuture.runAsync(()->{
+            EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph).vertexRecords.forEach(kr -> {
+                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
+            });
+        });
 
-        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
-                .vertexRecords
-                .stream() // todo: parallelStream
-                .forEach(kr -> {
-                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
-                            .records()
-                            .forEachRemaining(subKr -> {
-                                cachedKeys.put(subKr.key,true);
-                                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
-                            });
-                });
+
+//        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
+//                .vertexRecords
+//                .stream() // todo: parallelStream
+//                .forEach(kr -> {
+//                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
+//                            .records()
+//                            .forEachRemaining(subKr -> {
+//                                cachedKeys.put(subKr.key,true);
+//                                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
+//                            });
+//                });
 
         return cachedKeys.keySet().toArray(new Key[]{});
     }

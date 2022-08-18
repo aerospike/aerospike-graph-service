@@ -103,7 +103,7 @@ public class TestSubgraphCachePerformance {
     @Test
     public void twoHopTestCacheEnabled() throws IOException {
         openGraphCacheEnabled();
-        PerfUtil.Results results = PerfUtil.runTestBatch(2, () -> {
+        PerfUtil.Results results = PerfUtil.runTestBatch(10, () -> {
             long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
             long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
             Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
@@ -121,7 +121,7 @@ public class TestSubgraphCachePerformance {
     @Test
     public void twoHopTestCacheDisabled() throws IOException {
         openGraphCacheDisabled();
-        PerfUtil.Results results = PerfUtil.runTestBatch(2, () -> {
+        PerfUtil.Results results = PerfUtil.runTestBatch(10, () -> {
             long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
             long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
             Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point

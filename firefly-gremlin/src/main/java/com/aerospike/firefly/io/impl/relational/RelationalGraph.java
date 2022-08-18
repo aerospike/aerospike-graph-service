@@ -46,13 +46,6 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     public RelationalGraph(AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, conf))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    RelationalGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
-                            .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
-        }
     }
 
 

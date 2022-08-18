@@ -7,6 +7,9 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPrimeCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPurgeCacheStrategy;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -37,6 +40,13 @@ final public class LinkedGraph extends RelationalGraph {
      */
     public LinkedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, conf))) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    LinkedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
+                            .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
+                            .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
+        }
     }
 
     static {

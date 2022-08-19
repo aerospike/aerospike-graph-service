@@ -70,7 +70,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
-                LinkedGraph.class,
+                FireflyGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
                         .addStrategies(FireflyGraphStepStrategy.instance())
                         .addStrategies(OptionsStrategy.build().create()));

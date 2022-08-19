@@ -17,6 +17,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
@@ -31,6 +32,13 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.KEY_VALUE;
 final public class LinkedGraph extends RelationalGraph {
     public static final String DATA_MODEL = "linked";
 
+    static {
+        TraversalStrategies.GlobalCache.registerStrategies(
+                LinkedGraph.class,
+                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
+                        .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(OptionsStrategy.build().create()));
+    }
     /**
      * Constructor for LinkedGraph.
      *

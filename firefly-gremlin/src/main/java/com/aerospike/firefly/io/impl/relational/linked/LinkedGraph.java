@@ -7,8 +7,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPrimeCacheStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPurgeCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAsyncPrefetchStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -44,8 +43,7 @@ final public class LinkedGraph extends RelationalGraph {
             TraversalStrategies.GlobalCache.registerStrategies(
                     LinkedGraph.class,
                     TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
-                            .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
+                            .addStrategies(FireflyAsyncPrefetchStrategy.instance()));
         }
     }
 
@@ -179,14 +177,14 @@ final public class LinkedGraph extends RelationalGraph {
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
     }
+
     @Override
     public void close() {
         super.close();
         TraversalStrategies.GlobalCache
                 .getStrategies(LinkedGraph.class)
                 .removeStrategies(
-                        FireflySubgraphPrimeCacheStrategy.class,
-                        FireflySubgraphPurgeCacheStrategy.class,
+                        FireflyAsyncPrefetchStrategy.class,
                         FireflyGraphStepStrategy.class);
     }
 }

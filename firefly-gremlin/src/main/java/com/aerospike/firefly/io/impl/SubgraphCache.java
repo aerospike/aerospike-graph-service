@@ -11,6 +11,7 @@ import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -44,13 +45,14 @@ public class SubgraphCache implements FireflyCache {
                 return result;
             }
         };
-        cache = CacheBuilder.newBuilder().build();
+        cache = CacheBuilder.newBuilder().recordStats().build();
     }
 
     @Override
     public Record read(Key key) {
         Optional<Record> or = cache.getIfPresent(key);
         if (or != null && or.isPresent()) {
+//            LoggerFactory.getLogger(this.getClass()).info(key.toString());
             hitCounter.incrementAndGet();
             return or.get();
         } else {
@@ -62,7 +64,8 @@ public class SubgraphCache implements FireflyCache {
 
     /**
      * Write data into Aerospike.
-     * @param key Key to write
+     *
+     * @param key  Key to write
      * @param bins Data to write
      */
     @Override
@@ -73,6 +76,7 @@ public class SubgraphCache implements FireflyCache {
 
     /**
      * Delete an entry from Aerospike, and remove it from the cache
+     *
      * @param key Key to remove
      */
     @Override
@@ -87,6 +91,7 @@ public class SubgraphCache implements FireflyCache {
 
     /**
      * Remove a cache entry by Key
+     *
      * @param key Key to remove
      */
     @Override
@@ -96,7 +101,8 @@ public class SubgraphCache implements FireflyCache {
 
     /**
      * Add a Key/Record cache entry
-     * @param key Key to add
+     *
+     * @param key    Key to add
      * @param record Record to add
      */
     @Override
@@ -105,14 +111,29 @@ public class SubgraphCache implements FireflyCache {
     }
 
     /**
+     *
+     * @return number of entries in cache
+     */
+    public long size() {
+        LoggerFactory.getLogger(this.getClass()).info("cache stats {}",cache.stats());
+        return cache.size();
+    }
+
+    /**
      * Statistic on data served from cache
+     *
      * @return hit count
      */
-    public long getHitCount(){return hitCounter.get();}
+    public long getHitCount() {
+        return hitCounter.get();
+    }
 
     /**
      * Statistic on data served that was not in the cache
+     *
      * @return miss count
      */
-    public long getMissCount(){return missCounter.get();}
+    public long getMissCount() {
+        return missCounter.get();
+    }
 }

@@ -31,4 +31,8 @@ public class FireflyCacheStep extends AbstractStep {
     protected Traverser.Admin processNextStart() throws NoSuchElementException {
         return null;
     }
+    @Override
+    public String toString(){
+        return this.getClass().getSimpleName() + ":" + cacheId.toString();
+    }
 }

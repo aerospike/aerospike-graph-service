@@ -161,7 +161,7 @@ public class TestPerformance extends AbstractFireflySuite {
     private static final String ORGCHART_NAME = "name";
     private static final String ORGCHART_TITLE = "title";
 
-    private void createOrgChartData() {
+    public void createOrgChartData() {
         Vertex p1 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "alice").property(ORGCHART_TITLE, "worker").next();
         Vertex p2 = g.addV(ORGCHART_VERTEX_LABEL_EMPLOYEE).property(ORGCHART_NAME, "bob").property(ORGCHART_TITLE, "worker").next();
         Vertex p3 = g.addV(ORGCHART_VERTEX_LABEL_MANAGER).property(ORGCHART_NAME, "carol").property(ORGCHART_TITLE, "manager").next();

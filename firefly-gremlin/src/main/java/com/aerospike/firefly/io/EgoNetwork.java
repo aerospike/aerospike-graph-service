@@ -9,9 +9,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -24,9 +22,9 @@ import java.util.stream.IntStream;
  */
 class EgoNetwork {
     public final FireflyVertex ego;
-    public final List<KeyRecord> vertexRecords;
-    public final List<KeyRecord> edgeRecords;
-    public final List<KeyRecord> propertyRecords;
+    public final Set<KeyRecord> vertexRecords;
+    public final Set<KeyRecord> edgeRecords;
+    public final Set<KeyRecord> propertyRecords;
     private final AerospikeConnection db;
     private final FireflyGraph graph;
 
@@ -34,9 +32,9 @@ class EgoNetwork {
         this.ego = graph.readVertex(egoId);
         this.graph = graph;
         this.db = graph.getBaseGraph();
-        this.vertexRecords = new ArrayList<>();
-        this.edgeRecords = new ArrayList<>();
-        this.propertyRecords = new ArrayList<>();
+        this.vertexRecords = new HashSet<>();
+        this.edgeRecords = new HashSet<>();
+        this.propertyRecords = new HashSet<>();
     }
 
     private EgoNetwork read() {
@@ -51,11 +49,13 @@ class EgoNetwork {
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));
         IntStream.range(0, outEdgeRecords.length).forEach(i -> {
-            this.edgeRecords.add(new KeyRecord(outEdgeKeys.get(i), outEdgeRecords[i]));
+            KeyRecord it = new KeyRecord(outEdgeKeys.get(i), outEdgeRecords[i]);
+            this.edgeRecords.add(it);
         });
         Record[] inEdgeRecords = db.read(inEdgeKeys.toArray(new Key[]{}));
         IntStream.range(0, inEdgeRecords.length).forEach(i -> {
-            this.edgeRecords.add(new KeyRecord(inEdgeKeys.get(i), inEdgeRecords[i]));
+            KeyRecord it = new KeyRecord(inEdgeKeys.get(i), inEdgeRecords[i]);
+            this.edgeRecords.add(it);
         });
 
         this.vertexRecords.addAll(db.vertexRecordsFromEdgeRecords(outEdgeRecords, Direction.OUT));

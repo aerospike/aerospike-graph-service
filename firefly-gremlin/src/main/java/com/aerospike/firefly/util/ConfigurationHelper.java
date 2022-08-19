@@ -33,6 +33,7 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
+
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -43,7 +44,7 @@ public final class ConfigurationHelper {
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
             public static final String TEST_SET = "TEST_SET";
         }
-
+        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
@@ -166,8 +167,8 @@ public final class ConfigurationHelper {
 
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
         put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
+        put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
-
     }};
 
     public static Configuration loadFromFile(final Path path) {

@@ -1,12 +1,16 @@
 package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.impl.SubgraphCache;
+import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
@@ -20,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.UUID;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -31,7 +36,7 @@ import static org.junit.Assert.assertTrue;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestSubgraphCachePerformance {
-    protected static final Configuration config;
+    protected static Configuration config;
     final private Logger LOG;
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
@@ -53,9 +58,20 @@ public class TestSubgraphCachePerformance {
         graph.close();
         db.close();
     }
-
-    public static void openGraphCacheEnabled() {
+    public static void openGraphCacheEnabledSync() {
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE.toLowerCase(), "false");
+
+        db = AerospikeConnection.connect(config);
+        graph = FireflyGraph.open(config);
+        g = graph.traversal();
+    }
+    public static void openGraphCacheEnabledAsync() {
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE.toLowerCase(), "true");
+
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
@@ -101,19 +117,26 @@ public class TestSubgraphCachePerformance {
 
 
     @Test
-    public void twoHopTestCacheEnabled() throws IOException {
-        openGraphCacheEnabled();
-        PerfUtil.Results results = PerfUtil.runTestBatch(10, () -> {
-            long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-            long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
-            Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
-            Long res = g.V(aus).out().out().dedup().count().next();
-            List<Vertex> airports = g.V().has("code").sample(3).toList();
-            long secondHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-            long secondMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
-            assertTrue(secondHitCount > startHitCount);
+    public void twoHopTest() throws IOException {
+        openGraphCacheDisabled();
+        PerfUtil.Results noCacheResults = PerfUtil.runTestBatch(10, () -> {
+            List<Vertex> res = g.V(1).out().out().dedup().toList();
         });
-        LOG.info(results.toString());
+        LOG.info(noCacheResults.toString());
+        graph.close();
+        db.close();
+        openGraphCacheEnabledSync();
+        PerfUtil.Results syncCacheResults = PerfUtil.runTestBatch(10, () -> {
+            List<Vertex> res = g.V(1).out().out().dedup().toList();
+        });
+        LOG.info(syncCacheResults.toString());
+        graph.close();
+        db.close();
+        openGraphCacheEnabledAsync();
+        PerfUtil.Results asyncCacheResults = PerfUtil.runTestBatch(10, () -> {
+            List<Vertex> res = g.V(1).out().out().dedup().toList();
+        });
+        LOG.info(asyncCacheResults.toString());
         graph.close();
         db.close();
     }
@@ -122,14 +145,14 @@ public class TestSubgraphCachePerformance {
     public void twoHopTestCacheDisabled() throws IOException {
         openGraphCacheDisabled();
         PerfUtil.Results results = PerfUtil.runTestBatch(10, () -> {
-            long startHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-            long startMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
+//            long startHitCount = SubgraphCache.getHitCount();
+//            long startMissCount = SubgraphCache.getMissCount();
             Vertex aus = g.V().has("code", "AUS").next(); //need to get a specific starting point
             Long res = g.V(aus).out().out().dedup().count().next();
             List<Vertex> airports = g.V().has("code").sample(3).toList();
-            long secondHitCount = graph.getBaseGraph().getSubgraphCache().getHitCount();
-            long secondMissCount = graph.getBaseGraph().getSubgraphCache().getMissCount();
-            assertEquals(startHitCount, secondHitCount);
+//            long secondHitCount = SubgraphCache.getHitCount();
+//            long secondMissCount = SubgraphCache.getMissCount();
+//            assertEquals(startHitCount, secondHitCount);
         });
         LOG.info(results.toString());
         graph.close();

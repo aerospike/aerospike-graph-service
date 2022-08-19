@@ -7,8 +7,7 @@ import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPrimeCacheStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflySubgraphPurgeCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAsyncPrefetchStrategy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -109,8 +108,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             TraversalStrategies.GlobalCache.registerStrategies(
                     FireflyGraph.class,
                     TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflySubgraphPrimeCacheStrategy.instance())
-                            .addStrategies(FireflySubgraphPurgeCacheStrategy.instance()));
+                            .addStrategies(FireflyAsyncPrefetchStrategy.instance()));
         }
     }
 
@@ -310,8 +308,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)
                 .removeStrategies(
-                        FireflySubgraphPrimeCacheStrategy.class,
-                        FireflySubgraphPurgeCacheStrategy.class,
+                        FireflyAsyncPrefetchStrategy.class,
                         FireflyGraphStepStrategy.class);
         this.db.close();
     }

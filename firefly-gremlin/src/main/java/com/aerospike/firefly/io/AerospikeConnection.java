@@ -17,6 +17,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -31,6 +32,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAsyncPrefetchStrategy.Util.isCachedTraversal;
+import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAsyncPrefetchStrategy.Util.idFromTraversal;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -38,6 +42,12 @@ import java.util.stream.IntStream;
 public class AerospikeConnection {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
+
+    private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+
+    static {
+        sendKeyWritePolicy.sendKey = true;
+    }
 
     public final String GRAPH_ID;
 
@@ -113,7 +123,8 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
-    private final SubgraphCache subgraphCache;
+    public final ConcurrentHashMap<UUID, SubgraphCache> traversalSubgraphCaches;
+    public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
     /**
      * Construct a new AerospikeConnection
@@ -197,8 +208,7 @@ public class AerospikeConnection {
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
 
 
-        subgraphCache = new SubgraphCache(this);
-
+        traversalSubgraphCaches = new ConcurrentHashMap<>();
     }
 
     /**
@@ -206,40 +216,34 @@ public class AerospikeConnection {
      * the EgoNetwork of egoId, and the EgoNetworks of all vertices adjacent
      * to egoId, put them in the cache, and return the list of Keys associated with them.
      *
+     * @param traversalId
      * @param graph
      * @param egoId
      */
-    public Key[] primeSubgraphCache(FireflyGraph graph, Object egoId) {
-        ConcurrentHashMap<Key,Boolean> cachedKeys = new ConcurrentHashMap<>();
-        CompletableFuture.runAsync(()->{
-            EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph).vertexRecords.forEach(kr -> {
-                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
-            });
-        });
+    public void primeSubgraphCache(final UUID traversalId, final FireflyGraph graph, final Object egoId) {
+        final SubgraphCache traversalCache = new SubgraphCache(this);
+        traversalSubgraphCaches.put(traversalId, traversalCache);
+        Runnable primeCacheOperation = () -> {
+            EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
+                    .vertexRecords
+                    .stream() // todo: parallelStream
+                    .forEach(kr -> {
+                        traversalCache.insert(kr.key,kr.record);
+                        EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
+                                .records()
+                                .forEachRemaining(subKr -> {
+                                    traversalCache.insert(subKr.key, subKr.record);
+                                });
+                    });
+        };
 
-
-//        EgoNetwork.create(FireflyId.of(FireflyVertex.class, egoId), graph)
-//                .vertexRecords
-//                .stream() // todo: parallelStream
-//                .forEach(kr -> {
-//                    EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
-//                            .records()
-//                            .forEachRemaining(subKr -> {
-//                                cachedKeys.put(subKr.key,true);
-//                                graph.getBaseGraph().subgraphCache.insert(kr.key, kr.record);
-//                            });
-//                });
-
-        return cachedKeys.keySet().toArray(new Key[]{});
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf))) {
+            CompletableFuture.runAsync(primeCacheOperation);
+        } else {
+            primeCacheOperation.run();
+        }
     }
 
-    /**
-     * Get a refrence to the Subgraph Cache
-     * @return the Subgraph Cache
-     */
-    public SubgraphCache getSubgraphCache(){
-        return subgraphCache;
-    }
 
     /**
      * Connect to an Aerospike instance
@@ -338,11 +342,11 @@ public class AerospikeConnection {
     /**
      * Take an array of Key and remove them from the subgraph cache
      * this is done at the end of the traversal
-     *
-     * @param cacheKeys
      */
-    public void purgeFromSubgraphCache(Key[] cacheKeys) {
-        Arrays.stream(cacheKeys).forEach(subgraphCache::invalidate);
+    public void purgeSubgraphCache() {
+        if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
+            traversalSubgraphCaches.remove(idFromTraversal(currentTraversal.get()).get());
+        }
     }
 
 
@@ -671,12 +675,26 @@ public class AerospikeConnection {
      * @return Aerospike Record
      */
     protected Record read(final Key key) {
-        this.readMetric.incrementAndGet();
-        return subgraphCache.read(key);
+        readMetric.incrementAndGet();
+        if (currentTraversal.get() != null && isCachedTraversal(currentTraversal.get()) && idFromTraversal(currentTraversal.get()).isPresent()) {
+            try {
+                Traversal.Admin traversal = currentTraversal.get();
+                Optional<UUID> oid = idFromTraversal(traversal);
+                UUID id = oid.get();
+                SubgraphCache c = traversalSubgraphCaches.get(id);
+                return c.read(key);
+            } catch (Exception e) {
+                LOG.debug(e.getMessage());
+                return client.get(null, key);
+            }
+        } else {
+            return client.get(null, key);
+        }
     }
 
     /**
      * Perform a batch Aerospike read for a group of keys
+     *
      * @param keys Array of Key to return records for
      * @return Array of Record
      */
@@ -687,12 +705,22 @@ public class AerospikeConnection {
 
     /**
      * Write to Aerospike, notify the cache implementation
-     * @param key Key to write Bins into
+     *
+     * @param key  Key to write Bins into
      * @param bins Data Bin(s) to write
      */
     protected void write(final Key key, final Bin... bins) {
-        this.writeMetric.incrementAndGet();
-        subgraphCache.write(key, bins);
+        writeMetric.incrementAndGet();
+        if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
+            try {
+                traversalSubgraphCaches.get(idFromTraversal(currentTraversal.get()).get()).write(key, bins);
+            } catch (Exception e) {
+                LOG.debug(e.getMessage());
+                client.put(sendKeyWritePolicy, key, bins);
+            }
+        } else {
+            client.put(sendKeyWritePolicy, key, bins);
+        }
     }
 
 

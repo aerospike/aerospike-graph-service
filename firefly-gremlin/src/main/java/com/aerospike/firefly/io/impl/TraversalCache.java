@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 
-public class SubgraphCache implements FireflyCache {
+public class TraversalCache implements FireflyCache {
     public static final WritePolicy sendKeyWritePolicy = new WritePolicy();
     private final AtomicLong hitCounter = new AtomicLong(0);
     private final AtomicLong missCounter = new AtomicLong(0);
@@ -36,7 +36,7 @@ public class SubgraphCache implements FireflyCache {
     private final AerospikeConnection db;
 
 
-    public SubgraphCache(AerospikeConnection db) {
+    public TraversalCache(AerospikeConnection db) {
         this.db = db;
         loader = new CacheLoader<Key, Optional<Record>>() {
             @Override
@@ -52,7 +52,6 @@ public class SubgraphCache implements FireflyCache {
     public Record read(Key key) {
         Optional<Record> or = cache.getIfPresent(key);
         if (or != null && or.isPresent()) {
-//            LoggerFactory.getLogger(this.getClass()).info(key.toString());
             hitCounter.incrementAndGet();
             return or.get();
         } else {

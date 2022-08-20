@@ -15,16 +15,10 @@ import java.util.UUID;
  */
 public class FireflyCacheStep extends AbstractStep {
     public final UUID cacheId;
-    private final Key[] cacheKeys;
 
-    public FireflyCacheStep(Traversal.Admin traversal, UUID cacheId, Key[] cacheKeys) {
+    public FireflyCacheStep(Traversal.Admin traversal, UUID cacheId) {
         super(traversal);
         this.cacheId = cacheId;
-        this.cacheKeys = cacheKeys;
-    }
-
-    public Key[] getCacheKeys() {
-        return cacheKeys;
     }
 
     @Override

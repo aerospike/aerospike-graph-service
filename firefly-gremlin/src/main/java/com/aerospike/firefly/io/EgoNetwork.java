@@ -20,7 +20,7 @@ import java.util.stream.IntStream;
 /**
  * Represents a "ego" vertex, all its neighbors, and all associated records
  */
-class EgoNetwork {
+public class EgoNetwork {
     public final FireflyVertex ego;
     public final Set<KeyRecord> vertexRecords;
     public final Set<KeyRecord> edgeRecords;

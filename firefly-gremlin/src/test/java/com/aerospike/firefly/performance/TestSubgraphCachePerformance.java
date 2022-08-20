@@ -1,19 +1,15 @@
 package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.SubgraphCache;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import com.aerospike.firefly.util.Util;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.After;
+import org.apache.tinkerpop.shaded.minlog.Log;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -24,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
-import java.util.UUID;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -122,6 +117,7 @@ public class TestSubgraphCachePerformance {
         PerfUtil.Results noCacheResults = PerfUtil.runTestBatch(10, () -> {
             List<Vertex> res = g.V(1).out().out().dedup().toList();
         });
+        LOG.info("No cache");
         LOG.info(noCacheResults.toString());
         graph.close();
         db.close();
@@ -129,6 +125,7 @@ public class TestSubgraphCachePerformance {
         PerfUtil.Results syncCacheResults = PerfUtil.runTestBatch(10, () -> {
             List<Vertex> res = g.V(1).out().out().dedup().toList();
         });
+        LOG.info("Sync cache");
         LOG.info(syncCacheResults.toString());
         graph.close();
         db.close();
@@ -136,6 +133,7 @@ public class TestSubgraphCachePerformance {
         PerfUtil.Results asyncCacheResults = PerfUtil.runTestBatch(10, () -> {
             List<Vertex> res = g.V(1).out().out().dedup().toList();
         });
+        LOG.info("Async cache");
         LOG.info(asyncCacheResults.toString());
         graph.close();
         db.close();

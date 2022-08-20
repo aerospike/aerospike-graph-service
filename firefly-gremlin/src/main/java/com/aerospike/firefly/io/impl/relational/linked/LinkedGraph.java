@@ -7,7 +7,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyAsyncPrefetchStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -39,6 +39,7 @@ final public class LinkedGraph extends RelationalGraph {
                         .addStrategies(FireflyGraphStepStrategy.instance())
                         .addStrategies(OptionsStrategy.build().create()));
     }
+
     /**
      * Constructor for LinkedGraph.
      *
@@ -51,7 +52,7 @@ final public class LinkedGraph extends RelationalGraph {
             TraversalStrategies.GlobalCache.registerStrategies(
                     LinkedGraph.class,
                     TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyAsyncPrefetchStrategy.instance()));
+                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
         }
     }
 
@@ -191,8 +192,6 @@ final public class LinkedGraph extends RelationalGraph {
         super.close();
         TraversalStrategies.GlobalCache
                 .getStrategies(LinkedGraph.class)
-                .removeStrategies(
-                        FireflyAsyncPrefetchStrategy.class,
-                        FireflyGraphStepStrategy.class);
+                .removeStrategies(FireflyTraversalCacheStrategy.class);
     }
 }

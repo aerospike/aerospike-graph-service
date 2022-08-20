@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.SubgraphCache;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;

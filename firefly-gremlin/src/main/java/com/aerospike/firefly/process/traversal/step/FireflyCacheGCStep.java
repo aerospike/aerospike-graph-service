@@ -30,6 +30,7 @@ public class FireflyCacheGCStep extends AbstractStep {
         try {
             Traverser.Admin next = this.starts.next();
             if (!this.starts.hasNext()) {
+                //This is the end of the traversal, remove the traversal cache
                 TraversalCache it = ((FireflyGraph) traversal.getGraph().get())
                         .getBaseGraph()
                         .traversalCacheSet

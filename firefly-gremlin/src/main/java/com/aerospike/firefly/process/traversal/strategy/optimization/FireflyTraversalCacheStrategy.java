@@ -42,6 +42,7 @@ public class FireflyTraversalCacheStrategy extends AbstractTraversalStrategy<Tra
         final UUID cacheId = UUID.randomUUID();
         final FireflyCacheStep cacheStep = new FireflyCacheStep(traversal, cacheId);
         traversal.addStep(0, cacheStep);
+        //Find all the prefetch tasks that support this traversal
         List<Runnable> prefetchTasksThatMatchTraversal = prefetchTasks.stream().map(taskClass -> {
             final PrefetchTask val;
             try {
@@ -53,18 +54,22 @@ public class FireflyTraversalCacheStrategy extends AbstractTraversalStrategy<Tra
             }
             return val.getTask(traversal);
         }).filter(it -> it.isPresent()).map(Optional::get).collect(Collectors.toList());
+        //If there are none, remove the CacheStep, it should run without alteration
         if (prefetchTasksThatMatchTraversal.size() == 0) {
             traversal.removeStep(0);
             return;
         }
 
-
+        //Now that we know this is a supported traversal
+        // Set the traversal thread-local reference
         db.currentTraversal.set(traversal);
         final TraversalCache traversalCache = new TraversalCache(db);
+        //Create a cache for this traversal by id
         db.traversalCacheSet.put(cacheId, traversalCache);
+        //Tack on the step that will remove the cache when its finished
         final FireflyCacheGCStep gcStep = new FireflyCacheGCStep(traversal, cacheId);
         traversal.addStep(traversal.getSteps().size(), gcStep);
-
+        //Execute all the supported prefetch tasks
         prefetchTasks.forEach(taskClass -> {
             try {
                 ((SubgraphPrefetchTask) taskClass

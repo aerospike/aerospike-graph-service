@@ -27,6 +27,15 @@ public class SubgraphPrefetchTask implements PrefetchTask {
     public static PrefetchTask create(){
         return new SubgraphPrefetchTask();
     }
+
+    /**
+     * If this prefetch task supports prefetching the supplied Traversal, return
+     * a Runnable that when executed, will fill the cache with the records it expects
+     * to be required by the traversal
+     * If it does not match the traversal, return an empty Optional
+     * @param traversal the current Traversal
+     * @return Optional of Runnable
+     */
     @Override
     public Optional<Runnable> getTask(Traversal.Admin<?, ?> traversal) {
 
@@ -65,6 +74,7 @@ public class SubgraphPrefetchTask implements PrefetchTask {
         TraversalCache traversalCache = graph.getBaseGraph().traversalCacheSet.get(cacheId);
         LOG.info("will init cache with id: " + cacheId);
         Object startVertexId = ((GraphStep) traversal.getStartStep().getNextStep()).getIds()[0];
+        //Fetch the ego network of the egoId and then fetch the EgoNetwork of each adjacent Vertex
         Runnable primeCacheOperation = () -> {
             EgoNetwork.create(FireflyId.of(FireflyVertex.class, startVertexId), graph)
                     .vertexRecords

@@ -14,6 +14,7 @@ import java.util.UUID;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyCacheStep extends AbstractStep {
+    //This step stores the cacheId
     public final UUID cacheId;
 
     public FireflyCacheStep(Traversal.Admin traversal, UUID cacheId) {

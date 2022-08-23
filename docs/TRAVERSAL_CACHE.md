@@ -5,8 +5,7 @@
 
 FireflyTraversalCacheStrategy adds a traversal specific Guava cache to supported traversals.
 
-If 
-ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet is a Map from an assigned TraversalID to a Cache specific to that traversal.
+If ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet is a Map from an assigned TraversalID to a Cache specific to that traversal.
 
 A Step is appended to the end of the traversal that will remove the cache at completion of the traversal.
 

@@ -300,7 +300,7 @@ public class AerospikeConnection {
     }
 
     /**
-     * Givin an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
+     * Given an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
      *
      * @param edgeRecords array of Edge Records
      * @param direction   the other end we should be retrieving

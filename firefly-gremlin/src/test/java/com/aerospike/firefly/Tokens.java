@@ -20,7 +20,7 @@ public final class Tokens {
 
     public static final Path INTEGRATION_TEST_PROPERTIES;
     public static final String AIR_ROUTES_50K_URL = "https://raw.githubusercontent.com/krlawrence/graph/master/sample-data/air-routes-latest.graphml";
-    public static final String MOVIELENS_1M_URL = "http://files.phaseshift.studio/movielens-numericid.kryo";
+
 
     static {
         // Default to linked.

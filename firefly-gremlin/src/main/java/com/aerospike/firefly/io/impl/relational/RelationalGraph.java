@@ -22,11 +22,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -44,6 +40,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     public RelationalGraph(AerospikeConnection db, final Configuration conf) {
         super(db, conf);
     }
+
 
     /**
      * Function to write edge to Aerospike.

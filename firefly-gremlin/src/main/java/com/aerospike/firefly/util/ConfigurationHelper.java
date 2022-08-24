@@ -33,6 +33,7 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
+
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -43,7 +44,7 @@ public final class ConfigurationHelper {
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
             public static final String TEST_SET = "TEST_SET";
         }
-
+        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
@@ -101,6 +102,8 @@ public final class ConfigurationHelper {
 
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
+        public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
+
 
     }
 
@@ -155,7 +158,7 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
-        put(Keys.SCAN_MAX_WAIT,"2000");
+        put(Keys.SCAN_MAX_WAIT, "2000");
         // User supplied
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
@@ -163,8 +166,9 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
 
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
+        put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
+        put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
-
     }};
 
     public static Configuration loadFromFile(final Path path) {

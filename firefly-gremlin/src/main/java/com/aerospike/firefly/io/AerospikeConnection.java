@@ -1,46 +1,23 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
-import com.aerospike.client.Host;
-import com.aerospike.client.Info;
-import com.aerospike.client.Key;
-import com.aerospike.client.Operation;
-import com.aerospike.client.Record;
-import com.aerospike.client.ResultCode;
-import com.aerospike.client.Value;
-import com.aerospike.client.async.EventLoops;
-import com.aerospike.client.async.EventPolicy;
-import com.aerospike.client.async.Monitor;
-import com.aerospike.client.async.NettyEventLoops;
-import com.aerospike.client.async.NioEventLoops;
-import com.aerospike.client.async.Throttles;
+import com.aerospike.client.*;
+import com.aerospike.client.async.*;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.ClientPolicy;
-import com.aerospike.client.policy.InfoPolicy;
-import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.QueryPolicy;
-import com.aerospike.client.policy.ScanPolicy;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.client.query.IndexType;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.Statement;
+import com.aerospike.client.policy.*;
+import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyElement;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.io.impl.TraversalCache;
+import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -48,20 +25,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy.Util.isCachedTraversal;
+import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy.Util.idFromTraversal;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -70,6 +42,12 @@ import java.util.stream.Collectors;
 public class AerospikeConnection {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
+
+    private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+
+    static {
+        sendKeyWritePolicy.sendKey = true;
+    }
 
     public final String GRAPH_ID;
 
@@ -145,6 +123,10 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
+    public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
+    public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
+
+    public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
     /**
      * Construct a new AerospikeConnection
@@ -226,7 +208,26 @@ public class AerospikeConnection {
         USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
+
+
+        traversalCacheSet = new ConcurrentHashMap<>();
+        cacheTasks = new ArrayList<>();
     }
+
+    /**
+     * Run a traversal prefetch task
+     *
+     * @param cacheId
+     * @param task    prefetch task to execute
+     */
+    public void runPrefetchTask(UUID cacheId, Runnable task) {
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf))) {
+            cacheTasks.add(new AbstractMap.SimpleEntry<>(cacheId, CompletableFuture.runAsync(task)));
+        } else {
+            task.run();
+        }
+    }
+
 
     /**
      * Connect to an Aerospike instance
@@ -298,9 +299,30 @@ public class AerospikeConnection {
     public EventLoops getEventLoops() {
         return eventLoops;
     }
+
     public int getCommandsPerLoop() {
         return commandsPerLoop;
     }
+
+    /**
+     * Given an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
+     *
+     * @param edgeRecords array of Edge Records
+     * @param direction   the other end we should be retrieving
+     * @return an array of Vertex records
+     */
+    public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
+        List<Key> vertexKeys = Arrays.stream(edgeRecords)
+                .map(record -> record.getLong(direction.name()))
+                .map(id -> new Key(namespace, VERTEX_AERO_SET, id)).collect(Collectors.toList());
+        Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
+        List<KeyRecord> krl = new ArrayList<>();
+        IntStream.range(0, vertexKeys.size()).forEach(i -> {
+            krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
+        });
+        return krl;
+    }
+
 
     /**
      * manage the set names for an element type
@@ -387,7 +409,7 @@ public class AerospikeConnection {
          * @return Number of Records in set
          */
         public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
-            if(client.getNodes().length > 1)
+            if (client.getNodes().length > 1)
                 throw new RuntimeException("getSetSize not supported for multi node");
             final String infoQuery = "sets/" + namespace + "/" + setName;
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
@@ -517,17 +539,17 @@ public class AerospikeConnection {
         LOG.info("Creating graph indices.");
         if (SUPERNODE_INDEX_ENABLED) {
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_IN_INDEX,  Direction.IN.name(),
+                    E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
             createIndex(getElementPropertySet(FireflyEdge.class),
-                    E_OUT_INDEX,  Direction.OUT.name(),
+                    E_OUT_INDEX, Direction.OUT.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         createIndex(getElementPropertySet(FireflyVertex.class),
-                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+                E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
         createIndex(getElementPropertySet(FireflyVertexProperty.class),
                 STRING_VP_KV_INDEX,
@@ -544,10 +566,10 @@ public class AerospikeConnection {
                 VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 STRING_E_KV_INDEX,
+                STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(getElementPropertySet(FireflyEdge.class),
-                 NUMERIC_E_KV_INDEX,
+                NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
@@ -627,9 +649,54 @@ public class AerospikeConnection {
      * @return Aerospike Record
      */
     protected Record read(final Key key) {
-        this.readMetric.incrementAndGet();
-        return client.get(null, key);
+        readMetric.incrementAndGet();
+        if (currentTraversal.get() != null && isCachedTraversal(currentTraversal.get()) && idFromTraversal(currentTraversal.get()).isPresent()) {
+            try {
+                Traversal.Admin traversal = currentTraversal.get();
+                Optional<UUID> oid = idFromTraversal(traversal);
+                UUID id = oid.get();
+                TraversalCache c = traversalCacheSet.get(id);
+                return c.read(key);
+            } catch (Exception e) {
+                LOG.debug(e.getMessage());
+                return client.get(null, key);
+            }
+        } else {
+            return client.get(null, key);
+        }
     }
+
+    /**
+     * Perform a batch Aerospike read for a group of keys
+     *
+     * @param keys Array of Key to return records for
+     * @return Array of Record
+     */
+    protected Record[] read(final Key[] keys) {
+        this.readMetric.addAndGet(keys.length);
+        return client.get(null, keys);
+    }
+
+    /**
+     * Write to Aerospike, notify the cache implementation
+     *
+     * @param key  Key to write Bins into
+     * @param bins Data Bin(s) to write
+     */
+    protected void write(final Key key, final Bin... bins) {
+        writeMetric.incrementAndGet();
+        if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
+            try {
+                traversalCacheSet.get(idFromTraversal(currentTraversal.get()).get()).write(key, bins);
+            } catch (Exception e) {
+                LOG.debug(e.getMessage());
+                client.put(sendKeyWritePolicy, key, bins);
+            }
+        } else {
+            client.put(sendKeyWritePolicy, key, bins);
+        }
+    }
+
 
     /**
      * Determine of a key exists
@@ -676,7 +743,7 @@ public class AerospikeConnection {
         final QueryPolicy p = new QueryPolicy();
         try {
             return client.query(p, stmt).iterator();
-        }catch (AerospikeException ae){
+        } catch (AerospikeException ae) {
             throw new RuntimeException(ae);
         }
     }
@@ -878,7 +945,7 @@ public class AerospikeConnection {
      */
     private Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
-            return Math.toIntExact((Long) val);
+            return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
     }
 
@@ -1118,7 +1185,6 @@ public class AerospikeConnection {
     public void close() {
         LOG.debug("Closing client.");
         this.client.close();
-
         LOG.debug("Closing event loop.");
         this.eventLoops.close();
     }

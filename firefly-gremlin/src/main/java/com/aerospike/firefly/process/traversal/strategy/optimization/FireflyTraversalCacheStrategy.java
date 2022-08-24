@@ -76,7 +76,7 @@ public class FireflyTraversalCacheStrategy extends AbstractTraversalStrategy<Tra
                         .getMethod("create")
                         .invoke(null))
                         .getTask(traversal)
-                        .ifPresent(db::runPrefetchTask);
+                        .ifPresent(it -> {db.runPrefetchTask(cacheId,it);});
             } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }

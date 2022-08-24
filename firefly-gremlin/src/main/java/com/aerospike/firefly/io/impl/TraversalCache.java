@@ -11,6 +11,7 @@ import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -110,13 +111,19 @@ public class TraversalCache implements FireflyCache {
     }
 
     /**
-     *
      * @return number of entries in cache
      */
     public long size() {
-        LoggerFactory.getLogger(this.getClass()).info("cache stats {}",cache.stats());
         return cache.size();
     }
+
+    /**
+     * @return Guava CacheStats
+     */
+    public CacheStats stats(){
+        return cache.stats();
+    }
+
 
     /**
      * Statistic on data served from cache

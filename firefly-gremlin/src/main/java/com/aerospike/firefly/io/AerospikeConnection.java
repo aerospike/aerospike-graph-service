@@ -124,6 +124,8 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
     public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
+    public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
+
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
     /**
@@ -209,15 +211,18 @@ public class AerospikeConnection {
 
 
         traversalCacheSet = new ConcurrentHashMap<>();
+        cacheTasks = new ArrayList<>();
     }
 
     /**
      * Run a traversal prefetch task
-     * @param task prefetch task to execute
+     *
+     * @param cacheId
+     * @param task    prefetch task to execute
      */
-    public void runPrefetchTask(Runnable task) {
+    public void runPrefetchTask(UUID cacheId, Runnable task) {
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf))) {
-            CompletableFuture<Void> fut = CompletableFuture.runAsync(task);
+            cacheTasks.add(new AbstractMap.SimpleEntry<>(cacheId, CompletableFuture.runAsync(task)));
         } else {
             task.run();
         }
@@ -316,16 +321,6 @@ public class AerospikeConnection {
             krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
         });
         return krl;
-    }
-
-    /**
-     * Take an array of Key and remove them from the subgraph cache
-     * this is done at the end of the traversal
-     */
-    public void purgeSubgraphCache() {
-        if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
-            traversalCacheSet.remove(idFromTraversal(currentTraversal.get()).get());
-        }
     }
 
 

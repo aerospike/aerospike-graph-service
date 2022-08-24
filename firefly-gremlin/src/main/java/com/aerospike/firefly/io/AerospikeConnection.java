@@ -945,7 +945,7 @@ public class AerospikeConnection {
      */
     private Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
-            return Math.toIntExact((Long) val);
+            return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
     }
 

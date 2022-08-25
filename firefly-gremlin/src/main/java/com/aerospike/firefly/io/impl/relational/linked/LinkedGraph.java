@@ -56,6 +56,11 @@ final public class LinkedGraph extends RelationalGraph {
         }
     }
 
+
+    public static Integer dataModelVersion() {
+        return 0;
+    }
+
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,

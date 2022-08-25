@@ -16,16 +16,25 @@ import org.slf4j.LoggerFactory;
 final public class GraphFactory {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
     private static final String FIREFLY_DATA_MODEL = "firefly_data_model";
+
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
-        switch (config.get(String.class, FIREFLY_DATA_MODEL)) {
-            case LinkedGraph.DATA_MODEL:
-                LOG.info("Constructing Graph for linked data model.");
-                return new LinkedGraph(db, config);
-            case PackedGraph.DATA_MODEL:
-                LOG.info("Constructing Graph for packed data model.");
-                return new PackedGraph(db, config);
-            default:
-                throw new IllegalArgumentException("Unknown graph type: " + config.get(String.class, FIREFLY_DATA_MODEL));
+        try {
+            switch (config.get(String.class, FIREFLY_DATA_MODEL)) {
+                case LinkedGraph.DATA_MODEL:
+                    if (Upgrade.checkNeedsUpgrade(LinkedGraph.class, db))
+                        Upgrade.performUpgrade(LinkedGraph.class, db);
+                    LOG.info("Constructing Graph for linked data model.");
+                    return new LinkedGraph(db, config);
+                case PackedGraph.DATA_MODEL:
+                    if (Upgrade.checkNeedsUpgrade(PackedGraph.class, db))
+                        Upgrade.performUpgrade(PackedGraph.class, db);
+                    LOG.info("Constructing Graph for packed data model.");
+                    return new PackedGraph(db, config);
+                default:
+                    throw new IllegalArgumentException("Unknown graph type: " + config.get(String.class, FIREFLY_DATA_MODEL));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

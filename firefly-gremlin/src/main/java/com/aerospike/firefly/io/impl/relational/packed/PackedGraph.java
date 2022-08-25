@@ -59,6 +59,11 @@ final public class PackedGraph extends RelationalGraph {
         }
     }
 
+
+    public static Integer dataModelVersion() {
+        return 0;
+    }
+
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 PackedGraph.class,

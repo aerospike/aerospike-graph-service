@@ -114,7 +114,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static FireflyGraph open(final Configuration conf) {
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
-
+    public static Integer dataModelVersion(){
+        return null;
+    };
     public abstract String getDataModel();
 
     // Vertex functions.

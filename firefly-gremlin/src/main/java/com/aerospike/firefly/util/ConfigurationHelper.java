@@ -43,13 +43,16 @@ public final class ConfigurationHelper {
             public static final String VERTEX_PROPERTY_SET = "VERTEX_PROPERTY_SET";
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
             public static final String TEST_SET = "TEST_SET";
+            public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
+
         }
+
+        public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
-        public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
         public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
         public static final String EDGE_ID_KEY = "EDGE_ID_KEY";
@@ -108,7 +111,7 @@ public final class ConfigurationHelper {
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
-        put(Keys.GRAPH_METADATA_SET, "G_META");
+        put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
         put(Keys.GRAPH_VARIABLES_MAP, "G_VAR_MAP");

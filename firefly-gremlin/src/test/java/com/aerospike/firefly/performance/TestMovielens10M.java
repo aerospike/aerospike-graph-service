@@ -34,7 +34,7 @@ public class TestMovielens10M extends AbstractFireflySuite {
     public static void fetchData() {
         try {
             URL movieLensUrl = new URL(MOVIELENS_10M_URL);
-            File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
+            File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-10m.zip");
             if (!tempFile.exists()) {
                 IOUtil.downloadFileFromURL(movieLensUrl, tempFile);
                 Unzip.unzip(tempFile.getAbsolutePath(), MOVIELENS_TMP);

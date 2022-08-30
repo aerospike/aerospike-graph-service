@@ -17,6 +17,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -44,6 +45,10 @@ public class AerospikeConnection {
     public static final String LABEL = "label";
 
     private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+    private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
+    private static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
+    private static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+
 
     static {
         sendKeyWritePolicy.sendKey = true;
@@ -177,7 +182,7 @@ public class AerospikeConnection {
         GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
         TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.TEST_SET, conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET, conf);
-        GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_METADATA_SET, conf);
+        GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.GRAPH_METADATA_SET, conf);
         GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.GRAPH_VARIABLES_SET, conf);
         GRAPH_VARIABLES_RECORD = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD, conf);
         GRAPH_VARIABLES_MAP = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_MAP, conf);
@@ -321,6 +326,34 @@ public class AerospikeConnection {
             krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
         });
         return krl;
+    }
+
+    public ComparableVersion getModelVersion() {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        Record dataModelRec = read(k);
+        if (dataModelRec == null)
+            return null;
+        return new ComparableVersion(dataModelRec.getString(DATA_MODEL_VER));
+    }
+
+    public void setModelVersion(final String ver) {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Bin b = new Bin(DATA_MODEL_VER, ver);
+        write(k, b);
+    }
+
+    public String getDataModelName() {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Record dataModelRec = read(k);
+        if (dataModelRec == null)
+            return null;
+        return dataModelRec.getString(DATA_MODEL_NAME);
+    }
+
+    public void setModelName(final String name) {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Bin b = new Bin(DATA_MODEL_NAME, name);
+        write(k, b);
     }
 
 
@@ -1076,6 +1109,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
+        client.truncate(null, namespace, GRAPH_METADATA_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();

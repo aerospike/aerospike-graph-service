@@ -17,6 +17,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -327,21 +328,21 @@ public class AerospikeConnection {
         return krl;
     }
 
-    public int getModelVersion() {
+    public ComparableVersion getModelVersion() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         Record dataModelRec = read(k);
         if (dataModelRec == null)
-            return -1;
-        return Math.toIntExact(dataModelRec.getLong(DATA_MODEL_VER));
+            return null;
+        return new ComparableVersion(dataModelRec.getString(DATA_MODEL_VER));
     }
 
-    public void setModelVersion(final int ver) {
+    public void setModelVersion(final String ver) {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Bin b = new Bin(DATA_MODEL_VER, ver);
         write(k, b);
     }
 
-    public String getModelClassName() {
+    public String getDataModelName() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Record dataModelRec = read(k);
         if (dataModelRec == null)
@@ -349,7 +350,7 @@ public class AerospikeConnection {
         return dataModelRec.getString(DATA_MODEL_NAME);
     }
 
-    public void setModelClassName(final String name) {
+    public void setModelName(final String name) {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Bin b = new Bin(DATA_MODEL_NAME, name);
         write(k, b);

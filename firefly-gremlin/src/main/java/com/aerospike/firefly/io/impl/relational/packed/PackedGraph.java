@@ -60,10 +60,6 @@ final public class PackedGraph extends RelationalGraph {
     }
 
 
-    public static Integer dataModelVersion() {
-        return 0;
-    }
-
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 PackedGraph.class,
@@ -78,6 +74,10 @@ final public class PackedGraph extends RelationalGraph {
 
     @Override
     public String getDataModel() {
+        return getDataModelName();
+    }
+
+    public static String getDataModelName() {
         return DATA_MODEL;
     }
 
@@ -218,6 +218,7 @@ final public class PackedGraph extends RelationalGraph {
                         FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
+
     @Override
     public void close() {
         super.close();

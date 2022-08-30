@@ -15,6 +15,7 @@ import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
@@ -54,6 +55,8 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
+    public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
+
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
 
     public final IdManager<Long> vertexIdManager;
@@ -114,9 +117,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static FireflyGraph open(final Configuration conf) {
         return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
     }
-    public static Integer dataModelVersion(){
-        return null;
+    public static final String GETDATAMODELNAME = "getDataModelName";
+    public static final String DATAMODELVERSION = "dataModelVersion";
+    public static ComparableVersion dataModelVersion(){
+        return new ComparableVersion(FIREFLY_VERSION);
     };
+
     public abstract String getDataModel();
 
     // Vertex functions.

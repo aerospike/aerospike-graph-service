@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Test;
@@ -82,7 +83,8 @@ public class TestDataModelVersioning {
 
     public static class FakeGraph extends RelationalGraph {
 
-        private static Integer version = 1;
+        private static final String DATA_MODEL = "FAKE";
+        private static String version = "0.0.1";
 
         /**
          * Constructor for LinkedGraph.
@@ -96,18 +98,21 @@ public class TestDataModelVersioning {
 
         @Override
         protected int getTypeHint() {
-            return version;
+            return 0;
         }
 
-        public static Integer dataModelVersion() {
-            return version;
+        public static ComparableVersion dataModelVersion() {
+            return new ComparableVersion(FakeGraph.version);
         }
 
         @Override
         public String getDataModel() {
-            return null;
+            return getDataModelName();
         }
 
+        public static String getDataModelName() {
+            return DATA_MODEL;
+        }
         @Override
         public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value) {
             return null;
@@ -137,8 +142,8 @@ public class TestDataModelVersioning {
         public static boolean complete = false;
 
         @Override
-        public Map.Entry<Integer, Integer> upgradePath() {
-            return new AbstractMap.SimpleEntry<>(1, 2);
+        public Map.Entry<String, String> upgradePath() {
+            return new AbstractMap.SimpleEntry<>("0.0.1", "0.0.2");
         }
 
         @Override
@@ -160,12 +165,12 @@ public class TestDataModelVersioning {
 
         Upgrade.registerUpgradeTask(TestTask.class);
 
-        FakeGraph.version = 1;
+        FakeGraph.version = "0.0.1";
         if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
             Upgrade.performUpgrade(FakeGraph.class, db);
         db.close();
 
-        FakeGraph.version = 2;
+        FakeGraph.version = "0.0.2";
         db = AerospikeConnection.connect(config);
         if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
             Upgrade.performUpgrade(FakeGraph.class, db);
@@ -179,13 +184,13 @@ public class TestDataModelVersioning {
     public void TestFailOnLaterVersion() throws Exception {
         db = AerospikeConnection.connect(config);
         db.dropDatabase();
-        FakeGraph.version = 2;
+        FakeGraph.version = "0.0.2";
         if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
             Upgrade.performUpgrade(FakeGraph.class, db);
         db.close();
 
         boolean success = false;
-        FakeGraph.version = 1;
+        FakeGraph.version = "0.0.1";
         try {
             db = AerospikeConnection.connect(config);
             if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))

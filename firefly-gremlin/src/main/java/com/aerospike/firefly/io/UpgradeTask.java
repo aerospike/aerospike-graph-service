@@ -9,7 +9,7 @@ import java.util.Map;
  */
 public interface UpgradeTask {
     //This task supports upgrading from version x to version y;
-    public Map.Entry<Integer, Integer> upgradePath();
+    public Map.Entry<String, String> upgradePath();
 
     //Data model impl class this task supports upgrading;
     public Class<? extends FireflyGraph> dataModel();

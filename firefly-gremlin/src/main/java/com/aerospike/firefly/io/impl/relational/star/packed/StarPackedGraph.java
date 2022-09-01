@@ -150,7 +150,8 @@ public class StarPackedGraph extends PackedGraph implements StarGraph {
         // Append vertex property to vertex.
         vertex.writeVertexProperty(fireflyVertexProperty);
 
-        // TODO: Update all duplicates of this vertex that have this property.
+        // Append vertex property to adjacent vertex in/out property maps.
+        StarPackedVertex.writeVertexPropertyToAdjacentVertices(db, vertex, fireflyVertexProperty);
 
         // Return FireflyVertexProperty.
         return fireflyVertexProperty;

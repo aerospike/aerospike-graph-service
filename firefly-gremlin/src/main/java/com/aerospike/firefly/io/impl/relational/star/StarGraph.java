@@ -22,44 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
-public abstract class StarGraph extends RelationalGraph {
-    private static final Logger LOG = LoggerFactory.getLogger(StarGraph.class);
-    public static final String DATA_MODEL = "StarLinked";
-
-    /**
-     * Constructor for StarLinkedGraph.
-     *
-     * @param db   AerospikeConnection.
-     * @param conf Configuration.
-     */
-    public StarGraph(final AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
-    }
-
-    static {
-        // Register strategies...?
-    }
-
-    /**
-     * Function to read vertex from Aerospike.
-     *
-     * @param idValue Id of vertex.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex readVertex(final FireflyId idValue) {
-        return StarVertex.readVertex(this, idValue);
-    }
-
-    /**
-     * Function to create vertex from a record.
-     *
-     * @param keyRecord Record to use.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
-        return StarVertex.fromRecord(this, keyRecord);
-    }
+public interface StarGraph {
 }

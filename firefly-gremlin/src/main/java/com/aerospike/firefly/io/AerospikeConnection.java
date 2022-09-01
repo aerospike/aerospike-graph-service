@@ -89,6 +89,12 @@ public class AerospikeConnection {
     public final String GRAPH_VARIABLES_MAP;
     public final String EDGE_AERO_SET;
     public final String VERTEX_AERO_SET;
+    public final String IN_VP_SET;
+    public final String OUT_VP_SET;
+    public final String IN_IN_SET;
+    public final String IN_OUT_SET;
+    public final String OUT_IN_SET;
+    public final String OUT_OUT_SET;
     protected final String VERTEX_EDGELIST_AERO_SET;
     public final String VERTEX_PROPERTY_AERO_SET;
     protected final String EDGE_ID_KEY;
@@ -101,6 +107,7 @@ public class AerospikeConnection {
     public final String VERTEX_PROPERTY_NAME_TO_VALUE;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT;
     public final String VERTEX_PROPERTY_NAME;
+    public final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN;
     public final String PARENT_VERTEX_ID;
 
     public final String IN_EDGE_COUNTER;
@@ -152,6 +159,13 @@ public class AerospikeConnection {
         this.client = new AerospikeClient(clientPolicy, hosts);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
+
+        IN_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_VP_SET, conf);
+        OUT_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_VP_SET, conf);
+        IN_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_IN_SET, conf);
+        IN_OUT_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_OUT_SET, conf);
+        OUT_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_IN_SET, conf);
+        OUT_OUT_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_OUT_SET, conf);
         VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_EDGELIST_AERO_SET, conf);
         VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_PROPERTY_AERO_SET, conf);
         EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
@@ -164,6 +178,7 @@ public class AerospikeConnection {
         VERTEX_PROPERTY_NAME_TO_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE, conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
+        EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, conf);
         PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
         EDGE_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_PROPERTIES, conf);
         VP_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_PROPERTIES, conf);

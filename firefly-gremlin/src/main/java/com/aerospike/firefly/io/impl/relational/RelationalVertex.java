@@ -555,8 +555,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
                 return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>) vertexPropertyIds, vertexPropertyIds.size(), db);
-            case StarPackedVertex.VERTEX_TYPE_HINT:
-                return new StarLinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>) vertexPropertyIds, vertexPropertyIds.size(), db);
             case PackedVertex.VERTEX_TYPE_HINT:
                 return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>) vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
             default:
@@ -620,11 +618,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (cacheDisabled) {
             // Set inEdgeIds and outEdgeIds to null (invalid).
             switch (vertexTypeHint) {
-                case StarPackedVertex.VERTEX_TYPE_HINT:
-                    // Get adjacent vertices
-                    // Get adjacent vertices properties
-                    // Get adjacent vertices adjacent vertices
-                    return new StarPackedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
                 case LinkedVertex.VERTEX_TYPE_HINT:
                     return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
                 case PackedVertex.VERTEX_TYPE_HINT:

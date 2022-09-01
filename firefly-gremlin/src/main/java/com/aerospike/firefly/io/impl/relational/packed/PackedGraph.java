@@ -26,7 +26,7 @@ import java.util.Iterator;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-final public class PackedGraph extends RelationalGraph {
+public class PackedGraph extends RelationalGraph {
     private static final Logger LOG = LoggerFactory.getLogger(PackedGraph.class);
     public static final String DATA_MODEL = "packed";
 

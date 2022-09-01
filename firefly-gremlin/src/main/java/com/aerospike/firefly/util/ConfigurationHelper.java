@@ -38,6 +38,12 @@ public final class ConfigurationHelper {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
             public static final String VERTEX_AERO_SET = "VERTEX_AERO_SET";
+            public static final String IN_VP_SET = "IN_VP_SET";
+            public static final String OUT_VP_SET = "OUT_VP_SET";
+            public static final String IN_IN_SET = "IN_IN_SET";
+            public static final String IN_OUT_SET = "IN_OUT_SET";
+            public static final String OUT_IN_SET = "OUT_IN_SET";
+            public static final String OUT_OUT_SET = "OUT_OUT_SET";
             public static final String VERTEX_EDGELIST_AERO_SET = "VERTEX_EDGELIST_AERO_SET";
             public static final String VERTEX_PROPERTY_AERO_SET = "VERTEX_PROPERTY_AERO_SET";
             public static final String VERTEX_PROPERTY_SET = "VERTEX_PROPERTY_SET";
@@ -62,6 +68,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
         public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";
         public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
+        public static final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = "EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN";
         public static final String PARENT_VERTEX_ID = "PARENT_VERTEX_ID";
         public static final String EDGE_PROPERTIES = "EDGE_PROPERTIES";
         public static final String VP_PROPERTIES = "VP_PROPERTIES";
@@ -115,6 +122,12 @@ public final class ConfigurationHelper {
         put(Keys.Sets.EDGE_AERO_SET, "EDGE");
         put(Keys.EDGE_PROPERTIES, "E_PROP");
         put(Keys.Sets.VERTEX_AERO_SET, "VERTEX");
+        put(Keys.Sets.IN_VP_SET, "IN_VP");
+        put(Keys.Sets.OUT_VP_SET, "OUT_VP");
+        put(Keys.Sets.IN_IN_SET, "IN_IN");
+        put(Keys.Sets.IN_OUT_SET, "IN_OUT");
+        put(Keys.Sets.OUT_IN_SET, "OUT_IN");
+        put(Keys.Sets.OUT_OUT_SET, "OUT_OUT");
         put(Keys.Sets.VERTEX_EDGELIST_AERO_SET, "E_LIST");
         put(Keys.Sets.VERTEX_PROPERTY_AERO_SET, "V_PROP");
         put(Keys.EDGE_ID_KEY, "E_ID_KEY");
@@ -128,6 +141,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE, "VP_N_V");
         put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, "VP_N_TH");
         put(Keys.VERTEX_PROPERTY_NAME, "VP_NAME");
+        put(Keys.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, "E_L_E_L_E");
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
         put(Keys.KEY_VALUE, "KEY_VALUE");

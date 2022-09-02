@@ -10,6 +10,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.stream.IntStream;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -38,8 +40,30 @@ public class TransactionTests {
         tx.rollback();
         long rollbackTime = System.currentTimeMillis();
         // capture time to rollback tx.
-        System.out.printf("write time: %d  rollbackTime: %d %n", writeTime-startTime, rollbackTime-writeTime);
+        System.out.printf("write time: %d  rollbackTime: %d %n", writeTime - startTime, rollbackTime - writeTime);
     }
+
+    @Test
+    public void testRollbackGrowingTxn() {
+        long startTime = System.currentTimeMillis();
+        IntStream.range(0, 100).forEach(i -> {
+            Transaction tx = graph.tx();
+            int groups = 100 * i;
+            tx.open();
+            GraphTraversalSource gtx = tx.begin();
+            for (int j = 0; j < 100 * groups; j++) {
+                gtx.addV();
+            }
+            long writeTime = System.currentTimeMillis();
+            // capture time to write to tx.
+            tx.rollback();
+            long rollbackTime = System.currentTimeMillis();
+            // capture time to rollback tx.
+            System.out.printf("%d elements write time: %d  rollbackTime: %d \n", (i+1) * 100 * 100, writeTime - startTime, rollbackTime - writeTime);
+        });
+
+    }
+
 
     @Test
     public void testCommitTxn() {
@@ -56,7 +80,7 @@ public class TransactionTests {
         tx.commit();
         long commitTime = System.currentTimeMillis();
         // capture time to rollback tx.
-        System.out.printf("write time: %d  commit: %d %n", writeTime-startTime, commitTime-writeTime);
+        System.out.printf("write time: %d  commit: %d %n", writeTime - startTime, commitTime - writeTime);
     }
 }
 

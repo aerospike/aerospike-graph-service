@@ -31,7 +31,7 @@ final public class GraphFactory {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
 
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
-        final String dataModel = config.get(String.class, FIREFLY_DATA_MODEL);
+        final String dataModel = config.get(String.class, FIREFLY_DATA_MODEL.toLowerCase());
         if (!DATA_MODEL_MAP.containsKey(dataModel)) {
             throw new IllegalArgumentException("Unknown graph type: " + config.get(String.class, FIREFLY_DATA_MODEL));
         } else {

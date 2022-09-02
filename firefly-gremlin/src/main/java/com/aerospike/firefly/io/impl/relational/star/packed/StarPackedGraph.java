@@ -1,11 +1,9 @@
 package com.aerospike.firefly.io.impl.relational.star.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.impl.relational.star.StarGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -18,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
-public class StarPackedGraph extends PackedGraph implements StarGraph {
+public class StarPackedGraph extends PackedGraph {
     private static final Logger LOG = LoggerFactory.getLogger(StarPackedGraph.class);
     public static final String DATA_MODEL = "star_packed";
 

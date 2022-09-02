@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -27,7 +29,7 @@ final public class GraphFactory {
             StarPackedGraph.DATA_MODEL, StarPackedGraph.class
     );
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
-    private static final String FIREFLY_DATA_MODEL = "firefly_data_model";
+
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
         final String dataModel = config.get(String.class, FIREFLY_DATA_MODEL);
         if (!DATA_MODEL_MAP.containsKey(dataModel)) {
@@ -35,8 +37,11 @@ final public class GraphFactory {
         } else {
             LOG.info("Constructing Graph for {} data model.", dataModel);
             try {
-                return DATA_MODEL_MAP.get(dataModel).getConstructor(AerospikeConnection.class, Configuration.class).newInstance(db, config);
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                final Class<? extends FireflyGraph> graphClass = DATA_MODEL_MAP.get(dataModel);
+                if (Upgrade.checkNeedsUpgrade(graphClass, db))
+                    Upgrade.performUpgrade(graphClass, db);
+                return graphClass.getConstructor(AerospikeConnection.class, Configuration.class).newInstance(db, config);
+            } catch (Exception e) {
                 // This should never happen, but this prevents us from having to put a throws on the function signature.
                 // Gotta love Java...
                 throw new RuntimeException("Error constructing graph", e);

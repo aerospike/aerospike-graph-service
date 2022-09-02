@@ -31,7 +31,8 @@ public class Movielens {
     public static final String MOVIE = "movie";
 
     private static final Logger LOG = LoggerFactory.getLogger(Movielens.class);
-    public static final String MOVIELENS_URL = "https://files.grouplens.org/datasets/movielens/ml-1m.zip";
+    public static final String MOVIELENS_1M_URL = "https://files.grouplens.org/datasets/movielens/ml-1m.zip";
+    public static final String MOVIELENS_10M_URL = "https://files.grouplens.org/datasets/movielens/ml-10m.zip";
     private static final Map<Integer, Long> movieIdCache = new HashMap<>();
     private static final Map<Integer, Long> userIdCache = new HashMap<>();
 
@@ -77,9 +78,9 @@ public class Movielens {
                     parseGenres(components[format.indexOf("Genres")]));
         }
 
-        public static Iterator<Movie> iterator(final Path moviesDat) {
+        public static Iterator<Movie> iterator(final Path moviesDat, Charset charset) {
             try {
-                return Files.lines(moviesDat, Charset.forName("Cp1252")).map(line -> Movie.fromLine(line)).iterator();
+                return Files.lines(moviesDat, charset).map(line -> Movie.fromLine(line)).iterator();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -209,10 +210,15 @@ public class Movielens {
 
         public static Rating fromLine(final String line) {
             final String[] components = line.split("::");
+            Integer rating;
+            if (components[format.indexOf("Rating")].contains("."))
+                rating = Double.valueOf(components[format.indexOf("Rating")]).intValue();
+            else
+                rating = Integer.parseInt(components[format.indexOf("Rating")]);
             return new Rating(
                     Integer.parseInt(components[format.indexOf("UserID")]),
                     Integer.parseInt(components[format.indexOf("MovieID")]),
-                    Integer.parseInt(components[format.indexOf("Rating")]),
+                    rating,
                     Long.parseLong(components[format.indexOf("Timestamp")]));
         }
 
@@ -225,6 +231,17 @@ public class Movielens {
         }
 
         public Iterator<Edge> loadEdges(Graph graph, AtomicLong metric, AtomicLong timer) {
+            return loadEdges(graph, metric, timer, false);
+        }
+
+        public Iterator<Edge> loadEdges(Graph graph, AtomicLong metric, AtomicLong timer, boolean implicitUser) {
+            Vertex userV;
+            if (implicitUser) {
+                if (!userIdCache.containsKey(userId)) {
+                    userV = graph.addVertex();
+                    userIdCache.put(userId, (Long) userV.id());
+                }
+            }
             GraphTraversalSource g = graph.traversal();
             Edge e = g.V(userIdCache.get(userId)).next()
                     .addEdge(RATED,
@@ -237,25 +254,34 @@ public class Movielens {
     }
 
     public static void parse(final Path basePath, final Graph graph) {
+        parse(basePath, graph, Charset.forName("Cp1252"), false);
+    }
+
+    public static void parse(final Path basePath, final Graph graph, Charset charset, boolean implicitUser) {
         AtomicLong m1 = new AtomicLong();
         AtomicLong timer1 = new AtomicLong(System.currentTimeMillis());
-        Movie.iterator(basePath.resolve("movies.dat")).forEachRemaining(movie -> movie.loadVertices(graph, m1, timer1));
+        Movie.iterator(basePath.resolve("movies.dat"), charset).forEachRemaining(movie -> movie.loadVertices(graph, m1, timer1));
         LOG.info("Movie count: {}", m1.get());
         AtomicLong m2 = new AtomicLong();
         AtomicLong timer2 = new AtomicLong(System.currentTimeMillis());
-        User.iterator(basePath.resolve("users.dat")).forEachRemaining(user -> user.loadVertices(graph, m2, timer2));
+        if (Files.exists(basePath.resolve("users.dat")))
+            User.iterator(basePath.resolve("users.dat")).forEachRemaining(user -> user.loadVertices(graph, m2, timer2));
         LOG.info("User count: {}", m2.get());
         AtomicLong m4 = new AtomicLong();
         AtomicLong timer4 = new AtomicLong(System.currentTimeMillis());
-        Movie.iterator(basePath.resolve("movies.dat")).forEachRemaining(movie -> movie.loadEdges(graph, m4, timer4));
+        Movie.iterator(basePath.resolve("movies.dat"), charset).forEachRemaining(movie -> movie.loadEdges(graph, m4, timer4));
         LOG.info("Movie edges processed: {}", m4.get());
         AtomicLong m5 = new AtomicLong();
         AtomicLong timer5 = new AtomicLong(System.currentTimeMillis());
-        User.iterator(basePath.resolve("users.dat")).forEachRemaining(user -> user.loadEdges(graph, m5, timer5));
+        if (Files.exists(basePath.resolve("users.dat")))
+            User.iterator(basePath.resolve("users.dat")).forEachRemaining(user -> user.loadEdges(graph, m5, timer5));
         LOG.info("User edges processed: {}", m5.get());
         AtomicLong m6 = new AtomicLong();
         AtomicLong timer6 = new AtomicLong(System.currentTimeMillis());
-        Rating.iterator(basePath.resolve("ratings.dat")).forEachRemaining(rating -> rating.loadEdges(graph, m6, timer6));
+        if (implicitUser)
+            Rating.iterator(basePath.resolve("ratings.dat")).forEachRemaining(rating -> rating.loadEdges(graph, m6, timer6, true));
+        else
+            Rating.iterator(basePath.resolve("ratings.dat")).forEachRemaining(rating -> rating.loadEdges(graph, m6, timer6));
         LOG.info("Ratings edges processed: {}", m6.get());
     }
 }

@@ -17,6 +17,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -44,6 +45,10 @@ public class AerospikeConnection {
     public static final String LABEL = "label";
 
     private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
+    private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
+    private static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
+    private static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+
 
     static {
         sendKeyWritePolicy.sendKey = true;
@@ -131,6 +136,8 @@ public class AerospikeConnection {
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
     public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
+    public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
+
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
     /**
@@ -190,7 +197,7 @@ public class AerospikeConnection {
         GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
         TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.TEST_SET, conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET, conf);
-        GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_METADATA_SET, conf);
+        GRAPH_METADATA_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.GRAPH_METADATA_SET, conf);
         GRAPH_VARIABLES_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.GRAPH_VARIABLES_SET, conf);
         GRAPH_VARIABLES_RECORD = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD, conf);
         GRAPH_VARIABLES_MAP = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_MAP, conf);
@@ -224,16 +231,18 @@ public class AerospikeConnection {
 
 
         traversalCacheSet = new ConcurrentHashMap<>();
+        cacheTasks = new ArrayList<>();
     }
 
     /**
      * Run a traversal prefetch task
      *
-     * @param task prefetch task to execute
+     * @param cacheId
+     * @param task    prefetch task to execute
      */
-    public void runPrefetchTask(Runnable task) {
+    public void runPrefetchTask(UUID cacheId, Runnable task) {
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf))) {
-            CompletableFuture<Void> fut = CompletableFuture.runAsync(task);
+            cacheTasks.add(new AbstractMap.SimpleEntry<>(cacheId, CompletableFuture.runAsync(task)));
         } else {
             task.run();
         }
@@ -334,14 +343,32 @@ public class AerospikeConnection {
         return krl;
     }
 
-    /**
-     * Take an array of Key and remove them from the subgraph cache
-     * this is done at the end of the traversal
-     */
-    public void purgeSubgraphCache() {
-        if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
-            traversalCacheSet.remove(idFromTraversal(currentTraversal.get()).get());
-        }
+    public ComparableVersion getModelVersion() {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        Record dataModelRec = read(k);
+        if (dataModelRec == null)
+            return null;
+        return new ComparableVersion(dataModelRec.getString(DATA_MODEL_VER));
+    }
+
+    public void setModelVersion(final String ver) {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Bin b = new Bin(DATA_MODEL_VER, ver);
+        write(k, b);
+    }
+
+    public String getDataModelName() {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Record dataModelRec = read(k);
+        if (dataModelRec == null)
+            return null;
+        return dataModelRec.getString(DATA_MODEL_NAME);
+    }
+
+    public void setModelName(final String name) {
+        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Bin b = new Bin(DATA_MODEL_NAME, name);
+        write(k, b);
     }
 
 
@@ -966,7 +993,7 @@ public class AerospikeConnection {
      */
     private Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
-            return Math.toIntExact((Long) val);
+            return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
     }
 
@@ -1097,6 +1124,7 @@ public class AerospikeConnection {
         client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
+        client.truncate(null, namespace, GRAPH_METADATA_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
         client.truncate(null, namespace, OUT_VP_SET, Calendar.getInstance());
         client.truncate(null, namespace, IN_VP_SET, Calendar.getInstance());

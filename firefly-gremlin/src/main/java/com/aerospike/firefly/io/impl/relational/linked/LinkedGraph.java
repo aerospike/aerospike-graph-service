@@ -14,6 +14,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
@@ -56,6 +57,7 @@ final public class LinkedGraph extends RelationalGraph {
         }
     }
 
+
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
@@ -70,6 +72,10 @@ final public class LinkedGraph extends RelationalGraph {
 
     @Override
     public String getDataModel() {
+        return getDataModelName();
+    }
+
+    public static String getDataModelName() {
         return DATA_MODEL;
     }
 

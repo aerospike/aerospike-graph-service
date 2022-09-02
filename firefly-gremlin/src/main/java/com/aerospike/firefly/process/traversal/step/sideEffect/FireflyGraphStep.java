@@ -40,6 +40,11 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         this.setIteratorSupplier(() -> (Iterator<E>) (Vertex.class.isAssignableFrom(this.returnClass) ? this.vertices() : this.edges()));
     }
 
+    /**
+     * Get an iterator of all the edges, with filter if filter is applied
+     * if index is available for the filter, use the index to fill the iterator
+     * @return iterator of edges
+     */
     private Iterator<? extends Edge> edges() {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
@@ -68,6 +73,11 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         return iterator;
     }
 
+    /**
+     * Get an iterator of all the vertices, with filter if filter is applied
+     * if index is available for the filter, use the index to fill the iterator
+     * @return iterator of vertices
+     */
     private Iterator<? extends Vertex> vertices() {
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
         final HasContainer indexedContainer = getIndexKey(FireflyVertex.class);
@@ -104,7 +114,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             add(Compare.eq);
         }};
         final Iterator<HasContainer> itty = IteratorUtils.filter(hasContainers.iterator(), hasContainer -> {
-            // we indices for String exact match and Numeric {match,lt,gt} over vertex properties and edge properties
+            // we have indices for String exact match and Numeric {match,lt,gt} over vertex properties and edge properties
             if (indexedClass.isAssignableFrom(FireflyVertex.class) || indexedClass.isAssignableFrom(FireflyEdge.class)) {
                 if (hasContainer == null || hasContainer.getValue() == null)
                     return false;

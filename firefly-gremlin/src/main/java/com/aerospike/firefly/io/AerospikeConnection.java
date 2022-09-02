@@ -1098,6 +1098,12 @@ public class AerospikeConnection {
         client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
         client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
         client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
+        client.truncate(null, namespace, OUT_VP_SET, Calendar.getInstance());
+        client.truncate(null, namespace, IN_VP_SET, Calendar.getInstance());
+        client.truncate(null, namespace, OUT_OUT_SET, Calendar.getInstance());
+        client.truncate(null, namespace, OUT_IN_SET, Calendar.getInstance());
+        client.truncate(null, namespace, IN_OUT_SET, Calendar.getInstance());
+        client.truncate(null, namespace, IN_IN_SET, Calendar.getInstance());
         if (dropIndices)
             dropGraphIndices();
     }

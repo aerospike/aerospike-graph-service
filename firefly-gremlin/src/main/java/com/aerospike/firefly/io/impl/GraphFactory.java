@@ -19,12 +19,12 @@ import java.util.Map;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 final public class GraphFactory {
-    // We can map the class here but we do not instantiate the Graphs because that would
+    // We can map the class here, but we do not instantiate the Graphs because that would
     // be unnecessary overhead.
     private static final Map<String, Class<? extends FireflyGraph>> DATA_MODEL_MAP = ImmutableMap.of(
-            "Linked", LinkedGraph.class,
-            "Packed", PackedGraph.class,
-            "StarPacked", StarPackedGraph.class
+            LinkedGraph.DATA_MODEL, LinkedGraph.class,
+            PackedGraph.DATA_MODEL, PackedGraph.class,
+            StarPackedGraph.DATA_MODEL, StarPackedGraph.class
     );
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
     private static final String FIREFLY_DATA_MODEL = "firefly_data_model";

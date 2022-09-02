@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.impl.relational.star.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
@@ -19,7 +20,7 @@ import java.util.Map;
 
 public class StarPackedGraph extends PackedGraph implements StarGraph {
     private static final Logger LOG = LoggerFactory.getLogger(StarPackedGraph.class);
-    public static final String DATA_MODEL = "StarLinked";
+    public static final String DATA_MODEL = "star_packed";
 
     /**
      * Constructor for StarLinkedGraph.
@@ -29,6 +30,11 @@ public class StarPackedGraph extends PackedGraph implements StarGraph {
      */
     public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
+    }
+
+    @Override
+    public String getDataModel() {
+        return DATA_MODEL;
     }
 
     /**
@@ -63,53 +69,40 @@ public class StarPackedGraph extends PackedGraph implements StarGraph {
         // To add an edge to inV and outV, we must:
         //  1. Add edge to the inV bin of the outVertex record (record key 2 of vertex set)
         //  2. Add edge to the outV bin of the inVertex record (record key 1 of vertex set)
-        //  3. Add inVertex properties to outVertex property set (record key 2 of inVP set)
-        //  4. Add outVertex properties to inVertex property set (record key 1 of outVP set)
-        //  5. For inVertex inEdges, add outVertex inEdges to inIn
-        //  6. For inVertex inEdges, add outVertex outEdges to inOut
-        //  7. For outVertex inEdges, add inVertex inEdges to outIn
-        //  8. For outVertex inEdges, add outVertex outEdges to outOut
-        //  9. Loop through inVertex inVertices and add edge to inIn records.
-        // 10. Loop through outVertex outVertices and add edge to outOut records.
-        // 11. Loop through inVertex outVertices and add edge to inOut records.
-        // 12. Loop through outVertex inVertices and add edge to outIn records.
-        // 13. Write the actual edge.
+        //  3. Write the actual edge
+        // 4. Add properties of outVertex to in.VP of inVertex.
+        // 5. Add properties of inVertex to out.VP of outVertex.
+        // 6. Go through in and out edges of outVertex and add to in.in and in.out of inVertex, respectively.
+        // 7. Go through in and out edges of inVertex and add to out.in and out.out of outVertex, respectively.
+        // 8. Loop through the inVertex in and out edges and add an out.in and in.in edge to the outVertex.
+        // 9. Loop through the outVertex in and out edges and add an out.out and in.out edge to the inVertex.
+
 
         // TODO: A future optimization by storing in/out vertex ids and using indices, we could avoid looping and just
         //  search for the in/out vertex ids as map values
 
-        // 1. Add edge to the inV bin of the outVertex record.
-        outVertex.writeEdge(Direction.OUT, edgeId, label);
+        // 1, 2, and 3. These are all done by the PackedGraph writeEdge, so invoke that.
+        final FireflyEdge edge = super.writeEdge(edgeId, label, properties, inVertex, outVertex);
 
-        // 2. Add edge to the outV bin of the inVertex record.
-        inVertex.writeEdge(Direction.IN, edgeId, label);
-
-        // 3. Add inVertex properties to outVertex property set.
+        // 4. Add properties of outVertex to in.VP of inVertex.
         StarPackedVertex.writeAdjacentProperties(db, Direction.IN, inVertex, outVertex, label);
 
-        // 4. Add outVertex properties to inVertex property set.
+        // 5. Add properties of inVertex to out.VP of outVertex.
         StarPackedVertex.writeAdjacentProperties(db, Direction.OUT, outVertex, inVertex, label);
 
-        // 5 and 6 (function adds adjacent vertices in and out to input direction of input vertex).
+        // 6. Go through in and out edges of outVertex and add to in.in and in.out of inVertex, respectively.
         StarPackedVertex.writeCompoundEdgesOnNewEdge(db, inVertex, Direction.IN, label, outVertex);
 
-        // 7 and 8 (function adds adjacent vertices in and out to input direction of input vertex).
+        // 7. Go through in and out edges of inVertex and add to out.in and out.out of outVertex, respectively.
         StarPackedVertex.writeCompoundEdgesOnNewEdge(db, outVertex, Direction.OUT, label, inVertex);
 
-        // 9. Loop through inVertex inEdges and add edge to inIn records.
-        StarPackedVertex.writeAdjacentEdgesToAdjacentVertex(db, Direction.IN, inVertex, Direction.IN, edgeId, label);
+        // 8. Loop through the inVertex in and out edges and add an out.in and in.in edge to the outVertex.
+        StarPackedVertex.writeBirectionalEdgesToAdjacentVertices(db, Direction.IN, inVertex,  edgeId, label);
 
-        // 10. Loop through outVertex outVertices and add edge to outOut records.
-        StarPackedVertex.writeAdjacentEdgesToAdjacentVertex(db, Direction.OUT, outVertex, Direction.OUT, edgeId, label);
+        // 9. Loop through the outVertex in and out edges and add an out.out and in.out edge to the inVertex.
+        StarPackedVertex.writeBirectionalEdgesToAdjacentVertices(db, Direction.OUT, outVertex,  edgeId, label);
 
-        // 11. Loop through inVertex outVertices and add edge to inOut records.
-        StarPackedVertex.writeAdjacentEdgesToAdjacentVertex(db, Direction.IN, inVertex, Direction.OUT, edgeId, label);
-
-        // 12. Loop through outVertex inVertices and add edge to outIn records.
-        StarPackedVertex.writeAdjacentEdgesToAdjacentVertex(db, Direction.OUT, outVertex, Direction.IN, edgeId, label);
-
-        // 13. Write the edge to the edge set.
-        return super.writeEdge(edgeId, label, properties, inVertex, outVertex);
+        return edge;
     }
 
     /**

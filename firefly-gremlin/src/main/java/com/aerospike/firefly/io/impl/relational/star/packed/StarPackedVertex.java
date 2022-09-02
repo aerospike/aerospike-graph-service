@@ -82,6 +82,10 @@ public class StarPackedVertex extends PackedVertex implements StarVertex {
         this.db = db;
     }
 
+    //
+    // TODO: When we implement strategies these should become static functions that take the id of the vertex in
+    //      question and find the information.
+    //
     /**
      * Get edge ids for a pair of labels off of a supplied dirDirEdge map.
      *
@@ -183,6 +187,7 @@ public class StarPackedVertex extends PackedVertex implements StarVertex {
                                                final FireflyVertex vertex,
                                                final FireflyVertex adjacentVertex,
                                                final String label) {
+        LOG.debug("Writing adjacent properties. Vertex: {}, adjacentVertex: {}.", vertex.id(), adjacentVertex.id());
         final String set = direction.equals(Direction.IN) ? db.IN_VP_SET : db.OUT_VP_SET;
 
         // We need to be careful here because order matters.
@@ -244,15 +249,13 @@ public class StarPackedVertex extends PackedVertex implements StarVertex {
 
         // Write element. This isn't really an element, but the logic holds.
         FireflyRecord.writeElement(db, set, vertex.id, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
-
     }
 
-    public static void writeAdjacentEdgesToAdjacentVertex(final AerospikeConnection db,
-                                                          final Direction direction,
-                                                          final FireflyVertex vertex,
-                                                          final Direction adjacentDirection,
-                                                          final FireflyId adjacentEdgeId,
-                                                          final String label) {
+    public static void writeBirectionalEdgesToAdjacentVertices(final AerospikeConnection db,
+                                                               final Direction direction,
+                                                               final FireflyVertex vertex,
+                                                               final FireflyId edgeId,
+                                                               final String label) {
         // Let's consider an example with the following notation:
         // vertexId1-edgeId>vertexId2
         //
@@ -289,87 +292,166 @@ public class StarPackedVertex extends PackedVertex implements StarVertex {
         // { "X" : [1, 2, 3] }
         // Otherwise we cannot reverse engineer information on our pathing using the vertex record and the
 
+        // Go through in edges first.
+        Iterator<Edge> edges = vertex.edges(Direction.IN);
 
-        // Loop through edges of vertex. Grab adjacent vertex and add direction.adjacentDirection edge id.
-        // We need the adjacent edge label as well as the adjacent vertex id to perform this action.
-        // Conveniently, the FireflyEdge holds both pieces of information so we don't actually need to get the adjacent
-        // vertex.
-        final Iterator<Edge> edges = vertex.edges(direction);
-
-        // A legit use case for a double ternary operator where it doesn't obfuscate code. COOL!
-        // Get set, will be inin, inout, outin, or outout.
-        final String adjacentVertexDirDirSet = direction.equals(Direction.IN) ?
-                (adjacentDirection.equals(Direction.IN) ? db.IN_IN_SET : db.IN_OUT_SET) :
-                (adjacentDirection.equals(Direction.IN) ? db.OUT_IN_SET : db.OUT_OUT_SET);
+        // This set is in regard to the adjacent vertex so flip initial IN to OUT.
+        final String finalAdjacentVertexDirDirSet1 = (direction.equals(Direction.IN) ? db.OUT_IN_SET : db.OUT_OUT_SET);
         edges.forEachRemaining(edge -> {
-            final FireflyId vertexId = direction.equals(Direction.IN) ? ((FireflyEdge) edge).inVertexId() : ((FireflyEdge) edge).outVertexId();
-            // We need to be careful here because order matters.
-            final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentVertexDirDirSet, vertexId);
-            final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
+            // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
+            if (!edge.id().equals(edgeId.value())) {
+                final FireflyId adjacentVertexId = ((FireflyEdge) edge).outVertexId();
+                LOG.debug("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId.value(), edge.id(), edgeId.value());
 
-            // Get adjacent vertex records edge map.
-            final Map<String, List<Long>> adjacentVertexEdges;
-            if (adjacentVertexRecord == null) {
-                // First entry, generate empty map.
-                adjacentVertexEdges = new HashMap<>();
-            } else {
-                final String adjacentVertexDirBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
-                adjacentVertexEdges = (Map<String, List<Long>>) adjacentVertexRecord.record.getMap(adjacentVertexDirBin);
+                // We need to be careful here because order matters.
+                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, finalAdjacentVertexDirDirSet1, adjacentVertexId);
+                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId);
 
-                // If the bin is null it must be initialized.
-                if (adjacentVertexEdges == null) {
+                // Get adjacent vertex records edge map.
+                final Map<String, List<Long>> adjacentVertexEdges;
+                if (adjacentVertexRecord == null) {
+                    // First entry, generate empty map.
+                    adjacentVertexEdges = new HashMap<>();
+                } else {
+                    final String adjacentVertexDirBin = db.OUT_EDGES;
+                    adjacentVertexEdges = (Map<String, List<Long>>) adjacentVertexRecord.record.getMap(adjacentVertexDirBin);
+
+                    // If the bin is null it must be initialized.
+                    if (adjacentVertexEdges == null) {
+                        // This should never happen.
+                        LOG.error("Bin not found in adjacent vertex {} {}", adjacentVertexId, adjacentVertexDirBin);
+                        throw new RuntimeException(String.format("Bin not found in adjacent vertex %s %s", adjacentVertexId, adjacentVertexDirBin));
+                    }
+                }
+
+                final String edgeLabel = edge.label();
+                if (!adjacentVertexEdges.containsKey(edge.label())) {
                     // This should never happen.
-                    LOG.error("Bin not found in adjacent vertex {} {}", vertexId, adjacentVertexDirBin);
-                    throw new RuntimeException(String.format("Bin not found in adjacent vertex %s %s", vertexId, adjacentVertexDirBin));
+                    LOG.error("Edge label {} not found in adjacent vertex {}", edgeLabel, adjacentVertexId);
+                    throw new RuntimeException(String.format("Edge label %s not found in adjacent vertex %s", edgeLabel, adjacentVertexId));
                 }
-            }
 
-            final String edgeLabel = edge.label();
-            if (!adjacentVertexEdges.containsKey(edge.label())) {
-                // This should never happen.
-                LOG.error("Edge label {} not found in adjacent vertex {}", edgeLabel, vertexId);
-                throw new RuntimeException(String.format("Edge label %s not found in adjacent vertex %s", edgeLabel, vertexId));
-            }
+                final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
+                final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+                        String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
-            final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
-            final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
-                    String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
-
-            // Get the adjacent edge map.
-            Map<String, List<Map<String, List<Long>>>> adjacentEdges;
-            if (adjacentVertexDirDirRecord == null) {
-                // First entry, generate empty map.
-                adjacentEdges = new HashMap<>();
-            } else {
-                adjacentEdges = (Map<String, List<Map<String, List<Long>>>>) adjacentVertexDirDirRecord.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
-
-                // If the bin is null it must be initialized.
-                if (adjacentEdges == null) {
+                // Get the adjacent edge map.
+                Map<String, List<Map<String, List<Long>>>> adjacentEdges;
+                if (adjacentVertexDirDirRecord == null) {
+                    // First entry, generate empty map.
                     adjacentEdges = new HashMap<>();
+                } else {
+                    adjacentEdges = (Map<String, List<Map<String, List<Long>>>>) adjacentVertexDirDirRecord.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+
+                    // If the bin is null it must be initialized.
+                    if (adjacentEdges == null) {
+                        adjacentEdges = new HashMap<>();
+                    }
                 }
-            }
-            List<Map<String, List<Long>>> adjacentVertexEdgeLabelToEdgeIds = adjacentEdges.get(edge.label());
-            if (adjacentVertexEdgeLabelToEdgeIds == null) {
-                // This should never happen.
-                adjacentVertexEdgeLabelToEdgeIds = new ArrayList<>();
-            }
+                List<Map<String, List<Long>>> adjacentVertexEdgeLabelToEdgeIds = adjacentEdges.get(edge.label());
+                if (adjacentVertexEdgeLabelToEdgeIds == null) {
+                    // This should never happen.
+                    adjacentVertexEdgeLabelToEdgeIds = new ArrayList<>();
+                }
 
-            if (adjacentVertexEdgeLabelToEdgeIds.size() != edgeIds.size()) {
-                // This should never happen.
-                LOG.error("Mismatch in adjacent vertex edge sets {} {}", edgeLabel, vertexId);
-                throw new RuntimeException(String.format("Mismatch in adjacent vertex edge sets %s %s", edgeLabel, vertexId));
-            }
+                if (adjacentVertexEdgeLabelToEdgeIds.size() != edgeIds.size()) {
+                    // This should never happen.
+                    LOG.error("Mismatch in adjacent vertex edge sets of edge {} and vertex {}: {} {}", edgeLabel, adjacentVertexId, adjacentVertexEdgeLabelToEdgeIds, edgeIds);
+                    throw new RuntimeException(String.format("Mismatch in adjacent vertex edge %s and vertex %s: %s %s", edgeLabel, adjacentVertexId, adjacentVertexEdgeLabelToEdgeIds, edgeIds));
+                }
 
-            final Map<String, List<Long>> innerEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
-            if (!innerEdgeMap.containsKey(label)) {
-                innerEdgeMap.put(label, new ArrayList<>());
-            }
-            innerEdgeMap.get(label).add(NumericIdManager.convert(adjacentEdgeId.value()));
-            adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
-            adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
+                final Map<String, List<Long>> innerEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
+                if (!innerEdgeMap.containsKey(label)) {
+                    innerEdgeMap.put(label, new ArrayList<>());
+                }
+                innerEdgeMap.get(label).add(NumericIdManager.convert(edgeId.value()));
+                adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
+                adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
-            final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
-            FireflyRecord.writeElement(db, adjacentVertexDirDirSet, vertexId, bin);
+                final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
+                FireflyRecord.writeElement(db, finalAdjacentVertexDirDirSet1, adjacentVertexId, bin);
+            }
+        });
+
+        // Now go through out edges.
+        edges = vertex.edges(Direction.OUT);
+
+        // This set is out regard to the adjacent vertex so flip initial OUT to IN.
+        final String adjacentVertexDirDirSet2 = (direction.equals(Direction.IN) ? db.IN_IN_SET : db.IN_OUT_SET);
+        edges.forEachRemaining(edge -> {
+            // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
+            if (!edge.id().equals(edgeId.value())) {
+                final FireflyId adjacentVertexId = ((FireflyEdge) edge).inVertexId();
+                LOG.debug("Writing vertex {} adjacent vertex compound edge {} from edge {}", adjacentVertexId.value(), edge.id(), edgeId.value());
+
+                // We need to be careful here because order matters.
+                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentVertexDirDirSet2, adjacentVertexId);
+                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId);
+
+                // Get adjacent vertex records edge map.
+                final Map<String, List<Long>> adjacentVertexEdges;
+                if (adjacentVertexRecord == null) {
+                    // First entry, generate empty map.
+                    adjacentVertexEdges = new HashMap<>();
+                } else {
+                    final String adjacentVertexDirBin = db.IN_EDGES;
+                    adjacentVertexEdges = (Map<String, List<Long>>) adjacentVertexRecord.record.getMap(adjacentVertexDirBin);
+
+                    // If the bin is null it must be initialized.
+                    if (adjacentVertexEdges == null) {
+                        // This should never happen.
+                        LOG.error("Bin not found in adjacent vertex {} {}", adjacentVertexId, adjacentVertexDirBin);
+                        throw new RuntimeException(String.format("Bin not found in adjacent vertex %s %s", adjacentVertexId, adjacentVertexDirBin));
+                    }
+                }
+
+                final String edgeLabel = edge.label();
+                if (!adjacentVertexEdges.containsKey(edge.label())) {
+                    // This should never happen.
+                    LOG.error("Edge label {} not found in adjacent vertex {}", edgeLabel, adjacentVertexId);
+                    throw new RuntimeException(String.format("Edge label %s not found in adjacent vertex %s", edgeLabel, adjacentVertexId));
+                }
+
+                final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
+                final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+                        String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
+
+                // Get the adjacent edge map.
+                Map<String, List<Map<String, List<Long>>>> adjacentEdges;
+                if (adjacentVertexDirDirRecord == null) {
+                    // First entry, generate empty map.
+                    adjacentEdges = new HashMap<>();
+                } else {
+                    adjacentEdges = (Map<String, List<Map<String, List<Long>>>>) adjacentVertexDirDirRecord.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+
+                    // If the bin is null it must be initialized.
+                    if (adjacentEdges == null) {
+                        adjacentEdges = new HashMap<>();
+                    }
+                }
+                List<Map<String, List<Long>>> adjacentVertexEdgeLabelToEdgeIds = adjacentEdges.get(edge.label());
+                if (adjacentVertexEdgeLabelToEdgeIds == null) {
+                    // This should never happen.
+                    adjacentVertexEdgeLabelToEdgeIds = new ArrayList<>();
+                }
+
+                if (adjacentVertexEdgeLabelToEdgeIds.size() != edgeIds.size()) {
+                    // This should never happen.
+                    LOG.error("Mismatch in adjacent vertex edge sets of edge {} and vertex {}: {} {}", edgeLabel, adjacentVertexId, adjacentVertexEdgeLabelToEdgeIds, edgeIds);
+                    throw new RuntimeException(String.format("Mismatch in adjacent vertex edge %s and vertex %s: %s %s", edgeLabel, adjacentVertexId, adjacentVertexEdgeLabelToEdgeIds, edgeIds));
+                }
+
+                final Map<String, List<Long>> innerEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
+                if (!innerEdgeMap.containsKey(label)) {
+                    innerEdgeMap.put(label, new ArrayList<>());
+                }
+                innerEdgeMap.get(label).add(NumericIdManager.convert(edgeId.value()));
+                adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
+                adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
+
+                final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
+                FireflyRecord.writeElement(db, adjacentVertexDirDirSet2, adjacentVertexId, bin);
+            }
         });
     }
 
@@ -416,11 +498,12 @@ public class StarPackedVertex extends PackedVertex implements StarVertex {
         outEdgeMapList.add(adjacentVertexOutEdgeMap);
         vertexOutDirEdgeMap.put(edgeLabel, outEdgeMapList);
 
-        // Create bins for the new maps.
+        // Create bins for the new maps.Typi
         final Bin inBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexInDirEdgeMap));
         final Bin outBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexOutDirEdgeMap));
 
         // Insert in Aerospike.
+        LOG.debug("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
         FireflyRecord.writeElement(db, dirInSet, vertex.id, inBin);
         FireflyRecord.writeElement(db, dirOutSet, vertex.id, outBin);
     }

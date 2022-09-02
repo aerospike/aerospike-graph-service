@@ -58,12 +58,18 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         semaphore.release();
     }
 
+    /**
+     * Triggered when scan completes successfully
+     */
     public void onSuccess() {
         this.complete.set(true);
         semaphore.release();
         scanMonitor.notifyComplete();
     }
 
+    /**
+     * Triggered when scan fails
+     */
     public void onFailure(final AerospikeException e) {
         LOG.error("Error: scan failed with exception - %s", e);
         this.complete.set(true);

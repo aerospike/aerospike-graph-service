@@ -19,6 +19,7 @@ aerospike_namespace=test
 firefly_data_model = linked
 ```
 #### Many
+
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
 aerospike_host = 172.18.0.3:3000,172.18.0.2:3000,172.18.0.4:3000

@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyRecord {
+    //Map from classes we support as keys to integer type hint values
     private static final Map<Class<? extends Serializable>, Long> SupportedKeyTypes = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
@@ -25,6 +26,7 @@ public class FireflyRecord {
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
+    //Map from classes we support as TinkerPop ids to on disk type hints. NOTE: String not fully supported yet
     private static final Map<Class<? extends Serializable>, Long> SupportedIdTypes = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
@@ -33,7 +35,6 @@ public class FireflyRecord {
     }};
     protected final Key key;
     public final Record record;
-    public final Class<? extends Serializable> userClass;
     public final Class<? extends Serializable> storageClass;
     private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
 
@@ -43,19 +44,29 @@ public class FireflyRecord {
 
     private final AerospikeConnection ac;
 
-
+    /**
+     * Wrapper for AerospikeRecord
+     *
+     * @param ac           AerospikeConnection instance
+     * @param key          Aerospike Key to wrap
+     * @param record       Aerospike Record to wrap
+     * @param storageClass
+     */
     private FireflyRecord(AerospikeConnection ac,
                           final Key key,
                           final Record record,
-                          final Class<? extends Serializable> userClass,
                           final Class<? extends Serializable> storageClass) {
         this.ac = ac;
         this.key = key;
         this.record = record;
-        this.userClass = userClass;
         this.storageClass = storageClass;
     }
 
+    public Key key() {
+        return this.key;
+    }
+
+    //cast an ID read from disk back to its original type when it was provided by the user
     private static Object idStorageTypeToOriginalType(final Object storedId, final Class<? extends Serializable> origType) {
         if (origType.equals(Long.class))
             return storedId;
@@ -66,10 +77,8 @@ public class FireflyRecord {
         throw new UnsupportedOperationException(storedId.getClass() + " is not a supported id type");
     }
 
-    public Key key() {
-        return this.key;
-    }
 
+    //cast an ID read from disk back to its original type when it was provided by the user
     public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
         return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
     }
@@ -80,22 +89,26 @@ public class FireflyRecord {
         return origId;
     }
 
+
+    //Convert a numeric type-hint stored on disk to the class it represents
     private static Class<? extends Serializable> idTypeFromIdx(final long idx) {
         return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == idx).collect(Collectors.toList()).get(0).getKey();
     }
-
+    //Return the numeric type hint for a given class
     private static Long getSupportedIdTypeIdx(final Class clazz) {
         if (!AerospikeConnection.IdToDiskTypeMap.containsKey(clazz))
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
         return SupportedKeyTypes.get(clazz);
     }
 
+    //Return the numeric type hint for a given class
     private static Long getSupportedKeyTypeIdx(final Class clazz) {
         if (!AerospikeConnection.KeyToDiskTypeMap.containsKey(clazz))
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
         return AerospikeConnection.SupportedValueTypes.get(clazz);
     }
 
+    //return the TinkerPop ID of this firefly record
     public Object id() {
         final long idval = key.userKey.toLong();
         final long idtypidx = record.getLong(this.ac.ID_TYPE);
@@ -106,6 +119,7 @@ public class FireflyRecord {
         return record;
     }
 
+    //Construct an Aerospike key from a Firefly ID
     public static Key getKey(final String namespace, final String set, final FireflyId id) {
         final Key key;
         Class<? extends Object> clazz = id.value().getClass();
@@ -122,6 +136,7 @@ public class FireflyRecord {
         return key;
     }
 
+    //Construct an Aerospike key from a Firefly ID for an Element type
     private static Key getElementKey(final String namespace, final String set, final FireflyId id) {
         final Key key;
         if (id.value().getClass().equals(Long.class))
@@ -146,9 +161,16 @@ public class FireflyRecord {
         final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
         final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(db, key, record, userClass, storageClass);
+        return new FireflyRecord(db, key, record, storageClass);
     }
 
+    /**
+     * Construct a FireflyRecord from an Aerospike Record and Key
+     * @param db AerospikeConnection instance
+     * @param key Aerospike Key
+     * @param record Aerospike Record
+     * @return FireflyRecord
+     */
     public static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
         if (record == null)
             return null;
@@ -156,9 +178,16 @@ public class FireflyRecord {
         final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
         final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(db, key, record, userClass, storageClass);
+        return new FireflyRecord(db, key, record, storageClass);
     }
 
+    /**
+     * Write a new FireflyRecord to disk
+     * @param db AerospikeConnection instance
+     * @param set Aerospike Set to write to
+     * @param id the ID to use
+     * @param bins Aerospike data bins
+     */
     protected static void write(final AerospikeConnection db,
                                 final String set,
                                 final FireflyId id,
@@ -176,6 +205,13 @@ public class FireflyRecord {
         }
     }
 
+    /**
+     * Write a new FireflyRecord to disk for a TinkerPop Element
+     * @param db AerospikeConnection instance
+     * @param set Aerospike Set to write to
+     * @param id the ID to use
+     * @param bins Aerospike data bins
+     */
     public static void writeElement(final AerospikeConnection db,
                                     final String set,
                                     final FireflyId id,

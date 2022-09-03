@@ -29,6 +29,12 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
     private final int maxWaitMs;
     private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
 
+    /**
+     * ConcurrentScanRecordSequenceListener will return an iterator immediately, while still receiving results.
+     * The iterator will block on hasNext if no results are available until something comes in, or the query is finished.
+     * @param scanMonitor Aerospike scanMonitor
+     * @param maxWaitMs max time to block waiting for new events
+     */
     public ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
                                                 final int maxWaitMs) {
         this.scanMonitor = scanMonitor;
@@ -41,17 +47,29 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         }
     }
 
+    /**
+     * Will be called automatically by Aerospike as results come in
+     * @param key					unique record identifier
+     * @param record				record instance, will be null if the key is not found
+     * @throws AerospikeException
+     */
     public void onRecord(final Key key, final Record record) throws AerospikeException {
         results.add(new AbstractMap.SimpleEntry<>(key, record));
         semaphore.release();
     }
 
+    /**
+     * Triggered when scan completes successfully
+     */
     public void onSuccess() {
         this.complete.set(true);
         semaphore.release();
         scanMonitor.notifyComplete();
     }
 
+    /**
+     * Triggered when scan fails
+     */
     public void onFailure(final AerospikeException e) {
         LOG.error("Error: scan failed with exception - %s", e);
         this.complete.set(true);
@@ -59,6 +77,10 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         scanMonitor.notifyComplete();
     }
 
+    /**
+     * Returns a concurrent Iterator that blocks on hasNext if no results are available
+     * @return iterator
+     */
     public Iterator<Map.Entry<Key, Record>> iterator() {
         return new Iterator<Map.Entry<Key, Record>>() {
             @Override

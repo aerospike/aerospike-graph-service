@@ -45,6 +45,14 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         return graph.readVertex(this.inVid);
     }
 
+    public FireflyId outVertexId() {
+        return this.outVid;
+    }
+
+    public FireflyId inVertexId() {
+        return this.inVid;
+    }
+
     @Override
     public Iterator<Vertex> vertices(Direction direction) {
         if (removed) return Collections.emptyIterator();

@@ -78,6 +78,10 @@ public class TestDataModelVersioning {
         }
         if (!success)
             fail("should throw exception if switching data model");
+
+        // This can cause failures later if you don't clean it up.
+        db = AerospikeConnection.connect(config);
+        db.dropDatabase();
     }
 
 

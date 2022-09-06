@@ -15,6 +15,7 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -517,6 +518,9 @@ public abstract class RelationalVertex extends FireflyVertex {
                 vertexPropertyIds = getPropertyIdMap(graph, properties, vertexId, true);
                 vertexPropertyValueMap = null;
                 break;
+            case StarPackedVertex.VERTEX_TYPE_HINT:
+                // Star specific
+                // Fall through
             case PackedVertex.VERTEX_TYPE_HINT:
                 final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, properties);
                 vertexPropertyIds = propertyValueIdMaps.idMap;

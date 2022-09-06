@@ -26,7 +26,7 @@ import java.util.Set;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-final public class PackedVertex extends RelationalVertex {
+public class PackedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(PackedVertex.class);
     public static final int VERTEX_TYPE_HINT = 1;
 

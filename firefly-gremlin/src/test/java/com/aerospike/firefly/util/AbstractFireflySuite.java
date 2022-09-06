@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -22,6 +23,9 @@ public abstract class AbstractFireflySuite {
 
 
     protected abstract boolean clearData();
+    protected boolean runTest() {
+        return true;
+    }
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -35,6 +39,8 @@ public abstract class AbstractFireflySuite {
 
     @Before
     public void beforeTest() {
+        // Test check to see if we should run this test.
+        Assume.assumeTrue(runTest());
         if (clearData()) {
             Util.clearGraph(graph);
         }

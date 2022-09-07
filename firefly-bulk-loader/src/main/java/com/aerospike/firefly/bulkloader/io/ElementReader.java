@@ -22,6 +22,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public abstract class ElementReader<T extends BulkLoaderElement> {
     static private Logger LOG = LoggerFactory.getLogger(ElementReader.class);
@@ -104,8 +106,54 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
     }
 
     static protected Map.Entry<String, Object> generateProperty(String property, String value) {
-        // TODO: Type and Cardinality specifiers - currently only supports text
-        return new AbstractMap.SimpleEntry<>(property, value);
+        // TODO: Cardinality support?
+        int typeSpecifierIndex = property.lastIndexOf(":");
+        if (typeSpecifierIndex == -1) {
+            return new AbstractMap.SimpleEntry<>(property, value);
+        } else {
+            String propertyName = property.substring(0, typeSpecifierIndex);
+            String type = property.substring(typeSpecifierIndex + 1);
+            boolean isList = false;
+            if (type.endsWith("[]")) {
+                isList = true;
+                type = type.substring(0, type.length() - 2);
+            }
+            Object typedValue;
+            switch (type.toLowerCase()) {
+                case "long":
+                    typedValue = parseValue(isList, value, Long::parseLong);
+                    break;
+                case "int":
+                case "integer":
+                    typedValue = parseValue(isList, value, Integer::parseInt);
+                    break;
+                case "double":
+                    typedValue = parseValue(isList, value, Double::parseDouble);
+                    break;
+                case "bool":
+                case "boolean":
+                    typedValue = parseValue(isList, value, Boolean::parseBoolean);
+                    break;
+                case "string":
+                    typedValue = parseValue(isList, value, v -> v);
+                    break;
+                default:
+                    LOG.warn("Type '" + type + "' for header '" + propertyName + "' is not a supported type. " +
+                            "Falling back to '" + property + "' as property name with values as text type.");
+                    propertyName = property;
+                    typedValue = value;
+            }
+            return new AbstractMap.SimpleEntry<>(propertyName, typedValue);
+        }
+    }
+
+    static private Object parseValue(boolean isList, String value, Function<String, Object> parseFunction) {
+        if (isList) {
+            String[] values = value.split(";");
+            return Arrays.stream(values).map(parseFunction).collect(Collectors.toList());
+        } else {
+            return parseFunction.apply(value);
+        }
     }
 
     static private List<File> getValidFiles(File directory) {

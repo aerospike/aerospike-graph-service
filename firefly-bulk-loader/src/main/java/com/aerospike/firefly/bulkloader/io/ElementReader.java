@@ -5,8 +5,6 @@ import com.aerospike.firefly.bulkloader.exceptions.VertexHeaderNotFoundException
 import com.aerospike.firefly.bulkloader.structure.BulkLoaderElement;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
-import org.apache.commons.collections4.BidiMap;
-import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,65 +25,31 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class ElementReader<T extends BulkLoaderElement> {
-    static private Logger LOG = LoggerFactory.getLogger(ElementReader.class);
-    static protected String PROVIDED_ID_HEADER = "~providedId";
+    static protected final String PROVIDED_ID_HEADER = "~providedId";
+    static private final Logger LOG = LoggerFactory.getLogger(ElementReader.class);
     protected final List<File> files;
-    protected boolean generateId;
-    protected BidiMap<String, Long> idMap;
-    protected final AtomicLong generatedId = new AtomicLong();
+    protected final boolean isVertex;
+    protected final boolean generateId;
+    protected final AtomicLong generatedId;
+    protected final Map<String, Long> idMap;
     protected List<T> elements;
 
-    public ElementReader(File directory, boolean generateId) {
-        List<File> validFiles = getValidFiles(directory);
+    public ElementReader(final File directory, final boolean isVertex, final boolean generateId) {
+        final List<File> validFiles = getValidFiles(directory);
         if (validFiles.isEmpty()) {
-            LOG.warn("Input is not valid for loading or is not a directory containing valid files for loading: " + directory);
+            LOG.warn("Input is not valid for loading or is not a directory containing valid files for loading: " +
+                    directory);
         }
         this.files = validFiles;
+        this.isVertex = isVertex;
         this.generateId = generateId;
-        this.idMap = new DualHashBidiMap<>();
+        this.generatedId = new AtomicLong();
+        this.idMap = new HashMap<>();
     }
 
-    public List<T> read() {
-        if (this.elements == null) {
-            this.elements = new ArrayList<>();
-        } else {
-            return this.elements;
-        }
-
-        try {
-            for (File file : this.files) {
-                try (FileReader fileReader = new FileReader(file, StandardCharsets.UTF_8)) {
-                    var csvReader = new CSVReader(fileReader);
-                    String[] headers = csvReader.readNext();
-                    verifyHeaders(getRequiredHeaders(), headers, true);
-
-                    String[] elementRow;
-                    while ((elementRow = csvReader.readNext()) != null) {
-                        T element = generateElement(headers, elementRow);
-                        this.elements.add(element);
-                    }
-                } catch (CsvValidationException cve) {
-                    LOG.error("Error reading csv file line: ", cve);
-                    throw new RuntimeException(cve);
-                }
-            }
-        } catch (IOException ioe) {
-            LOG.error("Error reading csv file: ", ioe);
-            throw new RuntimeException(ioe);
-        }
-        return this.elements;
-    }
-
-    public BidiMap<String, Long> getIdMap() {
-        return this.idMap;
-    }
-
-    protected abstract T generateElement(String[] headers, String[] elementRow);
-
-    protected abstract String[] getRequiredHeaders();
-
-    static protected void verifyHeaders(String[] requiredHeaders, String[] headers, boolean isVertex) {
-        HashSet<String> notFoundHeaders = new HashSet<>(Arrays.asList(requiredHeaders));
+    static protected void verifyHeaders(final String[] requiredHeaders, final String[] headers,
+                                        final boolean isVertex) {
+        final HashSet<String> notFoundHeaders = new HashSet<>(Arrays.asList(requiredHeaders));
         if (headers == null) {
             if (isVertex) {
                 throw new VertexHeaderNotFoundException(notFoundHeaders);
@@ -92,7 +57,7 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
                 throw new EdgeHeaderNotFoundException(notFoundHeaders);
             }
         }
-        for (String header : headers) {
+        for (final String header : headers) {
             notFoundHeaders.remove(header);
             if (notFoundHeaders.isEmpty()) {
                 return;
@@ -105,9 +70,9 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
         }
     }
 
-    static protected Map.Entry<String, Object> generateProperty(String property, String value) {
+    static protected Map.Entry<String, Object> generateProperty(final String property, final String value) {
         // TODO: Cardinality support?
-        int typeSpecifierIndex = property.lastIndexOf(":");
+        final int typeSpecifierIndex = property.lastIndexOf(":");
         if (typeSpecifierIndex == -1) {
             return new AbstractMap.SimpleEntry<>(property, value);
         } else {
@@ -118,7 +83,7 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
                 isList = true;
                 type = type.substring(0, type.length() - 2);
             }
-            Object typedValue;
+            final Object typedValue;
             switch (type.toLowerCase()) {
                 case "long":
                     typedValue = parseValue(isList, value, Long::parseLong);
@@ -147,19 +112,20 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
         }
     }
 
-    static private Object parseValue(boolean isList, String value, Function<String, Object> parseFunction) {
+    static private Object parseValue(final boolean isList, final String value,
+                                     final Function<String, Object> parseFunction) {
         if (isList) {
-            String[] values = value.split(";");
+            final String[] values = value.split(";");
             return Arrays.stream(values).map(parseFunction).collect(Collectors.toList());
         } else {
             return parseFunction.apply(value);
         }
     }
 
-    static private List<File> getValidFiles(File directory) {
-        List<File> validFiles = new ArrayList<>();
+    static private List<File> getValidFiles(final File directory) {
+        final List<File> validFiles = new ArrayList<>();
         if (directory.isDirectory()) {
-            for (File file : directory.listFiles()) {
+            for (final File file : directory.listFiles()) {
                 if (FilenameUtils.isExtension(file.getName(), "csv")) {
                     LOG.info("Found valid file for loading: " + file.getName());
                     validFiles.add(file);
@@ -173,4 +139,43 @@ public abstract class ElementReader<T extends BulkLoaderElement> {
         }
         return validFiles;
     }
+
+    public List<T> read() {
+        if (this.elements == null) {
+            this.elements = new ArrayList<>();
+        } else {
+            return this.elements;
+        }
+
+        try {
+            for (final File file : this.files) {
+                try (final FileReader fileReader = new FileReader(file, StandardCharsets.UTF_8)) {
+                    final var csvReader = new CSVReader(fileReader);
+                    final String[] headers = csvReader.readNext();
+                    verifyHeaders(getRequiredHeaders(), headers, this.isVertex);
+
+                    String[] elementRow;
+                    while ((elementRow = csvReader.readNext()) != null) {
+                        final T element = generateElement(headers, elementRow);
+                        this.elements.add(element);
+                    }
+                } catch (final CsvValidationException cve) {
+                    LOG.error("Error reading csv file line: ", cve);
+                    throw new RuntimeException(cve);
+                }
+            }
+        } catch (final IOException ioe) {
+            LOG.error("Error reading csv file: ", ioe);
+            throw new RuntimeException(ioe);
+        }
+        return this.elements;
+    }
+
+    public Map<String, Long> getIdMap() {
+        return this.idMap;
+    }
+
+    protected abstract T generateElement(String[] headers, String[] elementRow);
+
+    protected abstract String[] getRequiredHeaders();
 }

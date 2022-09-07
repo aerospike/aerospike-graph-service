@@ -20,31 +20,35 @@ import java.util.HashMap;
 import java.util.List;
 
 public class BulkLoader {
-    static Logger LOG;
+    private static Logger LOG;
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         LOG = LoggerFactory.getLogger(BulkLoader.class);
 
         // TODO: Input parameters for config
-        Configuration config = getConfig();
-        try (FireflyGraph graph = FireflyGraph.open(config);
-             FireflyLoader loader = new FireflyLoader(graph)) {
+        final Configuration config = getConfig();
+        try (final FireflyGraph graph = FireflyGraph.open(config);
+             final FireflyLoader loader = new FireflyLoader(graph)) {
             LOG.info("FireflyGraph instantiation successful,");
             // TODO: Make this optional
             graph.getBaseGraph().dropDatabase();
 
-            File vertexDirectory = new File("c:/Repos/firefly/firefly-bulk-loader/src/main/resources/sampledata/vertexes");
-            VertexReader vertexReader = new VertexReader(vertexDirectory, true);
-            List<BulkLoaderVertex> vertexes = vertexReader.read();
-            List<FireflyVertex> loadedVertexes = loader.loadVertexes(vertexes);
-            File edgeDirectory = new File("c:/Repos/firefly/firefly-bulk-loader/src/main/resources/sampledata/edges");
-            EdgeReader edgeReader = new EdgeReader(edgeDirectory, true, loadedVertexes, vertexReader.getIdMap());
-            List<BulkLoaderEdge> edges = edgeReader.read();
+            final File vertexDirectory =
+                    new File("c:/Repos/firefly/firefly-bulk-loader/src/main/resources/sampledata/vertexes");
+            final VertexReader vertexReader = new VertexReader(vertexDirectory, true);
+            final List<BulkLoaderVertex> vertexes = vertexReader.read();
+            final List<FireflyVertex> loadedVertexes = loader.loadVertexes(vertexes);
+            final File edgeDirectory =
+                    new File("c:/Repos/firefly/firefly-bulk-loader/src/main/resources/sampledata/edges");
+            final EdgeReader edgeReader =
+                    new EdgeReader(edgeDirectory, true, loadedVertexes, vertexReader.getIdMap());
+            final List<BulkLoaderEdge> edges = edgeReader.read();
             loader.loadEdges(edges);
-            GraphTraversalSource g = graph.traversal();
-            List<Vertex> verticies = g.V().has("name", "Pat Rohan").out("Follows").toList();
-            for (Vertex v: verticies) {
-                LOG.info((String)v.property("name").value());
+            final GraphTraversalSource g = graph.traversal();
+            final List<Vertex> gremlinVertexes =
+                    g.V().has("name", "Pat Rohan").out("Follows").toList();
+            for (final Vertex v : gremlinVertexes) {
+                LOG.info((String) v.property("name").value());
             }
         }
     }

@@ -10,13 +10,14 @@ public abstract class BulkLoaderElement {
     protected final String label;
     protected final List<Map.Entry<String, Object>> properties;
 
-    protected BulkLoaderElement(FireflyId id, String label, List<Map.Entry<String, Object>> properties) {
+    protected BulkLoaderElement(final FireflyId id, final String label,
+                                final List<Map.Entry<String, Object>> properties) {
         this.id = id;
         this.label = label;
         this.properties = properties;
     }
 
-    protected void AddProperty(Map.Entry<String, Object> property) {
+    protected void AddProperty(final Map.Entry<String, Object> property) {
         this.properties.add(property);
     }
 

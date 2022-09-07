@@ -8,21 +8,22 @@ import java.util.List;
 import java.util.Map;
 
 public class VertexReader extends ElementReader<BulkLoaderVertex> {
-    static private String ID_HEADER = "~id";
-    static private String LABEL_HEADER = "~label";
-    static private String DEFAULT_LABEL = "vertex";
-    static private String[] REQUIRED_HEADERS = new String[]{ ID_HEADER };
-    public VertexReader(File directory, boolean generateId) {
-        super(directory, generateId);
+    static private final String ID_HEADER = "~id";
+    static private final String LABEL_HEADER = "~label";
+    static private final String DEFAULT_LABEL = "vertex";
+    static private final String[] REQUIRED_HEADERS = new String[]{ID_HEADER};
+
+    public VertexReader(final File directory, final boolean generateId) {
+        super(directory, true, generateId);
     }
 
-    protected BulkLoaderVertex generateElement(String[] headers, String[] elementRow) {
+    protected BulkLoaderVertex generateElement(final String[] headers, final String[] elementRow) {
         long id = 0;
         String label = DEFAULT_LABEL;
-        List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        final List<Map.Entry<String, Object>> properties = new ArrayList<>();
         for (int i = 0; i < elementRow.length; i++) {
             if (headers[i].equals(ID_HEADER)) {
-                String idKey = elementRow[i];
+                final String idKey = elementRow[i];
                 if (generateId) {
                     id = generatedId.getAndIncrement();
                     properties.add(generateProperty(PROVIDED_ID_HEADER, idKey));

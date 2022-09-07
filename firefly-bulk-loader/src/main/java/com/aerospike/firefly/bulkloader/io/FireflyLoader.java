@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FireflyLoader implements AutoCloseable {
-    private FireflyGraph graph;
+    private final FireflyGraph graph;
 
-    public FireflyLoader(FireflyGraph graph) {
+    public FireflyLoader(final FireflyGraph graph) {
         this.graph = graph;
     }
 
@@ -20,27 +20,27 @@ public class FireflyLoader implements AutoCloseable {
         this.graph.close();
     }
 
-    public FireflyVertex loadVertex(BulkLoaderVertex vertex) {
+    public FireflyVertex loadVertex(final BulkLoaderVertex vertex) {
         return this.graph.writeVertex(vertex.getId(), vertex.getLabel(), vertex.getProperties());
     }
 
-    public List<FireflyVertex> loadVertexes(List<BulkLoaderVertex> vertexes) {
-        List<FireflyVertex> loadedVertexes = new ArrayList<>();
-        for (BulkLoaderVertex vertex : vertexes) {
-            FireflyVertex loadedVertex = loadVertex(vertex);
+    public List<FireflyVertex> loadVertexes(final List<BulkLoaderVertex> vertexes) {
+        final List<FireflyVertex> loadedVertexes = new ArrayList<>();
+        for (final BulkLoaderVertex vertex : vertexes) {
+            final FireflyVertex loadedVertex = loadVertex(vertex);
             loadedVertexes.add(loadedVertex);
         }
         return loadedVertexes;
     }
 
-    public FireflyEdge loadEdge(BulkLoaderEdge edge) {
+    public FireflyEdge loadEdge(final BulkLoaderEdge edge) {
         return this.graph.writeEdge(edge.getId(), edge.getLabel(), edge.getProperties(), edge.getFrom(), edge.getTo());
     }
 
-    public List<FireflyEdge> loadEdges(List<BulkLoaderEdge> edges) {
-        List<FireflyEdge> loadedEdges = new ArrayList<>();
-        for (BulkLoaderEdge edge : edges) {
-            FireflyEdge loadedEdge = loadEdge(edge);
+    public List<FireflyEdge> loadEdges(final List<BulkLoaderEdge> edges) {
+        final List<FireflyEdge> loadedEdges = new ArrayList<>();
+        for (final BulkLoaderEdge edge : edges) {
+            final FireflyEdge loadedEdge = loadEdge(edge);
             loadedEdges.add(loadedEdge);
         }
         return loadedEdges;

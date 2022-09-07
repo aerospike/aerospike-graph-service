@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 public class BulkLoaderVertex extends BulkLoaderElement {
-    BulkLoaderVertex(long id, String label) {
+    BulkLoaderVertex(final long id, final String label) {
         this(id, label, new ArrayList<>());
     }
 
-    public BulkLoaderVertex(long id, String label, List<Map.Entry<String, Object>> properties) {
-         super(FireflyId.of(FireflyVertex.class, id), label, properties);
+    public BulkLoaderVertex(final long id, final String label, final List<Map.Entry<String, Object>> properties) {
+        super(FireflyId.of(FireflyVertex.class, id), label, properties);
     }
 }

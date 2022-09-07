@@ -8,10 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 public class BulkLoaderEdge extends BulkLoaderElement {
-    private FireflyVertex from;
-    private FireflyVertex to;
+    private final FireflyVertex from;
+    private final FireflyVertex to;
 
-    public BulkLoaderEdge(long id, String label, FireflyVertex from, FireflyVertex to, List<Map.Entry<String, Object>> properties) {
+    public BulkLoaderEdge(final long id, final String label, final FireflyVertex from, final FireflyVertex to,
+                          final List<Map.Entry<String, Object>> properties) {
         super(FireflyId.of(FireflyEdge.class, id), label, properties);
         this.from = from;
         this.to = to;
@@ -19,9 +20,10 @@ public class BulkLoaderEdge extends BulkLoaderElement {
 
     public FireflyVertex getFrom() {
         return this.from;
-    };
+    }
 
     public FireflyVertex getTo() {
         return this.to;
-    };
+    }
+
 }

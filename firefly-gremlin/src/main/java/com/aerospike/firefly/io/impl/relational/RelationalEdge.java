@@ -6,6 +6,7 @@ import com.aerospike.client.Value;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -155,6 +156,12 @@ final public class RelationalEdge extends FireflyEdge {
     public void removeEdge() {
         // Remove edge.
         LOG.debug("Removing edge {}.", this.id.value().toString());
+
+        // The star data model holds some additional data that must be removed when the edge is removed.
+        if (StarPackedGraph.isStarPackedGraph(graph)) {
+            StarPackedGraph.removeEdge(db, this);
+        }
+
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, id.toNumericId()));
 
         // Set flags to indicate vertex has been removed.

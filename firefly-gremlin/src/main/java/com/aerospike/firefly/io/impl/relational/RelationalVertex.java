@@ -15,6 +15,7 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -134,6 +135,11 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id.value().toString());
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id.toNumericId()));
+
+        // The star data model holds some additional data that must be removed when the vertex is removed.
+        if (StarPackedGraph.isStarPackedGraph(graph)) {
+            StarPackedGraph.removeVertex(db, this);
+        }
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;

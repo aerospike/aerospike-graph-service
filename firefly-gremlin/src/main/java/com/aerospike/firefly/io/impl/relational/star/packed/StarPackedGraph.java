@@ -1,10 +1,12 @@
 package com.aerospike.firefly.io.impl.relational.star.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -62,12 +64,11 @@ public class StarPackedGraph extends PackedGraph {
         //      inOut holds the out edges for the in vertices.
         //      outIn holds the in edges for the out vertices.
         //      outOut holds the out edges for the out vertices.
-        //   Let each set have key 1 for inVertex and key 2 for outVertex (as passed into function)
         //
         // To add an edge to inV and outV, we must:
-        //  1. Add edge to the inV bin of the outVertex record (record key 2 of vertex set)
-        //  2. Add edge to the outV bin of the inVertex record (record key 1 of vertex set)
-        //  3. Write the actual edge
+        //  1. Add edge to the inV bin of the outVertex record.
+        //  2. Add edge to the outV bin of the inVertex record.
+        //  3. Write the actual edge.
         // 4. Add properties of outVertex to in.VP of inVertex.
         // 5. Add properties of inVertex to out.VP of outVertex.
         // 6. Go through in and out edges of outVertex and add to in.in and in.out of inVertex, respectively.
@@ -95,10 +96,10 @@ public class StarPackedGraph extends PackedGraph {
         StarPackedVertex.writeCompoundEdgesOnNewEdge(db, outVertex, Direction.OUT, label, inVertex);
 
         // 8. Loop through the inVertex in and out edges and add an out.in and in.in edge to the outVertex.
-        StarPackedVertex.writeBirectionalEdgesToAdjacentVertices(db, Direction.IN, inVertex,  edgeId, label);
+        StarPackedVertex.writeBidirectionalEdgesToAdjacentVertices(db, Direction.IN, inVertex,  edgeId, label);
 
         // 9. Loop through the outVertex in and out edges and add an out.out and in.out edge to the inVertex.
-        StarPackedVertex.writeBirectionalEdgesToAdjacentVertices(db, Direction.OUT, outVertex,  edgeId, label);
+        StarPackedVertex.writeBidirectionalEdgesToAdjacentVertices(db, Direction.OUT, outVertex,  edgeId, label);
 
         return edge;
     }
@@ -146,5 +147,62 @@ public class StarPackedGraph extends PackedGraph {
 
         // Return FireflyVertexProperty.
         return fireflyVertexProperty;
+    }
+
+    public static void removeVertexProperty(final AerospikeConnection db, final FireflyVertex vertex, final String key) {
+        // Remove vertex property from adjacent vertex in/out property maps.
+        StarPackedVertex.removeVertexPropertyFromAdjacentVertices(db, vertex, key);
+    }
+
+    public static void removeEdge(final AerospikeConnection db, final FireflyEdge edge) {
+        // Concrete example of how to remove an edge between two vertices:
+        //
+        // First let's consider the following sets:
+        //   Vertex, inVP, outVP, inIn, inOut, outIn, outOut.
+        //      Vertex holds the data 1 one vertex.
+        //      inVP holds the properties for the attached in vertices.
+        //      outVP holds the properties for the attached out vertices.
+        //      inIn holds the in edges for the in vertices.
+        //      inOut holds the out edges for the in vertices.
+        //      outIn holds the in edges for the out vertices.
+        //      outOut holds the out edges for the out vertices.
+        //
+        // To remove an edge from the inV and outV, we must:
+        //  1. Find the properties of the out vertex in the outVP set of the in vertex and remove it.
+        //  2. Find the properties of the in vertex in the inVP set of the out vertex and remove it.
+        //  3. Remove in.in and in.out paths that go through outVertex from inVertex.
+        //  4. Remove out.in and out.out paths that go through inVertex from outVertex.
+        //  5. Loop through the inVertex in and out edges and remove out.in and in.in paths to outVertex via inVertex from adjacent vertices.
+        //  6. Loop through the outVertex in and out edges and remove an out.out and in.out paths to inVertex via outVertex from adjacent vertices.
+        //  Actual edge is removed separately, and so is the edge in the vertex records.
+
+        // 1. Find the properties of the out vertex in the outVP set of the in vertex and remove it.
+        StarPackedVertex.removeAdjacentVertexPropertiesFromVertex(db, edge, Direction.OUT);
+
+        // 2. Find the properties of the in vertex in the inVP set of the out vertex and remove it.
+        StarPackedVertex.removeAdjacentVertexPropertiesFromVertex(db, edge, Direction.IN);
+
+        //  3/4. Remove in.in and in.out paths that go through outVertex from inVertex and out.in and out.out paths that go through inVertex from outVertex.
+        StarPackedVertex.removeCompoundEdges(db, edge);
+
+        // 5/6. Loop through the inVertex/outVertex in and out edges and remove appropriate in.in/out.in and in.out/out.out paths to adjacent vertices.
+        StarPackedVertex.removeCompoundEdgesFromAdjacentVertices(db, edge);
+    }
+
+    public static void removeVertex(final AerospikeConnection db, final FireflyVertex vertex) {
+        // To remove the vertex, we must simply remove the additional sets that are associated with the vertex.
+        // The edge additional / removal is what builds and tears down the additional data in the sets,
+        // so we don't need any fancy logic for that here.
+
+        // Create list of all relevant sets, would be nice to make this static but unfortunately there are runtime additions.
+        final List<String> sets = List.of(db.IN_IN_SET, db.IN_OUT_SET, db.OUT_IN_SET, db.OUT_OUT_SET, db.IN_VP_SET, db.OUT_VP_SET);
+
+        // Remove vertex from the list.
+        LOG.debug("Removing vertex {} from sets: {}.", vertex.id.value().toString(), sets);
+        sets.forEach(set -> db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertex.id.toNumericId())));
+    }
+
+    public static boolean isStarPackedGraph(final FireflyGraph graph) {
+        return graph.getDataModel().equals(DATA_MODEL);
     }
 }

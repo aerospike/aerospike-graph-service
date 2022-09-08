@@ -40,7 +40,7 @@ import static com.aerospike.firefly.process.traversal.strategy.optimization.Fire
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class AerospikeConnection {
+public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
 

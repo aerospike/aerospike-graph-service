@@ -123,4 +123,4 @@ jobs:
           sleep 30
           
           echo "Running benchmark"
-          mvn test -Dtest=BenchmarkTest --no-transfer-progress
+          mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress

@@ -98,7 +98,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         removeEdge();
 
         final FireflyVertex inVertex = graph.readVertex(inVid);
-        final FireflyVertex outVertex = graph.readVertex(inVid);
+        final FireflyVertex outVertex = graph.readVertex(outVid);
         if (inVertex != null) {
             inVertex.removeEdge(Direction.IN, id, label);
         }

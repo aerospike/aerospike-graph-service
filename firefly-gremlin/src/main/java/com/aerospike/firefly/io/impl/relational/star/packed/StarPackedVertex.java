@@ -425,7 +425,7 @@ public class StarPackedVertex {
             vertexVPTypeHint.put(edge.label(), vertexPropertyTypeHints);
             vertexPropertyIds.get(edgeIndex).put(fireflyVertexProperty.key(), NumericIdManager.convert(fireflyVertexProperty.id()));
             vertexVPId.put(edge.label(), vertexPropertyIds);
-
+            
             // Create bins for the maps.
             final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexVPId));
             final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexVPValue));
@@ -556,9 +556,9 @@ public class StarPackedVertex {
 
         // Remove the vertex property values.
         final String errorMessageFormat = "Failed to remove %s from vertex %s when removing adjacent vertex properties for edge %s.";
-        removeFromMap(vertexVPId, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property ids", edge, vertexId);
-        removeFromMap(vertexVPValue, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property values", edge, vertexId);
-        removeFromMap(vertexVPTypeHint, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property type hints", edge, vertexId);
+        removeFromMap(vertexVPId, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property ids", vertexId, edge);
+        removeFromMap(vertexVPValue, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property values", vertexId, edge);
+        removeFromMap(vertexVPTypeHint, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property type hints", vertexId, edge);
 
         // Create bins for the maps.
         final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexVPId));
@@ -624,7 +624,7 @@ public class StarPackedVertex {
                                            final String adjacentDirDirSet,
                                            final String adjacentVertexDirBin) {
         final FireflyId adjacentVertexId = adjacentDirection == Direction.IN ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
-        LOG.debug("Remove compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
+        LOG.debug("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
 
         // We need to be careful here because order matters.
         final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentDirDirSet, adjacentVertexId);
@@ -752,7 +752,7 @@ public class StarPackedVertex {
         removeCompoundEdgesFromVertex(db, edge, outVertex, Direction.OUT);
     }
 
-    private static void removeFromMap(final Map<String, List<Map<String, ?>>> map,
+    private static void  removeFromMap(final Map<String, List<Map<String, ?>>> map,
                                       final String key,
                                       final int index,
                                       final boolean removeKey,

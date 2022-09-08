@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class StarPackedGraph extends PackedGraph {
     private static final Logger LOG = LoggerFactory.getLogger(StarPackedGraph.class);
-    public static final String DATA_MODEL = "star_packed";
+    public static final String DATA_MODEL = "starpacked";
 
     /**
      * Constructor for StarLinkedGraph.
@@ -170,10 +170,10 @@ public class StarPackedGraph extends PackedGraph {
         // To remove an edge from the inV and outV, we must:
         //  1. Find the properties of the out vertex in the outVP set of the in vertex and remove it.
         //  2. Find the properties of the in vertex in the inVP set of the out vertex and remove it.
-        //  3. Remove in.in and in.out paths that go through outVertex from inVertex.
-        //  4. Remove out.in and out.out paths that go through inVertex from outVertex.
-        //  5. Loop through the inVertex in and out edges and remove out.in and in.in paths to outVertex via inVertex from adjacent vertices.
-        //  6. Loop through the outVertex in and out edges and remove an out.out and in.out paths to inVertex via outVertex from adjacent vertices.
+        //  3. Loop through the inVertex in and out edges and remove out.in and in.in paths to outVertex via inVertex from adjacent vertices.
+        //  4. Loop through the outVertex in and out edges and remove an out.out and in.out paths to inVertex via outVertex from adjacent vertices.
+        //  5. Remove in.in and in.out paths that go through outVertex from inVertex.
+        //  6. Remove out.in and out.out paths that go through inVertex from outVertex.
         //  Actual edge is removed separately, and so is the edge in the vertex records.
 
         // 1. Find the properties of the out vertex in the outVP set of the in vertex and remove it.
@@ -182,11 +182,12 @@ public class StarPackedGraph extends PackedGraph {
         // 2. Find the properties of the in vertex in the inVP set of the out vertex and remove it.
         StarPackedVertex.removeAdjacentVertexPropertiesFromVertex(db, edge, Direction.IN);
 
-        //  3/4. Remove in.in and in.out paths that go through outVertex from inVertex and out.in and out.out paths that go through inVertex from outVertex.
+        // 3/4. Loop through the inVertex/outVertex in and out edges and remove appropriate in.in/out.in and in.out/out.out paths to adjacent vertices.
+        StarPackedVertex.removeCompoundEdgesFromAdjacentVertices(db, edge);
+
+        // 5/6. Remove in.in and in.out paths that go through outVertex from inVertex and out.in and out.out paths that go through inVertex from outVertex.
         StarPackedVertex.removeCompoundEdges(db, edge);
 
-        // 5/6. Loop through the inVertex/outVertex in and out edges and remove appropriate in.in/out.in and in.out/out.out paths to adjacent vertices.
-        StarPackedVertex.removeCompoundEdgesFromAdjacentVertices(db, edge);
     }
 
     public static void removeVertex(final AerospikeConnection db, final FireflyVertex vertex) {

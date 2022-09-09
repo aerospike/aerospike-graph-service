@@ -12,6 +12,7 @@ import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoVertexTest;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -133,7 +134,10 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             conf = ((FireflyGraph) graph).configuration();
         AerospikeConnection db = AerospikeConnection.connect(conf);
         // Drop database and close database. Do not drop indices.
+        System.out.println(LocalDateTime.now());
+        System.out.println("will drop db");
         db.dropDatabase(false);
+        System.out.println(LocalDateTime.now());
         db.close();
 
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.

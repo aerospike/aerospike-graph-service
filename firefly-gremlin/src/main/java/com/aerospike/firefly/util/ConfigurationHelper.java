@@ -237,6 +237,8 @@ public final class ConfigurationHelper {
             missingVariables.add(Keys.AEROSPIKE_NAMESPACE);
         if (!missingVariables.isEmpty())
             throw new RuntimeException("Required environment variable(s) not set: " + missingVariables);
+
+
         return new MapConfiguration(new HashMap<>() {{
             put(Keys.AEROSPIKE_HOST.toLowerCase(), System.getenv(Keys.AEROSPIKE_HOST));
             put(Keys.AEROSPIKE_PORT.toLowerCase(), Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));

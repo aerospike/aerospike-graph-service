@@ -431,9 +431,11 @@ public class AerospikeConnection {
                     .forEach(strAry -> {
                         Map<String, String> data = new HashMap<>();
                         Arrays.stream(strAry).forEach(kvStr -> {
-                            data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
+                            if(!kvStr.isEmpty())
+                                data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
                         });
-                        results.add(data);
+                        if(data.size()>0)
+                            results.add(data);
                     });
             return results;
         }

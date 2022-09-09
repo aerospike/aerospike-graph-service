@@ -1,5 +1,6 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -27,6 +28,12 @@ import static org.junit.Assert.assertEquals;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestMovielens1M extends AbstractFireflySuite {
+
+    @Override
+    protected boolean runTest() {
+        // Only run if the not StarPackedGraph is being used. Otherwise this takes too long.
+        return !graph.getDataModel().equals(StarPackedGraph.DATA_MODEL);
+    }
 
     @Override
     protected boolean clearData() {

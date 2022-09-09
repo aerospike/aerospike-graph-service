@@ -1155,7 +1155,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
-            task.waitTillComplete();
+            task.waitTillComplete(1);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
                 throw new RuntimeException(ae);
@@ -1184,7 +1184,7 @@ public class AerospikeConnection implements AutoCloseable {
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
-            task.waitTillComplete();
+            task.waitTillComplete(1);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw new RuntimeException(ae);

@@ -26,7 +26,7 @@ public class StarPackedVertex {
                                                final FireflyVertex vertex,
                                                final FireflyVertex adjacentVertex,
                                                final String label) {
-        LOG.debug("Writing adjacent properties. Vertex: {}, adjacentVertex: {}.", vertex.id(), adjacentVertex.id());
+        LOG.trace("Writing adjacent properties. Vertex: {}, adjacentVertex: {}.", vertex.id(), adjacentVertex.id());
         final String set = direction.equals(Direction.IN) ? db.IN_VP_SET : db.OUT_VP_SET;
 
         // We need to be careful here because order matters.
@@ -140,7 +140,7 @@ public class StarPackedVertex {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
             if (!edge.id().equals(edgeId.value())) {
                 final FireflyId adjacentVertexId = ((FireflyEdge) edge).outVertexId();
-                LOG.debug("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId.value(), edge.id(), edgeId.value());
+                LOG.trace("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId.value(), edge.id(), edgeId.value());
 
                 // We need to be careful here because order matters.
                 final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, finalAdjacentVertexDirDirSet1, adjacentVertexId.toNumericId());
@@ -221,7 +221,7 @@ public class StarPackedVertex {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
             if (!edge.id().equals(edgeId.value())) {
                 final FireflyId adjacentVertexId = ((FireflyEdge) edge).inVertexId();
-                LOG.debug("Writing vertex {} adjacent vertex compound edge {} from edge {}", adjacentVertexId.value(), edge.id(), edgeId.value());
+                LOG.trace("Writing vertex {} adjacent vertex compound edge {} from edge {}", adjacentVertexId.value(), edge.id(), edgeId.value());
 
                 // We need to be careful here because order matters.
                 final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentVertexDirDirSet2, adjacentVertexId.toNumericId());
@@ -350,7 +350,7 @@ public class StarPackedVertex {
         final Bin outBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexOutDirEdgeMap));
 
         // Insert in Aerospike.
-        LOG.debug("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
+        LOG.trace("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
         FireflyRecord.writeElement(db, dirInSet, vertex.id, inBin);
         FireflyRecord.writeElement(db, dirOutSet, vertex.id, outBin);
     }
@@ -623,7 +623,7 @@ public class StarPackedVertex {
                                            final String adjacentDirDirSet,
                                            final String adjacentVertexDirBin) {
         final FireflyId adjacentVertexId = adjacentDirection == Direction.IN ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
-        LOG.debug("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
+        LOG.trace("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
 
         // We need to be careful here because order matters.
         final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentDirDirSet, adjacentVertexId.toNumericId());
@@ -736,7 +736,7 @@ public class StarPackedVertex {
         final Bin outBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexOutDirEdgeMap));
 
         // Insert in Aerospike.
-        LOG.debug("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
+        LOG.trace("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
         FireflyRecord.writeElement(db, dirInSet, vertex.id, inBin);
         FireflyRecord.writeElement(db, dirOutSet, vertex.id, outBin);
     }

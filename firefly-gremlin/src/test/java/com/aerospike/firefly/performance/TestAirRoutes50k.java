@@ -1,5 +1,6 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
@@ -38,12 +39,22 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         }
     }
 
+    @Override
+    protected boolean runTest() {
+        // Do not run if the StarPackedGraph is being used. Takes too long.
+        return !graph.getDataModel().equals(StarPackedGraph.DATA_MODEL);
+    }
+
+
     @BeforeClass
-    public static void loadAirRoutes() throws IOException {
+    public static void loadAirRoutes() throws IOException, InterruptedException {
+        graph.getBaseGraph().dropDatabase();
+        Thread.sleep(10000);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         g = graph.traversal();
         g.V().drop().iterate();
         long start = System.currentTimeMillis();
+        System.out.println("Loading Air Routes 50k");
         graph.io(graphml()).readGraph(tempFile.getAbsolutePath());
         long finish = System.currentTimeMillis();
         long delta = finish - start;

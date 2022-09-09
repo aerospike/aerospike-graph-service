@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -526,6 +527,10 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldNotGetConcurrentModificationException() {
+        if (StarPackedGraph.isStarPackedGraph(graph)) {
+            // StarPackedGraph does not support transactions
+            return;
+        }
         for (int i = 0; i < 25; ++i) {
             this.graph.addVertex(new Object[]{"myId", i});
         }

@@ -113,18 +113,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
                 edge.remove();
-                final RelationalVertex vertex = (RelationalVertex) edge.outVertex();
-                if (vertex != null)
-                    vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
             }
         });
+
         outEdgeIdSet.forEach(edgeId -> {
             final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
                 edge.remove();
-                final RelationalVertex vertex = (RelationalVertex) edge.inVertex();
-                if (vertex != null)
-                    vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
             }
         });
 

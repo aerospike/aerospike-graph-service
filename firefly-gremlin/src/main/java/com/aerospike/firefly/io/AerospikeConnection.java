@@ -413,7 +413,7 @@ public class AerospikeConnection {
     }
 
     public static class InfoOps {
-        private static class Keys {
+        protected static class Keys {
             public static final String SET = "set";
             public static final String SETS = "sets";
             public static final String NS = "ns";
@@ -422,17 +422,23 @@ public class AerospikeConnection {
             public static final String SINDEX_LIST = "sindex-list";
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
+            public static final String RESULT = "result";
         }
 
-        private static List<Map<String, String>> parseRaw(String infoResponse) {
+        //Parse the whole infoResponse and return it as a List of Maps
+        protected static List<Map<String, String>> parseRaw(String infoResponse) {
             List<Map<String, String>> results = new ArrayList<>();
             Arrays.stream(infoResponse.split(";"))
                     .map(str -> str.split(":"))
                     .forEach(strAry -> {
                         Map<String, String> data = new HashMap<>();
-                        Arrays.stream(strAry).forEach(kvStr -> {
-                            if(!kvStr.isEmpty())
-                                data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
+                        Arrays.stream(strAry).forEach(entryStr -> {
+                            if(entryStr.isEmpty())
+                                return;
+                            if(entryStr.contains("="))
+                                data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
+                            else
+                                data.put(Keys.RESULT,entryStr);
                         });
                         if(data.size()>0)
                             results.add(data);
@@ -440,6 +446,7 @@ public class AerospikeConnection {
             return results;
         }
 
+        //
         private static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
             Map<String, Map<String, String>> results = new HashMap<>();
             Arrays.stream(infoResponse.split(";"))

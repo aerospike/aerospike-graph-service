@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -247,10 +248,23 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testListIndexes(){
+    public void testListIndexes() {
         List<String> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
         assertTrue(x.contains(db.E_LABEL_INDEX));
     }
+
+    @Test
+    public void testParseRaw() {
+        final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
+        List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
+        final AtomicBoolean pass = new AtomicBoolean(false);
+        data.forEach(it -> {
+            if (it.containsKey(AerospikeConnection.InfoOps.Keys.RESULT) && Objects.equals(it.get(AerospikeConnection.InfoOps.Keys.RESULT), "test"))
+                pass.set(true);
+        });
+        assertTrue(pass.get());
+    }
+
     @Ignore
     @Test
     public void testAerospikeInfo() {
@@ -492,11 +506,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            // counter set
-
-            //Info can lag behind actual value
-//            Set<String> s = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
-//            assertEquals(2, s.size());
             Iterator<Map.Entry<Key, Record>> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
             Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
             assertFalse(vertxKeys.hasNext());

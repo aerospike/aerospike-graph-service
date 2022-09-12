@@ -378,10 +378,10 @@ public class StarPackedVertex {
         final Iterator<Edge> edges = vertex.edges(direction);
 
         // Set is switched since this is running on adjacent vertex.
-        final String set = direction == Direction.IN ? db.OUT_VP_SET : db.IN_VP_SET;
+        final String set = direction.equals(Direction.IN) ? db.OUT_VP_SET : db.IN_VP_SET;
         edges.forEachRemaining(edge -> {
             // Need to get vp of edge in opposite direction (which points from the adjacent vertex to this vertex).
-            final FireflyId vpId = (direction == Direction.IN) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
+            final FireflyId vpId = (direction.equals(Direction.IN)) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
 
             // Get all vertex property related bins.
             final FireflyRecord record = FireflyRecord.read(db, set, vpId.toNumericId());
@@ -403,7 +403,7 @@ public class StarPackedVertex {
             }
 
             // To get our entry, we need to find which position this edge exists in in the master list of the vertex.
-            final Map<String, List<Long>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction == Direction.IN ? db.OUT_EDGES : db.IN_EDGES);
+            final Map<String, List<Long>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES : db.IN_EDGES);
             if (!edgeLabelToId.containsKey(edge.label())) {
                 LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), vertex.id(), vpId);
                 throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), vertex.id(), vpId));
@@ -445,10 +445,10 @@ public class StarPackedVertex {
         final Iterator<Edge> edges = vertex.edges(direction);
 
         // Set is switched since this is running on adjacent vertex.
-        final String set = direction == Direction.IN ? db.OUT_VP_SET : db.IN_VP_SET;
+        final String set = direction.equals(Direction.IN) ? db.OUT_VP_SET : db.IN_VP_SET;
         edges.forEachRemaining(edge -> {
             // Need to get vp of edge in opposite direction (which points from the adjacent vertex to this vertex).
-            final FireflyId vpId = (direction == Direction.IN) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
+            final FireflyId vpId = (direction.equals(Direction.IN)) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
 
             // Get all vertex property related bins.
             final FireflyRecord record = FireflyRecord.read(db, set, vpId.toNumericId());
@@ -470,7 +470,7 @@ public class StarPackedVertex {
             }
 
             // To get our entry, we need to find which position this edge exists in in the master list of the vertex.
-            final Map<String, List<Long>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction == Direction.IN ? db.OUT_EDGES : db.IN_EDGES);
+            final Map<String, List<Long>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES : db.IN_EDGES);
             if (!edgeLabelToId.containsKey(edge.label())) {
                 LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), vertex.id(), vpId);
                 throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), vertex.id(), vpId));
@@ -524,7 +524,7 @@ public class StarPackedVertex {
         // If we are going IN, we will be removing the in properties from the in vertex.
         // If we are going OUT, we will be removing the out properties from the out vertex.
         final String vertexVPSet = direction.equals(Direction.IN) ? db.IN_VP_SET : db.OUT_VP_SET;
-        final FireflyId vertexId = (direction == Direction.IN) ? edge.inVertexId() : edge.outVertexId();
+        final FireflyId vertexId = (direction.equals(Direction.IN)) ? edge.inVertexId() : edge.outVertexId();
 
         // Get all vertex property related bins.
         final FireflyRecord record = FireflyRecord.read(db, vertexVPSet, vertexId.toNumericId());
@@ -622,7 +622,7 @@ public class StarPackedVertex {
                                            final Direction adjacentDirection,
                                            final String adjacentDirDirSet,
                                            final String adjacentVertexDirBin) {
-        final FireflyId adjacentVertexId = adjacentDirection == Direction.IN ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
+        final FireflyId adjacentVertexId = adjacentDirection.equals(Direction.IN) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
         LOG.trace("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
 
         // We need to be careful here because order matters.
@@ -711,7 +711,7 @@ public class StarPackedVertex {
         final Map<String, List<Map<String, List<Long>>>> vertexOutDirEdgeMap = getOrDefaultHashMap(db, dirOutSet, vertex.id, db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
 
         // This adjacent vertex edgeLabel->edgeIds map.
-        final Map<String, List<Long>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES);
+        final Map<String, List<Long>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES);
         final List<Long> edges = vertexEdgeMap.getOrDefault(edge.label(), new ArrayList<>());
         final int listIndex = findInList(edges, NumericIdManager.convert(edge.id()), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
 

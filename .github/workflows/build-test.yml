@@ -87,7 +87,7 @@ jobs:
           mvn -Dintegration.test.properties="starpacked" test --no-transfer-progress
   benchmark-firefly:
     name: Benchmark Firefly
-    timeout-minutes: 120
+    timeout-minutes: 240
     needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:

@@ -2,6 +2,7 @@ package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
@@ -35,6 +36,12 @@ import static org.junit.Assert.assertEquals;
  */
 public class TestPerformance extends AbstractFireflySuite {
     GraphTraversalSource g;
+
+    @Override
+    protected boolean runTest() {
+        // Do not run if the StarPackedGraph is being used. Takes too long.
+        return !StarPackedGraph.isStarPackedGraph(graph);
+    }
 
     @Before
     public void setupTraversal() {

@@ -528,7 +528,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void shouldNotGetConcurrentModificationException() {
         if (StarPackedGraph.isStarPackedGraph(graph)) {
-            // StarPackedGraph does not support transactions
+            // StarPackedGraph does not concurrent modifications.
             return;
         }
         for (int i = 0; i < 25; ++i) {

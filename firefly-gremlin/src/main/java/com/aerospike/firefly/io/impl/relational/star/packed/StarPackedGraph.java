@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,7 +193,7 @@ public class StarPackedGraph extends PackedGraph {
 
     public static void removeVertex(final AerospikeConnection db, final FireflyVertex vertex) {
         // To remove the vertex, we must simply remove the additional sets that are associated with the vertex.
-        // The edge additional / removal is what builds and tears down the additional data in the sets,
+        // The edge addition / removal is what builds and tears down the additional data in the sets,
         // so we don't need any fancy logic for that here.
 
         // Create list of all relevant sets, would be nice to make this static but unfortunately there are runtime additions.

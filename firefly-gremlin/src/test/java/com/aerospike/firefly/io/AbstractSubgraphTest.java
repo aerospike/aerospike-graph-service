@@ -45,13 +45,13 @@ public class AbstractSubgraphTest {
 
     @BeforeClass
     public static void preloadData() throws IOException {
-        Assume.assumeTrue(!StarPackedGraph.isStarPackedGraph(graph));
         FireflyCacheGCStep.registerGCHook((cacheId, cache) -> {
             cacheResults.put(cacheId, cache.stats());
             return null;
         });
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
+        Assume.assumeTrue(!StarPackedGraph.isStarPackedGraph(graph));
         loadAirRoutes();
         graph.close();
         db.close();

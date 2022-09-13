@@ -52,7 +52,7 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexTest$BasicVertexTest", method = "shouldNotGetConcurrentModificationException", reason = "Concurrent writes are not supported in star packed data model.", computers = {"ALL"})
 
 // Opt out of grateful since they are by far the slowest tests.
-//@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX5X_asXaX_outXwrittenByX_asXbX_selectXa_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX5X_asXaX_outXwrittenByX_asXbX_selectXa_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_both_both_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX3X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX8X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})

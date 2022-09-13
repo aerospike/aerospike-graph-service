@@ -40,6 +40,7 @@ public class TestMovielens10M extends AbstractFireflySuite {
     @BeforeClass
     public static void fetchData() {
         try {
+            Assume.assumeTrue(!graph.getDataModel().equals(StarPackedGraph.DATA_MODEL));
             URL movieLensUrl = new URL(MOVIELENS_10M_URL);
             File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-10m.zip");
             if (!tempFile.exists()) {

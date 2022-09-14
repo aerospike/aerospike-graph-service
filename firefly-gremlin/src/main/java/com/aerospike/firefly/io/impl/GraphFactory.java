@@ -28,7 +28,7 @@ final public class GraphFactory {
             PackedGraph.DATA_MODEL, PackedGraph.class,
             StarPackedGraph.DATA_MODEL, StarPackedGraph.class
     );
-    private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
 
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
         final String dataModel = config.get(String.class, FIREFLY_DATA_MODEL.toLowerCase());

@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -42,12 +43,25 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     protected abstract <V> Iterator<Map.Entry<String, VertexProperty<V>>> readVertexProperties();
     protected abstract <V> Iterator<VertexProperty<V>> readVertexProperty(final String key);
     public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperties);
-    public abstract void removeVertexProperty(final String key, final FireflyId vertexPropertyId);
+    public abstract void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId);
     public abstract long getVertexPropertyCount();
     protected abstract void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
     public abstract Iterator<Long> getEdgeIdsFromVertex(final Direction direction);
     protected abstract Set<String> readVertexPropertyKeys();
+
+    /**
+     * Function to remove vertex properties. Goes here so it can ensure it hits the star model as well.
+     *
+     * @param key Vertex property key.
+     * @param vertexPropertyId Vertex property id.
+     */
+    public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
+        if (StarPackedGraph.isStarPackedGraph(graph)) {
+            StarPackedGraph.removeVertexProperty(graph.getBaseGraph(), this, key);
+        }
+        removeVertexPropertyForModel(key, vertexPropertyId);
+    }
 
     /**
      * Create a new vertex property. If the cardinality is {@link VertexProperty.Cardinality#single}, then set the key

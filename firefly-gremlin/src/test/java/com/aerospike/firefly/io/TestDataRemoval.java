@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
@@ -19,6 +20,12 @@ import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestDataRemoval extends AbstractFireflySuite {
+
+    @Override
+    protected boolean runTest() {
+        // Do not run if the StarPackedGraph is being used. Takes too long.
+        return !graph.getDataModel().equals(StarPackedGraph.DATA_MODEL);
+    }
 
     @Override
     protected boolean clearData() {

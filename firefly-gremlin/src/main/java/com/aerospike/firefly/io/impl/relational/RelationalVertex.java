@@ -15,6 +15,7 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -108,24 +109,17 @@ public abstract class RelationalVertex extends FireflyVertex {
             outEdgeIdSet.add(outEdgeIds.next());
         }
 
-        // Remove edge. Note, using removeEdge() function because it negates trying to remove the edge from the vertex.
-        // Also remove edge from vertex.
         inEdgeIdSet.forEach(edgeId -> {
             final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
-                edge.removeEdge();
-                final RelationalVertex vertex = (RelationalVertex) edge.outVertex();
-                if (vertex != null)
-                    vertex.removeEdge(Direction.OUT, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
+                edge.remove();
             }
         });
+
         outEdgeIdSet.forEach(edgeId -> {
             final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
-                edge.removeEdge();
-                final RelationalVertex vertex = (RelationalVertex) edge.inVertex();
-                if (vertex != null)
-                    vertex.removeEdge(Direction.IN, FireflyId.of(FireflyEdge.class, edgeId), edge.label());
+                edge.remove();
             }
         });
 
@@ -134,6 +128,11 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id.value().toString());
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id.toNumericId()));
+
+        // The star data model holds some additional data that must be removed when the vertex is removed.
+        if (StarPackedGraph.isStarPackedGraph(graph)) {
+            StarPackedGraph.removeVertex(db, this);
+        }
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
@@ -303,7 +302,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        LOG.debug("Removing edge {} to vertex {}.", edgeId.value(), id.value());
+        LOG.debug("Removing {} edge {} to vertex {}.", direction, edgeId.value(), id.value());
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
@@ -573,7 +572,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return FireflyVertex.
      */
     public static FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Reading Vertex {}.", vertexId.value().toString());
+        LOG.debug("Reading vertex {}.", vertexId.value().toString());
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();

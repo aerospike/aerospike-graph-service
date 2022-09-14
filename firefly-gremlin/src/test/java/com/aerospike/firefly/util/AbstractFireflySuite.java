@@ -3,12 +3,18 @@ package com.aerospike.firefly.util;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -16,8 +22,10 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public abstract class AbstractFireflySuite {
+    @Rule public TestName testName = new TestName();
+    private Instant start = Instant.now();
     protected static final Configuration config;
-    protected Logger LOG;
+    protected static Logger LOG;
     protected static AerospikeConnection db;
     protected static FireflyGraph graph;
 
@@ -33,8 +41,10 @@ public abstract class AbstractFireflySuite {
 
     @BeforeClass
     public static void openGraph() {
+        LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
+        graph.getBaseGraph().dropDatabase();
     }
 
     @Before
@@ -44,7 +54,13 @@ public abstract class AbstractFireflySuite {
         if (clearData()) {
             Util.clearGraph(graph);
         }
-        LOG = LoggerFactory.getLogger(this.getClass());
+        LOG.info("===> Running " + testName.getMethodName() + " <===");
+        start = Instant.now();
+    }
+
+    @After
+    public void printTestTime() {
+        LOG.info("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
     }
 
     @AfterClass

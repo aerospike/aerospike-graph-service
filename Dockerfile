@@ -7,7 +7,7 @@ ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
 # Set container labels.
-LABEL org.opencontainers.image.description = "Docker image for Aerospike's Graph Database, Firefly."
+LABEL org.opencontainers.image.description = "Docker image for Aerospike's graph database, Firefly."
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
@@ -31,7 +31,7 @@ RUN cd /tmp &&\
   unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
   unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server
 
-# Append to PATH for maven / console.
+# Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
 # Add current direction to /opt/aerospike-firefly and set working directory.

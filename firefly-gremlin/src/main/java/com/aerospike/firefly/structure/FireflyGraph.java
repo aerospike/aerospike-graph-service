@@ -150,8 +150,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
             LOG.error("========== Firefly failing to start is usually a result of an incorrect configuration.");
-            LOG.error("========== Verify that the aerospike ip and port are correct.");
-            LOG.error("========== If running in EC2 verify your security groups allow Firefly and Aerospike communicate.");
+            LOG.error("========== Verify that the Aerospike IP and port are correct.");
+            LOG.error("========== EC2 instances require your security groups to allow Firefly and Aerospike communicate.");
             LOG.error("========== See Error message for more details:", e);
 
             // Signal to gremlin-server to shut down.

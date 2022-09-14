@@ -14,7 +14,7 @@ for i in range(len(lines)):
     lines[i] = lines[i].replace("aerospike_host_to_replace", host)
 
 print("Server config:")
-print(*lines, sep="\n")
+print(*lines, sep="\t")
 
 with open(sys.argv[1], 'w') as f:
     f.writelines(lines)

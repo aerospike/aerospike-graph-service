@@ -13,7 +13,10 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +31,8 @@ import static org.junit.Assert.fail;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestDataModelVersioning {
+    @Rule
+    public final ExpectedSystemExit exit = ExpectedSystemExit.none();
     protected static Configuration config;
     final private Logger LOG = LoggerFactory.getLogger(TestDataModelVersioning.class);
     protected static AerospikeConnection db;
@@ -37,6 +42,13 @@ public class TestDataModelVersioning {
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "false");
+    }
+
+    @After
+    public void cleanDataModelTest() {
+        // This can cause failures later if you don't clean it up.
+        db = AerospikeConnection.connect(config);
+        db.dropDatabase();
     }
 
     public static void openGraphLinked() {
@@ -70,18 +82,8 @@ public class TestDataModelVersioning {
         openGraphLinked();
         graph.close();
         db.close();
-        boolean success = false;
-        try {
-            openGraphPacked();
-        } catch (Exception e) {
-            success = true;
-        }
-        if (!success)
-            fail("should throw exception if switching data model");
-
-        // This can cause failures later if you don't clean it up.
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        exit.expectSystemExitWithStatus(1);
+        openGraphPacked();
     }
 
 

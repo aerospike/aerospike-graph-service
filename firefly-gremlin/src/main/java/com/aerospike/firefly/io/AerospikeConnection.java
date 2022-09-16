@@ -1069,14 +1069,27 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * decrement an Id counter
+     * Decrement an Id counter by 1
      *
      * @param name name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {
+        return decrementIdCounter(name, 1L);
+    }
+
+    /**
+     * Decrement an Id counter.
+     *
+     * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
+     *
+     * @param name name of Counter to operate on
+     * @param amount amount on Counter to decrement
+     * @return value of counter after operation
+     */
+    public long decrementIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER, -1);
+        final Bin ctr = new Bin(COUNTER, -amount);
         final Record record = client.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
@@ -1097,7 +1110,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Offer a value, compare it to the current counter value.
-     * if the offered value is greater then the current counter value
+     * if the offered value is greater than the current counter value
      * set the counter to the offered value, and return it.
      * otherwise, increment the counter by 1, and return that.
      *

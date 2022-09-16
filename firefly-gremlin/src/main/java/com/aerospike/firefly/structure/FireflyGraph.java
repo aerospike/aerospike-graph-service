@@ -49,6 +49,36 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.io.IoGraphTest", method = "*", reason = "THESE TESTS READ AND WRITE FROM 2 GRAPHS, BUT WHEN BACKED BY THE SAME AEROSPIKE INSTANCE, PRODUCE INVALID RESULTS", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SubgraphTest", method = "*", reason = "CURRENTLY DO NOT WORK, NEED TO FIX AND ENABLE", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldEvaluateConnectivityPatterns", reason = "This test fails due to caching.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexTest$BasicVertexTest", method = "shouldNotGetConcurrentModificationException", reason = "Concurrent writes are not supported in star packed data model.", computers = {"ALL"})
+
+// Opt out of grateful since they are by far the slowest tests.
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX5X_asXaX_outXwrittenByX_asXbX_selectXa_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_both_both_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX3X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX8X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphTest", method = "g_V_hasXname_GarciaX_inXsungByX_asXsongX_V_hasXname_Willie_DixonX_inXwrittenByX_whereXeqXsongXX_name", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXname_GarciaX__a_0writtenBy_b__a_0sungBy_bX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0sungBy_c__b_writtenBy_d__c_writtenBy_e__d_hasXname_George_HarisonX__e_hasXname_Bob_MarleyXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_d__c_sungBy_d__d_hasXname_GarciaXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_dX_whereXc_sungBy_dX_whereXd_hasXname_GarciaXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXname_GarciaX__a_0writtenBy_b__b_followedBy_c__c_writtenBy_d__whereXd_neqXaXXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_hasLabelXsongsX_matchXa_name_b__a_performances_cX_selectXb_cX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_followedBy_count_isXgtX10XX_b__a_0followedBy_count_isXgtX10XX_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXsong_name_sunshineX__a_mapX0followedBy_weight_meanX_b__a_0followedBy_c__c_filterXweight_whereXgteXbXXX_outV_dX_selectXdX_byXnameX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.EarlyLimitStrategyProcessTest", method = "shouldHandleRangeSteps", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest", method = "shouldSeedLocalSample", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest", method = "shouldSeedGlobalSample", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest", method = "playlistPaths", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest", method = "classicRecommendation", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderTest", method = "g_V_hasXsong_name_OHBOYX_outXfollowedByX_outXfollowedByX_order_byXperformancesX_byXsongType_descX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderTest", method = "g_V_hasLabelXsongX_order_byXperformances_descX_byXnameX_rangeX110_120X_name", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest", method = "grateful_V_out_out_profile", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest", method = "grateful_V_out_out_profileXmetricsX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_repeatXbothXfollowedByXX_timesX2X_group_byXsongTypeX_byXcountX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_repeatXbothXfollowedByXX_timesX2X_groupXaX_byXsongTypeX_byXcountX_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_group_byXnameX_byXproperties_groupCount_byXlabelXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_groupXaX_byXnameX_byXproperties_groupCount_byXlabelXX_out_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
@@ -115,7 +145,21 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
+        try {
+            return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
+        } catch (Exception e) {
+            LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
+            LOG.error("========== Firefly failing to start is usually a result of an incorrect configuration.");
+            LOG.error("========== Verify that the Aerospike IP and port are correct.");
+            LOG.error("========== EC2 instances require your security groups to allow Firefly and Aerospike communicate.");
+            LOG.error("========== See Error message for more details:", e);
+
+            // Signal to gremlin-server to shut down.
+            System.exit(1);
+
+            // Required to compile.
+            return null;
+        }
     }
     public static final String GETDATAMODELNAME = "getDataModelName";
     public static final String DATAMODELVERSION = "dataModelVersion";

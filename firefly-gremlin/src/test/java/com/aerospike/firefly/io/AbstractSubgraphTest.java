@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -10,6 +11,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
@@ -49,6 +51,7 @@ public class AbstractSubgraphTest {
         });
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
+        Assume.assumeTrue(!StarPackedGraph.isStarPackedGraph(graph));
         loadAirRoutes();
         graph.close();
         db.close();

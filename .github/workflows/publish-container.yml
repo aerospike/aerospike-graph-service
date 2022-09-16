@@ -36,12 +36,11 @@ jobs:
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           
-          # Use Docker `latest` tag convention if we are a simple main commit. (Not required for tags only).
-          # [ "$VERSION" == "main" ] && VERSION=latest
-          
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          LATEST_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:latest
+          LATEST_IMAGE=$(echo $LATEST_IMAGE | tr '[A-Z]' '[a-z]')
           
           # Build and tag docker image.
           echo "Building and tagging docker image"
@@ -50,3 +49,11 @@ jobs:
           # Push Docker tag.
           echo "Pushing docker tag"
           docker push $OUTPUT_IMAGE
+          
+          # Build and tag latest docker image.
+          echo "Building and tagging docker image"
+          docker build --tag $LATEST_IMAGE .
+          
+          # Push latest Docker tag.
+          echo "Pushing docker tag"
+          docker push $LATEST_IMAGE

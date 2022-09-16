@@ -1,5 +1,6 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -8,6 +9,7 @@ import com.aerospike.firefly.util.Movielens;
 import com.aerospike.firefly.util.Unzip;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,6 +31,12 @@ import static org.junit.Assert.assertEquals;
 public class TestMovielens1M extends AbstractFireflySuite {
 
     @Override
+    protected boolean runTest() {
+        // Only run if the not StarPackedGraph is being used. Otherwise this takes too long.
+        return !graph.getDataModel().equals(StarPackedGraph.DATA_MODEL);
+    }
+
+    @Override
     protected boolean clearData() {
         return false;
     }
@@ -40,6 +48,7 @@ public class TestMovielens1M extends AbstractFireflySuite {
     @BeforeClass
     public static void fetchData() {
         try {
+            Assume.assumeTrue(!graph.getDataModel().equals(StarPackedGraph.DATA_MODEL));
             URL movieLensUrl = new URL(MOVIELENS_1M_URL);
             File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "ml-1m.zip");
             if (!tempFile.exists()) {

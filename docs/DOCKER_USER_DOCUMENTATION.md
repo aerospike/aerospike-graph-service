@@ -38,7 +38,7 @@ Note: Adjusting the evaluationTimeout, among other parameters, is sometimes usef
 ```
 host: 0.0.0.0
 port: 8182
-evaluationTimeout: 30000
+evaluationTimeout: 1200000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
 graph: <REPLACE WITH ABSOLUTE PATH TO firefly-graph.properties>}

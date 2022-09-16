@@ -13,6 +13,8 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -481,6 +483,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldRemoveAllData() throws InterruptedException {
+        graph.getBaseGraph().dropDatabase();
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
         });
@@ -493,16 +496,15 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             // ID_MGR_SET id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
-            assertEquals(x, new HashSet<>() {{
-                add("0_ID_MGR_SET");
-                add("0_G_META");
-            }});
-            assertEquals(2, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            assertEquals(x, !StarPackedGraph.isStarPackedGraph(graph) ?
+                    Set.of("0_ID_MGR_SET", "0_G_META") :
+                    Set.of("0_ID_MGR_SET", "0_G_META", "0_IN_IN", "0_IN_OUT", "0_OUT_IN", "0_OUT_OUT", "0_IN_VP", "0_OUT_VP"));
+            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 2 : 8, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(4, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 4 : 10, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
@@ -510,6 +512,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
             assertFalse(vertxKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
+
 
         }
     }

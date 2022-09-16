@@ -41,7 +41,7 @@ import static com.aerospike.firefly.process.traversal.strategy.optimization.Fire
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class AerospikeConnection {
+public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
 
@@ -1189,7 +1189,7 @@ public class AerospikeConnection {
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
-            task.waitTillComplete();
+            task.waitTillComplete(1);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
                 throw new RuntimeException(ae);
@@ -1226,8 +1226,8 @@ public class AerospikeConnection {
         try {
             LOG.info("Will create index {}: {}", indexName, LocalDateTime.now());
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
-            task.waitTillComplete();
-            LOG.info("Completed create index {}: {}", indexName, LocalDateTime.now());
+            task.waitTillComplete(1);
+            LOG.debug("Completed create index {}: {}", indexName, LocalDateTime.now());
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw new RuntimeException(ae);

@@ -145,7 +145,7 @@ public class PackedVertex extends RelationalVertex {
      * @param vertexPropertyId id of the vertex property to remove.
      */
     @Override
-    public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
+    public void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
         LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
 
         if (!vertexPropertyIds.containsKey(key)) {

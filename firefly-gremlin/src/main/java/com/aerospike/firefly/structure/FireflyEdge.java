@@ -95,13 +95,16 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public void remove() {
         //@todo multi record transactions
-        final FireflyVertex inVertex = graph.readVertex(inVid);
-        final FireflyVertex outVertex = graph.readVertex(inVid);
-        if (inVertex != null)
-            inVertex.removeEdge(Direction.IN, id, label);
-        if (outVertex != null)
-            outVertex.removeEdge(Direction.OUT, id, label);
         removeEdge();
+
+        final FireflyVertex inVertex = graph.readVertex(inVid);
+        final FireflyVertex outVertex = graph.readVertex(outVid);
+        if (inVertex != null) {
+            inVertex.removeEdge(Direction.IN, id, label);
+        }
+        if (outVertex != null) {
+            outVertex.removeEdge(Direction.OUT, id, label);
+        }
         removed = true;
     }
 

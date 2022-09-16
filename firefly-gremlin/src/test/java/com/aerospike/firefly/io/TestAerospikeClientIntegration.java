@@ -29,20 +29,18 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static java.lang.Thread.sleep;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -157,7 +155,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testCreateDropIndex() {
         String binName = "aBin";
-        db.createIndex(db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
+        db.createIndex(new ArrayList<>(), db.TEST_SET, "testIndex", binName, IndexType.STRING, IndexCollectionType.LIST);
         db.dropIndex(db.TEST_SET, "testIndex");
     }
 
@@ -194,8 +192,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final String stringIndex = "stringIndex";
         final String numberIndex = "numberIndex";
         final Iterator<Map<String, Object>> choices = Iterables.cycle(aMap, bMap, cMap, oneMap).iterator();
-        db.createIndex(db.TEST_SET, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        db.createIndex(db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        db.createIndex(new ArrayList<>(), db.TEST_SET, stringIndex, binName, IndexType.STRING, IndexCollectionType.MAPVALUES);
+        db.createIndex(new ArrayList<>(), db.TEST_SET, numberIndex, binName, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
@@ -227,7 +225,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     public void testWriteReadUsingIndex() {
         final String binName = "age";
         final String testIndex = "testIndex";
-        db.createIndex(db.TEST_SET, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+        db.createIndex(new ArrayList<>(), db.TEST_SET, testIndex, binName, IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
@@ -252,6 +250,25 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
+    public void testListIndexes() {
+        List<String> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        assertTrue(x.contains(db.E_LABEL_INDEX));
+    }
+
+    @Test
+    public void testParseRaw() {
+        final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
+        List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
+        final AtomicBoolean pass = new AtomicBoolean(false);
+        data.forEach(it -> {
+            if (it.containsKey(AerospikeConnection.InfoOps.Keys.RESULT) && Objects.equals(it.get(AerospikeConnection.InfoOps.Keys.RESULT), "test"))
+                pass.set(true);
+        });
+        assertTrue(pass.get());
+    }
+
+    @Ignore
+    @Test
     public void testAerospikeInfo() {
         final String binName = "age";
         final String testIndex = "testIndex";
@@ -262,6 +279,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
             db.getClient().put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
+
         String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
         String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], infoQuery);
         Long reportedObjectCount = Arrays.stream(infoResponse.split(":"))
@@ -489,9 +507,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 4 : 10, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
-            sleep(5000);
-            // counter set
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 2 : 8, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            sleep(2000);
+            Iterator<Map.Entry<Key, Record>> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+            Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
+            assertFalse(vertxKeys.hasNext());
+            assertFalse(edgeKeys.hasNext());
+
+
         }
     }
 

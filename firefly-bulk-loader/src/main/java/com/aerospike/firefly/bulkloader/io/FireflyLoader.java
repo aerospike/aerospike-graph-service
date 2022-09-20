@@ -6,6 +6,7 @@ import com.aerospike.firefly.bulkloader.util.EdgeIdHandler;
 import com.aerospike.firefly.bulkloader.util.IdHandler;
 import com.aerospike.firefly.bulkloader.util.VertexIdHandler;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ID_BUFFER_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ID_PROPERTY_NAME_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_ID_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
 
 public class FireflyLoader implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyLoader.class);
@@ -36,13 +44,18 @@ public class FireflyLoader implements AutoCloseable {
     private long totalVertexLoadTime = 0L;
 
 
-    public FireflyLoader(final FireflyGraph graph, final File edgeDirectory, final File vertexDirectory,
-                         final long bufferSize) {
+    public FireflyLoader(final FireflyGraph graph, final Configuration config) {
+        final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_ID_KEY, config));
+        final String providedIdPropertyName = getOrDefault(ID_PROPERTY_NAME_KEY, config);
+        final long bufferSize = Long.parseLong(getOrDefault(ID_BUFFER_KEY, config));
+        final File edgeDirectory = new File(getOrDefault(EDGE_DIRECTORY_KEY, config));
+        final File vertexDirectory = new File(getOrDefault(VERTEX_DIRECTORY_KEY, config));
+
         this.graph = graph;
-        this.edgeIdHandler = new EdgeIdHandler(graph, bufferSize);
-        this.vertexIdHandler = new VertexIdHandler(graph, bufferSize);
-        this.edgeReader = new EdgeReader(edgeDirectory);
-        this.vertexReader = new VertexReader(vertexDirectory);
+        this.edgeIdHandler = new EdgeIdHandler(graph, bufferSize, useProvidedId);
+        this.vertexIdHandler = new VertexIdHandler(graph, bufferSize, useProvidedId);
+        this.edgeReader = new EdgeReader(edgeDirectory, providedIdPropertyName, useProvidedId);
+        this.vertexReader = new VertexReader(vertexDirectory, providedIdPropertyName, useProvidedId);
     }
 
     public void close() {

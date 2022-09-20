@@ -15,8 +15,8 @@ public class EdgeReader extends ElementReader<BulkLoaderEdge> {
     static private final String DEFAULT_LABEL = "edge";
     static private final String[] REQUIRED_HEADERS = new String[]{ID_HEADER, FROM_HEADER, TO_HEADER};
 
-    public EdgeReader(final File directory) {
-        super(directory);
+    public EdgeReader(final File directory, final String providedIdPropertyName, final boolean useProvidedId) {
+        super(directory, providedIdPropertyName, useProvidedId);
     }
 
     @Override
@@ -29,7 +29,9 @@ public class EdgeReader extends ElementReader<BulkLoaderEdge> {
         for (int i = 0; i < elementRow.length; i++) {
             if (headers[i].equals(ID_HEADER)) {
                 id = elementRow[i];
-                properties.add(generateProperty(PROVIDED_ID_HEADER, elementRow[i]));
+                if (!this.useProvidedId) {
+                    properties.add(generateProperty(this.providedIdPropertyName, elementRow[i]));
+                }
                 continue;
             }
             if (headers[i].equals(FROM_HEADER)) {

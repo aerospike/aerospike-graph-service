@@ -11,19 +11,24 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class IdHandler {
     static private final Logger LOG = LoggerFactory.getLogger(IdHandler.class);
     private final FireflyGraph graph;
-    private final long bufferSize;
     private final String counterName;
+    private final long bufferSize;
+    private final boolean useProvidedId;
     private final AtomicLong currentId;
     private long bufferTrigger;
     public final Map<String, Long> providedIdToFireflyId;
 
-    public IdHandler(final FireflyGraph graph, final long bufferSize, final String counterName) {
+    public IdHandler(final FireflyGraph graph, final String counterName, final long bufferSize,
+                     final boolean useProvidedId) {
         this.graph = graph;
-        this.bufferSize = bufferSize;
-        this.currentId = new AtomicLong();
         this.counterName = counterName;
+        this.bufferSize = bufferSize;
+        this.useProvidedId = useProvidedId;
+        this.currentId = new AtomicLong();
         this.providedIdToFireflyId = new HashMap<>();
-        bufferIds();
+        if (!useProvidedId) {
+            bufferIds();
+        }
     }
 
     public synchronized long getId(final String providedId) {
@@ -37,13 +42,18 @@ public abstract class IdHandler {
     }
 
     private long putId(final String providedId) {
-        final long id = generateId();
+        final long id;
+        if (useProvidedId) {
+            id = Long.parseLong(providedId);
+        } else {
+            id = generateId();
+        }
         this.providedIdToFireflyId.put(providedId, id);
         return id;
     }
 
     private long generateId() {
-        long id = this.currentId.getAndDecrement();
+        final long id = this.currentId.getAndDecrement();
         if (this.currentId.get() < this.bufferTrigger) {
             bufferIds();
         }

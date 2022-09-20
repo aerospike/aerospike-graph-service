@@ -23,15 +23,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class ElementReader<T extends BulkLoaderElement> implements AutoCloseable {
-    static protected final String PROVIDED_ID_HEADER = "~providedId";
     static private final Logger LOG = LoggerFactory.getLogger(ElementReader.class);
+    protected final String providedIdPropertyName;
+    protected final boolean useProvidedId;
     protected final List<File> files;
     protected CSVReader currentReader = null;
     protected String[] currentHeaders = null;
     protected Map<String, PropertyTypeData> currentHeadersTypes = null;
     protected boolean isClosed = false;
 
-    public ElementReader(final File directory) {
+    public ElementReader(final File directory, final String providedIdPropertyName, final boolean useProvidedId) {
+        this.providedIdPropertyName = providedIdPropertyName;
+        this.useProvidedId = useProvidedId;
         final List<File> validFiles = validateAndGetFiles(directory);
         if (validFiles.isEmpty()) {
             LOG.warn("Input is not valid for loading or is not a directory containing valid files for loading: " +
@@ -144,7 +147,7 @@ public abstract class ElementReader<T extends BulkLoaderElement> implements Auto
 
     private String[] parsePropertyHeaders(final String[] headers, final File file) {
         final Map<String, PropertyTypeData> headersTypes = new HashMap<>();
-        headersTypes.put(PROVIDED_ID_HEADER, new PropertyTypeData(PropertyType.STRING, false));
+        headersTypes.put(providedIdPropertyName, new PropertyTypeData(PropertyType.STRING, false));
         for (int i = 0; i < headers.length; i++) {
             // TODO: Cardinality support?
             final String property = headers[i];

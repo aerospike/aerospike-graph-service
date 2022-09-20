@@ -13,8 +13,8 @@ public class VertexReader extends ElementReader<BulkLoaderVertex> {
     static private final String DEFAULT_LABEL = "vertex";
     static private final String[] REQUIRED_HEADERS = new String[]{ID_HEADER};
 
-    public VertexReader(final File directory) {
-        super(directory);
+    public VertexReader(final File directory, final String providedIdPropertyName, final boolean useProvidedId) {
+        super(directory, providedIdPropertyName, useProvidedId);
     }
 
     protected BulkLoaderVertex generateElement(final String[] headers, final String[] elementRow) {
@@ -24,7 +24,9 @@ public class VertexReader extends ElementReader<BulkLoaderVertex> {
         for (int i = 0; i < elementRow.length; i++) {
             if (headers[i].equals(ID_HEADER)) {
                 id = elementRow[i];
-                properties.add(generateProperty(PROVIDED_ID_HEADER, elementRow[i]));
+                if (!this.useProvidedId) {
+                    properties.add(generateProperty(this.providedIdPropertyName, elementRow[i]));
+                }
                 continue;
             }
             if (headers[i].equals(LABEL_HEADER)) {

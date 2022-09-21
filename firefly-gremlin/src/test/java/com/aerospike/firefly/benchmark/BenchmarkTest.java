@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +164,7 @@ public class BenchmarkTest {
         //]
 
         final JSONArray root = new JSONArray();
-        runResult.stream().forEach(result-> {
+        runResult.forEach(result-> {
             JSONObject obj = new JSONObject();
             obj.put("name", testToTraversal.get(result.getPrimaryResult().getLabel()));
             obj.put("unit", "Throughput (op/sec)");
@@ -172,6 +173,7 @@ public class BenchmarkTest {
             obj.put("extra", result.getPrimaryResult().getStatistics());
             root.put(obj);
         });
+        System.out.println(Path.of("target", "jmh-result.json").toAbsolutePath());
         try (FileWriter file = new FileWriter("target/jmh-result.json")) {
             file.write(root.toString());
         }

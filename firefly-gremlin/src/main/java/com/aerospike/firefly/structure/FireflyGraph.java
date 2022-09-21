@@ -146,7 +146,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public static FireflyGraph open(final Configuration conf) {
         try {
-            LOG.error("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+            LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");

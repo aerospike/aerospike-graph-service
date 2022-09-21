@@ -107,7 +107,7 @@ The idea is to have a number of read and write threads running at the same time.
 block queue, this way we avoid reading too much, or writing too much. Most likely we will be constrained by writes.
 
 The bulk loader should provide an interface that "power users" can take advantage of to implement their own Loader 
-when their data source is toi=o large to serialize into a supported format.
+when their data source is too large to serialize into a supported format.
 
 ## Bulk Loader Inputs
 

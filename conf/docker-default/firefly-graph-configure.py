@@ -1,9 +1,6 @@
 import os
 import sys
 
-print("straight up: " + str(os.environ))
-print("items: " + str(os.environ.items()))
-
 default_aerospike_host = "172.17.0.1"
 default_aerospike_port = "3000"
 default_aerospike_namespace = "test"

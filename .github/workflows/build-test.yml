@@ -125,7 +125,7 @@ jobs:
           echo "Running benchmark"
           mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
 
-      - name: Benchmark Results
+      - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results

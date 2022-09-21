@@ -32,6 +32,9 @@ public abstract class IdHandler {
     }
 
     public synchronized long getId(final String providedId) {
+        if (this.useProvidedId) {
+            return Long.parseLong(providedId);
+        }
         final long id;
         if (this.providedIdToFireflyId.containsKey(providedId)) {
             id = this.providedIdToFireflyId.get(providedId);
@@ -42,12 +45,7 @@ public abstract class IdHandler {
     }
 
     private long putId(final String providedId) {
-        final long id;
-        if (useProvidedId) {
-            id = Long.parseLong(providedId);
-        } else {
-            id = generateId();
-        }
+        final long id = generateId();
         this.providedIdToFireflyId.put(providedId, id);
         return id;
     }

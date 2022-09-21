@@ -130,7 +130,7 @@ jobs:
         with:
           name: Publish Benchmark Results
           tool: 'customBiggerIsBetter'
-          output-file-path: target/jmh-result.json
+          output-file-path: firefly-gremlin/target/jmh-result.json
           auto-push: true
           alert-threshold: '105%'
           comment-on-alert: true

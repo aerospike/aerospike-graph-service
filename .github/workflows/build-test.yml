@@ -124,3 +124,16 @@ jobs:
           
           echo "Running benchmark"
           mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
+
+      - name: Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customBiggerIsBetter'
+          output-file-path: target/jmh.json
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}

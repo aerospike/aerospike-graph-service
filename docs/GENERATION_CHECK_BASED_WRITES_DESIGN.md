@@ -49,7 +49,6 @@ basically both come down to error handling in our writes. The flowchart below de
 
 ```mermaid
 flowchart TD
-flowchart TD
     ReadVertex[Read Vertex] --> VertexExists{Vertex Exists?}
     VertexExists --> |Yes| SetGeneration[Set Generation]
     SetGeneration --> ModifyVertex[Modify Vertex]

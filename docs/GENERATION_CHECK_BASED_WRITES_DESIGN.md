@@ -60,15 +60,15 @@ flowchart TD
     WriteVertex --> GenerationCheck{Generation Check?}
     GenerationCheck --> |Passed| FirstVertex
     FirstVertex{First Vertex?} --> |No| Done[Done\nAll Vertex Writes\nSuccessful]
-    FirstVertex --> |No| Restart[Restart Flow for\nadjacent vertex]
+    FirstVertex --> |Yes| Restart[Restart Flow for\nadjacent vertex]
     GenerationCheck --> |Failed| ReadVertex
-    GenerationCheck -->  |Network / Other Error| PreviousVertexWrite{Other Vertex Written?}
-    PreviousVertexWrite --> |Yes| AttemptDelete{Remove Vertex Succeeded}
+    GenerationCheck -->  |Network / Other Error| AdjacentVertexWrite{Adjacent Vertex Written?}
+    AdjacentVertexWrite --> |Yes| AttemptDelete{Remove Edge from\nVertex Edge Map}
     AttemptDelete --> |Failed| MemoryLeaked[8 Bytes Memory Lost\nFor Lifetime of Vertex]
-    PreviousVertexWrite --> |No| ReturnUserError
+    AdjacentVertexWrite --> |No| ReturnUserError
     MemoryLeaked --> ReturnUserError
     AttemptDelete --> |Passed| ReturnUserError
-    VertexExists --> |No| PreviousVertexWrite
+    VertexExists --> |No| AdjacentVertexWrite
 ```
 
 Deconstructing the flowchart, we can see that if a vertex doesn't exist (meaning another concurrent thread dropped it), 

@@ -129,7 +129,7 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
-          tool: 'customBiggerIsBetter'
+          tool: 'customSmallerIsBetter'
           output-file-path: firefly-gremlin/target/jmh-result.json
           auto-push: true
           alert-threshold: '105%'

@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +41,11 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
 @BenchmarkMode({Mode.AverageTime})
-@OutputTimeUnit(TimeUnit.SECONDS)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
-@Warmup(iterations = 0)
-@Measurement(iterations = 1, time = 30, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 1)
+// Takes about 30 minutes to run in GitHub actions.
+@Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTest {
     // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
     // where
@@ -137,7 +137,7 @@ public class BenchmarkTest {
     // separate JVM.
     @Test
     public void fireflyBenchmark() throws RunnerException {
-        ChainedOptionsBuilder optBuilder = new OptionsBuilder()
+        final ChainedOptionsBuilder optBuilder = new OptionsBuilder()
                 .include(BenchmarkTest.class.getSimpleName())
                 .detectJvmArgs()
                 .forks(4)
@@ -166,16 +166,15 @@ public class BenchmarkTest {
         runResult.forEach(result -> {
             JSONObject obj = new JSONObject();
             obj.put("name", testToTraversal.get(result.getPrimaryResult().getLabel()));
-            obj.put("unit", "Throughput (op/sec)");
-            obj.put("value", (1 / result.getPrimaryResult().getScore()));
-            obj.put("range", (1 / result.getPrimaryResult().getScoreError()));
+            obj.put("unit", result.getPrimaryResult().getScoreUnit());
+            obj.put("value", result.getPrimaryResult().getScore());
+            obj.put("range", result.getPrimaryResult().getScoreError());
             obj.put("extra", result.getPrimaryResult().getStatistics());
             root.put(obj);
         });
-        System.out.println(Path.of("target", "jmh-result.json").toAbsolutePath());
-        try (FileWriter file = new FileWriter("target/jmh-result.json")) {
+        try (final FileWriter file = new FileWriter("target/jmh-result.json")) {
             file.write(root.toString());
-        } catch (Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
     }

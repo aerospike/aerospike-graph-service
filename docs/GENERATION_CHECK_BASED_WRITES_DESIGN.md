@@ -55,14 +55,16 @@ flowchart TD
     Firefly --> ReadVertex
     ReadVertex[Read Vertex] --> VertexExists{Vertex Exists?}
     VertexExists --> |Yes| SetGeneration[Set Generation]
-    SetGeneration --> ModifyVertex[Modify Vertex]
+    SetGeneration --> ModifyVertex[Add Edge to Vertex Edge Map]
     ModifyVertex --> WriteVertex[Attempt Write Vertex]
     WriteVertex --> GenerationCheck{Generation Check?}
-    GenerationCheck --> |Passed| Done
+    GenerationCheck --> |Passed| FirstVertex
+    FirstVertex{First Vertex?} --> |No| Done[Done\nAll Vertex Writes\nSuccessful]
+    FirstVertex --> |No| Restart[Restart Flow for\nadjacent vertex]
     GenerationCheck --> |Failed| ReadVertex
     GenerationCheck -->  |Network / Other Error| PreviousVertexWrite{Other Vertex Written?}
     PreviousVertexWrite --> |Yes| AttemptDelete{Remove Vertex Succeeded}
-    AttemptDelete --> |Failed| MemoryLeaked[8 Bytes Memory Lost For Lifetime of Vertex]
+    AttemptDelete --> |Failed| MemoryLeaked[8 Bytes Memory Lost\nFor Lifetime of Vertex]
     PreviousVertexWrite --> |No| ReturnUserError
     MemoryLeaked --> ReturnUserError
     AttemptDelete --> |Passed| ReturnUserError

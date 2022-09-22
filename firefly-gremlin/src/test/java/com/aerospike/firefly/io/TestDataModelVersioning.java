@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -114,6 +115,12 @@ public class TestDataModelVersioning {
         @Override
         public String getDataModel() {
             return getDataModelName();
+        }
+
+        @Override
+        public void bulkWriteVertex(long vertexId, String label, List<Map.Entry<String, Object>> properties,
+                                    Map<String, List<Long>> outEdges, Map<String, List<Long>> inEdges,
+                                    boolean cacheDisabled) {
         }
 
         public static String getDataModelName() {

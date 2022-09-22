@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,7 +49,6 @@ public class AerospikeConnection implements AutoCloseable {
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     private static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     private static final String DATA_MODEL_VER = "DATA_MODEL_VER";
-
 
     static {
         sendKeyWritePolicy.sendKey = true;
@@ -413,15 +413,41 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public static class InfoOps {
-        private static class Keys {
+        protected static class Keys {
             public static final String SET = "set";
             public static final String SETS = "sets";
             public static final String NS = "ns";
             public static final String OBJECTS = "objects";
-
+            public static final String SINDEX = "sindex";
+            public static final String SINDEX_LIST = "sindex-list";
+            public static final String FEATURE_KEY = "feature-key";
+            public static final String INDEXNAME = "indexname";
+            public static final String RESULT = "result";
         }
 
-        private static Map<String, Map<String, String>> parse(String infoResponse, String namespace) {
+        //Parse the whole infoResponse and return it as a List of Maps
+        protected static List<Map<String, String>> parseRaw(String infoResponse) {
+            List<Map<String, String>> results = new ArrayList<>();
+            Arrays.stream(infoResponse.split(";"))
+                    .map(str -> str.split(":"))
+                    .forEach(strAry -> {
+                        Map<String, String> data = new HashMap<>();
+                        Arrays.stream(strAry).forEach(entryStr -> {
+                            if(entryStr.isEmpty())
+                                return;
+                            if(entryStr.contains("="))
+                                data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
+                            else
+                                data.put(Keys.RESULT,entryStr);
+                        });
+                        if(data.size()>0)
+                            results.add(data);
+                    });
+            return results;
+        }
+
+        //
+        private static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
             Map<String, Map<String, String>> results = new HashMap<>();
             Arrays.stream(infoResponse.split(";"))
                     .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
@@ -436,6 +462,14 @@ public class AerospikeConnection implements AutoCloseable {
             return results;
         }
 
+        public static List<String> listExistingIndexes(final AerospikeClient client, final String namespace) {
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
+            List<Map<String, String>> res = parseRaw(infoResponse);
+            return res.stream()
+                    .filter(m -> m.get(Keys.NS).equals(namespace))
+                    .map(m -> m.get(Keys.INDEXNAME)).collect(Collectors.toList());
+        }
+
         /**
          * Is the first connected Aerospike instance "Enterprise Edition"
          *
@@ -443,8 +477,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @return enterprise or not
          */
         public static boolean isEnterprise(AerospikeClient client) {
-            final String infoQuery = "feature-key";
-            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
         }
 
@@ -477,7 +510,7 @@ public class AerospikeConnection implements AutoCloseable {
          */
         public static Set<String> getSetList(String namespace, AerospikeClient client) {
             String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            final Set<String> allSets = parse(infoResponse, namespace).keySet();
+            final Set<String> allSets = parseBySet(infoResponse, namespace).keySet();
             return allSets;
         }
 
@@ -490,7 +523,7 @@ public class AerospikeConnection implements AutoCloseable {
          */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            return parse(infoResponse, namespace).entrySet().stream().filter(entry -> {
+            return parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
                         Map<String, String> map = entry.getValue();
                         return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
                     })
@@ -585,38 +618,39 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
+        List<String> existingIndexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
         if (SUPERNODE_INDEX_ENABLED) {
-            createIndex(getElementPropertySet(FireflyEdge.class),
+            createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
-            createIndex(getElementPropertySet(FireflyEdge.class),
+            createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_OUT_INDEX, Direction.OUT.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
         }
 
-        createIndex(getElementPropertySet(FireflyVertex.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyVertex.class),
                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
-        createIndex(getElementPropertySet(FireflyEdge.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
 
-        createIndex(getElementPropertySet(FireflyVertexProperty.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyVertexProperty.class),
                 STRING_VP_KV_INDEX,
                 KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(getElementPropertySet(FireflyVertexProperty.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyVertexProperty.class),
                 NUMERIC_VP_KV_INDEX,
                 KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
-        createIndex(getElementPropertySet(FireflyVertex.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyVertex.class),
                 STRING_V_VP_KV_INDEX,
                 VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(getElementPropertySet(FireflyVertex.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyVertex.class),
                 NUMERIC_V_VP_KV_INDEX,
                 VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
-        createIndex(getElementPropertySet(FireflyEdge.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(getElementPropertySet(FireflyEdge.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
@@ -1035,14 +1069,27 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * decrement an Id counter
+     * Decrement an Id counter by 1
      *
      * @param name name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {
+        return decrementIdCounter(name, 1L);
+    }
+
+    /**
+     * Decrement an Id counter.
+     *
+     * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
+     *
+     * @param name name of Counter to operate on
+     * @param amount amount on Counter to decrement
+     * @return value of counter after operation
+     */
+    public long decrementIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER, -1);
+        final Bin ctr = new Bin(COUNTER, -amount);
         final Record record = client.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
@@ -1063,7 +1110,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Offer a value, compare it to the current counter value.
-     * if the offered value is greater then the current counter value
+     * if the offered value is greater than the current counter value
      * set the counter to the offered value, and return it.
      * otherwise, increment the counter by 1, and return that.
      *
@@ -1166,6 +1213,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * create an Aerospike Index
      *
+     * @param existingIndexes
      * @param set                 Set name
      * @param indexName           Index name
      * @param binName             Bin name to be indexed
@@ -1173,18 +1221,26 @@ public class AerospikeConnection implements AutoCloseable {
      * @param indexCollectionType Index Collection Type
      */
     public void createIndex(
+            final List<String> existingIndexes,
             final String set,
             final String indexName,
             final String binName,
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        LOG.debug("Creating index {}:{}:{}.", set, indexName, binName);
+        if (existingIndexes.contains(indexName)) {
+            LOG.debug("Index {} already exists", indexName);
+            return;
+        } else {
+            LOG.debug("Creating index {}:{}:{}.", set, indexName, binName);
+        }
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
+            LOG.info("Will create index {}: {}", indexName, LocalDateTime.now());
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
             task.waitTillComplete(1);
+            LOG.debug("Completed create index {}: {}", indexName, LocalDateTime.now());
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw new RuntimeException(ae);
@@ -1212,7 +1268,7 @@ public class AerospikeConnection implements AutoCloseable {
         keys.add(binName);
         Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
         client.put(null, mKey, keysBin);
-        createIndex(getElementPropertySet(indexClass), binName, binName, idxType, idxColType);
+        createIndex(new ArrayList<>(), getElementPropertySet(indexClass), binName, binName, idxType, idxColType);
     }
 
     /**

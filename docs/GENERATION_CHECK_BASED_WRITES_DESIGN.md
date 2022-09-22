@@ -35,6 +35,8 @@ edge is being written.
 
 ## Design
 
+### Writing
+
 Using a combination of data modelling and generation check policies, we can ensure that the above tenets are met.
 
 The data modelling technique we use is to check that an edge record exists in the edge set, not just in a vertex
@@ -49,6 +51,8 @@ basically both come down to error handling in our writes. The flowchart below de
 
 ```mermaid
 flowchart TD
+    UserRequest-->|Write Edge| Firefly[Enter Firefly Write Edge Logic]
+    Firefly --> ReadVertex
     ReadVertex[Read Vertex] --> VertexExists{Vertex Exists?}
     VertexExists --> |Yes| SetGeneration[Set Generation]
     SetGeneration --> ModifyVertex[Modify Vertex]
@@ -79,3 +83,28 @@ One this to note, if the network is the issue, we likely cannot remove the parti
 8 bytes of memory for the lifetime of the vertex. This is not ideal, but it is tolerable because by our read pattern
 of ensure an edge exists before showing a user, we still cover design tenet 1 and ensure that data is consistent in both
 traversal directions.
+
+### Removal
+
+#### Edge Removal
+
+We must also consider edge removal. In this case we can simply remove the edge record before removing the edge
+from the adjacent vertices. This adheres to design tenet 1, ensuring that the edge is never visible in one
+direction but not the other.
+
+Our error handling will be very similar to the above presented flowchart, except if we fail, we do not check if another
+vertex was written, we just return the error.
+
+#### Vertex Removal
+
+Finally, vertex removal must be considered. To properly remove a vertex, the edges should be removed first, then the 
+vertex itself can be removed. 
+
+If the edges are removed first, then if the vertex removal fails, there are no orphaned edges. There may be valid edges
+on the vertex which were removed, but the user is alerted the removal failed and can expect some incident edges of the
+vertex have been removed.
+
+The user can retry their vertex removal on error and ensure that it is complete. By removing edges first, we can run into 
+the memory leak if removing the edge from an adjacent vertex fails, but this is acceptable because we have already 
+removed the edge from the edge set, so we do not have an orphaned edge in the graph. This is a simple 8 byte memory leak
+as mentioned in the other case.

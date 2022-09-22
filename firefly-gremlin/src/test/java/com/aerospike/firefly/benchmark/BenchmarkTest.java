@@ -77,9 +77,7 @@ public class BenchmarkTest {
     // and load the graph.
     @BeforeClass
     public static void load() {
-        System.out.println("Host: " + HOST);
-
-        LOG.info("Creating the Cluster.");
+        LOG.info("Creating the Cluster with host {} and port {}.", HOST, PORT);
         final Cluster cluster = BUILDER.create();
 
         LOG.info("Creating the GraphTraversalSource.");
@@ -149,17 +147,13 @@ public class BenchmarkTest {
         // Format:
         //[
         //  {
-        //      "name": "My Custom Smaller Is Better Benchmark - CPU Load",
-        //          "unit": "Percent",
-        //          "value": 50
-        //  },
-        //  {
-        //      "name": "My Custom Smaller Is Better Benchmark - Memory Used",
-        //          "unit": "Megabytes",
+        //          "name": "Chart Title",
+        //          "unit": "Chart Unit",
         //          "value": 100,
         //          "range": "3",
         //          "extra": "Value for Tooltip: 25\nOptional Num #2: 100\nAnything Else!"
-        //  }
+        //  },
+        //  ...
         //]
 
         final JSONArray root = new JSONArray();

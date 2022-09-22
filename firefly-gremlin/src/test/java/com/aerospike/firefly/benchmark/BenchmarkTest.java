@@ -61,13 +61,13 @@ public class BenchmarkTest {
             Map.entry("benchmark_g_V_hasxcode_DFWx", "g.V().has(\"code\", \"DFW\")"),
             Map.entry("benchmark_g_V_hasxcode_DFWx_outE_count", "g.V().has(\"code\", \"DFW\").outE().count()"),
             Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_out_hasxcode_YVRx", "g.V().has(\"code\", \"SFO\").out().out().out().has(\"code\", \"YVR\")"),
-            Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count", "g.V().\n" +
-                    "                  has(\"code\", \"SFO\").\n" +
-                    "                  out().out().\n" +
-                    "                  dedup().fold().\n" +
-                    "                  project(\"totalAirportCountFromSFO\", \"USAirportCountFromSFO\").\n" +
-                    "                  by(__.unfold().count()).\n" +
-                    "                  by(__.unfold().has(\"country\", \"US\").count())"),
+            Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count", "g.V()." +
+                    "has(\"code\", \"SFO\")." +
+                    "out().out()." +
+                    "dedup().fold()." +
+                    "project(\"totalAirportCountFromSFO\", \"USAirportCountFromSFO\")." +
+                    "by(__.unfold().count())." +
+                    "by(__.unfold().has(\"country\", \"US\").count())"),
             Map.entry("benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup", "g.E().has(\"dist\", P.gt(4000L)).inV().values(\"city\").dedup()"),
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()")

@@ -45,8 +45,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 0)
-// TODO: Make this 30 seconds.
-@Measurement(iterations = 1, time = 5, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 1, time = 30, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTest {
     // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
     // where
@@ -164,7 +163,7 @@ public class BenchmarkTest {
         //]
 
         final JSONArray root = new JSONArray();
-        runResult.forEach(result-> {
+        runResult.forEach(result -> {
             JSONObject obj = new JSONObject();
             obj.put("name", testToTraversal.get(result.getPrimaryResult().getLabel()));
             obj.put("unit", "Throughput (op/sec)");
@@ -176,8 +175,7 @@ public class BenchmarkTest {
         System.out.println(Path.of("target", "jmh-result.json").toAbsolutePath());
         try (FileWriter file = new FileWriter("target/jmh-result.json")) {
             file.write(root.toString());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -194,45 +192,46 @@ public class BenchmarkTest {
         blackhole.consume(vertices);
     }
 
-   // @Benchmark
-   // public void benchmark_g_V_hasxcode_DFWx_outE_count(final Blackhole blackhole) {
-   //     final long outECount = g.V().has("code", "DFW").outE().count().next();
-   //     blackhole.consume(outECount);
-   // }
+    @Benchmark
+    public void benchmark_g_V_hasxcode_DFWx_outE_count(final Blackhole blackhole) {
+        final long outECount = g.V().has("code", "DFW").outE().count().next();
+        blackhole.consume(outECount);
+    }
 
-  //  @Benchmark
-  //  public void benchmark_g_V_hasxcode_SFOx_out_out_out_hasxcode_YVRx(final Blackhole blackhole) {
-  //      final List<Vertex> vertices = g.V().has("code", "SFO").out().out().out().has("code", "YVR").toList();
-  //      blackhole.consume(vertices);
-  //  }
-  //  @Benchmark
-  //  public void benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count(final Blackhole blackhole) {
-  //      final Map<String, Object> projectionMap = g.V().
-  //              has("code", "SFO").
-  //              out().out().
-  //              dedup().fold().
-  //              project("totalAirportCountFromSFO", "USAirportCountFromSFO").
-  //              by(__.unfold().count()).
-  //              by(__.unfold().has("country", "US").count()).next();
-  //      blackhole.consume(projectionMap);
-  //  }
-//
-  //  @Benchmark
-  //  public void benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup(final Blackhole blackhole) {
-  //      final List<Object> cities = g.E().has("dist", P.gt(4000L)).inV().values("city").dedup().toList();
-  //      blackhole.consume(cities);
-  //  }
-//
+    @Benchmark
+    public void benchmark_g_V_hasxcode_SFOx_out_out_out_hasxcode_YVRx(final Blackhole blackhole) {
+        final List<Vertex> vertices = g.V().has("code", "SFO").out().out().out().has("code", "YVR").toList();
+        blackhole.consume(vertices);
+    }
 
-  //  @Benchmark
-  //  public void benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex(final Blackhole blackhole) {
-  //      final List<Object> codes = g.V().has("code", "LHR").out("route").has("country", "US").values("code").toList();
-  //      blackhole.consume(codes);
-  //  }
-//
-  //  @Benchmark
-  //  public void benchmark_g_V_hasLabelxairportx_count(final Blackhole blackhole) {
-  //      final long airportCount = g.V().hasLabel("airport").count().next();
-  //      blackhole.consume(airportCount);
-  //  }
+    @Benchmark
+    public void benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count(final Blackhole blackhole) {
+        final Map<String, Object> projectionMap = g.V().
+                has("code", "SFO").
+                out().out().
+                dedup().fold().
+                project("totalAirportCountFromSFO", "USAirportCountFromSFO").
+                by(__.unfold().count()).
+                by(__.unfold().has("country", "US").count()).next();
+        blackhole.consume(projectionMap);
+    }
+
+    @Benchmark
+    public void benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup(final Blackhole blackhole) {
+        final List<Object> cities = g.E().has("dist", P.gt(4000L)).inV().values("city").dedup().toList();
+        blackhole.consume(cities);
+    }
+
+
+    @Benchmark
+    public void benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex(final Blackhole blackhole) {
+        final List<Object> codes = g.V().has("code", "LHR").out("route").has("country", "US").values("code").toList();
+        blackhole.consume(codes);
+    }
+
+    @Benchmark
+    public void benchmark_g_V_hasLabelxairportx_count(final Blackhole blackhole) {
+        final long airportCount = g.V().hasLabel("airport").count().next();
+        blackhole.consume(airportCount);
+    }
 }

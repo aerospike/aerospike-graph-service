@@ -48,7 +48,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTest {
     // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
-    // where
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTest.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;

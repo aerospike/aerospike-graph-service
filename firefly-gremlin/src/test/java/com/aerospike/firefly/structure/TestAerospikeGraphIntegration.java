@@ -9,9 +9,12 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
@@ -30,6 +33,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
@@ -37,6 +41,8 @@ import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.ch
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.*;
 
@@ -185,7 +191,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("a","b").iterate();
+                .addE("IsA").from("b").to("a").property("a", "b").iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         List<Edge> things = g.E().has("a", "b").toList();
@@ -227,14 +233,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3L).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3L).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Edge> nEdge = g.E().has("n", 3L).toList();
-        assertEquals(2,nEdge.size());
-        List<Edge> ltnEdge = g.E().has("n",  P.lt(4L)).toList();
-        assertEquals(2,ltnEdge.size());
-        List<Edge> gtnEdge = g.E().has("n",  P.gt(1L)).toList();
-        assertEquals(2,gtnEdge.size());
+        assertEquals(2, nEdge.size());
+        List<Edge> ltnEdge = g.E().has("n", P.lt(4L)).toList();
+        assertEquals(2, ltnEdge.size());
+        List<Edge> gtnEdge = g.E().has("n", P.gt(1L)).toList();
+        assertEquals(2, gtnEdge.size());
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
         if (g.V(fruit.id()).outE().count().next() > 0) {
@@ -249,16 +255,16 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3L).next();
+                .property("spots", 3L).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2L).next();
+                .property("spots", 2L).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2L).toList();
         List<Vertex> slt = g.V().has("spots", P.lt(4L)).toList();
@@ -271,29 +277,30 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             fail();
         }
     }
+
     @Test
     public void testVertexNumericIndexInteger() {
         GraphTraversalSource g = graph.traversal();
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3).next();
+                .property("spots", 3).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2).next();
+                .property("spots", 2).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2).toList();
-        assertEquals(1,twoSpots.size());
+        assertEquals(1, twoSpots.size());
         List<Vertex> slt = g.V().has("spots", P.lt(4)).toList();
-        assertEquals(2,slt.size());
+        assertEquals(2, slt.size());
         List<Vertex> sgt = g.V().has("spots", P.gt(1)).toList();
-        assertEquals(2,sgt.size());
+        assertEquals(2, sgt.size());
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
@@ -309,23 +316,23 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Vertex lemon = g.addV("lemon")
                 .property("color", "yellow")
                 .property("type", "plant")
-                .property("spots",3.14d).next();
+                .property("spots", 3.14d).next();
         Vertex lime = g.addV("lime")
                 .property("color", "green")
                 .property("type", "plant")
-                .property("spots",2.33d).next();
+                .property("spots", 2.33d).next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
-                .addE("IsA").from("b").to("a").property("n",3).iterate();
+                .addE("IsA").from("b").to("a").property("n", 3).iterate();
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> twoSpots = g.V().has("spots", 2.33d).toList();
-        assertEquals(1,twoSpots.size());
+        assertEquals(1, twoSpots.size());
         List<Vertex> slt = g.V().has("spots", P.lt(4d)).toList();
-        assertEquals(2,slt.size());
+        assertEquals(2, slt.size());
         List<Vertex> sgt = g.V().has("spots", P.gt(1d)).toList();
-        assertEquals(2,sgt.size());
+        assertEquals(2, sgt.size());
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
         g.V(s1.id()).outE().drop().iterate();
@@ -556,14 +563,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldReadWriteSelfLoopingEdges() throws Exception {
-        GraphSONMapper mapper = ((GraphSONIo)this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
+        GraphSONMapper mapper = ((GraphSONIo) this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
         Graph source = this.graph;
         Vertex v1 = source.addVertex(new Object[0]);
         Vertex v2 = source.addVertex(new Object[0]);
         v1.addEdge("CONTROL", v2, new Object[0]);
         v1.addEdge("SELFLOOP", v1, new Object[0]);
         final HashMap<String, Object> configMap = new HashMap<>();
-        graph.configuration().getKeys().forEachRemaining( k -> configMap.put(k,graph.configuration().get(String.class,k)));
+        graph.configuration().getKeys().forEachRemaining(k -> configMap.put(k, graph.configuration().get(String.class, k)));
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
 
         Graph targetGraph = FireflyGraph.open(new MapConfiguration(configMap));
@@ -573,12 +580,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Throwable var8 = null;
 
             try {
-                ((GraphSONIo)source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
+                ((GraphSONIo) source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
                 ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
                 Throwable var10 = null;
 
                 try {
-                    ((GraphSONIo)targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
+                    ((GraphSONIo) targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
                 } catch (Throwable var35) {
                     var10 = var35;
                     throw var35;
@@ -620,6 +627,257 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertEquals(IteratorUtils.count(source.vertices(new Object[0])), IteratorUtils.count(targetGraph.vertices(new Object[0])));
         Assert.assertEquals(IteratorUtils.count(source.edges(new Object[0])), IteratorUtils.count(targetGraph.edges(new Object[0])));
     }
+
+    private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
+        if (expectedList.size() != actualList.size()) {
+            return false;
+        }
+        for (int i = 0; i < actualList.size(); i++) {
+            if (!actualList.get(i).equals(expectedList.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static <A, B> boolean internalCheckMap(final Map<A, B> expectedMap, final Map<A, B> actualMap) {
+        final List<Map.Entry<A, B>> actualList = actualMap.entrySet().stream().sorted(Comparator.comparing(a -> a.getKey().toString())).collect(Collectors.toList());
+        final List<Map.Entry<A, B>> expectedList = expectedMap.entrySet().stream().sorted(Comparator.comparing(a -> a.getKey().toString())).collect(Collectors.toList());
+
+        if (expectedList.size() != actualList.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < actualList.size(); i++) {
+            if (!Objects.equals(actualList.get(i).getKey(), expectedList.get(i).getKey())) {
+                return false;
+            }
+            if (!Objects.equals(actualList.get(i).getValue(), expectedList.get(i).getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static <T> void checkResults(final List<T> expectedResults, final Traversal<?, T> traversal) {
+        final List<T> results = traversal.toList();
+        assertThat(traversal.hasNext(), is(false));
+        if (expectedResults.size() != results.size()) {
+            LOG.error("Expected results: " + expectedResults);
+            LOG.error("Actual results:   " + results);
+            assertEquals("Checking result size", expectedResults.size(), results.size());
+        }
+
+        for (T t : results) {
+            if (t instanceof Map) {
+                assertThat("Checking map result existence: " + t, expectedResults.stream().filter(e -> e instanceof Map).anyMatch(e -> internalCheckMap((Map) e, (Map) t)), is(true));
+            } else if (t instanceof List) {
+                assertThat("Checking list result existence: " + t, expectedResults.stream().filter(e -> e instanceof List).anyMatch(e -> internalCheckList((List) e, (List) t)), is(true));
+            } else {
+                assertThat("Checking result existence: " + t, expectedResults.contains(t), is(true));
+            }
+        }
+        final Map<T, Long> expectedResultsCount = new HashMap<>();
+        final Map<T, Long> resultsCount = new HashMap<>();
+        expectedResults.forEach(t -> MapHelper.incr(expectedResultsCount, t, 1L));
+        results.forEach(t -> MapHelper.incr(resultsCount, t, 1L));
+        assertEquals("Checking indexing is equivalent", expectedResultsCount.size(), resultsCount.size());
+        expectedResultsCount.forEach((k, v) -> assertEquals("Checking result group counts", v, resultsCount.get(k)));
+    }
+
+    @Test
+    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
+        GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
+        GraphTraversalSource g = graph.traversal();
+        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+    }
+
+
+    @Test
+    public void trivialMultiProperty() {
+        GraphTraversalSource g = graph.traversal();
+        Vertex z = g.addV().next();
+        String[] vals = new String[]{"zontar", "zoltan"};
+        g.V(z).property("name", vals[0]).next();
+        g.V(z).property(VertexProperty.Cardinality.list, "name", vals[1]).next();
+        assertEquals((Long) 2L, g.V(z).properties("name").count().next());
+        GraphTraversal<Vertex, ? extends Property<Object>> t = g.V(z).properties("name");
+        Property<Object> a = t.next();
+        Property<Object> b = t.next();
+        assertTrue(List.of(vals).contains((String) a.value()));
+        assertTrue(List.of(vals).contains((String) b.value()));
+        assertNotEquals(a.value(), b.value());
+    }
+
+    public static void assertVertexEdgeCounts(final Graph graph, final int expectedVertexCount, final int expectedEdgeCount) {
+        getAssertVertexEdgeCounts(expectedVertexCount, expectedEdgeCount).accept(graph);
+    }
+
+    public static Consumer<Graph> getAssertVertexEdgeCounts(final int expectedVertexCount, final int expectedEdgeCount) {
+        return (g) -> {
+            assertEquals(expectedVertexCount, IteratorUtils.count(g.vertices()));
+            assertEquals(expectedEdgeCount, IteratorUtils.count(g.edges()));
+        };
+    }
+
+    @Test
+    public void shouldRemoveMultiProperties() {
+        final Vertex v = graph.addVertex("name", "marko", "age", 34);
+        v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez");
+        tryCommit(graph, x -> {
+        });
+        v.property(VertexProperty.Cardinality.list, "name", "marko rodriguez");
+        v.property(VertexProperty.Cardinality.list, "name", "marko");
+        tryCommit(graph, graph -> {
+            assertEquals(5, IteratorUtils.count(v.properties()));
+            assertEquals(4, IteratorUtils.count(v.properties("name")));
+            final List<String> values = IteratorUtils.list(v.values("name"));
+            assertThat(values, hasItem("marko a. rodriguez"));
+            assertThat(values, hasItem("marko rodriguez"));
+            assertThat(values, hasItem("marko"));
+            assertVertexEdgeCounts(graph, 1, 0);
+        });
+
+        IteratorUtils.filter(v.properties(), p -> p.value().equals("marko")).forEachRemaining(VertexProperty::remove);
+        List<? extends Property<Object>> l = graph.traversal().V(v).properties().toList();
+        tryCommit(graph, graph -> {
+            assertEquals(3, IteratorUtils.count(graph.traversal().V(v).properties()));
+            assertEquals(2, IteratorUtils.count(graph.traversal().V(v).properties("name")));
+            assertVertexEdgeCounts(graph, 1, 0);
+        });
+
+        v.property("age").remove();
+        tryCommit(graph, graph -> {
+            assertEquals(2, IteratorUtils.count(v.properties()));
+            assertEquals(2, IteratorUtils.count(v.properties("name")));
+            assertVertexEdgeCounts(graph, 1, 0);
+        });
+
+        IteratorUtils.filter(v.properties("name"), p -> p.key().equals("name")).forEachRemaining(VertexProperty::remove);
+        tryCommit(graph, graph -> {
+            assertEquals(0, IteratorUtils.count(v.properties()));
+            assertEquals(0, IteratorUtils.count(v.properties("name")));
+            assertVertexEdgeCounts(graph, 1, 0);
+        });
+    }
+
+    @Test
+    public void shouldHandleListVertexPropertiesWithoutNullPropertyValues() {
+        Vertex v = this.graph.addVertex(new Object[]{"name", "marko", "age", 34});
+        this.tryCommit(this.graph, (g) -> {
+            Assert.assertEquals("marko", v.property("name").value());
+            Assert.assertEquals("marko", v.value("name"));
+            Assert.assertEquals(34, v.property("age").value());
+            Assert.assertEquals(34L, (long) (Integer) v.value("age"));
+            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[]{"name"})));
+            Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[0])));
+            assertVertexEdgeCounts(this.graph, 1, 0);
+        });
+        VertexProperty<String> property = v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez", new Object[0]);
+        this.tryCommit(this.graph, (g) -> {
+            Assert.assertEquals(v, property.element());
+        });
+
+        try {
+            v.property("name");
+            Assert.fail("This should throw a: " + Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"));
+        } catch (Exception var4) {
+            validateException(Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"), var4);
+        }
+
+        Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko"));
+        Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko a. rodriguez"));
+        Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[0])));
+        Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[]{"name"})));
+        assertVertexEdgeCounts(this.graph, 1, 0);
+        Assert.assertEquals(v, v.property(VertexProperty.Cardinality.list, "name", "mrodriguez", new Object[0]).element());
+        this.tryCommit(this.graph, (g) -> {
+            Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[]{"name"})));
+            Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
+            assertVertexEdgeCounts(this.graph, 1, 0);
+        });
+        v.properties(new String[]{"name"}).forEachRemaining((meta) -> {
+            meta.property("counter", ((String) meta.value()).length());
+        });
+        this.tryCommit(this.graph, (g) -> {
+            v.properties(new String[0]).forEachRemaining((meta) -> {
+                Assert.assertEquals(meta.key(), meta.label());
+                Assert.assertTrue(meta.isPresent());
+                Assert.assertEquals(v, meta.element());
+                if (meta.key().equals("age")) {
+                    Assert.assertEquals(meta.value(), 34);
+                    Assert.assertEquals(0L, IteratorUtils.count(meta.properties(new String[0])));
+                }
+
+                if (meta.key().equals("name")) {
+                    Assert.assertEquals((long) ((String) meta.value()).length(), (long) (Integer) meta.value("counter"));
+                    Assert.assertEquals(1L, IteratorUtils.count(meta.properties(new String[0])));
+                    Assert.assertEquals(1L, (long) meta.keys().size());
+                    Assert.assertTrue(meta.keys().contains("counter"));
+                }
+
+            });
+            assertVertexEdgeCounts(this.graph, 1, 0);
+        });
+        Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.list, "name", (Object) null, new Object[0]));
+        this.tryCommit(this.graph, (graph) -> {
+            Assert.assertEquals(3L, IteratorUtils.count(graph.traversal().V(v).properties(new String[]{"name"})));
+            Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
+            assertVertexEdgeCounts(this.graph, 1, 0);
+        });
+        Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.single, "name", (Object) null, new Object[0]));
+        this.tryCommit(this.graph, (g) -> {
+            Assert.assertEquals(0L, IteratorUtils.count(v.properties(new String[]{"name"})));
+            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[0])));
+            assertVertexEdgeCounts(this.graph, 1, 0);
+        });
+    }
+    @Test
+    public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
+        Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
+        Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
+        this.tryCommit(this.graph, (graph) -> {
+            assertVertexEdgeCounts(graph, 2, 0);
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+            Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[]{"name"})));
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+            Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[0])));
+            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+            Assert.assertEquals(0L, IteratorUtils.count(stephen.properties(new String[]{"blah"})));
+        });
+        stephen.remove();
+        this.tryCommit(this.graph, (graph) -> {
+            assertVertexEdgeCounts(graph, 1, 0);
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+        });
+
+        for(int i = 0; i < 100; ++i) {
+            marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + String.valueOf(i), new Object[0]);
+        }
+
+        this.tryCommit(this.graph, (graph) -> {
+            assertVertexEdgeCounts(graph, 1, 0);
+            Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+            Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[0])));
+            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+        });
+        graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
+            return ((String)a).startsWith((String)b);
+        }, "Remove-")).forEachRemaining(Property::remove);
+        this.tryCommit(this.graph, (graph) -> {
+            assertVertexEdgeCounts(graph, 1, 0);
+            List<VertexProperty<Object>> l = IteratorUtils.list(marko.properties(new String[]{"name"}));
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+        });
+        marko.remove();
+        this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
+    }
+
 
 }
 

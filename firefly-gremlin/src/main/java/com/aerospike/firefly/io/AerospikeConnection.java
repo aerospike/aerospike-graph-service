@@ -1015,11 +1015,11 @@ public class AerospikeConnection implements AutoCloseable {
                 FireflyRecord.write(this, aeroSet, fid, listOfBins.toArray(new Bin[0]));
             }
         }
-
     }
 
+
     /**
-     * Cast a on-disk storage type to its user type
+     * Cast an on-disk storage type to its user type
      *
      * @param clazz
      * @param val

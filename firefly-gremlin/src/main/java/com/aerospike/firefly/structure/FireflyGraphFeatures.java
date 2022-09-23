@@ -192,7 +192,7 @@ public class FireflyGraphFeatures implements Graph.Features {
         }
         @Override
         public boolean supportsMultiProperties() {
-            return false;
+            return true;
         }
 
         @Override
@@ -227,7 +227,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public VertexProperty.Cardinality getCardinality(final String key) {
-            return VertexProperty.Cardinality.single;
+            return VertexProperty.Cardinality.list;
         }
     }
 

@@ -107,7 +107,7 @@ The idea is to have a number of read and write threads running at the same time.
 block queue, this way we avoid reading too much, or writing too much. Most likely we will be constrained by writes.
 
 The bulk loader should provide an interface that "power users" can take advantage of to implement their own Loader 
-when their data source is to large to serialize into a supported format.
+when their data source is too large to serialize into a supported format.
 
 ## Bulk Loader Inputs
 
@@ -122,3 +122,39 @@ The following should be considered a minimum set of inputs for the bulk loader:
 - `--cautious`
   - If set, we check for the existence of a vertex or edge with the same id before inserting.
   - If it exists, we log it and skip it. Default should be false.
+
+## Design Limitations
+
+- Memory may be a limitation for two factors
+  - Mapping of internal Aerospike PK/ID to provided required ~id
+    - For extremely large datasets, it may be a problem keeping a mapping of IDs for every vertex and edge
+    - Workaround: use the provided ~id in the csv
+      - Limitation: ~id must be provided in a format which can be parsed as a `long`
+      - This would only be feasible on a clean database ot prevent corruption of existing data
+  - Lists of edge IDs for OUT and IN edges
+    - This is generated in memory in order to avoid a read-modify-write cycle on vertexes for every edge insert
+    - For extremely large datasets, especially ones with super nodes, this can eat up memory quickly
+      - However unlikely, one super node may be enough to do this
+    - Workaround: read-modify-write
+      - Use the internal Firefly API directly which will utilize Firefly storage instead of memory
+        - Unfortunately, when this is necessary, it is also when avoiding read-modify-write is most important
+    - Potential solution?: 3-prong sorted bulk load
+      - Prerequisites
+        - The workaround (and all limitations) using the provided csv ~id must be enabled
+        - The customer must generate and provide vertex datasets sorted by ~id
+        - The customer must generate and provide the same edge datasets twice per edge label, one sorted by ~from and the other ~to
+      - This allows us to write the IN and OUT edges of a vertex in one action
+      - Downsides
+        - Avoids read-modify-write, but still has a single read check per edge count to avoid duplicates
+        - Still potentially can be broken by a single super node
+
+- Data merging?
+  - Only technically two modes of bulk loading are supported currently
+    - Isolated (not using provided ~id in the csv)
+      - Inserts the entire dataset as its own isolated system via the generated IDs
+      - Existing edges and vertexes in the database are not connected to the newly bulk inserted ones
+    - Overwrite (use the provided ~id in the csv)
+      - Overwrites existing vertexes and edges if they happen to use the ID provided
+      - This is more of a FYI, since we assume if someone is bulk loading using provided ~id it is on a clean database
+  - Do we want to support this?
+    - If so, need to brainstorm ideas

@@ -1,19 +1,26 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.client.Value;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -23,6 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+
+import static com.aerospike.firefly.io.impl.relational.RelationalVertex.getPropertyIdMap;
+import static com.aerospike.firefly.io.impl.relational.RelationalVertex.getPropertyValueIdMaps;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -66,6 +76,46 @@ public abstract class RelationalGraph extends FireflyGraph {
         return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
     }
 
+    @Override
+    public void bulkWriteEdge(final long edgeId, final String label, final List<Map.Entry<String, Object>> properties,
+                              final long inVertexId, final long outVertexId) {
+        LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
+
+        final Map<String, Object> data = new HashMap<>();
+        final Map<String, Object> typeHints = new HashMap<>();
+        properties.forEach(prop -> {
+            final String key = prop.getKey();
+            final Object value = prop.getValue();
+            FireflyHelper.validatePropertyValue(value);
+
+            if (value != null)
+                typeHints.put(key, this.db.getSupportedType(value.getClass()));
+            else
+                typeHints.put(key, null);
+
+            if (properties.stream().filter(p -> p.getKey().equals(key)).count() > 1) {
+                typeHints.put(key, this.db.getSupportedType(List.class));
+                if (data.containsKey(key)) {
+                    ((List<Object>) (data.get(key))).add(value);
+                } else {
+                    List<Object> temp = new ArrayList<>();
+                    temp.add(value);
+                    data.put(key, temp);
+                }
+            } else {
+                data.put(key, value);
+            }
+
+        });
+        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertexId));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertexId));
+        final Bin valueBin = new Bin(this.db.EDGE_AERO_SET, Value.get(data));
+        final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints));
+        FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, FireflyId.of(FireflyEdge.class, edgeId), labelBin,
+                inVbin, outVBin, valueBin, typeHintBin);
+    }
+
     protected abstract int getTypeHint();
 
     /**
@@ -81,6 +131,101 @@ public abstract class RelationalGraph extends FireflyGraph {
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
         return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint());
+    }
+
+    @Override
+    public void bulkWriteVertex(final long vertexId, final String label,
+                                final List<Map.Entry<String, Object>> properties, final Map<String, List<Long>> outEdges,
+                                final Map<String, List<Long>> inEdges, final boolean cacheDisabled) {
+        final int vertexTypeHint = getTypeHint();
+        final Map<String, ?> vertexPropertyIds;
+        final Map<String, Object> vertexPropertyValueMap;
+        switch (vertexTypeHint) {
+            case LinkedVertex.VERTEX_TYPE_HINT:
+                vertexPropertyIds = getPropertyIdMap(this, properties, FireflyId.of(FireflyVertex.class, vertexId), true);
+                vertexPropertyValueMap = null;
+                break;
+            case StarPackedVertex.VERTEX_TYPE_HINT:
+                throw new NotImplementedException("Not currently supported vertex hype hint: " + vertexTypeHint);
+            case PackedVertex.VERTEX_TYPE_HINT:
+                final RelationalVertex.PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(this, properties);
+                vertexPropertyIds = propertyValueIdMaps.idMap;
+                vertexPropertyValueMap = propertyValueIdMaps.valueMap;
+                break;
+            default:
+                // Should never happen.
+                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
+        }
+
+        // Create vertex bins for vertex label, property ids, and property counter.
+        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
+        final Bin vertexPropertyIdsBin = new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
+        final Bin vertexPropertyCounterBin =
+                new Bin(this.db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIds.size())));
+        final Bin typeHint = new Bin(this.db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
+
+        // Load edges.
+        // TODO: There are potential data mismatches here compared to regular loading in this model for the sake of
+        //       performance. The optimizations are listed as follows and will need to be addressed here and/or at the
+        //       bulk loader if the assumptions or outcomes are incompatible with newer versions of this model.
+        //  ASSUMPTION: Partial IN/OUT_EDGES are not used when CACHE_DISABLED is TRUE. Currently, once the
+        //              cache is disabled due to the number of edges exceeding ID_CACHE_SIZE, no new edges are added to
+        //              the bins and they are not used but the existing partial edges persist.
+        //  OUTCOME: An empty map is recorded to the bin instead of a partial one in cases where CACHE_DISABLED is TRUE.
+        //  ASSUMPTION: IN/OUT_EDGE_COUNTER is not used except to trigger disabling of the cache. Once it exceeds
+        //              ID_CACHE_SIZE it serves no further purpose but continues to accurately reflect the edge count.
+        //  OUTCOME: If CACHE_DISABLED is TRUE, set IN/OUT_EDGE_COUNTER to ID_CACHE_SIZE since the count is not used.
+
+        // Create vertex bins for out edges.
+        final Value outEdgeCountValue;
+        if (cacheDisabled) {
+            outEdgeCountValue = Value.get(db.ID_CACHE_SIZE);
+        } else {
+            long outEdgeCount = 0;
+            for (final Map.Entry<String, List<Long>> labelToIds : outEdges.entrySet()) {
+                outEdgeCount += labelToIds.getValue().size();
+            }
+            outEdgeCountValue = Value.get(outEdgeCount);
+        }
+        final Bin outEdgeDataBin = new Bin(this.db.OUT_EDGES, Value.get(outEdges));
+        final Bin outEdgeCounterBin = new Bin(this.db.OUT_EDGE_COUNTER, outEdgeCountValue);
+
+        // Create vertex bins for in edges.
+        final Value inEdgeCountValue;
+        if (cacheDisabled) {
+            inEdgeCountValue = Value.get(db.ID_CACHE_SIZE);
+        } else {
+            long inEdgeCount = 0;
+            for (final Map.Entry<String, List<Long>> labelToIds : inEdges.entrySet()) {
+                inEdgeCount += labelToIds.getValue().size();
+            }
+            inEdgeCountValue = Value.get(inEdgeCount);
+        }
+        final Bin inEdgeDataBin = new Bin(this.db.IN_EDGES, Value.get(inEdges));
+        final Bin inEdgeCounterBin = new Bin(this.db.IN_EDGE_COUNTER, inEdgeCountValue);
+
+        // Create vertex bin for cache state.
+        final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(cacheDisabled));
+
+        // Write vertex bins to Aerospike.
+        if (vertexPropertyValueMap != null) {
+            final Bin vertexPropertyValuesBin =
+                    new Bin(this.db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
+            final Map<String, Long> vertexPropertyTypeHintMap = new HashMap<>();
+            for (final Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
+                vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
+            }
+            final Bin vertexPropertyValuesTypeHintsBin =
+                    new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), labelBin,
+                    vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin,
+                    vertexPropertyValuesTypeHintsBin, typeHint, outEdgeDataBin, outEdgeCounterBin, cacheDisabledBin,
+                    inEdgeDataBin, inEdgeCounterBin);
+        } else {
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), labelBin,
+                    vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint, outEdgeDataBin, outEdgeCounterBin,
+                    cacheDisabledBin, inEdgeDataBin, inEdgeCounterBin);
+        }
     }
 
     /**

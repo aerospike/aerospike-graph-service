@@ -146,12 +146,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public static FireflyGraph open(final Configuration conf) {
         try {
+            LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
             LOG.error("========== Firefly failing to start is usually a result of an incorrect configuration.");
             LOG.error("========== Verify that the Aerospike IP and port are correct.");
-            LOG.error("========== EC2 instances require your security groups to allow Firefly and Aerospike communicate.");
             LOG.error("========== See Error message for more details:", e);
 
             // Signal to gremlin-server to shut down.
@@ -174,6 +174,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
+    public abstract void bulkWriteVertex(final long vertexId, final String label,
+                                         final List<Map.Entry<String, Object>> properties,
+                                         final Map<String, List<Long>> outEdges, final Map<String, List<Long>> inEdges,
+                                         final boolean cacheDisabled);
+
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
@@ -182,6 +187,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
+
+    public abstract void bulkWriteEdge(final long edgeId, final String label,
+                                       final List<Map.Entry<String, Object>> properties, final long inVertexId,
+                                       final long outVertexId);
 
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
 

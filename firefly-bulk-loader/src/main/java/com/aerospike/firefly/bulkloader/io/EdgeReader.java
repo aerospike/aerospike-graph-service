@@ -1,75 +1,45 @@
 package com.aerospike.firefly.bulkloader.io;
 
 import com.aerospike.firefly.bulkloader.structure.BulkLoaderEdge;
-import com.aerospike.firefly.structure.FireflyVertex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class EdgeReader extends ElementReader<BulkLoaderEdge> {
-    static private final Logger LOG = LoggerFactory.getLogger(EdgeReader.class);
     static private final String ID_HEADER = "~id";
     static private final String FROM_HEADER = "~from";
     static private final String TO_HEADER = "~to";
     static private final String LABEL_HEADER = "~label";
     static private final String DEFAULT_LABEL = "edge";
     static private final String[] REQUIRED_HEADERS = new String[]{ID_HEADER, FROM_HEADER, TO_HEADER};
-    private final Map<Long, FireflyVertex> vertexes;
-    private final Map<String, Long> vertexIdMap;
 
-    public EdgeReader(final File directory, final boolean generateId, final List<FireflyVertex> vertexes,
-                      final Map<String, Long> vertexIdMap) {
-        super(directory, false, generateId);
-        final Map<Long, FireflyVertex> vertexMap = new HashMap<>();
-        for (final FireflyVertex vertex : vertexes) {
-            final Long id = (long) vertex.id();
-            vertexMap.put(id, vertex);
-        }
-        this.vertexes = vertexMap;
-        this.vertexIdMap = vertexIdMap;
+    public EdgeReader(final File directory, final String providedIdPropertyName, final boolean useProvidedId) {
+        super(directory, providedIdPropertyName, useProvidedId);
     }
 
     @Override
     protected BulkLoaderEdge generateElement(final String[] headers, final String[] elementRow) {
-        long id = 0;
-        FireflyVertex from = null;
-        FireflyVertex to = null;
+        String id = "";
+        String from = "";
+        String to = "";
         String label = DEFAULT_LABEL;
         final List<Map.Entry<String, Object>> properties = new ArrayList<>();
         for (int i = 0; i < elementRow.length; i++) {
             if (headers[i].equals(ID_HEADER)) {
-                final String idKey = elementRow[i];
-                if (generateId) {
-                    id = generatedId.getAndIncrement();
-                    properties.add(generateProperty(PROVIDED_ID_HEADER, idKey));
-                } else {
-                    id = Long.parseLong(elementRow[i]);
+                id = elementRow[i];
+                if (!this.useProvidedId) {
+                    properties.add(generateProperty(this.providedIdPropertyName, elementRow[i]));
                 }
-                this.idMap.put(idKey, id);
                 continue;
             }
             if (headers[i].equals(FROM_HEADER)) {
-                final String providedFromId = elementRow[i];
-                final Long fromId = this.vertexIdMap.get(providedFromId);
-                if (fromId == null) {
-                    LOG.warn("Could not find generated long id for inserted vertex in map using key: " +
-                            providedFromId);
-                }
-                from = this.vertexes.get(fromId);
-                if (fromId == null) {
-                    LOG.warn("Could not find loaded vertex with id: " + fromId);
-                }
+                from = elementRow[i];
                 continue;
             }
             if (headers[i].equals(TO_HEADER)) {
-                final String providedToId = elementRow[i];
-                final Long toId = this.vertexIdMap.get(providedToId);
-                to = this.vertexes.get(toId);
+                to = elementRow[i];
                 continue;
             }
             if (headers[i].equals(LABEL_HEADER)) {
@@ -77,6 +47,9 @@ public class EdgeReader extends ElementReader<BulkLoaderEdge> {
                 continue;
             }
             properties.add(generateProperty(headers[i], elementRow[i]));
+        }
+        if (id.isBlank() || from.isBlank() || to.isBlank()) {
+            throw new RuntimeException("Could not generate Edge due to a required value being blank.");
         }
         return new BulkLoaderEdge(id, label, from, to, properties);
     }

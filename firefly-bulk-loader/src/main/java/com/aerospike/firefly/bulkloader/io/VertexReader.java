@@ -13,24 +13,20 @@ public class VertexReader extends ElementReader<BulkLoaderVertex> {
     static private final String DEFAULT_LABEL = "vertex";
     static private final String[] REQUIRED_HEADERS = new String[]{ID_HEADER};
 
-    public VertexReader(final File directory, final boolean generateId) {
-        super(directory, true, generateId);
+    public VertexReader(final File directory, final String providedIdPropertyName, final boolean useProvidedId) {
+        super(directory, providedIdPropertyName, useProvidedId);
     }
 
     protected BulkLoaderVertex generateElement(final String[] headers, final String[] elementRow) {
-        long id = 0;
+        String id = "";
         String label = DEFAULT_LABEL;
         final List<Map.Entry<String, Object>> properties = new ArrayList<>();
         for (int i = 0; i < elementRow.length; i++) {
             if (headers[i].equals(ID_HEADER)) {
-                final String idKey = elementRow[i];
-                if (generateId) {
-                    id = generatedId.getAndIncrement();
-                    properties.add(generateProperty(PROVIDED_ID_HEADER, idKey));
-                } else {
-                    id = Long.parseLong(elementRow[i]);
+                id = elementRow[i];
+                if (!this.useProvidedId) {
+                    properties.add(generateProperty(this.providedIdPropertyName, elementRow[i]));
                 }
-                this.idMap.put(idKey, id);
                 continue;
             }
             if (headers[i].equals(LABEL_HEADER)) {
@@ -38,6 +34,9 @@ public class VertexReader extends ElementReader<BulkLoaderVertex> {
                 continue;
             }
             properties.add(generateProperty(headers[i], elementRow[i]));
+        }
+        if (id.isBlank()) {
+            throw new RuntimeException("Could not generate Vertex due to a required value being blank.");
         }
         return new BulkLoaderVertex(id, label, properties);
     }

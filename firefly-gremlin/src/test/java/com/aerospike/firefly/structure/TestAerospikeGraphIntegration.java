@@ -9,6 +9,7 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -20,6 +21,9 @@ import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.Host;
+import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -876,6 +880,33 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         });
         marko.remove();
         this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
+    }
+    @Test
+    public void shouldAllowIdAssignment() {
+        Vertex v = this.graph.addVertex(new Object[0]);
+        Object id = Long.valueOf(123131231L);
+        v.property(VertexProperty.Cardinality.single, "name", "stephen", new Object[]{T.id, id});
+        this.tryCommit(this.graph, (g) -> {
+            Assert.assertEquals(id, v.property("name").id());
+        });
+    }
+    @Test
+    public void shouldAttachWithCreateMethod() {
+        Random random = TestHelper.RANDOM;
+        StarGraph starGraph = StarGraph.open();
+        Vertex starVertex = starGraph.addVertex(new Object[]{T.label, "person", "name", "stephen", "name", "spmallete"});
+        starVertex.property("acl", true, new Object[]{"timestamp", random.nextLong(), "creator", "marko"});
+
+        for(int i = 0; i < 100; ++i) {
+            starVertex.addEdge("knows", starGraph.addVertex(new Object[]{"person", "name", new UUID(random.nextLong(), random.nextLong()), "since", random.nextLong()}), new Object[0]);
+            starGraph.addVertex(new Object[]{T.label, "project"}).addEdge("developedBy", starVertex, new Object[]{"public", random.nextBoolean()});
+        }
+
+        Vertex createdVertex = (Vertex)starGraph.getStarVertex().attach(Attachable.Method.create(this.graph));
+        starGraph.getStarVertex().edges(Direction.BOTH, new String[0]).forEachRemaining((edge) -> {
+            Edge var10000 = (Edge)((Attachable)edge).attach(Attachable.Method.create((Host)(random.nextBoolean() ? this.graph : createdVertex)));
+        });
+        TestHelper.validateEquality(starVertex, createdVertex);
     }
 
 

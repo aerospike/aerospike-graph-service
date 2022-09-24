@@ -133,7 +133,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         // Create Firefly id for vertex property.
-        final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+        final FireflyId vertexPropertyId = ElementHelper.getIdValue(keyValues).isPresent() ?
+                FireflyId.of(FireflyVertexProperty.class, ElementHelper.getIdValue(keyValues).get()) :
+                FireflyId.createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
@@ -226,12 +228,13 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties();
+        List<Map.Entry<String, VertexProperty<Object>>> ct = IteratorUtils.list(readVertexProperties());
 //        List<Map.Entry<String, VertexProperty<V>>> l = IteratorUtils.list(vertexProperties);
         // Return an iterator over the map.
         return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
 
                 IteratorUtils.map(IteratorUtils.filter(vertexProperties,
-                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
+                                e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
                         Map.Entry::getValue);
     }
 

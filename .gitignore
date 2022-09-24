@@ -1,7 +1,6 @@
 
 #project build artifacts
-firefly-gremlin/target/
-firefly-bulk-loader/target/
+**/target/
 
 #Intellij
 **/.attach_*

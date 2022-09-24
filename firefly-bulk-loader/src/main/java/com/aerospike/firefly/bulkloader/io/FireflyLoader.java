@@ -101,11 +101,13 @@ public class FireflyLoader implements AutoCloseable {
         LOG.info("Average Firefly time in ms: " + averageFireflyEdgeLoadTime / 1000000.0);
         LOG.info("Total Firefly time in ms: " + totalFireflyEdgeLoadTime / 1000000.0);
         LOG.info("Bulk loader overhead time in ms: " + (this.totalEdgeLoadTime - totalFireflyEdgeLoadTime) / 1000000.0);
+        LOG.info("Throughput of edges per second: " + 1000000000 / averageFireflyEdgeLoadTime);
 
         LOG.info("===Loaded a total of " + this.fireflyVertexLoadTimes.size() + " vertexes===");
         LOG.info("Average Firefly time in ms: " + averageFireflyVertexLoadTime / 1000000.0);
         LOG.info("Total Firefly time in ms: " + totalFireflyVertexLoadTime / 1000000.0);
         LOG.info("Total bulk loader overhead time in ms : " + (this.totalVertexLoadTime - totalFireflyVertexLoadTime) / 1000000.0);
+        LOG.info("Throughput of vertexes per second: " + 1000000000 / averageFireflyVertexLoadTime);
     }
 
     private void loadVertex(final BulkLoaderVertex vertex) {
@@ -133,14 +135,14 @@ public class FireflyLoader implements AutoCloseable {
         final long fromVertexId = this.vertexIdHandler.getId(edge.getFromId());
         final long toVertexId = this.vertexIdHandler.getId(edge.getToId());
 
-        // Record this edge to the list of edges which have the vertex as an IN
-        recordVertexEdges(edgeId, edge.getLabel(), fromVertexId, this.vertexIdToInEdgesLabelIdsMap);
+        // Record this edge to the set of outgoing edges of the "from" vertex
+        recordVertexEdges(edgeId, edge.getLabel(), fromVertexId, this.vertexIdToOutEdgesLabelIdsMap);
 
-        // Record this edge to the list of edges which have the vertex as an OUT
-        recordVertexEdges(edgeId, edge.getLabel(), toVertexId, this.vertexIdToOutEdgesLabelIdsMap);
+        // Record this edge to the set of incoming edges of the "to" vertex
+        recordVertexEdges(edgeId, edge.getLabel(), toVertexId, this.vertexIdToInEdgesLabelIdsMap);
 
         final long start = System.nanoTime();
-        this.graph.bulkWriteEdge(edgeId, edge.getLabel(), edge.getProperties(), fromVertexId, toVertexId);
+        this.graph.bulkWriteEdge(edgeId, edge.getLabel(), edge.getProperties(), toVertexId, fromVertexId);
         this.fireflyEdgeLoadTimes.add(System.nanoTime() - start);
     }
 

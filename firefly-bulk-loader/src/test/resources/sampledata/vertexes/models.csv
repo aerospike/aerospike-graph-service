@@ -1,0 +1,3 @@
+~id,~label,brand:string,model:string,year:long
+6,model,Ford,F150,2023
+7,model,Toyota,GR86,2023

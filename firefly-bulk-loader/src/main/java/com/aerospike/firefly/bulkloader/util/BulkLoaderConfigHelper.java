@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BulkLoaderConfigHelper {
+    public static final String DROP_DATABASE_KEY = "drop_database";
+    public static final String DROP_INDEXES_KEY = "drop_indexes";
+
     public static final String EDGE_DIRECTORY_KEY = "edge_directory";
     public static final String VERTEX_DIRECTORY_KEY = "vertex_directory";
     public static final String ID_BUFFER_KEY = "id_buffer_count";
@@ -16,8 +19,8 @@ public class BulkLoaderConfigHelper {
     public static final String ID_PROPERTY_NAME_KEY = "provided_id_property_name";
 
     private static final Map<String, String> DEFAULT_VALUES = new HashMap<>() {{
-        put(EDGE_DIRECTORY_KEY, "firefly-bulk-loader/src/main/resources/sampledata/edges");
-        put(VERTEX_DIRECTORY_KEY, "firefly-bulk-loader/src/main/resources/sampledata/vertexes");
+        put(DROP_DATABASE_KEY, "true");
+        put(DROP_INDEXES_KEY, "false");
         put(ID_BUFFER_KEY, "50");
         put(USE_PROVIDED_ID_KEY, "false");
         put(ID_PROPERTY_NAME_KEY, "~providedId");

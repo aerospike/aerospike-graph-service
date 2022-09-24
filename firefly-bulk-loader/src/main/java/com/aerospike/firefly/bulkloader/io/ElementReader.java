@@ -187,6 +187,7 @@ public abstract class ElementReader<T extends BulkLoaderElement> implements Auto
                                 "' as property name with values as text type.");
                         propertyName = property;
                         propertyType = PropertyType.STRING;
+                        isList = false;
                 }
                 headersTypes.put(propertyName, new PropertyTypeData(propertyType, isList));
                 headers[i] = propertyName;

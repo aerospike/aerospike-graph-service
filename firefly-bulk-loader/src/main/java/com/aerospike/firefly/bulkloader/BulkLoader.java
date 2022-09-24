@@ -9,7 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DROP_DATABASE_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DROP_INDEXES_KEY;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getConfig;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
 
 public class BulkLoader {
     private static final Logger LOG = LoggerFactory.getLogger(BulkLoader.class);
@@ -26,12 +29,14 @@ public class BulkLoader {
 
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             LOG.info("FireflyGraph instantiation successful,");
-            // TODO: Make this optional
-            try {
-                graph.getBaseGraph().dropDatabase(false);
-            } catch (final Exception e) {
-                LOG.error(e.toString());
-                // Truncation failure - do nothing?
+            if (Boolean.parseBoolean(getOrDefault(DROP_DATABASE_KEY, config))) {
+                try {
+                    graph.getBaseGraph().dropDatabase(Boolean.parseBoolean(getOrDefault(DROP_INDEXES_KEY, config)));
+                } catch (final Exception e) {
+                    LOG.error(e.toString());
+                    // Do nothing?
+                    // Intermittently would run into a truncation error when changing data models here...
+                }
             }
             final FireflyLoader loader = new FireflyLoader(graph, config);
             loader.load();
@@ -39,6 +44,7 @@ public class BulkLoader {
             final GraphTraversalSource g = graph.traversal();
             final var elements =
                     g.V().has("name", "Pat Rohan").out("Follows").toList();
+            LOG.info("Pat Rohan follows this amount of people: " + elements.size());
             for (final var element : elements) {
                 LOG.info((String) element.property("name").value());
             }

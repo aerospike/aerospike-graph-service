@@ -1,15 +1,12 @@
 package com.aerospike.firefly.bulkloader.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class IdHandler {
-    static private final Logger LOG = LoggerFactory.getLogger(IdHandler.class);
     private final FireflyGraph graph;
     private final String counterName;
     private final long bufferSize;

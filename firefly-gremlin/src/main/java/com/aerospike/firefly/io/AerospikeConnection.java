@@ -1163,22 +1163,22 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropDatabase(boolean dropIndices) {
         LOG.info("Dropping database.");
-        client.truncate(null, namespace, EDGE_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, VERTEX_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, ID_MANAGER_SET, Calendar.getInstance());
-        client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, Calendar.getInstance());
-        client.truncate(null, namespace, TEST_SET, Calendar.getInstance());
-        client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, Calendar.getInstance());
-        client.truncate(null, namespace, GRAPH_VARIABLES_SET, Calendar.getInstance());
-        client.truncate(null, namespace, GRAPH_METADATA_SET, Calendar.getInstance());
-        client.truncate(null, namespace, INDEX_METADATA, Calendar.getInstance());
-        client.truncate(null, namespace, OUT_VP_SET, Calendar.getInstance());
-        client.truncate(null, namespace, IN_VP_SET, Calendar.getInstance());
-        client.truncate(null, namespace, OUT_OUT_SET, Calendar.getInstance());
-        client.truncate(null, namespace, OUT_IN_SET, Calendar.getInstance());
-        client.truncate(null, namespace, IN_OUT_SET, Calendar.getInstance());
-        client.truncate(null, namespace, IN_IN_SET, Calendar.getInstance());
+        client.truncate(null, namespace, EDGE_AERO_SET, null);
+        client.truncate(null, namespace, VERTEX_AERO_SET, null);
+        client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
+        client.truncate(null, namespace, ID_MANAGER_SET, null);
+        client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
+        client.truncate(null, namespace, TEST_SET, null);
+        client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
+        client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
+        client.truncate(null, namespace, GRAPH_METADATA_SET, null);
+        client.truncate(null, namespace, INDEX_METADATA, null);
+        client.truncate(null, namespace, OUT_VP_SET, null);
+        client.truncate(null, namespace, IN_VP_SET, null);
+        client.truncate(null, namespace, OUT_OUT_SET, null);
+        client.truncate(null, namespace, OUT_IN_SET, null);
+        client.truncate(null, namespace, IN_OUT_SET, null);
+        client.truncate(null, namespace, IN_IN_SET, null);
         if (dropIndices)
             dropGraphIndices();
     }

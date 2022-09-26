@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoTest;
 import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;
@@ -1137,4 +1138,30 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         checkResults(Arrays.asList("young", "young", "old", "old"), traversal);
     }
+
+
+    @Test
+    public void shouldTriggerAddVertexViaMergeV() {
+        final StubMutationListener listener1 = new StubMutationListener();
+        final StubMutationListener listener2 = new StubMutationListener();
+        final EventStrategy.Builder builder = EventStrategy.build()
+                .addListener(listener1)
+                .addListener(listener2);
+
+        if (graph.features().graph().supportsTransactions())
+            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
+
+        final EventStrategy eventStrategy = builder.create();
+
+        graph.addVertex("some", "thing");
+        final GraphTraversalSource gts = create(eventStrategy);
+        final Map<Object,Object> m = new HashMap<>();
+        m.put("any", "thing");
+        gts.V().mergeV(m).property("any", "thing").next();
+
+        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.V().has("any", "thing"))));
+        assertEquals(1, listener1.addVertexEventRecorded());
+        assertEquals(1, listener2.addVertexEventRecorded());
+    }
+
 }

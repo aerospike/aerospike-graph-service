@@ -23,6 +23,9 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.Host;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedEdge;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
@@ -837,6 +840,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             assertVertexEdgeCounts(this.graph, 1, 0);
         });
     }
+
     @Test
     public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
         Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
@@ -858,7 +862,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
         });
 
-        for(int i = 0; i < 100; ++i) {
+        for (int i = 0; i < 100; ++i) {
             marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + String.valueOf(i), new Object[0]);
         }
 
@@ -869,7 +873,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
         });
         graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
-            return ((String)a).startsWith((String)b);
+            return ((String) a).startsWith((String) b);
         }, "Remove-")).forEachRemaining(Property::remove);
         this.tryCommit(this.graph, (graph) -> {
             assertVertexEdgeCounts(graph, 1, 0);
@@ -881,6 +885,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         marko.remove();
         this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
     }
+
     @Test
     public void shouldAllowIdAssignment() {
         Vertex v = this.graph.addVertex(new Object[0]);
@@ -890,6 +895,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Assert.assertEquals(id, v.property("name").id());
         });
     }
+
     @Test
     public void shouldAttachWithCreateMethod() {
         Random random = TestHelper.RANDOM;
@@ -897,18 +903,41 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Vertex starVertex = starGraph.addVertex(new Object[]{T.label, "person", "name", "stephen", "name", "spmallete"});
         starVertex.property("acl", true, new Object[]{"timestamp", random.nextLong(), "creator", "marko"});
 
-        for(int i = 0; i < 100; ++i) {
+        for (int i = 0; i < 100; ++i) {
             starVertex.addEdge("knows", starGraph.addVertex(new Object[]{"person", "name", new UUID(random.nextLong(), random.nextLong()), "since", random.nextLong()}), new Object[0]);
             starGraph.addVertex(new Object[]{T.label, "project"}).addEdge("developedBy", starVertex, new Object[]{"public", random.nextBoolean()});
         }
 
-        Vertex createdVertex = (Vertex)starGraph.getStarVertex().attach(Attachable.Method.create(this.graph));
+        Vertex createdVertex = (Vertex) starGraph.getStarVertex().attach(Attachable.Method.create(this.graph));
         starGraph.getStarVertex().edges(Direction.BOTH, new String[0]).forEachRemaining((edge) -> {
-            Edge var10000 = (Edge)((Attachable)edge).attach(Attachable.Method.create((Host)(random.nextBoolean() ? this.graph : createdVertex)));
+            Edge var10000 = (Edge) ((Attachable) edge).attach(Attachable.Method.create((Host) (random.nextBoolean() ? this.graph : createdVertex)));
         });
         TestHelper.validateEquality(starVertex, createdVertex);
     }
 
+    @Test
+    public void testAttachableCreateMethod() {
+        Random random = TestHelper.RANDOM;
+        StarGraph starGraph = StarGraph.open();
+        Vertex starVertex = starGraph.addVertex(new Object[]{T.label, "person", "name", "stephen", "name", "spmallete"});
+        starVertex.property("acl", true, new Object[]{"timestamp", random.nextLong(), "creator", "marko"});
+
+        for (int i = 0; i < 100; ++i) {
+            starVertex.addEdge("knows", starGraph.addVertex(new Object[]{"person", "name", new UUID(random.nextLong(), random.nextLong()), "since", random.nextLong()}), new Object[0]);
+            starGraph.addVertex(new Object[]{T.label, "project"}).addEdge("developedBy", starVertex, new Object[]{"public", random.nextBoolean()});
+        }
+
+        DetachedVertex detachedVertex = DetachedFactory.detach(starGraph.getStarVertex(), true);
+        Vertex createdVertex = (Vertex) detachedVertex.attach(Attachable.Method.create(this.graph));
+        TestHelper.validateVertexEquality(detachedVertex, createdVertex, false);
+        TestHelper.validateVertexEquality(detachedVertex, starVertex, false);
+        starGraph.getStarVertex().edges(Direction.BOTH, new String[0]).forEachRemaining((starEdge) -> {
+            DetachedEdge detachedEdge = DetachedFactory.detach(starEdge, true);
+            Edge createdEdge = (Edge) detachedEdge.attach(Attachable.Method.create((Host) (random.nextBoolean() ? this.graph : createdVertex)));
+            TestHelper.validateEdgeEquality(detachedEdge, starEdge);
+            TestHelper.validateEdgeEquality(detachedEdge, createdEdge);
+        });
+    }
 
 }
 

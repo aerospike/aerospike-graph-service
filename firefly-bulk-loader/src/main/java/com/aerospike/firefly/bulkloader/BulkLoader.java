@@ -21,6 +21,7 @@ public class BulkLoader {
     public static void main(final String[] args) {
         final Path path;
         if (args.length < 1) {
+            // TODO: Remove this before a built jar is distributed for use
             path = Path.of(DEFAULT_CONFIG_PATH);
         } else {
             path = Path.of(args[0]);
@@ -30,15 +31,11 @@ public class BulkLoader {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             LOG.info("FireflyGraph instantiation successful,");
             if (Boolean.parseBoolean(getOrDefault(DROP_DATABASE_KEY, config))) {
-                try {
-                    graph.getBaseGraph().dropDatabase(Boolean.parseBoolean(getOrDefault(DROP_INDEXES_KEY, config)));
-                } catch (final Exception e) {
-                    LOG.error(e.toString());
-                    // Do nothing?
-                    // Intermittently would run into a truncation error when changing data models here...
-                }
+                graph.getBaseGraph().dropDatabase(Boolean.parseBoolean(getOrDefault(DROP_INDEXES_KEY, config)));
             }
             final FireflyLoader loader = new FireflyLoader(graph, config);
+
+            // TODO: Remove this before a built jar is distributed for use - currently just for dev purposes
             loader.load();
             loader.logMetrics();
             final GraphTraversalSource g = graph.traversal();

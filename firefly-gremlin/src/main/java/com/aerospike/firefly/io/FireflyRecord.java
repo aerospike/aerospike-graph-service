@@ -191,6 +191,7 @@ public class FireflyRecord {
     protected static void write(final AerospikeConnection db,
                                 final String set,
                                 final FireflyId id,
+                                final int generation,
                                 final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(id.value().getClass());
         final Key key = getKey(db.getNamespace(), set, id);
@@ -199,7 +200,7 @@ public class FireflyRecord {
         listOfBins.add(idTypeBin);
 
         try {
-            db.write(key, listOfBins.toArray(new Bin[0]));
+            db.write(key, generation, listOfBins.toArray(new Bin[0]));
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);
         }
@@ -215,6 +216,7 @@ public class FireflyRecord {
     public static void writeElement(final AerospikeConnection db,
                                     final String set,
                                     final FireflyId id,
+                                    final int generation,
                                     final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
         final Key key = getElementKey(db.getNamespace(), set, id);
@@ -222,7 +224,7 @@ public class FireflyRecord {
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         try {
-            db.write(key, listOfBins.toArray(new Bin[0]));
+            db.write(key, generation, listOfBins.toArray(new Bin[0]));
         } catch (com.aerospike.client.AerospikeException e) {
             throw new RuntimeException(e);
         }

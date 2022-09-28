@@ -99,7 +99,9 @@ final public class RelationalEdge extends FireflyEdge {
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(db.idToStorageType(outVertex.id())));
         final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints));
-        FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, labelBin, inVbin, outVBin, valueBin, typeHintBin);
+
+        // First instance of this edge, generation -1.
+        FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, -1, labelBin, inVbin, outVBin, valueBin, typeHintBin);
         return new RelationalEdge(edgeId, label, graph, outVertex.id, inVertex.id);
     }
 

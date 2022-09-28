@@ -73,8 +73,9 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         // Read record from Aerospike.
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_PROPERTY_AERO_SET, id);
-        if (fireflyRecord == null)
-            return new LinkedVertexProperty<>(graph, id, (LinkedVertex) parent, null, null);
+        if (fireflyRecord == null) {
+            return null;
+        }
 
         // Read vertex property from record.
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
@@ -99,8 +100,9 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
-        if (kv.isEmpty())
-            return new LinkedVertexProperty<>(graph, fid, parentId, null, null);
+        if (kv.isEmpty()) {
+            return null;
+        }
         final String vpKey = kv.get().getKey();
         final Object vpVal = kv.get().getValue();
         return new LinkedVertexProperty<>(graph, fid, parentId, vpKey, vpVal);
@@ -149,13 +151,14 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     @Override
     public void remove() {
         try {
+            // Remove vertex property from vertex first so if we fail it will null out.
             LOG.info("Removing vertex property {}", id.value());
+            removeVertexProperty(graph, id);
             if (vertex == null) {
                 graph.readVertex(vertexId).removeVertexProperty(label, id);
             } else {
                 vertex.removeVertexProperty(label, id);
             }
-            removeVertexProperty(graph, id);
         } catch (Exception ignored) {
             // Removing a vertex property that is already removed SHOULD NOT yield an error.
         }

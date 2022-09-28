@@ -17,6 +17,7 @@ import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -302,6 +303,10 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+        GenerationCheck.writeGenerationCheck(() -> protectedRemoveEdge(direction, edgeId, edgeLabel));
+    }
+
+    private void protectedRemoveEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         LOG.debug("Removing {} edge {} to vertex {}.", direction, edgeId.value(), id.value());
 
         // Get direction and counter keys. Direction must be IN or OUT.
@@ -315,6 +320,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             removeEdgeFromJVMCache(direction, edgeId, edgeLabel);
             return;
         }
+        final int generation = fireflyRecord.record.generation;
 
         // Get label to edge map.
         Map<String, List<Long>> labelEdges = (Map<String, List<Long>>) fireflyRecord.record.getMap(directionKey);
@@ -352,7 +358,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Write label to edge map back to vertex.
         final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeIdsBin, edgeCounterBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, edgeIdsBin, edgeCounterBin);
 
         // Remove edge from local edge cache.
         removeEdgeFromJVMCache(direction, edgeId, edgeLabel);
@@ -367,6 +373,10 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdge(direction, edgeId, edgeLabel));
+    }
+
+    private void protectedWriteEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         LOG.debug("Adding {} {} edge {} to vertex {}.", edgeLabel, direction.name(), edgeId.value(), id.value());
 
         // Get direction and counter keys. Direction must be IN or OUT.
@@ -382,10 +392,12 @@ public abstract class RelationalVertex extends FireflyVertex {
         Map<String, List<Long>> labelEdges = new HashMap<>();
 
         // If the firefly record is not null, grab existing the edge metadata from it.
-        if (fireflyRecord != null && fireflyRecord.record() != null) {
+        int generation = -1;
+        if (fireflyRecord != null && fireflyRecord.record != null) {
             labelEdges = (Map<String, List<Long>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
             cacheDisabled = fireflyRecord.record().getBoolean(db.CACHE_DISABLED);
+            generation = fireflyRecord.record().generation;
         }
 
         // Add the edge to the cache in the vertex if the cache has not grown too big.
@@ -403,7 +415,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(cacheDisabled));
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, edgeDataBin, edgeCounterBin, cacheDisabledBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, edgeDataBin, edgeCounterBin, cacheDisabledBin);
 
         // Remove edge from local edge cache.
         addEdgeToJVMCache(direction, edgeId, edgeLabel);
@@ -545,10 +557,14 @@ public abstract class RelationalVertex extends FireflyVertex {
                 vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
             }
             final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
+
+            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
         } else {
             vertexPropertyTypeHintMap = null;
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
+
+            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
         }
 
         switch (vertexTypeHint) {

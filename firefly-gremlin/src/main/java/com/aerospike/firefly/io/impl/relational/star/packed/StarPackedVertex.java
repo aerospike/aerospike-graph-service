@@ -87,7 +87,7 @@ public class StarPackedVertex {
         final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHints));
 
         // Write element. This isn't really an element, but the logic holds.
-        FireflyRecord.writeElement(db, set, vertex.id, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
+        FireflyRecord.writeElement(db, set, vertex.id, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
     }
 
     public static void writeBidirectionalEdgesToAdjacentVertices(final AerospikeConnection db,
@@ -208,7 +208,7 @@ public class StarPackedVertex {
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
                 final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
-                FireflyRecord.writeElement(db, finalAdjacentVertexDirDirSet1, adjacentVertexId, bin);
+                FireflyRecord.writeElement(db, finalAdjacentVertexDirDirSet1, adjacentVertexId, -1, bin);
             }
         });
 
@@ -289,7 +289,7 @@ public class StarPackedVertex {
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
                 final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
-                FireflyRecord.writeElement(db, adjacentVertexDirDirSet2, adjacentVertexId, bin);
+                FireflyRecord.writeElement(db, adjacentVertexDirDirSet2, adjacentVertexId, -1, bin);
             }
         });
     }
@@ -351,8 +351,8 @@ public class StarPackedVertex {
 
         // Insert in Aerospike.
         LOG.trace("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
-        FireflyRecord.writeElement(db, dirInSet, vertex.id, inBin);
-        FireflyRecord.writeElement(db, dirOutSet, vertex.id, outBin);
+        FireflyRecord.writeElement(db, dirInSet, vertex.id, -1, inBin);
+        FireflyRecord.writeElement(db, dirOutSet, vertex.id, -1, outBin);
     }
 
     public static void writeVertexPropertyToAdjacentVertices(final AerospikeConnection db,
@@ -432,7 +432,7 @@ public class StarPackedVertex {
             final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint));
 
             // Write element. This isn't really an element, but the logic holds.
-            FireflyRecord.writeElement(db, set, vpId, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
+            FireflyRecord.writeElement(db, set, vpId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
         });
     }
 
@@ -499,7 +499,7 @@ public class StarPackedVertex {
             final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint));
 
             // Write element. This isn't really an element, but the logic holds.
-            FireflyRecord.writeElement(db, set, vpId, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
+            FireflyRecord.writeElement(db, set, vpId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
         });
     }
 
@@ -566,7 +566,7 @@ public class StarPackedVertex {
         final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint));
 
         // Write element. This isn't really an element, but the logic holds.
-        FireflyRecord.writeElement(db, vertexVPSet, vertexId, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
+        FireflyRecord.writeElement(db, vertexVPSet, vertexId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
     }
 
 
@@ -694,7 +694,7 @@ public class StarPackedVertex {
         }
 
         final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
-        FireflyRecord.writeElement(db, adjacentDirDirSet, adjacentVertexId, bin);
+        FireflyRecord.writeElement(db, adjacentDirDirSet, adjacentVertexId, -1, bin);
     }
 
     public static void removeCompoundEdgesFromVertex(final AerospikeConnection db,
@@ -737,8 +737,8 @@ public class StarPackedVertex {
 
         // Insert in Aerospike.
         LOG.trace("Writing compound edges for vertex {} on sets {}={} & {}={}", vertex.id, dirInSet, vertexInDirEdgeMap, dirOutSet, vertexOutDirEdgeMap);
-        FireflyRecord.writeElement(db, dirInSet, vertex.id, inBin);
-        FireflyRecord.writeElement(db, dirOutSet, vertex.id, outBin);
+        FireflyRecord.writeElement(db, dirInSet, vertex.id, -1, inBin);
+        FireflyRecord.writeElement(db, dirOutSet, vertex.id, -1, outBin);
     }
 
     public static void removeCompoundEdges(final AerospikeConnection db,

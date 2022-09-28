@@ -1,6 +1,9 @@
 package com.aerospike.firefly.process.traversal.step;
 
+import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -38,7 +41,20 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
         if (null == search) {
             return Stream.empty();
         } else if (search.containsKey(T.id)) {
-            stream = IteratorUtils.stream(graph.vertices(search.get(T.id)));
+            Object sid = search.get(T.id);
+            long lid;
+            if(Integer.class.isAssignableFrom(sid.getClass()))
+                lid = Long.valueOf((Integer)sid);
+            else if (Long.class.isAssignableFrom(sid.getClass()))
+                lid = (Long)sid;
+            else throw new RuntimeException("unsupported id type");
+            if (graph.getBaseGraph().exists(
+                    new Key(graph.getBaseGraph().getNamespace(),
+                            graph.getBaseGraph().VERTEX_AERO_SET,
+                            lid)))
+                return IteratorUtils.stream(graph.vertices(search.get(T.id)));
+            else
+                stream = Stream.empty();
         } else {
             List<Iterator<? extends Vertex>> results = new ArrayList<>();
             AtomicBoolean indexSupported = new AtomicBoolean(false);
@@ -60,12 +76,12 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
             stream = IteratorUtils.stream(IteratorUtils.concat(results.toArray(new Iterator[0])));
         }
 
-        final Optional<String> indexUsed = firstIndex;
         stream = stream.filter(v -> {
             // try to match on all search criteria skipping T.id as it was handled above
             return search.entrySet().stream().filter(kv -> {
                 final Object k = kv.getKey();
-                return k != T.id && !(indexUsed.isPresent() && indexUsed.get().equals(k));
+                boolean res = k != T.id;
+                return res;
             }).allMatch(kv -> {
                 if (kv.getKey() == T.label) {
                     return v.label().equals(kv.getValue());
@@ -75,7 +91,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
                 }
             });
         });
-
         return stream;
     }
 }

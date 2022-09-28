@@ -516,16 +516,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
     }
 
-    @Test
-    public void shouldOverwriteEarlierKeyValuesWithLaterKeyValuesOnAddVertexIfNoMultiProperty() {
-        Vertex v = this.graph.addVertex(new Object[]{"test", "A", "test", "B", "test", "C"});
-        this.tryCommit(this.graph, (graph) -> {
-            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[]{"test"})));
-            Assert.assertTrue(IteratorUtils.stream(v.values(new String[]{"test"})).anyMatch((t) -> {
-                return t.equals("C");
-            }));
-        });
-    }
 
     public static Consumer<Graph> sngcme_getAssertVertexEdgeCounts(final int expectedVertexCount, final int expectedEdgeCount) {
         return (g) -> {

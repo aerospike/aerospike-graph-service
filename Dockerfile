@@ -40,13 +40,9 @@ RUN cd /tmp &&\
 # Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
-# Add current direction to /opt/aerospike-firefly and set working directory.
+# Add docker-default and scripts to docker container.
 ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
-
-# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
-RUN chmod +x scripts/gremlin-server-docker.sh
-RUN chmod -R 777 $CONF_DIR
 
 # Install vi and python interpretter.
 RUN apt-get update
@@ -60,6 +56,17 @@ RUN mvn -DskipTests clean install --no-transfer-progress
 RUN gremlin.sh -e scripts/console-setup.groovy &&\
     gremlin.sh -e scripts/console-plugin-enable.groovy &&\
     gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
+
+# Remove source code.
+RUN cd .. && rm -rf /opt/aerospike-firefly
+
+# Add scripts and conf to container.
+ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
+ADD scripts /opt/aerospike-firefly/scripts
+
+# Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
+RUN chmod +x scripts/gremlin-server-docker.sh
+RUN chmod -R 777 $CONF_DIR
 
 # Add user firefly and set user to firefly.
 RUN useradd -m firefly

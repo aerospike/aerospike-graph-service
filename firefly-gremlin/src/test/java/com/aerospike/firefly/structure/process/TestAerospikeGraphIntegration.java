@@ -66,10 +66,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
         logger.info("  post-strategy:" + traversal);
     }
+
     @Before
-    public void setupTraversal(){
+    public void setupTraversal() {
         g = graph.traversal();
     }
+
     @Test
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
@@ -967,9 +969,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         v.addEdge("self", v);
 
         final GraphTraversalSource gts = create(eventStrategy);
-        final Map<Object,Object> m = new HashMap<>();
+        final Map<Object, Object> m = new HashMap<>();
         m.put(T.label, "self");
-        final Map<Object,Object> mMatch = new HashMap<>();
+        final Map<Object, Object> mMatch = new HashMap<>();
         mMatch.put("some", "thing");
         gts.V(v).mergeE(m).option(Merge.onMatch, mMatch).next();
 
@@ -1018,6 +1020,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(1, listener2.edgePropertyChangedEventRecorded());
         assertEquals(1, listener1.edgePropertyChangedEventRecorded());
     }
+
     @Test
     public void shouldTriggerAddEdgePropertyAdded() {
         final StubMutationListener listener1 = new StubMutationListener();
@@ -1055,7 +1058,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Traversal<Vertex, Vertex> traversal = g.V().has("name", P.gt("m").and(TextP.containing("o")));
         this.printTraversalForm(traversal);
         Assert.assertTrue(traversal.hasNext());
-        Assert.assertTrue(((Vertex)traversal.next()).value("name").equals("marko"));
+        Assert.assertTrue(((Vertex) traversal.next()).value("name").equals("marko"));
         Assert.assertFalse(traversal.hasNext());
     }
 
@@ -1066,12 +1069,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         int counter = 0;
 
-        while(traversal.hasNext()) {
+        while (traversal.hasNext()) {
             ++counter;
-            Assert.assertEquals("knows", ((Edge)traversal.next()).label());
+            Assert.assertEquals("knows", ((Edge) traversal.next()).label());
         }
 
-        Assert.assertEquals(2L, (long)counter);
+        Assert.assertEquals(2L, (long) counter);
     }
 
     private static <A, B> boolean internalCheckMap(final Map<A, B> expectedMap, final Map<A, B> actualMap) {
@@ -1092,6 +1095,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
         return true;
     }
+
     private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
         if (expectedList.size() != actualList.size()) {
             return false;
@@ -1127,6 +1131,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("Checking indexing is equivalent", expectedResultsCount.size(), resultsCount.size());
         expectedResultsCount.forEach((k, v) -> assertEquals("Checking result group counts", v, resultsCount.get(k)));
     }
+
     @Test
     public void g_V_branchXageX_optionXltX30X__youngX_optionXgtX30X__oldX_optionXnone__on_the_edgeX() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
@@ -1155,13 +1160,33 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         graph.addVertex("some", "thing");
         final GraphTraversalSource gts = create(eventStrategy);
-        final Map<Object,Object> m = new HashMap<>();
+        final Map<Object, Object> m = new HashMap<>();
         m.put("any", "thing");
         gts.V().mergeV(m).property("any", "thing").next();
 
         tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.V().has("any", "thing"))));
         assertEquals(1, listener1.addVertexEventRecorded());
         assertEquals(1, listener2.addVertexEventRecorded());
+    }
+
+    @Test
+    public void testTrivalMerge() {
+        GraphTraversalSource g = graph.traversal();
+        g.mergeV(new HashMap<>() {{
+            put("name", "Brandy");
+        }}).next();
+        assertTrue(g.V().has("name", "Brandy").hasNext());
+        g.mergeV(new HashMap<>() {{
+            put(T.label, "Dog");
+            put("name", "Scamp");
+            put("age", 12);
+        }}).next();
+        Map<Object, Object> x = g.V().hasLabel("Dog").valueMap().next();
+        Object a = x.get("name");
+        Object b = x.get("age");
+        assertEquals("Scamp", a);
+        assertEquals(12, b);
+
     }
 
 }

@@ -198,12 +198,7 @@ public class FireflyRecord {
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
-
-        try {
-            db.write(key, generation, listOfBins.toArray(new Bin[0]));
-        } catch (com.aerospike.client.AerospikeException e) {
-            throw new RuntimeException(e);
-        }
+        db.write(key, generation, listOfBins.toArray(new Bin[0]));
     }
 
     /**
@@ -220,14 +215,12 @@ public class FireflyRecord {
                                     final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
         final Key key = getElementKey(db.getNamespace(), set, id);
-        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
-        listOfBins.add(idTypeBin);
-        try {
-            db.write(key, generation, listOfBins.toArray(new Bin[0]));
-        } catch (com.aerospike.client.AerospikeException e) {
-            throw new RuntimeException(e);
+        if (generation == -1) {
+            final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
+            listOfBins.add(idTypeBin);
         }
+        db.write(key, generation, listOfBins.toArray(new Bin[0]));
     }
 
     @Override

@@ -85,7 +85,13 @@ import static com.aerospike.firefly.util.Tokens.*;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 
+//TinkerPop bug
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest", method = "shouldTriggerAddVertexViaMergeV", reason = "Cardinality cannot be determined by key without id")
 
+//@TODO
+@Graph.OptOut(test="org.apache.tinkerpop.gremlin.structure.util.detached.DetachedGraphTest", method="testAttachableCreateMethod",reason="Test enabled by MultiProperties, likely did not work prior")
+@Graph.OptOut(test="org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method="shouldAttachWithCreateMethod",reason="Test enabled by MultiProperties, likely did not work prior")
+@Graph.OptOut(test="org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method="shouldCopyFromGraphAToGraphB",reason="Test enabled by MultiProperties, likely did not work prior")
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
@@ -165,11 +171,15 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             return null;
         }
     }
+
     public static final String GETDATAMODELNAME = "getDataModelName";
     public static final String DATAMODELVERSION = "dataModelVersion";
-    public static ComparableVersion dataModelVersion(){
+
+    public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
-    };
+    }
+
+    ;
 
     public abstract String getDataModel();
 
@@ -342,7 +352,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         if (!longs.isEmpty() && !longs.stream().map(id -> FireflyId.of(FireflyVertex.class, id)).allMatch(this::vertexExists)) {
-                throw new NoSuchElementException("vertex could not be found and edge could not be created");
+            throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
         // Create vertex iterator with graph and vertex id iterator.

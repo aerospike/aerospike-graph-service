@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;

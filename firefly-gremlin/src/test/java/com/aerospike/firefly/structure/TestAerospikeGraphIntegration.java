@@ -886,51 +886,5 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         });
     }
 
-    @Test
-    public void shouldAttachWithCreateMethod() {
-        Random random = TestHelper.RANDOM;
-        StarGraph starGraph = StarGraph.open();
-        Vertex starVertex = starGraph.addVertex(new Object[]{T.label, "person", "name", "stephen", "name", "spmallete"});
-        starVertex.property("acl", true, new Object[]{"timestamp", random.nextLong(), "creator", "marko"});
-
-        for (int i = 0; i < 100; ++i) {
-            starVertex.addEdge("knows", starGraph.addVertex(new Object[]{"person", "name", new UUID(random.nextLong(), random.nextLong()), "since", random.nextLong()}), new Object[0]);
-            starGraph.addVertex(new Object[]{T.label, "project"}).addEdge("developedBy", starVertex, new Object[]{"public", random.nextBoolean()});
-        }
-
-        Vertex createdVertex = (Vertex) starGraph.getStarVertex().attach(Attachable.Method.create(this.graph));
-        starGraph.getStarVertex().edges(Direction.BOTH, new String[0]).forEachRemaining((edge) -> {
-            Edge var10000 = (Edge) ((Attachable) edge).attach(Attachable.Method.create((Host) (random.nextBoolean() ? this.graph : createdVertex)));
-        });
-        TestHelper.validateEquality(starVertex, createdVertex);
-    }
-
-    @Test
-    public void testAttachableCreateMethod() {
-        Random random = TestHelper.RANDOM;
-        StarGraph starGraph = StarGraph.open();
-        Vertex starVertex = starGraph.addVertex(new Object[]{T.label, "person", "name", "stephen", "name", "spmallete"});
-        starVertex.property("acl", true, new Object[]{"timestamp", random.nextLong(), "creator", "marko"});
-
-        for (int i = 0; i < 100; ++i) {
-            starVertex.addEdge("knows", starGraph.addVertex(new Object[]{"person", "name", new UUID(random.nextLong(), random.nextLong()), "since", random.nextLong()}), new Object[0]);
-            starGraph.addVertex(new Object[]{T.label, "project"}).addEdge("developedBy", starVertex, new Object[]{"public", random.nextBoolean()});
-        }
-
-        DetachedVertex detachedVertex = DetachedFactory.detach(starGraph.getStarVertex(), true);
-        Vertex createdVertex = (Vertex) detachedVertex.attach(Attachable.Method.create(this.graph));
-        TestHelper.validateVertexEquality(detachedVertex, createdVertex, false);
-        TestHelper.validateVertexEquality(detachedVertex, starVertex, false);
-        starGraph.getStarVertex().edges(Direction.BOTH, new String[0]).forEachRemaining((starEdge) -> {
-            DetachedEdge detachedEdge = DetachedFactory.detach(starEdge, true);
-            Edge createdEdge = (Edge) detachedEdge.attach(Attachable.Method.create((Host) (random.nextBoolean() ? this.graph : createdVertex)));
-            TestHelper.validateEdgeEquality(detachedEdge, starEdge);
-            TestHelper.validateEdgeEquality(detachedEdge, createdEdge);
-        });
-    }
-
-
-
-
 }
 

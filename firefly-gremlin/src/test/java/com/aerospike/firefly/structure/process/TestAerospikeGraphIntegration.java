@@ -1153,52 +1153,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void shouldTriggerAddVertexViaMergeVSimple() {
-        TinkerGraph tgraph = TinkerGraph.open();
-        GraphTraversalSource tg = tgraph.traversal();
-        tgraph.addVertex("some", "thing");
-        final Map<Object, Object> tm = new HashMap<>();
-        tm.put("any", "thing");
-        tg.V().mergeV(tm).property("any", "thing").next();
-        tryCommit(tgraph, g -> assertEquals(1, IteratorUtils.count(tgraph.traversal().V().has("any", "thing"))));
-        tgraph.addVertex(new Object[]{T.id, 13, "a", "b"});
-        tg.V(13).property("a", "b").next();
-        VertexProperty.Cardinality tcard = tgraph.features().vertex().getCardinality("a");
-        assertEquals((Long) 1L, tg.V(13).properties("a").count().next()); // TinkerGraph default is single
-
-
-        graph.addVertex("some", "thing");
-        final Map<Object, Object> m = new HashMap<>();
-        m.put("any", "thing");
-        g.V().mergeV(m).property("any", "thing").next();
-        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(graph.traversal().V().has("any", "thing"))));
-    }
-
-    @Test
-    public void shouldTriggerAddVertexViaMergeV() {
-        final StubMutationListener listener1 = new StubMutationListener();
-        final StubMutationListener listener2 = new StubMutationListener();
-        final EventStrategy.Builder builder = EventStrategy.build()
-                .addListener(listener1)
-                .addListener(listener2);
-
-        if (graph.features().graph().supportsTransactions())
-            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
-
-        final EventStrategy eventStrategy = builder.create();
-
-        graph.addVertex("some", "thing");
-        final GraphTraversalSource gts = create(eventStrategy);
-        final Map<Object, Object> m = new HashMap<>();
-        m.put("any", "thing");
-        gts.V().mergeV(m).property("any", "thing").next();
-        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.V().has("any", "thing"))));
-        assertEquals(1, listener1.addVertexEventRecorded());
-        assertEquals(1, listener2.addVertexEventRecorded());
-    }
-
-    @Test
-
     public void testTrivalMerge() {
         GraphTraversalSource g = graph.traversal();
         g.mergeV(new HashMap<>() {{
@@ -1326,6 +1280,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(traversal.hasNext());
         assertEquals(6, IteratorUtils.count(g.V()));
     }
+
 
 
 }

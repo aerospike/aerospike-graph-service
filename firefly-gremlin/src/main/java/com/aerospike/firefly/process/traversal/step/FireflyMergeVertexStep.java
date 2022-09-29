@@ -43,10 +43,10 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
         } else if (search.containsKey(T.id)) {
             Object sid = search.get(T.id);
             long lid;
-            if(Integer.class.isAssignableFrom(sid.getClass()))
-                lid = Long.valueOf((Integer)sid);
+            if (Integer.class.isAssignableFrom(sid.getClass()))
+                lid = Long.valueOf((Integer) sid);
             else if (Long.class.isAssignableFrom(sid.getClass()))
-                lid = (Long)sid;
+                lid = (Long) sid;
             else throw new RuntimeException("unsupported id type");
             if (graph.getBaseGraph().exists(
                     new Key(graph.getBaseGraph().getNamespace(),
@@ -57,21 +57,26 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
                 stream = Stream.empty();
         } else {
             List<Iterator<? extends Vertex>> results = new ArrayList<>();
-            AtomicBoolean indexSupported = new AtomicBoolean(false);
             search.forEach((key, value) -> {
-                if (!indexSupported.get()) {
-                    if (value.getClass().isAssignableFrom(Number.class)) {
-                        results.add(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, key.toString(), P.eq(value)));
-                        indexSupported.set(true);
+                if (key == T.label) {
+                    if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
+                        results.add(graph.vertices());
                     } else if (value.getClass().isAssignableFrom(String.class)) {
-                        results.add(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, key.toString(), value.toString()));
-                        indexSupported.set(true);
+                        results.add(FireflyHelper.queryVertexByLabelStringIndex(graph, value));
+                    } else {
+                        results.add(graph.vertices());
+                    }
+                } else {
+                    if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
+                        results.add(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, key.toString(), P.eq(value)));
+                    } else if (value.getClass().isAssignableFrom(String.class)) {
+                        Iterator<? extends Vertex> test = FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, key.toString(), value);
+                        results.add(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, key.toString(), value));
+                    } else {
+                        results.add(graph.vertices());
                     }
                 }
             });
-            if (!indexSupported.get())
-                results.add(graph.vertices());
-
             // use the index if possible otherwise just in memory filter
             stream = IteratorUtils.stream(IteratorUtils.concat(results.toArray(new Iterator[0])));
         }
@@ -91,6 +96,6 @@ public class FireflyMergeVertexStep<S> extends MergeVertexStep<S> {
                 }
             });
         });
-        return stream;
+        return stream.distinct();
     }
 }

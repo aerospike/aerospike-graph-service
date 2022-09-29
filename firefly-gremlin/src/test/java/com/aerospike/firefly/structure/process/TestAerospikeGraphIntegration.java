@@ -1191,8 +1191,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final GraphTraversalSource gts = create(eventStrategy);
         final Map<Object, Object> m = new HashMap<>();
         m.put("any", "thing");
-//        gts.V().mergeV(m).property("any", "thing").next();
-
         gts.V().mergeV(m).property("any", "thing").next();
         tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.V().has("any", "thing"))));
         assertEquals(1, listener1.addVertexEventRecorded());
@@ -1304,6 +1302,29 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
         assertTrue(b.get());
         assertEquals("", val.get());
+    }
+
+    @Test
+    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
+        Graph tg = TinkerFactory.createTheCrew();
+        GraphHelper.cloneElements(tg, graph);
+        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+        this.printTraversalForm(traversal);
+        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+    }
+
+    @Test
+    public void g_mergeVXlabel_person_name_markoX() {
+        Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+
+        final Traversal<Vertex, Vertex> traversal = g.mergeV(asMap(T.label, "person", "name", "marko"));
+//        List<Vertex> l = traversal.toList();
+        final Vertex vertex = traversal.next();
+        assertEquals("person", vertex.label());
+        assertEquals("marko", vertex.<String>value("name"));
+        assertFalse(traversal.hasNext());
+        assertEquals(6, IteratorUtils.count(g.V()));
     }
 
 

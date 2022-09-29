@@ -317,9 +317,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             }
 
             // If cardinality is single we must only retain the final item.
-            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
-            }
+//            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
+//                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
+//            }
             properties.add(new AbstractMap.SimpleEntry<>(key, value));
         }
         return properties;
@@ -342,7 +342,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         if (!longs.isEmpty() && !longs.stream().map(id -> FireflyId.of(FireflyVertex.class, id)).allMatch(this::vertexExists)) {
-            throw new NoSuchElementException("vertex could not be found and edge could not be created");
+                throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
         // Create vertex iterator with graph and vertex id iterator.

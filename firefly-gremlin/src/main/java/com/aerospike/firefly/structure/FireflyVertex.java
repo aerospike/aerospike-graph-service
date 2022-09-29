@@ -88,48 +88,28 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
      */
     @Override
     public <V> VertexProperty<V> property(VertexProperty.Cardinality cardinality, String key, V value, Object... keyValues) {
+        if (FireflyHelper.inComputerMode(this.graph)) {
+            throw new RuntimeException(UNIMPLEMENTED);
+        }
+
         if (this.removed)
             throw elementAlreadyRemoved(Vertex.class, this.id);
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         ElementHelper.validateProperty(key, value);
-        if (ElementHelper.getIdValue(keyValues).isPresent() &&
-                !graph.features().vertex().properties().supportsUserSuppliedIds())
-            throw VertexProperty.Exceptions.userSuppliedIdsNotSupported();
 
-        // If single cardinality, we are setting key to value.
-        if (graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single) ||
-                VertexProperty.Cardinality.single.equals(cardinality)) {
-            // If single cardinality we should remove existing properties with the same key.
-            properties(key).forEachRemaining(Property::remove);
-
-            // If we do not support null and the value is null, we should return empty.
-            if (!allowNullPropertyValues && null == value) {
-                return VertexProperty.empty();
-            }
-        }
-
-        // If we don't allow null property values and the value is null then the key can be removed but only if the
-        // cardinality is single.
-        // If it is list/set then we can just ignore the null.
-        final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-        // If we do not support null and the value is null, we should return empty.
         if (!allowNullPropertyValues && null == value) {
+            final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
+            if (VertexProperty.Cardinality.single == card)
+                properties(key).forEachRemaining(VertexProperty::remove);
             return VertexProperty.empty();
         }
 
-        if (VertexProperty.Cardinality.single == card ||
-                graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-            // If single cardinality we should remove existing properties with the same key.
-            properties(key).forEachRemaining(Property::remove);
-        }
-
-
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        if (optionalVertexProperty.isPresent()) {
-            return optionalVertexProperty.get();
-        }
-        if (FireflyHelper.inComputerMode(this.graph)) {
-            throw new RuntimeException(UNIMPLEMENTED);
+        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
+
+        // If we do not support null and the value is null, we should return empty.
+        if (!allowNullPropertyValues && null == value) {
+            return VertexProperty.empty();
         }
 
         // Create Firefly id for vertex property.

@@ -216,7 +216,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         // when using label, reads are much higher
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(31, result1ReadMetric - readStart);
+            assertEquals(38, result1ReadMetric - readStart);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result1ReadMetric - readStart);
         }

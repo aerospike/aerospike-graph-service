@@ -1,21 +1,4 @@
-package com.aerospike.firefly.process.traversal.step;/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
+package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -45,7 +28,9 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
 import java.util.stream.Stream;
-
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * adapted from MergeVertexStep
 /**
  * Implementation for the {@code mergeV()} step covering both the start step version and the one used mid-traversal.
  */
@@ -279,7 +264,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     // try to detect proper cardinality for the key according to the graph
                     final Graph graph = this.getTraversal().getGraph().get();
                     VertexProperty.Cardinality effectiveCard;
-                    if(IteratorUtils.list(v.properties(key)).size() <= 1)
+                    if(IteratorUtils.count(v.properties(key)) <= 1)
                         effectiveCard  = VertexProperty.Cardinality.single;
                     else effectiveCard = VertexProperty.Cardinality.list;
                     v.property(effectiveCard, key, value);

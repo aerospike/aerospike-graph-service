@@ -170,23 +170,4 @@ public class TestConcurrentScanListener extends AbstractFireflySuite {
             assertFunction.accept(graph);
         }
     }
-    @Test
-    public void shouldTriggerAddVertexViaMergeV() {
-        final StubMutationListener listener1 = new StubMutationListener();
-        final StubMutationListener listener2 = new StubMutationListener();
-        final EventStrategy.Builder builder = EventStrategy.build().addListener(listener1).addListener(listener2);
-        if (graph.features().graph().supportsTransactions()) {
-            builder.eventQueue(new EventStrategy.TransactionalEventQueue(graph));
-        }
-
-        final EventStrategy eventStrategy = builder.create();
-        graph.addVertex("some", "thing");
-        final GraphTraversalSource gts = this.create(eventStrategy);
-        final Map<Object, Object> m = new HashMap<>();
-        m.put("any", "thing");
-        gts.V().mergeV(m).property("any", "thing").next();
-        this.tryCommit(graph, (g) -> Assert.assertEquals(1L, IteratorUtils.count(gts.V(new Object[0]).has("any", "thing"))));
-        Assert.assertEquals(1L, listener1.addVertexEventRecorded());
-        Assert.assertEquals(1L, listener2.addVertexEventRecorded());
-    }
 }

@@ -325,10 +325,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 throw Element.Exceptions.providedKeyValuesMustHaveALegalKeyOnEvenIndices();
             }
 
-            // If cardinality is single we must only retain the final item.
-//            if (this.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-//                properties = properties.stream().filter(p -> !key.equals(p.getKey())).collect(Collectors.toList());
-//            }
             properties.add(new AbstractMap.SimpleEntry<>(key, value));
         }
         return properties;

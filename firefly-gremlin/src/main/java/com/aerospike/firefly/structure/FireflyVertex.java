@@ -208,8 +208,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties();
-        List<Map.Entry<String, VertexProperty<Object>>> ct = IteratorUtils.list(readVertexProperties());
-//        List<Map.Entry<String, VertexProperty<V>>> l = IteratorUtils.list(vertexProperties);
+
         // Return an iterator over the map.
         return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
 

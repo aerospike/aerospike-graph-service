@@ -263,7 +263,6 @@ public class LinkedVertex extends RelationalVertex {
             return Collections.emptyIterator();
         }
 
-        // Vertex property ids are cached - loop through entries and get the properties for the entry.
         FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
         final List<Long> vertexPropertyIdList = record != null ?
                 (List<Long>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID).get(key) : vertexPropertyIds.get(key);

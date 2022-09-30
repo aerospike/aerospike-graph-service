@@ -24,8 +24,8 @@ public class FireflyMergeStepStrategy extends AbstractTraversalStrategy<Traversa
             return;
 
         for (final MergeVertexStep originalMergeVertexStep : TraversalHelper.getStepsOfClass(MergeVertexStep.class, traversal)) {
-            final FireflyMergeVertexStep tinkerMergeVertexStep = new FireflyMergeVertexStep(originalMergeVertexStep);
-            TraversalHelper.replaceStep(originalMergeVertexStep, tinkerMergeVertexStep, traversal);
+            final FireflyMergeVertexStep fireflyMergeVertexStep = new FireflyMergeVertexStep(originalMergeVertexStep);
+            TraversalHelper.replaceStep(originalMergeVertexStep, fireflyMergeVertexStep, traversal);
         }
 
     }

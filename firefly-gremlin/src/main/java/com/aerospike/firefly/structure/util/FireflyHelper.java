@@ -19,10 +19,12 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 
@@ -67,58 +69,36 @@ public final class FireflyHelper {
         }
     }
 
-    private static void readEdgesToList(FireflyGraph graph, Iterator<Long> edgeIds, List<Edge> edges, String[] edgeLabels) {
-        while (edgeIds.hasNext()) {
-            Optional.ofNullable(
-                    graph.readEdge(FireflyId.of(FireflyEdge.class, edgeIds.next()))).ifPresent(edge -> {
-                if (edgeLabels.length == 0 || Arrays.asList(edgeLabels).contains(edge.label())) {
-                    edges.add(edge);
-                }
-            });
-        }
+    private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
+        return graph.readEdges(vertex.getEdgeIdsFromVertex(direction).
+                                       stream().
+                                       map(id -> FireflyId.of(FireflyEdge.class, id)).
+                                       collect(Collectors.toList())).stream().filter(
+                        edge -> (labels.isEmpty() || labels.contains(edge.label()))).
+                collect(Collectors.toList());
     }
 
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
-        final List<Edge> edges = new ArrayList<>();
-
-        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            readEdgesToList(graph, vertex.getEdgeIdsFromVertex(Direction.OUT), edges, edgeLabels);
-        }
-        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            readEdgesToList(graph, vertex.getEdgeIdsFromVertex(Direction.IN), edges, edgeLabels);
-        }
-        return edges.iterator();
+        final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
+        return getEdgeList(graph, vertex, direction, labels).iterator();
     }
 
     public static Iterator<Vertex> getVertices(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         final List<Vertex> vertices = new ArrayList<>();
+        final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
         if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            if (vertex.getEdgeIdsFromVertex(Direction.OUT).hasNext()) {
-                if (edgeLabels.length == 0) {
-                    vertex.getEdgeIdsFromVertex(Direction.OUT).forEachRemaining(id ->
-                            vertices.add(graph.readEdge(FireflyId.of(FireflyVertex.class, id)).inVertex()));
-                } else {
-                    vertex.getEdgeIdsFromVertex(Direction.OUT).forEachRemaining(id -> {
-                        Edge e = graph.readEdge(FireflyId.of(FireflyVertex.class, id));
-                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
-                            vertices.add(e.inVertex());
-                    });
-                }
+            final List<FireflyId> vertexIds = new ArrayList<>();
+            for (final Edge edge : getEdgeList(graph, vertex, Direction.OUT, labels)) {
+                vertexIds.add(((FireflyEdge)edge).inVertexId());
             }
+            vertices.addAll(graph.readVertices(vertexIds));
         }
         if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            if (vertex.getEdgeIdsFromVertex(Direction.IN).hasNext()) {
-                if (edgeLabels.length == 0) {
-                    vertex.getEdgeIdsFromVertex(Direction.IN).forEachRemaining(id ->
-                            vertices.add(graph.readEdge(FireflyId.of(FireflyVertex.class, id)).outVertex()));
-                } else {
-                    vertex.getEdgeIdsFromVertex(Direction.IN).forEachRemaining(id -> {
-                        Edge e = graph.readEdge(FireflyId.of(FireflyEdge.class, id));
-                        if (IteratorUtils.anyMatch(IteratorUtils.asIterator(edgeLabels), it -> it.equals(e.label())))
-                            vertices.add(e.outVertex());
-                    });
-                }
+            final List<FireflyId> vertexIds = new ArrayList<>();
+            for (final Edge edge : getEdgeList(graph, vertex, Direction.IN, labels)) {
+                vertexIds.add(((FireflyEdge)edge).outVertexId());
             }
+            vertices.addAll(graph.readVertices(vertexIds));
         }
         return vertices.iterator();
     }

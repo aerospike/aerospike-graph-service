@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -41,10 +42,10 @@ final public class RelationalEdge extends FireflyEdge {
      * @param inVertex  Edge in vertex.
      */
     private RelationalEdge(final FireflyId fid,
-                       final String label,
-                       final FireflyGraph graph,
-                       final FireflyId outVertex,
-                       final FireflyId inVertex) {
+                           final String label,
+                           final FireflyGraph graph,
+                           final FireflyId outVertex,
+                           final FireflyId inVertex) {
         super(fid, label, outVertex, inVertex, graph);
         this.db = graph.getBaseGraph();
     }
@@ -60,11 +61,11 @@ final public class RelationalEdge extends FireflyEdge {
      * @param properties Edge properties.
      */
     public static RelationalEdge writeEdge(final FireflyGraph graph,
-                                       final FireflyId edgeId,
-                                       final String label,
-                                       final List<Map.Entry<String, Object>> properties,
-                                       final FireflyVertex inVertex,
-                                       final FireflyVertex outVertex) {
+                                           final FireflyId edgeId,
+                                           final String label,
+                                           final List<Map.Entry<String, Object>> properties,
+                                           final FireflyVertex inVertex,
+                                           final FireflyVertex outVertex) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
@@ -118,10 +119,33 @@ final public class RelationalEdge extends FireflyEdge {
             return null;
         }
         return new RelationalEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, edgeRecord),
-                edgeRecord.record.getString(AerospikeConnection.LABEL),
-                graph,
-                FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
-                FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())));
+                                  edgeRecord.record.getString(AerospikeConnection.LABEL),
+                                  graph,
+                                  FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
+                                  FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())));
+    }
+
+    /**
+     * Read an Edge by the id.
+     *
+     * @param graph   Graph handle.
+     * @param edgeIds Edge ids to read.
+     * @return Edge.
+     */
+    public static List<FireflyEdge> readEdges(final FireflyGraph graph, final List<FireflyId> edgeIds) {
+        LOG.debug("Reading edges {}.", edgeIds.toString());
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        final List<FireflyRecord> edgeRecord = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
+        if (edgeRecord == null) {
+            return null;
+        }
+        return edgeRecord.stream().map(record -> new RelationalEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, record),
+                                                                    record.record.getString(AerospikeConnection.LABEL),
+                                                                    graph,
+                                                                    FireflyId.of(FireflyVertex.class, record.record.getLong(Direction.OUT.name())),
+                                                                    FireflyId.of(FireflyVertex.class, record.record.getLong(Direction.IN.name())))).
+                collect(Collectors.toList());
     }
 
     /**

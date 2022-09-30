@@ -240,6 +240,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Function to read edges from Aerospike.
+     *
+     * @param edgeIds Edge ids.
+     * @return Edge.
+     */
+    @Override
+    public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
+        return RelationalEdge.readEdges(this, edgeIds);
+    }
+
+    /**
      * Function to create edge from a record.
      *
      * @param keyRecord Record to use.
@@ -259,6 +270,11 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public FireflyVertex readVertex(final FireflyId idValue) {
         return RelationalVertex.readVertex(this, idValue);
+    }
+
+    @Override
+    public List<FireflyVertex> readVertices(final List<FireflyId> idValues) {
+        return RelationalVertex.readVertices(this, idValues);
     }
 
     /**

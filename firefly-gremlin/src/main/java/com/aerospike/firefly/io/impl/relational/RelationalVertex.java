@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
@@ -95,28 +96,9 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public void remove() {
-        // Collect edges in both directions.
-        final Iterator<Long> inEdgeIds = getEdgeIdsFromVertex(Direction.IN);
-        final Iterator<Long> outEdgeIds = getEdgeIdsFromVertex(Direction.OUT);
-
-        // Take list of ids and convert to a set so we can remove duplicates.
-        final Set<Long> inEdgeIdSet = new HashSet<>();
-        final Set<Long> outEdgeIdSet = new HashSet<>();
-        while (inEdgeIds.hasNext()) {
-            inEdgeIdSet.add(inEdgeIds.next());
-        }
-        while (outEdgeIds.hasNext()) {
-            outEdgeIdSet.add(outEdgeIds.next());
-        }
-
-        inEdgeIdSet.forEach(edgeId -> {
-            final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
-            if (edge != null) {
-                edge.remove();
-            }
-        });
-
-        outEdgeIdSet.forEach(edgeId -> {
+        // Collect edges in both directions and remove them all.
+        final List<Long> edgeIds = getEdgeIdsFromVertex(Direction.BOTH);
+        edgeIds.forEach(edgeId -> {
             final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
             if (edge != null) {
                 edge.remove();
@@ -145,7 +127,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of all edge ids.
      */
     @Override
-    public Iterator<Long> getEdgeIdsFromVertex(final Direction direction) {
+    public List<Long> getEdgeIdsFromVertex(final Direction direction) {
         LOG.trace("Getting edge ids from vertex {}.", id.value().toString());
         if (direction.equals(Direction.OUT)) {
             return getOutEdgeIds();
@@ -153,10 +135,12 @@ public abstract class RelationalVertex extends FireflyVertex {
             return getInEdgeIds();
         } else {
             // Both.
-            final Future<Iterator<Long>> inIds = executorService.submit(this::getInEdgeIds);
-            final Future<Iterator<Long>> outIds = executorService.submit(this::getOutEdgeIds);
+            final Future<List<Long>> inIds = executorService.submit(this::getInEdgeIds);
+            final Future<List<Long>> outIds = executorService.submit(this::getOutEdgeIds);
             try {
-                return IteratorUtils.concat(inIds.get(), outIds.get());
+                List<Long> ids = inIds.get();
+                ids.addAll(outIds.get());
+                return ids;
             } catch (InterruptedException | ExecutionException e) {
                 // Should not happen.
                 LOG.error("Error getting edge ids from vertex {} {}.", id.value().toString(), e);
@@ -170,12 +154,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      *
      * @return Iterator of all incoming edge ids.
      */
-    private Iterator<Long> getInEdgeIds() {
+    private List<Long> getInEdgeIds() {
         final List<Long> data = new ArrayList<>();
         if (inEdgeIds != null) {
             inEdgeIds.values().forEach(data::addAll);
         }
-        return (inEdgeCount != -1) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.IN);
+        return (inEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.IN));
     }
 
     /**
@@ -183,12 +167,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      *
      * @return Iterator of all outgoing edge ids.
      */
-    private Iterator<Long> getOutEdgeIds() {
+    private List<Long> getOutEdgeIds() {
         final List<Long> data = new ArrayList<>();
         if (outEdgeIds != null) {
             outEdgeIds.values().forEach(data::addAll);
         }
-        return (outEdgeCount != -1) ? data.iterator() : getEdgeIdsFromVertexByScan(Direction.OUT);
+        return (outEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.OUT));
     }
 
     /**
@@ -333,11 +317,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final List<Long> edges;
         if (edgeCounter == db.ID_CACHE_SIZE - 1) {
             // If we reach ID_CACHE_SIZE - 1, restore from the cache.
-            final Iterator<Long> allEdges = (direction == Direction.IN) ? getInEdgeIds() : getOutEdgeIds();
-            edges = new ArrayList<>();
-            while (allEdges.hasNext()) {
-                edges.add(allEdges.next());
-            }
+            edges = (direction == Direction.IN) ? getInEdgeIds() : getOutEdgeIds();
         } else {
             // Otherwise grab as normal.
             edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
@@ -584,6 +564,32 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         return fromRecord(graph, new KeyRecord(record.key(), record.record()));
+    }
+
+    /**
+     * Read and construct a list of FireflyVertex using the list of FireflyId.
+     * This function is static because it is used by the LinkedGraph
+     * to write a new FireflyVertex.
+     *
+     * @param graph    FireflyGraph to use.
+     * @param vertexIds FireflyIds to use.
+     * @return FireflyVertex.
+     */
+    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
+        LOG.debug("Reading vertices {}.", vertexIds.toString());
+
+        // Get database connection.
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        // Batch read vertex records.
+        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
+        if (vertexRecords == null) {
+            return null;
+        }
+
+        // Convert records to vertices.
+        return vertexRecords.stream().map(record -> fromRecord(graph, new KeyRecord(record.key(), record.record))).
+                collect(Collectors.toList());
     }
 
     /**

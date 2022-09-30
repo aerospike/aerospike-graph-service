@@ -181,6 +181,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 
+    public abstract List<FireflyVertex> readVertices(final List<FireflyId> vertexIds);
+
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
 
     public abstract boolean vertexExists(final FireflyId idValue);
@@ -193,6 +195,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                        final long outVertexId);
 
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
+
+    public abstract List<FireflyEdge> readEdges(final List<FireflyId> edgeIds);
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
 

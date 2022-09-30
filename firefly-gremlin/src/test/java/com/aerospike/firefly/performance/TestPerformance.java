@@ -238,7 +238,7 @@ public class TestPerformance extends AbstractFireflySuite {
         final long result3ReadMetric = db.getReadMetric();
 
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(7, result3ReadMetric - result2ReadMetric);
+            assertEquals(14, result3ReadMetric - result2ReadMetric);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result3ReadMetric - result2ReadMetric);
         }
@@ -247,7 +247,7 @@ public class TestPerformance extends AbstractFireflySuite {
         final long result4ReadMetric = db.getReadMetric();
 
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(3, result4ReadMetric - result3ReadMetric);
+            assertEquals(4, result4ReadMetric - result3ReadMetric);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(1, result4ReadMetric - result3ReadMetric);
         }

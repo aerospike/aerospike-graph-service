@@ -232,7 +232,6 @@ public class LinkedVertex extends RelationalVertex {
         FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
         //The test case shouldRemoveMultiPropertiesWhenVerticesAreRemoved from the standard suite
         //Requires that the properties be read from the database, because they have been removed in a traversal
-        //But it is calling properties() on a vertex that was read before that traversal
         Map<String, List<Long>> fresh = record != null ? ((Map<String, List<Long>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID)) : vertexPropertyIds;
         for (final Map.Entry<String, List<Long>> vertexPropertyIdsEntry : fresh.entrySet()) {
             // Get the properties for the entry.

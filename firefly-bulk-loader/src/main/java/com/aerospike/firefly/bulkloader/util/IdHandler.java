@@ -1,15 +1,12 @@
 package com.aerospike.firefly.bulkloader.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class IdHandler {
-    static private final Logger LOG = LoggerFactory.getLogger(IdHandler.class);
     private final FireflyGraph graph;
     private final String counterName;
     private final long bufferSize;
@@ -32,6 +29,9 @@ public abstract class IdHandler {
     }
 
     public synchronized long getId(final String providedId) {
+        if (this.useProvidedId) {
+            return Long.parseLong(providedId);
+        }
         final long id;
         if (this.providedIdToFireflyId.containsKey(providedId)) {
             id = this.providedIdToFireflyId.get(providedId);
@@ -42,12 +42,7 @@ public abstract class IdHandler {
     }
 
     private long putId(final String providedId) {
-        final long id;
-        if (useProvidedId) {
-            id = Long.parseLong(providedId);
-        } else {
-            id = generateId();
-        }
+        final long id = generateId();
         this.providedIdToFireflyId.put(providedId, id);
         return id;
     }

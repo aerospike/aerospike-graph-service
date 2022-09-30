@@ -482,10 +482,10 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        Iterator<Long> i = graph.readVertex(FireflyId.fromObject(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
-        assertTrue(i.hasNext());
+        List<Long> i = graph.readVertex(FireflyId.fromObject(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
-        Object next = i.next();
+        Object next = i.get(0);
         assertTrue(x.contains(next));
         assertTrue(x.contains(next));
     }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.concurrency;
 
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -8,6 +9,8 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -29,6 +32,13 @@ public class ConcurrentFireflyInstanceTest {
     final static int INITIAL_COUNT = 1250;
     final static int THREAD_COUNT = 4;
     final static int ADD_REMOVE_COUNT = 250;
+
+    @Before
+    public void setup() {
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            Assume.assumeFalse(StarPackedGraph.isStarPackedGraph(fireflyGraph));
+        }
+    }
 
     @Test
     public void concurrentFireflyInstanceEdgeAdditionTest() {

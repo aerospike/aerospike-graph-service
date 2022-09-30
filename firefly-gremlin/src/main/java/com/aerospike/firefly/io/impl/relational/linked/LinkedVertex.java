@@ -116,7 +116,7 @@ public class LinkedVertex extends RelationalVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
-                    new LinkedVertexProperty(graph, fid, this, null, null) :
+                    null :
                     new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
             results.put(vp.label(), vp);
         });
@@ -154,7 +154,7 @@ public class LinkedVertex extends RelationalVertex {
                 final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                         db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
                 final VertexProperty<?> vp = (kv.isEmpty()) ?
-                        new LinkedVertexProperty<V>(graph, fid, this, null, null) :
+                        null :
                         new LinkedVertexProperty<V>(graph, fid, this, kv.get().getKey(), kv.get().getValue());
                 results.add(vp);
             }
@@ -280,9 +280,10 @@ public class LinkedVertex extends RelationalVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
-                    new LinkedVertexProperty<V>(graph, fid, this, key, null) :
+                    null :
                     new LinkedVertexProperty<V>(graph, fid, this, kv.get().getKey(), kv.get().getValue());
-            vertexProperties.add(vertexProperty);
+            if (vertexProperty != null)
+                vertexProperties.add(vertexProperty);
         });
         return IteratorUtils.asIterator(vertexProperties);
     }

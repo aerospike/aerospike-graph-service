@@ -485,7 +485,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     public void shouldRemoveAllData() throws InterruptedException {
         graph.getBaseGraph().dropDatabase();
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
-            db.getClient().truncate(null, db.getNamespace(), nonEmptySet, Calendar.getInstance());
+            db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
         });
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);

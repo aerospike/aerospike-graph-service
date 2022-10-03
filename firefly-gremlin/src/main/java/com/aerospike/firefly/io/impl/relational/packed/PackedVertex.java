@@ -66,9 +66,9 @@ public class PackedVertex extends RelationalVertex {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
 
         // To enable values to have index functions run, cardinality must be single.
-        if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
-            throw new RuntimeException("PackedVertex only supports for single cardinality");
-        }
+//        if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
+//            throw new RuntimeException("PackedVertex only supports for single cardinality");
+//        }
 
         this.vertexPropertyCount = vertexPropertyCount;
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
@@ -104,7 +104,6 @@ public class PackedVertex extends RelationalVertex {
                     vertexProperty.getKey(),
                     vertexProperty.getValue());
             vertexPropertyList.add(new MapEntry(vertexProperty.getKey(), property));
-
         }
 
         return IteratorUtils.asIterator(vertexPropertyList);

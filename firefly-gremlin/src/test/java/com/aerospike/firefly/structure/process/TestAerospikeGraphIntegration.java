@@ -1154,108 +1154,116 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testTrivalMerge() {
-        GraphTraversalSource g = graph.traversal();
-        g.mergeV(new HashMap<>() {{
-            put("name", "Brandy");
-        }}).next();
-        assertTrue(g.V().has("name", "Brandy").hasNext());
-        g.mergeV(new HashMap<>() {{
-            put(T.label, "Dog");
-            put("name", "Scamp");
-            put("age", 12);
-        }}).next();
-        Map<Object, Object> x = g.V().hasLabel("Dog").valueMap().next();
-        List<Object> a = (List<Object>) x.get("name");
-        List<Object> b = (List<Object>) x.get("age");
-        assertEquals("Scamp", a.get(0));
-        assertEquals(12, b.get(0));
-        g.mergeV(new HashMap<>() {{
-            put(T.id, 300);
-            put(T.label, "Dog");
-            put("name", "Toby");
-            put("age", 10);
-        }}).next();
-        Long y = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).count().next();
-        assertEquals((Long) 2L, y);
-        List<Map<Object, Object>> list = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).toList();
-        assertEquals(1, list.stream().filter(it -> {
-            return ((List<Object>) it.get("age")).get(0).equals(10);
-        }).collect(Collectors.toList()).size());
-        assertEquals(1, list.stream().filter(it -> {
-            return ((List<Object>) it.get("age")).get(0).equals(12);
-        }).collect(Collectors.toList()).size());
+        if (graph.features().vertex().supportsMultiProperties()) {
+            GraphTraversalSource g = graph.traversal();
+            g.mergeV(new HashMap<>() {{
+                put("name", "Brandy");
+            }}).next();
+            assertTrue(g.V().has("name", "Brandy").hasNext());
+            g.mergeV(new HashMap<>() {{
+                put(T.label, "Dog");
+                put("name", "Scamp");
+                put("age", 12);
+            }}).next();
+            Map<Object, Object> x = g.V().hasLabel("Dog").valueMap().next();
+            List<Object> a = (List<Object>) x.get("name");
+            List<Object> b = (List<Object>) x.get("age");
+            assertEquals("Scamp", a.get(0));
+            assertEquals(12, b.get(0));
+            g.mergeV(new HashMap<>() {{
+                put(T.id, 300);
+                put(T.label, "Dog");
+                put("name", "Toby");
+                put("age", 10);
+            }}).next();
+            Long y = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).count().next();
+            assertEquals((Long) 2L, y);
+            List<Map<Object, Object>> list = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).toList();
+            assertEquals(1, list.stream().filter(it -> {
+                return ((List<Object>) it.get("age")).get(0).equals(10);
+            }).collect(Collectors.toList()).size());
+            assertEquals(1, list.stream().filter(it -> {
+                return ((List<Object>) it.get("age")).get(0).equals(12);
+            }).collect(Collectors.toList()).size());
+        } else {
+            LOG.info("Skipping testTrivialMerge {} does not support multi-properties", graph);
+        }
     }
 
     @Test
     public void TestMergeEvent() {
-        AtomicReference<String> val = new AtomicReference<>("");
-        MutationListener l = new MutationListener() {
-            @Override
-            public void vertexAdded(Vertex vertex) {
-                val.set("vertexAdded");
-            }
+        if (graph.features().vertex().supportsMultiProperties()) {
+            AtomicReference<String> val = new AtomicReference<>("");
+            MutationListener l = new MutationListener() {
+                @Override
+                public void vertexAdded(Vertex vertex) {
+                    val.set("vertexAdded");
+                }
 
-            @Override
-            public void vertexRemoved(Vertex vertex) {
-                val.set("vertexRemoved");
-            }
+                @Override
+                public void vertexRemoved(Vertex vertex) {
+                    val.set("vertexRemoved");
+                }
 
-            @Override
-            public void vertexPropertyChanged(Vertex element, VertexProperty oldValue, Object setValue, Object... vertexPropertyKeyValues) {
-                val.set("vertexPropertyChanged");
-            }
+                @Override
+                public void vertexPropertyChanged(Vertex element, VertexProperty oldValue, Object setValue, Object... vertexPropertyKeyValues) {
+                    val.set("vertexPropertyChanged");
+                }
 
-            @Override
-            public void vertexPropertyRemoved(VertexProperty vertexProperty) {
-                val.set("vertexPropertyRemoved");
-            }
+                @Override
+                public void vertexPropertyRemoved(VertexProperty vertexProperty) {
+                    val.set("vertexPropertyRemoved");
+                }
 
-            @Override
-            public void edgeAdded(Edge edge) {
-                val.set("edgeAdded");
-            }
+                @Override
+                public void edgeAdded(Edge edge) {
+                    val.set("edgeAdded");
+                }
 
-            @Override
-            public void edgeRemoved(Edge edge) {
-                val.set("edgeRemoved");
-            }
+                @Override
+                public void edgeRemoved(Edge edge) {
+                    val.set("edgeRemoved");
+                }
 
-            @Override
-            public void edgePropertyChanged(Edge element, Property oldValue, Object setValue) {
-                val.set("edgePropertyChanged");
-            }
+                @Override
+                public void edgePropertyChanged(Edge element, Property oldValue, Object setValue) {
+                    val.set("edgePropertyChanged");
+                }
 
-            @Override
-            public void edgePropertyRemoved(Edge element, Property property) {
-                val.set("edgePropertyRemoved");
-            }
+                @Override
+                public void edgePropertyRemoved(Edge element, Property property) {
+                    val.set("edgePropertyRemoved");
+                }
 
-            @Override
-            public void vertexPropertyPropertyChanged(VertexProperty element, Property oldValue, Object setValue) {
-                val.set("vertexPropertyPropertyChanged");
-            }
+                @Override
+                public void vertexPropertyPropertyChanged(VertexProperty element, Property oldValue, Object setValue) {
+                    val.set("vertexPropertyPropertyChanged");
+                }
 
-            @Override
-            public void vertexPropertyPropertyRemoved(VertexProperty element, Property property) {
-                val.set("vertexPropertyPropertyRemoved");
+                @Override
+                public void vertexPropertyPropertyRemoved(VertexProperty element, Property property) {
+                    val.set("vertexPropertyPropertyRemoved");
+                }
+            };
+            EventStrategy strategy = EventStrategy.build().addListener(l).create();
+            g = graph.traversal().withStrategies(strategy);
+            AtomicBoolean b = new AtomicBoolean(false);
+            try {
+                g.mergeV(new HashMap<>() {{
+                            put(T.id, 1);
+                        }})
+                        .option(onCreate, __.fail("vertex did not exist"))
+                        .option(onMatch, new HashMap<>() {{
+                            put("modified", 2022);
+                        }}).next();
+            } catch (FailStep.FailException fe) {
+                b.set(true);
             }
-        };
-        EventStrategy strategy = EventStrategy.build().addListener(l).create();
-        g = graph.traversal().withStrategies(strategy);
-        AtomicBoolean b = new AtomicBoolean(false);
-        try {
-            g.mergeV(new HashMap<>() {{
-                        put(T.id, 1);
-                    }})
-                    .option(onCreate, __.fail("vertex did not exist"))
-                    .option(onMatch, new HashMap<>() {{
-                        put("modified", 2022);
-                    }}).next();
-        } catch (FailStep.FailException fe) {
-            b.set(true);
+            assertTrue(b.get());
+            assertEquals("", val.get());
+        } else {
+            LOG.info("skipping TestMergeEvent {} does not support multi properties", graph);
         }
-        assertTrue(b.get());
-        assertEquals("", val.get());
     }
 
     @Test

@@ -684,27 +684,35 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
-        GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
-        GraphTraversalSource g = graph.traversal();
-        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
-        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+        if (graph.features().vertex().supportsMultiProperties()) {
+            GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
+            GraphTraversalSource g = graph.traversal();
+            Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+            checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+        } else {
+            LOG.info("Skipping g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value because {} does not support multi-properties", graph);
+        }
     }
 
 
     @Test
     public void trivialMultiProperty() {
-        GraphTraversalSource g = graph.traversal();
-        Vertex z = g.addV().next();
-        String[] vals = new String[]{"zontar", "zoltan"};
-        g.V(z).property("name", vals[0]).next();
-        g.V(z).property(VertexProperty.Cardinality.list, "name", vals[1]).next();
-        assertEquals((Long) 2L, g.V(z).properties("name").count().next());
-        GraphTraversal<Vertex, ? extends Property<Object>> t = g.V(z).properties("name");
-        Property<Object> a = t.next();
-        Property<Object> b = t.next();
-        assertTrue(List.of(vals).contains((String) a.value()));
-        assertTrue(List.of(vals).contains((String) b.value()));
-        assertNotEquals(a.value(), b.value());
+        if (graph.features().vertex().supportsMultiProperties()) {
+            GraphTraversalSource g = graph.traversal();
+            Vertex z = g.addV().next();
+            String[] vals = new String[]{"zontar", "zoltan"};
+            g.V(z).property("name", vals[0]).next();
+            g.V(z).property(VertexProperty.Cardinality.list, "name", vals[1]).next();
+            assertEquals((Long) 2L, g.V(z).properties("name").count().next());
+            GraphTraversal<Vertex, ? extends Property<Object>> t = g.V(z).properties("name");
+            Property<Object> a = t.next();
+            Property<Object> b = t.next();
+            assertTrue(List.of(vals).contains((String) a.value()));
+            assertTrue(List.of(vals).contains((String) b.value()));
+            assertNotEquals(a.value(), b.value());
+        } else {
+            LOG.info("Skipping trivialMultiProperty because {} does not support multi-properties", graph);
+        }
     }
 
     public static void assertVertexEdgeCounts(final Graph graph, final int expectedVertexCount, final int expectedEdgeCount) {
@@ -720,160 +728,173 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldRemoveMultiProperties() {
-        final Vertex v = graph.addVertex("name", "marko", "age", 34);
-        v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez");
-        tryCommit(graph, x -> {
-        });
-        v.property(VertexProperty.Cardinality.list, "name", "marko rodriguez");
-        v.property(VertexProperty.Cardinality.list, "name", "marko");
-        tryCommit(graph, graph -> {
-            assertEquals(5, IteratorUtils.count(v.properties()));
-            assertEquals(4, IteratorUtils.count(v.properties("name")));
-            final List<String> values = IteratorUtils.list(v.values("name"));
-            assertThat(values, hasItem("marko a. rodriguez"));
-            assertThat(values, hasItem("marko rodriguez"));
-            assertThat(values, hasItem("marko"));
-            assertVertexEdgeCounts(graph, 1, 0);
-        });
+        if (graph.features().vertex().supportsMultiProperties()) {
+            final Vertex v = graph.addVertex("name", "marko", "age", 34);
+            v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez");
+            tryCommit(graph, x -> {
+            });
+            v.property(VertexProperty.Cardinality.list, "name", "marko rodriguez");
+            v.property(VertexProperty.Cardinality.list, "name", "marko");
+            tryCommit(graph, graph -> {
+                assertEquals(5, IteratorUtils.count(v.properties()));
+                assertEquals(4, IteratorUtils.count(v.properties("name")));
+                final List<String> values = IteratorUtils.list(v.values("name"));
+                assertThat(values, hasItem("marko a. rodriguez"));
+                assertThat(values, hasItem("marko rodriguez"));
+                assertThat(values, hasItem("marko"));
+                assertVertexEdgeCounts(graph, 1, 0);
+            });
 
-        IteratorUtils.filter(v.properties(), p -> p.value().equals("marko")).forEachRemaining(VertexProperty::remove);
-        List<? extends Property<Object>> l = graph.traversal().V(v).properties().toList();
-        tryCommit(graph, graph -> {
-            assertEquals(3, IteratorUtils.count(graph.traversal().V(v).properties()));
-            assertEquals(2, IteratorUtils.count(graph.traversal().V(v).properties("name")));
-            assertVertexEdgeCounts(graph, 1, 0);
-        });
+            IteratorUtils.filter(v.properties(), p -> p.value().equals("marko")).forEachRemaining(VertexProperty::remove);
+            List<? extends Property<Object>> l = graph.traversal().V(v).properties().toList();
+            tryCommit(graph, graph -> {
+                assertEquals(3, IteratorUtils.count(graph.traversal().V(v).properties()));
+                assertEquals(2, IteratorUtils.count(graph.traversal().V(v).properties("name")));
+                assertVertexEdgeCounts(graph, 1, 0);
+            });
 
-        v.property("age").remove();
-        tryCommit(graph, graph -> {
-            assertEquals(2, IteratorUtils.count(v.properties()));
-            assertEquals(2, IteratorUtils.count(v.properties("name")));
-            assertVertexEdgeCounts(graph, 1, 0);
-        });
+            v.property("age").remove();
+            tryCommit(graph, graph -> {
+                assertEquals(2, IteratorUtils.count(v.properties()));
+                assertEquals(2, IteratorUtils.count(v.properties("name")));
+                assertVertexEdgeCounts(graph, 1, 0);
+            });
 
-        IteratorUtils.filter(v.properties("name"), p -> p.key().equals("name")).forEachRemaining(VertexProperty::remove);
-        tryCommit(graph, graph -> {
-            assertEquals(0, IteratorUtils.count(v.properties()));
-            assertEquals(0, IteratorUtils.count(v.properties("name")));
-            assertVertexEdgeCounts(graph, 1, 0);
-        });
+            IteratorUtils.filter(v.properties("name"), p -> p.key().equals("name")).forEachRemaining(VertexProperty::remove);
+            tryCommit(graph, graph -> {
+                assertEquals(0, IteratorUtils.count(v.properties()));
+                assertEquals(0, IteratorUtils.count(v.properties("name")));
+                assertVertexEdgeCounts(graph, 1, 0);
+            });
+        } else {
+            LOG.info("Skipping shouldRemoveMultiProperties because {} has does not support multi-properties", graph);
+        }
     }
 
     @Test
     public void shouldHandleListVertexPropertiesWithoutNullPropertyValues() {
-        Vertex v = this.graph.addVertex(new Object[]{"name", "marko", "age", 34});
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals("marko", v.property("name").value());
-            Assert.assertEquals("marko", v.value("name"));
-            Assert.assertEquals(34, v.property("age").value());
-            Assert.assertEquals(34L, (long) (Integer) v.value("age"));
-            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[]{"name"})));
-            Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[0])));
-            assertVertexEdgeCounts(this.graph, 1, 0);
-        });
-        VertexProperty<String> property = v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez", new Object[0]);
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals(v, property.element());
-        });
+        if (graph.features().vertex().supportsMultiProperties()) {
+            Vertex v = this.graph.addVertex(new Object[]{"name", "marko", "age", 34});
 
-        try {
-            v.property("name");
-            Assert.fail("This should throw a: " + Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"));
-        } catch (Exception var4) {
-            validateException(Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"), var4);
-        }
-
-        Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko"));
-        Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko a. rodriguez"));
-        Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[0])));
-        Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[]{"name"})));
-        assertVertexEdgeCounts(this.graph, 1, 0);
-        Assert.assertEquals(v, v.property(VertexProperty.Cardinality.list, "name", "mrodriguez", new Object[0]).element());
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[]{"name"})));
-            Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
-            assertVertexEdgeCounts(this.graph, 1, 0);
-        });
-        v.properties(new String[]{"name"}).forEachRemaining((meta) -> {
-            meta.property("counter", ((String) meta.value()).length());
-        });
-        this.tryCommit(this.graph, (g) -> {
-            v.properties(new String[0]).forEachRemaining((meta) -> {
-                Assert.assertEquals(meta.key(), meta.label());
-                Assert.assertTrue(meta.isPresent());
-                Assert.assertEquals(v, meta.element());
-                if (meta.key().equals("age")) {
-                    Assert.assertEquals(meta.value(), 34);
-                    Assert.assertEquals(0L, IteratorUtils.count(meta.properties(new String[0])));
-                }
-
-                if (meta.key().equals("name")) {
-                    Assert.assertEquals((long) ((String) meta.value()).length(), (long) (Integer) meta.value("counter"));
-                    Assert.assertEquals(1L, IteratorUtils.count(meta.properties(new String[0])));
-                    Assert.assertEquals(1L, (long) meta.keys().size());
-                    Assert.assertTrue(meta.keys().contains("counter"));
-                }
-
+            this.tryCommit(this.graph, (g) -> {
+                Assert.assertEquals("marko", v.property("name").value());
+                Assert.assertEquals("marko", v.value("name"));
+                Assert.assertEquals(34, v.property("age").value());
+                Assert.assertEquals(34L, (long) (Integer) v.value("age"));
+                Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[0])));
+                assertVertexEdgeCounts(this.graph, 1, 0);
             });
+            VertexProperty<String> property = v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez", new Object[0]);
+            this.tryCommit(this.graph, (g) -> {
+                Assert.assertEquals(v, property.element());
+            });
+
+            try {
+                v.property("name");
+                Assert.fail("This should throw a: " + Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"));
+            } catch (Exception var4) {
+                validateException(Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"), var4);
+            }
+
+            Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko"));
+            Assert.assertTrue(IteratorUtils.list(v.values(new String[]{"name"})).contains("marko a. rodriguez"));
+            Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[0])));
+            Assert.assertEquals(2L, IteratorUtils.count(v.properties(new String[]{"name"})));
             assertVertexEdgeCounts(this.graph, 1, 0);
-        });
-        Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.list, "name", (Object) null, new Object[0]));
-        this.tryCommit(this.graph, (graph) -> {
-            Assert.assertEquals(3L, IteratorUtils.count(graph.traversal().V(v).properties(new String[]{"name"})));
-            Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
-            assertVertexEdgeCounts(this.graph, 1, 0);
-        });
-        Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.single, "name", (Object) null, new Object[0]));
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals(0L, IteratorUtils.count(v.properties(new String[]{"name"})));
-            Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[0])));
-            assertVertexEdgeCounts(this.graph, 1, 0);
-        });
+            Assert.assertEquals(v, v.property(VertexProperty.Cardinality.list, "name", "mrodriguez", new Object[0]).element());
+            this.tryCommit(this.graph, (g) -> {
+                Assert.assertEquals(3L, IteratorUtils.count(v.properties(new String[]{"name"})));
+                Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
+                assertVertexEdgeCounts(this.graph, 1, 0);
+            });
+            v.properties(new String[]{"name"}).forEachRemaining((meta) -> {
+                meta.property("counter", ((String) meta.value()).length());
+            });
+            this.tryCommit(this.graph, (g) -> {
+                v.properties(new String[0]).forEachRemaining((meta) -> {
+                    Assert.assertEquals(meta.key(), meta.label());
+                    Assert.assertTrue(meta.isPresent());
+                    Assert.assertEquals(v, meta.element());
+                    if (meta.key().equals("age")) {
+                        Assert.assertEquals(meta.value(), 34);
+                        Assert.assertEquals(0L, IteratorUtils.count(meta.properties(new String[0])));
+                    }
+
+                    if (meta.key().equals("name")) {
+                        Assert.assertEquals((long) ((String) meta.value()).length(), (long) (Integer) meta.value("counter"));
+                        Assert.assertEquals(1L, IteratorUtils.count(meta.properties(new String[0])));
+                        Assert.assertEquals(1L, (long) meta.keys().size());
+                        Assert.assertTrue(meta.keys().contains("counter"));
+                    }
+
+                });
+                assertVertexEdgeCounts(this.graph, 1, 0);
+            });
+            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.list, "name", (Object) null, new Object[0]));
+            this.tryCommit(this.graph, (graph) -> {
+                Assert.assertEquals(3L, IteratorUtils.count(graph.traversal().V(v).properties(new String[]{"name"})));
+                Assert.assertEquals(4L, IteratorUtils.count(v.properties(new String[0])));
+                assertVertexEdgeCounts(this.graph, 1, 0);
+            });
+            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.single, "name", (Object) null, new Object[0]));
+            this.tryCommit(this.graph, (g) -> {
+                Assert.assertEquals(0L, IteratorUtils.count(v.properties(new String[]{"name"})));
+                Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[0])));
+                assertVertexEdgeCounts(this.graph, 1, 0);
+            });
+        }else{
+            LOG.info("Skipping shouldHandleListVertexPropertiesWithoutNullPropertyValues because graph does not support multi-properties");
+        }
     }
 
     @Test
     public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
-        Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
-        Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
-        this.tryCommit(this.graph, (graph) -> {
-            assertVertexEdgeCounts(graph, 2, 0);
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
-            Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[]{"name"})));
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
-            Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[0])));
-            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
-            Assert.assertEquals(0L, IteratorUtils.count(stephen.properties(new String[]{"blah"})));
-        });
-        stephen.remove();
-        this.tryCommit(this.graph, (graph) -> {
-            assertVertexEdgeCounts(graph, 1, 0);
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
-            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
-        });
+        if (graph.features().vertex().supportsMultiProperties()) {
+            Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
+            Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
+            this.tryCommit(this.graph, (graph) -> {
+                assertVertexEdgeCounts(graph, 2, 0);
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+                Assert.assertEquals(2L, IteratorUtils.count(stephen.properties(new String[0])));
+                Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+                Assert.assertEquals(0L, IteratorUtils.count(stephen.properties(new String[]{"blah"})));
+            });
+            stephen.remove();
+            this.tryCommit(this.graph, (graph) -> {
+                assertVertexEdgeCounts(graph, 1, 0);
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+                Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+            });
 
-        for (int i = 0; i < 100; ++i) {
-            marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + String.valueOf(i), new Object[0]);
+            for (int i = 0; i < 100; ++i) {
+                marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + String.valueOf(i), new Object[0]);
+            }
+
+            this.tryCommit(this.graph, (graph) -> {
+                assertVertexEdgeCounts(graph, 1, 0);
+                Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+                Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[0])));
+                Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+            });
+            graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
+                return ((String) a).startsWith((String) b);
+            }, "Remove-")).forEachRemaining(Property::remove);
+            this.tryCommit(this.graph, (graph) -> {
+                assertVertexEdgeCounts(graph, 1, 0);
+                List<VertexProperty<Object>> l = IteratorUtils.list(marko.properties(new String[]{"name"}));
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
+                Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+            });
+            marko.remove();
+            this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
+        } else {
+            LOG.info("skipping shouldRemoveMultiPropertiesWhenVerticesAreRemoved because {} does not support multi-properties", graph);
         }
-
-        this.tryCommit(this.graph, (graph) -> {
-            assertVertexEdgeCounts(graph, 1, 0);
-            Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[]{"name"})));
-            Assert.assertEquals(102L, IteratorUtils.count(marko.properties(new String[0])));
-            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
-        });
-        graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
-            return ((String) a).startsWith((String) b);
-        }, "Remove-")).forEachRemaining(Property::remove);
-        this.tryCommit(this.graph, (graph) -> {
-            assertVertexEdgeCounts(graph, 1, 0);
-            List<VertexProperty<Object>> l = IteratorUtils.list(marko.properties(new String[]{"name"}));
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
-            Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
-            Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
-        });
-        marko.remove();
-        this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
     }
 
     @Test

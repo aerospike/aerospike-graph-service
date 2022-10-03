@@ -1260,11 +1260,15 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
-        Graph tg = TinkerFactory.createTheCrew();
-        GraphHelper.cloneElements(tg, graph);
-        Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
-        this.printTraversalForm(traversal);
-        checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+        if (graph.features().vertex().supportsMultiProperties()) {
+            Graph tg = TinkerFactory.createTheCrew();
+            GraphHelper.cloneElements(tg, graph);
+            Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+            this.printTraversalForm(traversal);
+            checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+        } else {
+            LOG.info("skipping g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value because {} does not support multi-properties", graph);
+        }
     }
 
     @Test
@@ -1280,7 +1284,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(traversal.hasNext());
         assertEquals(6, IteratorUtils.count(g.V()));
     }
-
 
 
 }

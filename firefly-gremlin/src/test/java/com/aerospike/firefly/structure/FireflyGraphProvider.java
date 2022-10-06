@@ -133,8 +133,8 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         if (graph != null)
             conf = ((FireflyGraph) graph).configuration();
         AerospikeConnection db = AerospikeConnection.connect(conf);
-        // Drop database and close database. Do not drop indices.
-        db.dropDatabase(false);
+        // Drop database and remove indices. Can leak memory otherwise (16mb per unused index)
+        db.dropDatabase(true);
         db.close();
 
         // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.

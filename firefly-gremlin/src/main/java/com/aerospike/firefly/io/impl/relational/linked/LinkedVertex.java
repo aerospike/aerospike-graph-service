@@ -229,11 +229,11 @@ public class LinkedVertex extends RelationalVertex {
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
         final List<Map.Entry<String, FireflyVertexProperty<V>>> vertexProperties = new ArrayList<>();
-        FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
         //The test case shouldRemoveMultiPropertiesWhenVerticesAreRemoved from the standard suite
         //Requires that the properties be read from the database, because they have been removed in a traversal
-        Map<String, List<Long>> fresh = record != null ? ((Map<String, List<Long>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID)) : vertexPropertyIds;
-        for (final Map.Entry<String, List<Long>> vertexPropertyIdsEntry : fresh.entrySet()) {
+        final Map<String, List<Long>> reReadIdMap = record != null ? ((Map<String, List<Long>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID)) : vertexPropertyIds;
+        for (final Map.Entry<String, List<Long>> vertexPropertyIdsEntry : reReadIdMap.entrySet()) {
             // Get the properties for the entry.
             vertexPropertyIdsEntry.getValue().forEach(id -> {
                 // Create the property.

@@ -190,9 +190,6 @@ public class LinkedVertex extends RelationalVertex {
         list.remove((Long) vertexPropertyId.value());
         if (list.size() == 0) {
             vertexPropertyIds.remove(key);
-        } else {
-            vertexPropertyIds.remove(key);
-            vertexPropertyIds.put(key, list);
         }
 
         vertexPropertyCount--;

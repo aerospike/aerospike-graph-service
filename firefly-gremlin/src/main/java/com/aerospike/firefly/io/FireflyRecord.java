@@ -8,6 +8,7 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -162,6 +163,25 @@ public class FireflyRecord {
         final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
         return new FireflyRecord(db, key, record, storageClass);
+    }
+
+    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+        final Key[] keys = ids.stream().map(id -> getKey(db.getNamespace(), set, id)).toArray(Key[]::new);
+        final Record[] records = db.read(keys);
+        if (records == null)
+            return null;
+
+        final List<FireflyRecord> fireflyRecords = new ArrayList<>();
+        for (int i = 0; i < records.length; i++) {
+            final Record record = records[i];
+            if (record == null)
+                continue;
+            final long idTypeIdx = record.getLong(db.ID_TYPE);
+            final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
+            final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
+            fireflyRecords.add(new FireflyRecord(db, keys[i], record, storageClass));
+        }
+        return fireflyRecords;
     }
 
     /**

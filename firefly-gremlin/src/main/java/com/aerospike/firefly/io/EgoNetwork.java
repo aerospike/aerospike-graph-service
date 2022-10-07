@@ -38,8 +38,8 @@ public class EgoNetwork {
     }
 
     private EgoNetwork read() {
-        List<Long> outEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.OUT));
-        List<Long> inEdgeIds = IteratorUtils.list(ego.getEdgeIdsFromVertex(Direction.IN));
+        List<Long> outEdgeIds = ego.getEdgeIdsFromVertex(Direction.OUT);
+        List<Long> inEdgeIds = ego.getEdgeIdsFromVertex(Direction.IN);
 
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
                 new Key(db.getNamespace(), db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());

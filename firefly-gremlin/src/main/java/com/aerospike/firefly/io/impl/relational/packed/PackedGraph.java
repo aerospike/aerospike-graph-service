@@ -81,17 +81,6 @@ public class PackedGraph extends RelationalGraph {
     }
 
     /**
-     * Function to read vertex from Aerospike.
-     *
-     * @param idValue Id of vertex.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex readVertex(final FireflyId idValue) {
-        return RelationalVertex.readVertex(this, idValue);
-    }
-
-    /**
      * Function to create vertex from a record.
      *
      * @param keyRecord Record to use.

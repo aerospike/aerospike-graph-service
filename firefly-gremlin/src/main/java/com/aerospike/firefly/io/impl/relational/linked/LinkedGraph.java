@@ -89,7 +89,9 @@ final public class LinkedGraph extends RelationalGraph {
      * @return FireflyVertexProperty
      */
     @Override
-    public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId idValue, FireflyVertex vertex, String key, V value) {
+    public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue, final FireflyVertex vertex, final String key, final V value) {
+        // Write vertex property to vertex property record first so if we fail we don't end up with null property inside vertex.
+
         // Write vertex property to Aerospike.
         final FireflyVertexProperty<V> fireflyVertexProperty = LinkedVertexProperty.writeVertexProperty(this, vertex, idValue, key, value);
 
@@ -129,7 +131,7 @@ final public class LinkedGraph extends RelationalGraph {
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
     /**
@@ -160,7 +162,7 @@ final public class LinkedGraph extends RelationalGraph {
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(
                                 ConfigurationHelper.getOrDefault(
                                         ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
     /**
@@ -189,7 +191,7 @@ final public class LinkedGraph extends RelationalGraph {
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
                         FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
-        return IteratorUtils.filter(vps, vp -> vp.key().equals(key));
+        return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
     @Override

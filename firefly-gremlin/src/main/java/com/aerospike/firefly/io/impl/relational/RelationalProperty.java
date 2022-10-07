@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
@@ -41,8 +42,10 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
     public void remove() {
         try {
             final AerospikeConnection db = graph.getBaseGraph();
-            db.removeTypeHintedValueFromMap(db.getElementPropertySet(fireflyElement.getClass()),
-                    FireflyId.fromElement(fireflyElement), db.getElementPropertySet(fireflyElement.getClass()), key());
+            GenerationCheck.writeGenerationCheck(() -> db.removeTypeHintedValueFromMap(
+                                                                 db.getElementPropertySet(fireflyElement.getClass()),
+                                                                 FireflyId.fromElement(fireflyElement),
+                                                                 db.getElementPropertySet(fireflyElement.getClass()), key()));
             graph.removeProperty(fireflyElement, key());
         } catch (Exception ignored) {
             // Removing a property that is already removed SHOULD NOT yield an error.
@@ -60,6 +63,8 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
      * @return Property that was written.
      */
     public static <V> Property<V> writeProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
+        // RelationalProperty property writes are atomic since they only hit 1 record. Generation check within
+        // writeTypeHintedValueToMap ensures correctness.
         final AerospikeConnection db = graph.getBaseGraph();
         FireflyHelper.validatePropertyValue(value);
         db.writeTypeHintedValueToMap(

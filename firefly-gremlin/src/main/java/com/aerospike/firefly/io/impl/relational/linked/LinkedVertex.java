@@ -7,9 +7,11 @@ import com.aerospike.client.Value;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -114,7 +116,7 @@ public class LinkedVertex extends RelationalVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
-                    new LinkedVertexProperty(graph, fid, this, null, null) :
+                    null :
                     new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
             results.put(vp.label(), vp);
         });
@@ -152,7 +154,7 @@ public class LinkedVertex extends RelationalVertex {
                 final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                         db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
                 final VertexProperty<?> vp = (kv.isEmpty()) ?
-                        new LinkedVertexProperty<V>(graph, fid, this, null, null) :
+                        null :
                         new LinkedVertexProperty<V>(graph, fid, this, kv.get().getKey(), kv.get().getValue());
                 results.add(vp);
             }
@@ -168,11 +170,26 @@ public class LinkedVertex extends RelationalVertex {
      */
     @Override
     public void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
+        GenerationCheck.writeGenerationCheck(() -> protectedRemoveVertexPropertyForModel(key, vertexPropertyId));
+    }
+
+    private void protectedRemoveVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
         LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
+
+        // Read the vertex's firefly record from the database
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        if (record == null) {
+            return;
+        }
+
+        // Read this vertex and update in case we have had concurrent updates.
+        final LinkedVertex linkedVertex = (LinkedVertex)fromRecord(graph, new KeyRecord(record.key(), record.record()));
+        this.vertexPropertyCount = linkedVertex.vertexPropertyCount;
+        this.vertexPropertyIds = linkedVertex.vertexPropertyIds;
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                    vertexPropertyId.value(), id.value(), key);
+                      vertexPropertyId.value(), id.value(), key);
             return;
         }
 
@@ -181,7 +198,7 @@ public class LinkedVertex extends RelationalVertex {
             vertexPropertyIdsForKey.remove((Long) vertexPropertyId.value());
         } else {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                    vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
+                      vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
             return;
         }
 
@@ -193,17 +210,20 @@ public class LinkedVertex extends RelationalVertex {
         final long vpCounter = getVertexPropertyCount() - vertexPropertyIdsForKey.size();
 
         // Write back.
+        final int generation = record.record.generation;
         if (vpCounter <= db.ID_CACHE_SIZE - 1) {
             // Can directly overwrite vertex property map.
             final Bin vertexProperties = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexProperties, vertexPropertiesCounter);
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexProperties, vertexPropertiesCounter);
         } else if (vpCounter < db.ID_CACHE_SIZE - 1) {
             // Can only overwrite vertex property count.
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesCounter);
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesCounter);
         }
     }
+
+
 
     /**
      * Read vertex properties for the vertex.
@@ -227,7 +247,8 @@ public class LinkedVertex extends RelationalVertex {
                 // Create the property.
                 final FireflyVertexProperty<V> property = LinkedVertexProperty.readVertexProperty(
                         graph, this, FireflyId.of(FireflyVertexProperty.class, id));
-                vertexProperties.add(new MapEntry(vertexPropertyIds.getKey(), property));
+                if (property != null)
+                    vertexProperties.add(new MapEntry(vertexPropertyIds.getKey(), property));
             });
 
         }
@@ -259,9 +280,10 @@ public class LinkedVertex extends RelationalVertex {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
-                    new LinkedVertexProperty<V>(graph, fid, this, key, null) :
+                    null :
                     new LinkedVertexProperty<V>(graph, fid, this, kv.get().getKey(), kv.get().getValue());
-            vertexProperties.add(vertexProperty);
+            if (vertexProperty != null)
+                vertexProperties.add(vertexProperty);
         });
         return IteratorUtils.asIterator(vertexProperties);
     }
@@ -273,6 +295,10 @@ public class LinkedVertex extends RelationalVertex {
      */
     @Override
     public void writeVertexProperty(final FireflyVertexProperty vertexProperty) {
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteVertexProperty(vertexProperty));
+    }
+
+    private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
         LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
 
@@ -285,8 +311,10 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         long vpCounter = 0;
+        int generation = -1;
         if (fireflyRecord != null && fireflyRecord.record() != null) {
             vpCounter = fireflyRecord.record().getLong(db.VP_COUNTER);
+            generation = fireflyRecord.record.generation;
         }
 
         final List<Long> ids = labelIds.getOrDefault(vertexProperty.key(), new ArrayList<>());
@@ -299,7 +327,7 @@ public class LinkedVertex extends RelationalVertex {
         labelIds.put(vertexProperty.key(), ids);
         final Bin vertexPropertyIdBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(labelIds));
         final Bin vertexPropertyCountBin = new Bin(db.VP_COUNTER, Value.get(vpCounter));
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertyIdBin, vertexPropertyCountBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertyIdBin, vertexPropertyCountBin);
     }
 
     /**

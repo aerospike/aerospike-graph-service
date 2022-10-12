@@ -2,9 +2,12 @@ package com.aerospike.firefly.io.impl.relational.packed;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Value;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -145,18 +148,35 @@ public class PackedVertex extends RelationalVertex {
      */
     @Override
     public void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
+        GenerationCheck.writeGenerationCheck(() -> protectedRemoveVertexProperty(key, vertexPropertyId));
+    }
+
+    private void protectedRemoveVertexProperty(final String key, final FireflyId vertexPropertyId) {
         LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
+
+        // Read the vertex's firefly record from the database
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        if (record == null) {
+            return;
+        }
+
+        // Read this vertex and update in case we have had concurrent updates.
+        final PackedVertex packedVertex = (PackedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
+        this.vertexPropertyCount = packedVertex.vertexPropertyCount;
+        this.vertexPropertyIds = packedVertex.vertexPropertyIds;
+        this.vertexPropertyValues = packedVertex.vertexPropertyValues;
+        this.vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                    vertexPropertyId.value(), id.value(), key);
+                      vertexPropertyId.value(), id.value(), key);
             return;
         }
 
         // Remove vertex property from vertex properties in vertex.
         if (!vertexPropertyId.toNumericId().value().equals(vertexPropertyIds.get(key))) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                    vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
+                      vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
             return;
         }
 
@@ -173,7 +193,8 @@ public class PackedVertex extends RelationalVertex {
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vertexPropertiesCounterBin);
+        final int generation = record.record().generation;
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vertexPropertiesCounterBin);
     }
 
     /**
@@ -183,7 +204,24 @@ public class PackedVertex extends RelationalVertex {
      */
     @Override
     public void writeVertexProperty(final FireflyVertexProperty vertexProperty) {
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteVertexProperty(vertexProperty));
+    }
+
+    private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
         LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
+
+        // Read the vertex's firefly record from the database
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        if (record == null) {
+            return;
+        }
+
+        // Read this vertex and update in case we have had concurrent updates.
+        final PackedVertex packedVertex = (PackedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
+        this.vertexPropertyCount = packedVertex.vertexPropertyCount;
+        this.vertexPropertyIds = packedVertex.vertexPropertyIds;
+        this.vertexPropertyValues = packedVertex.vertexPropertyValues;
+        this.vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
 
         // Update maps for vertex properties and ids.
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
@@ -198,7 +236,9 @@ public class PackedVertex extends RelationalVertex {
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin, vertexPropertiesCounterBin);
+        final int generation = record.record().generation;
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin, vertexPropertiesCounterBin);
+
     }
 
     /**

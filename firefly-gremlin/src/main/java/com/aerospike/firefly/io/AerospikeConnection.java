@@ -10,6 +10,7 @@ import com.aerospike.client.policy.*;
 import com.aerospike.client.query.*;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.TraversalCache;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -44,18 +45,11 @@ import static com.aerospike.firefly.process.traversal.strategy.optimization.Fire
 public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
-
-    private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     private static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     private static final String DATA_MODEL_VER = "DATA_MODEL_VER";
 
-    static {
-        sendKeyWritePolicy.sendKey = true;
-    }
-
     public final String GRAPH_ID;
-
     public final String NUMERIC_VP_KV_INDEX;
     public final String STRING_VP_KV_INDEX;
     public final String NUMERIC_V_VP_KV_INDEX;
@@ -766,16 +760,33 @@ public class AerospikeConnection implements AutoCloseable {
      * @param bins Data Bin(s) to write
      */
     protected void write(final Key key, final Bin... bins) {
+        write(key, -1, bins);
+    }
+
+    /**
+     * Write to Aerospike, notify the cache implementation
+     *
+     * @param key  Key to write Bins into
+     * @param bins Data Bin(s) to write
+     */
+    protected void write(final Key key, final int generation, final Bin... bins) {
         writeMetric.incrementAndGet();
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.sendKey = true;
+        if (generation != -1) {
+            // Set generation for write.
+            writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
+            writePolicy.generation = generation;
+        }
         if (currentTraversal.get() != null && idFromTraversal(currentTraversal.get()).isPresent()) {
             try {
-                traversalCacheSet.get(idFromTraversal(currentTraversal.get()).get()).write(key, bins);
+                traversalCacheSet.get(idFromTraversal(currentTraversal.get()).get()).write(writePolicy, key, bins);
             } catch (Exception e) {
                 LOG.debug(e.getMessage());
-                client.put(sendKeyWritePolicy, key, bins);
+                client.put(writePolicy, key, bins);
             }
         } else {
-            client.put(sendKeyWritePolicy, key, bins);
+            client.put(writePolicy, key, bins);
         }
     }
 
@@ -925,14 +936,20 @@ public class AerospikeConnection implements AutoCloseable {
                                              final FireflyId fid,
                                              final String mapName,
                                              final String mapKey) {
+        GenerationCheck.writeGenerationCheck(() -> protectedRemoveTypeHintedValueFromMap(aeroSet, fid, mapName, mapKey));
+    }
+
+    private void protectedRemoveTypeHintedValueFromMap(final String aeroSet,
+                                                       final FireflyId fid,
+                                                       final String mapName,
+                                                       final String mapKey) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null)
             return;
         final Record r = fireflyRecord.record;
-        final Map<String, Object> data;
-        final Map<String, Object> typeHints;
-        data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new HashMap<>());
-        typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new HashMap<>());
+        final int generation = r.generation;
+        final Map<String, Object> data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new HashMap<>());
+        final Map<String, Object> typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new HashMap<>());
 
         if (!data.containsKey(mapKey)) {
             return;
@@ -942,7 +959,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
         final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
         final Bin valueBin = new Bin(mapName, Value.get(data));
-        FireflyRecord.write(this, aeroSet, fid, valueBin, typeHintBin);
+        FireflyRecord.write(this, aeroSet, fid, generation, valueBin, typeHintBin);
     }
 
     /**
@@ -961,7 +978,7 @@ public class AerospikeConnection implements AutoCloseable {
                                                final String mapName,
                                                final String mapKey,
                                                final V value) {
-        writeTypeHintedValueToMap(aeroSet, fid, mapName, mapKey, value, null);
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteTypeHintedValueToMap(aeroSet, fid, mapName, mapKey, value, (Bin) null));
     }
 
     /**
@@ -982,13 +999,27 @@ public class AerospikeConnection implements AutoCloseable {
                                               final String mapName,
                                               final String mapKey,
                                               final V value, Bin... additionalBins) {
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteTypeHintedValueToMap(aeroSet, fid, mapName, mapKey, value, additionalBins));
+
+    }
+
+    private <V> void protectedWriteTypeHintedValueToMap(final String aeroSet,
+                                                       final FireflyId fid,
+                                                       final String mapName,
+                                                       final String mapKey,
+                                                       final V value,
+                                                       final Bin... additionalBins) {
         final Map<String, Object> data;
         final Map<String, Object> typeHints;
+        final int generation;
+
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null) {
+            generation = -1;
             data = new HashMap<>();
             typeHints = new HashMap<>();
         } else {
+            generation = fireflyRecord.record.generation;
             data = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(mapName)).orElse(new HashMap<>());
             typeHints = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(TYPE_HINTS)).orElse(new HashMap<>());
         }
@@ -1001,18 +1032,18 @@ public class AerospikeConnection implements AutoCloseable {
         final Bin valueBin = new Bin(mapName, Value.get(data));
         if (additionalBins == null) {
             if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {
-                FireflyRecord.writeElement(this, aeroSet, fid, valueBin, typeHintBin);
+                FireflyRecord.writeElement(this, aeroSet, fid, generation, valueBin, typeHintBin);
             } else {
-                FireflyRecord.write(this, aeroSet, fid, valueBin, typeHintBin);
+                FireflyRecord.write(this, aeroSet, fid, generation, valueBin, typeHintBin);
             }
         } else {
             final List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
             listOfBins.add(valueBin);
             listOfBins.add(typeHintBin);
             if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {
-                FireflyRecord.writeElement(this, aeroSet, fid, listOfBins.toArray(new Bin[0]));
+                FireflyRecord.writeElement(this, aeroSet, fid, generation, listOfBins.toArray(new Bin[0]));
             } else {
-                FireflyRecord.write(this, aeroSet, fid, listOfBins.toArray(new Bin[0]));
+                FireflyRecord.write(this, aeroSet, fid, generation, listOfBins.toArray(new Bin[0]));
             }
         }
     }
@@ -1104,7 +1135,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null, name), ctr);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null, name), -1, ctr);
         return 0L;
     }
 

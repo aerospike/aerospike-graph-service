@@ -66,7 +66,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), bin1, bin2, bin3);
+        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), -1, bin1, bin2, bin3);
         assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
     }
 
@@ -76,7 +76,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, id, bin1, bin2, bin3);
+        FireflyRecord.write(db, db.TEST_SET, id, -1, bin1, bin2, bin3);
         assertNotEquals(null, db.read(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id)));
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id));
         assertNull(db.read(FireflyRecord.getKey(db.getNamespace(), db.TEST_SET, id)));
@@ -136,7 +136,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         FireflyId intId = FireflyId.of(null, 1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
-        FireflyRecord.write(db, db.TEST_SET, intId, bin21, bin22);
+        FireflyRecord.write(db, db.TEST_SET, intId, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
         assertEquals(record.id(), intId.value());
     }
@@ -147,7 +147,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         FireflyId fid = FireflyId.of(null, 1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
-        FireflyRecord.write(db, db.TEST_SET, fid, bin21, bin22);
+        FireflyRecord.write(db, db.TEST_SET, fid, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
         assertEquals(record.id(), fid.value());
     }

@@ -95,6 +95,10 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public void remove() {
         //@todo multi record transactions
+        // Until we have MRT support, we must remove the edge record itself first, then
+        // remove the edge from the individual vertices.
+        // But doing this, should one of the subsequent deletes fail, we will not have an
+        // orphaned edge on one vertex but not the other.
         removeEdge();
 
         final FireflyVertex inVertex = graph.readVertex(inVid);

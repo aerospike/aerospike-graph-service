@@ -8,6 +8,7 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -164,6 +165,25 @@ public class FireflyRecord {
         return new FireflyRecord(db, key, record, storageClass);
     }
 
+    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+        final Key[] keys = ids.stream().map(id -> getKey(db.getNamespace(), set, id)).toArray(Key[]::new);
+        final Record[] records = db.read(keys);
+        if (records == null)
+            return null;
+
+        final List<FireflyRecord> fireflyRecords = new ArrayList<>();
+        for (int i = 0; i < records.length; i++) {
+            final Record record = records[i];
+            if (record == null)
+                continue;
+            final long idTypeIdx = record.getLong(db.ID_TYPE);
+            final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
+            final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
+            fireflyRecords.add(new FireflyRecord(db, keys[i], record, storageClass));
+        }
+        return fireflyRecords;
+    }
+
     /**
      * Construct a FireflyRecord from an Aerospike Record and Key
      * @param db AerospikeConnection instance
@@ -191,18 +211,14 @@ public class FireflyRecord {
     protected static void write(final AerospikeConnection db,
                                 final String set,
                                 final FireflyId id,
+                                final int generation,
                                 final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(id.value().getClass());
         final Key key = getKey(db.getNamespace(), set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
-
-        try {
-            db.write(key, listOfBins.toArray(new Bin[0]));
-        } catch (com.aerospike.client.AerospikeException e) {
-            throw new RuntimeException(e);
-        }
+        db.write(key, generation, listOfBins.toArray(new Bin[0]));
     }
 
     /**
@@ -215,17 +231,16 @@ public class FireflyRecord {
     public static void writeElement(final AerospikeConnection db,
                                     final String set,
                                     final FireflyId id,
+                                    final int generation,
                                     final Bin... bins) {
         final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
         final Key key = getElementKey(db.getNamespace(), set, id);
-        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
-        listOfBins.add(idTypeBin);
-        try {
-            db.write(key, listOfBins.toArray(new Bin[0]));
-        } catch (com.aerospike.client.AerospikeException e) {
-            throw new RuntimeException(e);
+        if (generation == -1) {
+            final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
+            listOfBins.add(idTypeBin);
         }
+        db.write(key, generation, listOfBins.toArray(new Bin[0]));
     }
 
     @Override

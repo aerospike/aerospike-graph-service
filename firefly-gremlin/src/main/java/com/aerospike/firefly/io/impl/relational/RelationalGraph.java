@@ -12,6 +12,7 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
+import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -68,6 +69,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                                  final List<Map.Entry<String, Object>> properties,
                                  final FireflyVertex inVertex,
                                  final FireflyVertex outVertex) {
+        // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
+
         // Add edge to inVertex and outVertex.
         inVertex.writeEdge(Direction.IN, edgeId, label);
         outVertex.writeEdge(Direction.OUT, edgeId, label);
@@ -112,7 +115,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertexId));
         final Bin valueBin = new Bin(this.db.EDGE_AERO_SET, Value.get(data));
         final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints));
-        FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, FireflyId.of(FireflyEdge.class, edgeId), labelBin,
+        FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, FireflyId.of(FireflyEdge.class, edgeId), -1, labelBin,
                 inVbin, outVBin, valueBin, typeHintBin);
     }
 
@@ -217,12 +220,12 @@ public abstract class RelationalGraph extends FireflyGraph {
             }
             final Bin vertexPropertyValuesTypeHintsBin =
                     new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), labelBin,
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), -1, labelBin,
                     vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin,
                     vertexPropertyValuesTypeHintsBin, typeHint, outEdgeDataBin, outEdgeCounterBin, cacheDisabledBin,
                     inEdgeDataBin, inEdgeCounterBin);
         } else {
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), labelBin,
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, FireflyId.of(FireflyVertex.class, vertexId), -1, labelBin,
                     vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint, outEdgeDataBin, outEdgeCounterBin,
                     cacheDisabledBin, inEdgeDataBin, inEdgeCounterBin);
         }
@@ -237,6 +240,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public FireflyEdge readEdge(final FireflyId edgeId) {
         return RelationalEdge.readEdge(this, edgeId);
+    }
+
+    /**
+     * Function to read edges from Aerospike.
+     *
+     * @param edgeIds Edge ids.
+     * @return Edge.
+     */
+    @Override
+    public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
+        return RelationalEdge.readEdges(this, edgeIds);
     }
 
     /**
@@ -261,6 +275,11 @@ public abstract class RelationalGraph extends FireflyGraph {
         return RelationalVertex.readVertex(this, idValue);
     }
 
+    @Override
+    public List<FireflyVertex> readVertices(final List<FireflyId> idValues) {
+        return RelationalVertex.readVertices(this, idValues);
+    }
+
     /**
      * Function to create vertex from a record.
      *
@@ -281,10 +300,10 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public void removeProperty(final FireflyElement element, final String key) {
-        db.removeTypeHintedValueFromMap(
+        GenerationCheck.writeGenerationCheck(() -> db.removeTypeHintedValueFromMap(
                 db.getElementPropertySet(element.getClass()),
                 FireflyId.fromElement(element),
-                db.getElementPropertySet(element.getClass()), key);
+                db.getElementPropertySet(element.getClass()), key));
     }
 
     /**
@@ -357,7 +376,11 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public void removeGraphVariable(final String key) {
-        db.removeTypeHintedValueFromMap(db.GRAPH_VARIABLES_SET, FireflyId.of(null, db.GRAPH_VARIABLES_RECORD), db.GRAPH_VARIABLES_MAP, key);
+        GenerationCheck.writeGenerationCheck(() -> db.removeTypeHintedValueFromMap(
+                db.GRAPH_VARIABLES_SET,
+                FireflyId.of(null, db.GRAPH_VARIABLES_RECORD),
+                db.GRAPH_VARIABLES_MAP,
+                key));
     }
 
     /**

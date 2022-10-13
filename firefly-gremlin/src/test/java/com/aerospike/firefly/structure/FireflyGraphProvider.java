@@ -108,8 +108,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         //@todo review this default
         return new NumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER);
 
-//        return FireflyGraph.DefaultIdManager.ANY;
     }
+
+
 
     @Override
     public Map<String, Object> getBaseConfiguration(final String graphName,

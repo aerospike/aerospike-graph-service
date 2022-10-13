@@ -107,7 +107,6 @@ public class PackedVertex extends RelationalVertex {
                     vertexProperty.getKey(),
                     vertexProperty.getValue());
             vertexPropertyList.add(new MapEntry(vertexProperty.getKey(), property));
-
         }
 
         return IteratorUtils.asIterator(vertexPropertyList);

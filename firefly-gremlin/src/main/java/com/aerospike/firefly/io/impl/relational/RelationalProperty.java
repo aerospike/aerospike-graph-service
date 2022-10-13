@@ -42,10 +42,12 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
     public void remove() {
         try {
             final AerospikeConnection db = graph.getBaseGraph();
-            GenerationCheck.writeGenerationCheck(() -> db.removeTypeHintedValueFromMap(
-                                                                 db.getElementPropertySet(fireflyElement.getClass()),
-                                                                 FireflyId.fromElement(fireflyElement),
-                                                                 db.getElementPropertySet(fireflyElement.getClass()), key()));
+            db.removeTypeHintedValueFromMap(
+                    db.getElementPropertySet(fireflyElement.getClass()),
+                    FireflyId.fromElement(fireflyElement),
+                    db.getElementPropertySet(fireflyElement.getClass()),
+                    key());
+
             graph.removeProperty(fireflyElement, key());
         } catch (Exception ignored) {
             // Removing a property that is already removed SHOULD NOT yield an error.

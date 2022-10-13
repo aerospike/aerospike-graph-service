@@ -128,7 +128,6 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
         final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, AerospikeConnection.idToStorageType(vertex.id()));
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
-
         // Return the vertex property.
         return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
     }

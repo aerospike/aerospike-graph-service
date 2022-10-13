@@ -1048,8 +1048,9 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+
     /**
-     * Cast a on-disk storage type to its user type
+     * Cast an on-disk storage type to its user type
      *
      * @param clazz
      * @param val

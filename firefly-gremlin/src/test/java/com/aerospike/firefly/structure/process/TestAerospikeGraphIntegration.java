@@ -1,6 +1,8 @@
 package com.aerospike.firefly.structure.process;
 
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.TestHelper;
@@ -8,9 +10,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.FailStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.ConsoleMutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoTest;
 import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;
@@ -34,9 +40,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onCreate;
+import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onMatch;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.lt;
@@ -65,10 +74,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         if (!traversal.asAdmin().isLocked()) traversal.asAdmin().applyStrategies();
         logger.info("  post-strategy:" + traversal);
     }
+
     @Before
-    public void setupTraversal(){
+    public void setupTraversal() {
         g = graph.traversal();
     }
+
     @Test
     public void g_V_out_out_path_byXnameX_byXageX() {
         Graph tg = TinkerFactory.createModern();
@@ -127,8 +138,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_mergeEXlabel_knows_out_marko_in_vadasX_optionXonCreate_created_YX_optionXonMatch_created_NX() {
         final Traversal<Edge, Edge> traversal = g.mergeE(asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100))).
-                option(Merge.onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
-                option(Merge.onMatch, asMap("created", "N"));
+                option(onCreate, asMap(T.label, "knows", Direction.IN, new ReferenceVertex(101), Direction.OUT, new ReferenceVertex(100), "created", "Y")).
+                option(onMatch, asMap("created", "N"));
         printTraversalForm(traversal);
         try {
             traversal.next();
@@ -748,9 +759,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Map<String, Object> opm = g.V().has("name", "marko").propertyMap().next();
 
         Traversal<Vertex, Vertex> traversal =
-                g.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19));
+                g.mergeV(asMap(T.label, "person", "name", "marko")).option(onMatch, asMap("age", 19));
         this.printTraversalForm(traversal);
-        Vertex tgVertex = tg.mergeV(asMap(T.label, "person", "name", "marko")).option(Merge.onMatch, asMap("age", 19)).next();
+        Vertex tgVertex = tg.mergeV(asMap(T.label, "person", "name", "marko")).option(onMatch, asMap("age", 19)).next();
 
         Vertex vertex = (Vertex) traversal.next();
         Map<String, Object> npm = g.V().has("name", "marko").propertyMap().next();
@@ -770,7 +781,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Traversal<Object, Vertex> traversal = g.withSideEffect("c", asMap(T.label, "person", "name", "marko")).
                 withSideEffect("m", asMap("age", 19)).
-                mergeV(__.select("c")).option(Merge.onMatch, __.select("m"));
+                mergeV(__.select("c")).option(onMatch, __.select("m"));
         this.printTraversalForm(traversal);
         Vertex vertex = (Vertex) traversal.next();
         Map<String, Object> npm = g.V().has("name", "marko").propertyMap().next();
@@ -966,11 +977,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         v.addEdge("self", v);
 
         final GraphTraversalSource gts = create(eventStrategy);
-        final Map<Object,Object> m = new HashMap<>();
+        final Map<Object, Object> m = new HashMap<>();
         m.put(T.label, "self");
-        final Map<Object,Object> mMatch = new HashMap<>();
+        final Map<Object, Object> mMatch = new HashMap<>();
         mMatch.put("some", "thing");
-        gts.V(v).mergeE(m).option(Merge.onMatch, mMatch).next();
+        gts.V(v).mergeE(m).option(onMatch, mMatch).next();
 
         tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
 
@@ -1017,6 +1028,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(1, listener2.edgePropertyChangedEventRecorded());
         assertEquals(1, listener1.edgePropertyChangedEventRecorded());
     }
+
     @Test
     public void shouldTriggerAddEdgePropertyAdded() {
         final StubMutationListener listener1 = new StubMutationListener();
@@ -1054,7 +1066,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Traversal<Vertex, Vertex> traversal = g.V().has("name", P.gt("m").and(TextP.containing("o")));
         this.printTraversalForm(traversal);
         Assert.assertTrue(traversal.hasNext());
-        Assert.assertTrue(((Vertex)traversal.next()).value("name").equals("marko"));
+        Assert.assertTrue(((Vertex) traversal.next()).value("name").equals("marko"));
         Assert.assertFalse(traversal.hasNext());
     }
 
@@ -1065,12 +1077,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         int counter = 0;
 
-        while(traversal.hasNext()) {
+        while (traversal.hasNext()) {
             ++counter;
-            Assert.assertEquals("knows", ((Edge)traversal.next()).label());
+            Assert.assertEquals("knows", ((Edge) traversal.next()).label());
         }
 
-        Assert.assertEquals(2L, (long)counter);
+        Assert.assertEquals(2L, (long) counter);
     }
 
     private static <A, B> boolean internalCheckMap(final Map<A, B> expectedMap, final Map<A, B> actualMap) {
@@ -1091,6 +1103,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         }
         return true;
     }
+
     private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
         if (expectedList.size() != actualList.size()) {
             return false;
@@ -1126,6 +1139,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("Checking indexing is equivalent", expectedResultsCount.size(), resultsCount.size());
         expectedResultsCount.forEach((k, v) -> assertEquals("Checking result group counts", v, resultsCount.get(k)));
     }
+
     @Test
     public void g_V_branchXageX_optionXltX30X__youngX_optionXgtX30X__oldX_optionXnone__on_the_edgeX() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
@@ -1136,5 +1150,145 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .option(none, constant("on the edge"));
         this.printTraversalForm(traversal);
         checkResults(Arrays.asList("young", "young", "old", "old"), traversal);
+    }
+
+    @Test
+    public void testTrivalMerge() {
+        if (graph.features().vertex().supportsMultiProperties()) {
+            GraphTraversalSource g = graph.traversal();
+            g.mergeV(new HashMap<>() {{
+                put("name", "Brandy");
+            }}).next();
+            assertTrue(g.V().has("name", "Brandy").hasNext());
+            g.mergeV(new HashMap<>() {{
+                put(T.label, "Dog");
+                put("name", "Scamp");
+                put("age", 12);
+            }}).next();
+            Map<Object, Object> x = g.V().hasLabel("Dog").valueMap().next();
+            List<Object> a = (List<Object>) x.get("name");
+            List<Object> b = (List<Object>) x.get("age");
+            assertEquals("Scamp", a.get(0));
+            assertEquals(12, b.get(0));
+            g.mergeV(new HashMap<>() {{
+                put(T.id, 300);
+                put(T.label, "Dog");
+                put("name", "Toby");
+                put("age", 10);
+            }}).next();
+            Long y = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).count().next();
+            assertEquals((Long) 2L, y);
+            List<Map<Object, Object>> list = g.V().hasLabel("Dog").valueMap().with(WithOptions.tokens).toList();
+            assertEquals(1, list.stream().filter(it -> {
+                return ((List<Object>) it.get("age")).get(0).equals(10);
+            }).collect(Collectors.toList()).size());
+            assertEquals(1, list.stream().filter(it -> {
+                return ((List<Object>) it.get("age")).get(0).equals(12);
+            }).collect(Collectors.toList()).size());
+        } else {
+            LOG.info("Skipping testTrivialMerge {} does not support multi-properties", graph);
+        }
+    }
+
+    @Test
+    public void TestMergeEvent() {
+        if (graph.features().vertex().supportsMultiProperties()) {
+            AtomicReference<String> val = new AtomicReference<>("");
+            MutationListener l = new MutationListener() {
+                @Override
+                public void vertexAdded(Vertex vertex) {
+                    val.set("vertexAdded");
+                }
+
+                @Override
+                public void vertexRemoved(Vertex vertex) {
+                    val.set("vertexRemoved");
+                }
+
+                @Override
+                public void vertexPropertyChanged(Vertex element, VertexProperty oldValue, Object setValue, Object... vertexPropertyKeyValues) {
+                    val.set("vertexPropertyChanged");
+                }
+
+                @Override
+                public void vertexPropertyRemoved(VertexProperty vertexProperty) {
+                    val.set("vertexPropertyRemoved");
+                }
+
+                @Override
+                public void edgeAdded(Edge edge) {
+                    val.set("edgeAdded");
+                }
+
+                @Override
+                public void edgeRemoved(Edge edge) {
+                    val.set("edgeRemoved");
+                }
+
+                @Override
+                public void edgePropertyChanged(Edge element, Property oldValue, Object setValue) {
+                    val.set("edgePropertyChanged");
+                }
+
+                @Override
+                public void edgePropertyRemoved(Edge element, Property property) {
+                    val.set("edgePropertyRemoved");
+                }
+
+                @Override
+                public void vertexPropertyPropertyChanged(VertexProperty element, Property oldValue, Object setValue) {
+                    val.set("vertexPropertyPropertyChanged");
+                }
+
+                @Override
+                public void vertexPropertyPropertyRemoved(VertexProperty element, Property property) {
+                    val.set("vertexPropertyPropertyRemoved");
+                }
+            };
+            EventStrategy strategy = EventStrategy.build().addListener(l).create();
+            g = graph.traversal().withStrategies(strategy);
+            AtomicBoolean b = new AtomicBoolean(false);
+            try {
+                g.mergeV(new HashMap<>() {{
+                            put(T.id, 1);
+                        }})
+                        .option(onCreate, __.fail("vertex did not exist"))
+                        .option(onMatch, new HashMap<>() {{
+                            put("modified", 2022);
+                        }}).next();
+            } catch (FailStep.FailException fe) {
+                b.set(true);
+            }
+            assertTrue(b.get());
+            assertEquals("", val.get());
+        } else {
+            LOG.info("skipping TestMergeEvent {} does not support multi properties", graph);
+        }
+    }
+
+    @Test
+    public void g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value() {
+        if (graph.features().vertex().supportsMultiProperties()) {
+            Graph tg = TinkerFactory.createTheCrew();
+            GraphHelper.cloneElements(tg, graph);
+            Traversal<Vertex, String> traversal = g.V().local(properties("location").order().by(T.value, Order.asc).range(0, 2)).value();
+            this.printTraversalForm(traversal);
+            checkResults(Arrays.asList("brussels", "san diego", "centreville", "dulles", "baltimore", "bremen", "aachen", "kaiserslautern"), traversal);
+        } else {
+            LOG.info("skipping g_V_localXpropertiesXlocationX_order_byXvalueX_limitX2XX_value because {} does not support multi-properties", graph);
+        }
+    }
+
+    @Test
+    public void g_mergeVXlabel_person_name_markoX() {
+        Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+
+        final Traversal<Vertex, Vertex> traversal = g.mergeV(asMap(T.label, "person", "name", "marko"));
+        final Vertex vertex = traversal.next();
+        assertEquals("person", vertex.label());
+        assertEquals("marko", vertex.<String>value("name"));
+        assertFalse(traversal.hasNext());
+        assertEquals(6, IteratorUtils.count(g.V()));
     }
 }

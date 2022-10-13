@@ -41,19 +41,26 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     // Abstract functions to be implemented by concrete implementation
     protected abstract <V> Iterator<Map.Entry<String, VertexProperty<V>>> readVertexProperties();
+
     protected abstract <V> Iterator<VertexProperty<V>> readVertexProperty(final String key);
+
     public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperties);
+
     public abstract void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId);
+
     public abstract long getVertexPropertyCount();
+
     protected abstract void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
+
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
+
     public abstract List<Long> getEdgeIdsFromVertex(final Direction direction);
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
      * Function to remove vertex properties. Goes here so it can ensure it hits the star model as well.
      *
-     * @param key Vertex property key.
+     * @param key              Vertex property key.
      * @param vertexPropertyId Vertex property id.
      */
     public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
@@ -61,6 +68,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
             StarPackedGraph.removeVertexProperty(graph.getBaseGraph(), this, key);
         }
         removeVertexPropertyForModel(key, vertexPropertyId);
+
     }
 
     /**
@@ -79,51 +87,34 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
      */
     @Override
     public <V> VertexProperty<V> property(VertexProperty.Cardinality cardinality, String key, V value, Object... keyValues) {
-        if (this.removed)
-            throw elementAlreadyRemoved(Vertex.class, this.id);
-        ElementHelper.legalPropertyKeyValueArray(keyValues);
-        ElementHelper.validateProperty(key, value);
-        if (ElementHelper.getIdValue(keyValues).isPresent() &&
-                !graph.features().vertex().properties().supportsUserSuppliedIds())
-            throw VertexProperty.Exceptions.userSuppliedIdsNotSupported();
-
-        // If single cardinality, we are setting key to value.
-        if (graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single) ||
-                VertexProperty.Cardinality.single.equals(cardinality)) {
-            // If single cardinality we should remove existing properties with the same key.
-            properties(key).forEachRemaining(Property::remove);
-
-            // If we do not support null and the value is null, we should return empty.
-            if (!allowNullPropertyValues && null == value) {
-                return VertexProperty.empty();
-            }
-        }
-
-        // If we don't allow null property values and the value is null then the key can be removed but only if the
-        // cardinality is single.
-        // If it is list/set then we can just ignore the null.
-        final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
-        if ((!allowNullPropertyValues && null == value) || VertexProperty.Cardinality.single == card ||
-                    graph.features().vertex().getCardinality(key).equals(VertexProperty.Cardinality.single)) {
-            // If single cardinality we should remove existing properties with the same key.
-            properties(key).forEachRemaining(Property::remove);
-
-            // If we do not support null and the value is null, we should return empty.
-            if (!allowNullPropertyValues && null == value) {
-                return VertexProperty.empty();
-            }
-        }
-
-        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        if (optionalVertexProperty.isPresent()) {
-            return optionalVertexProperty.get();
-        }
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         }
 
+        if (this.removed)
+            throw elementAlreadyRemoved(Vertex.class, this.id);
+        ElementHelper.legalPropertyKeyValueArray(keyValues);
+        ElementHelper.validateProperty(key, value);
+
+        if (!allowNullPropertyValues && null == value) {
+            final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
+            if (VertexProperty.Cardinality.single == card)
+                properties(key).forEachRemaining(VertexProperty::remove);
+            return VertexProperty.empty();
+        }
+
+        final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
+        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
+
+        // If we do not support null and the value is null, we should return empty.
+        if (!allowNullPropertyValues && null == value) {
+            return VertexProperty.empty();
+        }
+
         // Create Firefly id for vertex property.
-        final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+        final FireflyId vertexPropertyId = ElementHelper.getIdValue(keyValues).isPresent() ?
+                FireflyId.of(FireflyVertexProperty.class, ElementHelper.getIdValue(keyValues).get()) :
+                FireflyId.createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
@@ -176,7 +167,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =
                 graph.convertFullyQualified(graph.features().edge().supportsNullPropertyValues(), keyValues);
-        return graph.writeEdge(edgeId, label, properties, (FireflyVertex)vertex, this);
+        return graph.writeEdge(edgeId, label, properties, (FireflyVertex) vertex, this);
     }
 
     @Override
@@ -213,14 +204,16 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                     Collections.emptyIterator();
         }
 
+
         // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties();
 
         // Return an iterator over the map.
         return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
+
                 IteratorUtils.map(IteratorUtils.filter(vertexProperties,
                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
-                Map.Entry::getValue);
+                        Map.Entry::getValue);
     }
 
     @Override

@@ -1285,13 +1285,10 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         GraphHelper.cloneElements(tg, graph);
 
         final Traversal<Vertex, Vertex> traversal = g.mergeV(asMap(T.label, "person", "name", "marko"));
-//        List<Vertex> l = traversal.toList();
         final Vertex vertex = traversal.next();
         assertEquals("person", vertex.label());
         assertEquals("marko", vertex.<String>value("name"));
         assertFalse(traversal.hasNext());
         assertEquals(6, IteratorUtils.count(g.V()));
     }
-
-
 }

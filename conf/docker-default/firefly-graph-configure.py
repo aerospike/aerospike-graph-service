@@ -8,7 +8,7 @@ default_firefly_data_model = "packed"
 if "AEROSPIKE_HOST" not in os.environ:
     err = "Error: Aerospike host cannot be defaulted."
     print(err)
-    raise err
+    raise Exception(err)
 aerospike_host = os.environ.get("AEROSPIKE_HOST")
 aerospike_port = os.environ.get("AEROSPIKE_PORT", default_aerospike_port)
 aerospike_namespace = os.environ.get("AEROSPIKE_NAMESPACE", default_aerospike_namespace)
@@ -18,7 +18,7 @@ firefly_data_model = os.environ.get("FIREFLY_DATA_MODEL", default_firefly_data_m
 if aerospike_host == "":
     err = "Error: Aerospike host cannot be defaulted."
     print(err)
-    raise err
+    raise Exception(err)
 if aerospike_port == "":
     aerospike_port = default_aerospike_port
 if aerospike_namespace == "":

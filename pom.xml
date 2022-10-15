@@ -34,6 +34,7 @@
     <modules>
         <module>firefly-gremlin</module>
         <module>firefly-bulk-loader</module>
+        <module>firefly-spark-bulk-loader</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>

@@ -210,6 +210,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                          final Map<String, List<Long>> outEdges, final Map<String, List<Long>> inEdges,
                                          final boolean cacheDisabled);
 
+    public abstract void bulkWriteEdgeToVertexes(final long inVertexId, final long outVertexId,
+                                               final long edgeId, final String edgeLabel);
+
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 
     public abstract List<FireflyVertex> readVertices(final List<FireflyId> vertexIds);

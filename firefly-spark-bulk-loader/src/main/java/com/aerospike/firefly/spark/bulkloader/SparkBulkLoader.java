@@ -1,6 +1,7 @@
-package com.aerospike.firefly.bulkloader;
+package com.aerospike.firefly.spark.bulkloader;
 
-import com.aerospike.firefly.bulkloader.structure.SparkFireflyVertex;
+import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
+import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.io.FilenameUtils;
@@ -14,23 +15,29 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import static com.aerospike.firefly.bulkloader.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getConfig;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
+import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
+import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyElement.ID_HEADER;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
 
-public class BulkLoader {
-    private static final Logger LOG = LoggerFactory.getLogger(BulkLoader.class);
+public class SparkBulkLoader {
+    private static final Logger LOG = LoggerFactory.getLogger(SparkBulkLoader.class);
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
-    private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, "~from", "~to"};
+    private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static final String DEFAULT_CONFIG_PATH = "conf/spark-bulk-loader-conf/config.properties";
     private static Configuration config;
 
@@ -91,15 +98,18 @@ public class BulkLoader {
         for (final Dataset<Row> vertexData : vertexDatasets) {
             vertexData.foreachPartition((Iterator<Row> csvIterator) -> {
                 try (final FireflyGraph graph = FireflyGraph.open(config)) {
+                    final boolean ignoreFailedProperties =
+                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config));
                     while (csvIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) csvIterator.next();
                         try {
                             final SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(row,
-                                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config)));
-                            graph.writeVertex(sparkVertex.getId(), sparkVertex.getLabel(), sparkVertex.getProperties());
+                                    ignoreFailedProperties);
+                            graph.writeVertex(sparkVertex.getFireflyId(), sparkVertex.getLabel(), sparkVertex.getProperties());
                         } catch (final RuntimeException e) {
                             final boolean ignoreElementCreationFailed =
                                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
+                            LOG.warn("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
                                 throw e;
                             }
@@ -109,7 +119,39 @@ public class BulkLoader {
             });
         }
 
-        // TODO: Edges
+        // Edges
+        for (final Dataset<Row> edgeData : edgeDatasets) {
+            edgeData.foreachPartition((Iterator<Row> csvIterator) -> {
+                try (final FireflyGraph graph = FireflyGraph.open(config)) {
+                    final boolean ignoreFailedProperties =
+                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config));
+                    final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID,
+                            config));
+                    final boolean keepProvidedId = Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
+                            config));
+                    final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, config);
+                    while (csvIterator.hasNext()) {
+                        final GenericRowWithSchema row = (GenericRowWithSchema) csvIterator.next();
+                        try {
+                            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
+                                    useProvidedId, keepProvidedId, providedIdPropertyName, graph);
+                            graph.bulkWriteEdgeToVertexes(sparkEdge.getInVertexId(), sparkEdge.getOutVertexId(),
+                                    sparkEdge.getId(), sparkEdge.getLabel());
+                            graph.bulkWriteEdge(sparkEdge.getId(), sparkEdge.getLabel(), sparkEdge.getProperties(),
+                                    sparkEdge.getInVertexId(), sparkEdge.getOutVertexId());
+                        } catch (final RuntimeException e) {
+                            final boolean ignoreElementCreationFailed =
+                                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
+                            LOG.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
+                            if (!ignoreElementCreationFailed) {
+                                throw e;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         spark.stop();
     }
 

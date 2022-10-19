@@ -3,7 +3,6 @@ package com.aerospike.firefly.bulkloader;
 import com.aerospike.firefly.bulkloader.structure.SparkFireflyVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -12,26 +11,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static com.aerospike.firefly.bulkloader.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getConfig;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.*;
 
 public class BulkLoader {
     private static final Logger LOG = LoggerFactory.getLogger(BulkLoader.class);
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
     private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, "~from", "~to"};
     private static final String DEFAULT_CONFIG_PATH = "conf/spark-bulk-loader-conf/config.properties";
+//    private static final String DEFAULT_CONFIG_PATH = "/Users/mbelsare/Documents/code/aerospike/firefly/conf/spark-bulk-loader-conf/config-new.properties";
     private static Configuration config;
 
     public static void main(final String[] args) {
@@ -47,10 +39,8 @@ public class BulkLoader {
         }
         config = getConfig(path);
         // TODO Spark: Support csv data sources that Spark can support such as S3
-        final File vertexDirectory = new File(getOrDefault(VERTEX_DIRECTORY_KEY, config));
-        final File edgeDirectory = new File(getOrDefault(EDGE_DIRECTORY_KEY, config));
-        final List<String> vertexFiles = validateAndGetFiles(vertexDirectory);
-        final List<String> edgeFiles = validateAndGetFiles(edgeDirectory);
+        final List<String> vertexFiles = validateAndGetFiles(getOrDefault(VERTEX_DIRECTORY_KEY, config));
+        final List<String> edgeFiles = validateAndGetFiles(getOrDefault(EDGE_DIRECTORY_KEY, config));
 
         // Initialize Spark
         final SparkSession spark = SparkSession.builder().master("local").appName("firefly-bulk-loader").getOrCreate();
@@ -113,22 +103,19 @@ public class BulkLoader {
         spark.stop();
     }
 
-    static private List<String> validateAndGetFiles(final File directory) {
-        final List<String> validFiles = new ArrayList<>();
-        if (directory.isDirectory()) {
-            for (final File file : directory.listFiles()) {
-                if (FilenameUtils.isExtension(file.getName(), "csv")) {
-                    LOG.info("Found valid file for loading: " + file.getName());
-                    validFiles.add(file.getAbsolutePath());
-                } else {
-                    LOG.info("Ignoring invalid file for loading found in directory: " + file.getName());
-                }
+    static private List<String> validateAndGetFiles(final String directory) {
+        File file = new File(directory);
+        File[] directories = file.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.isDirectory();
             }
-        } else if (FilenameUtils.isExtension(directory.getName(), "csv")) {
-            LOG.info("Found valid file for loading: " + directory.getName());
-            validFiles.add(directory.getAbsolutePath());
-        }
-        return validFiles;
+        });
+
+        assert directories != null;
+        if (directories.length != 0)
+            return List.of(Arrays.toString(directories));
+        return Collections.singletonList(directory);
     }
 }
 

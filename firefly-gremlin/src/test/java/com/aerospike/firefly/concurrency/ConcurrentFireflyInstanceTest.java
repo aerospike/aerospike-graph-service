@@ -276,7 +276,9 @@ public class ConcurrentFireflyInstanceTest {
                 g.V().limit(1).properties(String.format("%d", actualIdx)).drop().iterate();
             }
             executorService.shutdown();
-            executorService.awaitTermination(30, TimeUnit.SECONDS);
+            if (!executorService.awaitTermination(90, TimeUnit.SECONDS)) {
+                Assert.fail("Failed to terminate in 90 seconds.");
+            }
             final Long propertyCount = g.V(a.id()).properties().count().next();
             final List<String> propertyIds = g.V(a.id()).properties().key().toList();
             for (int i = INITIAL_COUNT; i < INITIAL_COUNT + THREAD_COUNT * ADD_REMOVE_COUNT; i++) {

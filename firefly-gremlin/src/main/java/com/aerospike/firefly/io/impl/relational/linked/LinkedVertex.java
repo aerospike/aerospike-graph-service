@@ -22,6 +22,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -170,14 +171,19 @@ public class LinkedVertex extends RelationalVertex {
      */
     @Override
     public void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
+        Instant start = Instant.now();
         GenerationCheck.writeGenerationCheck(() -> protectedRemoveVertexPropertyForModel(key, vertexPropertyId));
+        System.out.println("Removal time: " + (Instant.now().getEpochSecond() - start.getEpochSecond()));
     }
 
     private void protectedRemoveVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
         LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
 
         // Read the vertex's firefly record from the database
+        Instant start = Instant.now();
         final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        LOG.info("\tRead time: " + (Instant.now().getEpochSecond() - start.getEpochSecond()));
+        start = Instant.now();
         if (record == null) {
             return;
         }
@@ -216,17 +222,20 @@ public class LinkedVertex extends RelationalVertex {
 
         // Write back.
         final int generation = record.record.generation;
+        LOG.info("\tcollect time: " + (Instant.now().getEpochSecond() - start.getEpochSecond()));
+        start = Instant.now();
         if (vpCounter <= db.ID_CACHE_SIZE - 1) {
             // Can directly overwrite vertex property map.
             final Bin vertexProperties = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
 
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexProperties, vertexPropertiesCounter);
-        } else if (vpCounter < db.ID_CACHE_SIZE - 1) {
+        } else if (vpCounter > db.ID_CACHE_SIZE - 1) {
             // Can only overwrite vertex property count.
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesCounter);
         }
+        LOG.info("\twrite back time: " + (Instant.now().getEpochSecond() - start.getEpochSecond()));
     }
 
 

@@ -39,7 +39,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefault;
 public abstract class TestFireflyLoaderBase {
     // Directories are relative to firefly/firefly-bulk-loader
     protected static final String TEST_EDGE_DIRECTORY = "src/test/resources/sampledata/edges";
-    protected static final String TEST_VERTEX_DIRECTORY = "src/test/resources/sampledata/vertexes";
+    protected static final String TEST_VERTEX_DIRECTORY = "src/test/resources/sampledata/vertices";
     protected Configuration config;
     protected FireflyGraph graph = null;
 
@@ -77,7 +77,7 @@ public abstract class TestFireflyLoaderBase {
         final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
         bulkLoader.load();
         testEdges();
-        testVertexes();
+        testVertices();
         testVertexEdgeConnections();
     }
 
@@ -163,7 +163,7 @@ public abstract class TestFireflyLoaderBase {
         Assert.assertEquals("hello world", edges.get(0).value("testProperty"));
     }
 
-    private void testVertexes() {
+    private void testVertices() {
         final GraphTraversalSource g = graph.traversal();
         testVertexCount(g);
         testTypeMappings(g);
@@ -196,9 +196,9 @@ public abstract class TestFireflyLoaderBase {
 
     private void testDefaultVertexLabelAndProperty(final GraphTraversalSource g) {
         // Data set has a single vertex without a label - check that it correctly inserted with default vertex label value
-        final List<Vertex> vertexes = g.V().hasLabel("vertex").toList();
-        Assert.assertEquals(1, vertexes.size());
-        final Vertex v = vertexes.get(0);
+        final List<Vertex> vertices = g.V().hasLabel("vertex").toList();
+        Assert.assertEquals(1, vertices.size());
+        final Vertex v = vertices.get(0);
         // Check that properties with no type specified default to text
         Assert.assertEquals("hello world", v.value("defaultText"));
         Assert.assertEquals("17", v.value("defaultNumber"));

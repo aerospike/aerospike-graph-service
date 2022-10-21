@@ -94,7 +94,7 @@ public class SparkBulkLoader {
             edgeDatasets.add(edgeData);
         }
 
-        // Vertexes
+        // Vertices
         for (final Dataset<Row> vertexData : vertexDatasets) {
             vertexData.foreachPartition((Iterator<Row> csvIterator) -> {
                 try (final FireflyGraph graph = FireflyGraph.open(config)) {
@@ -137,7 +137,7 @@ public class SparkBulkLoader {
                         try {
                             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
                                     useProvidedId, keepProvidedId, providedIdPropertyName, graph);
-                            graph.bulkWriteEdgeToVertexes(sparkEdge.getInVertexId(), sparkEdge.getOutVertexId(),
+                            graph.bulkWriteEdgeToVertices(sparkEdge.getInVertexId(), sparkEdge.getOutVertexId(),
                                     sparkEdge.getId(), sparkEdge.getLabel());
                             graph.bulkWriteEdge(sparkEdge.getId(), sparkEdge.getLabel(), sparkEdge.getProperties(),
                                     sparkEdge.getInVertexId(), sparkEdge.getOutVertexId());

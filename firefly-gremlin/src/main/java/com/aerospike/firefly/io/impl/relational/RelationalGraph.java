@@ -119,16 +119,16 @@ public abstract class RelationalGraph extends FireflyGraph {
                 inVbin, outVBin, valueBin, typeHintBin);
     }
 
-    public void bulkWriteEdgeToVertexes(final long inVertexId, final long outVertexId,
+    public void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
                                         final long edgeId, final String edgeLabel) {
         final FireflyId fireflyEdgeId = FireflyId.of(FireflyEdge.class, edgeId);
-        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertexes(
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertices(
                 FireflyId.of(FireflyVertex.class, inVertexId), Direction.IN, fireflyEdgeId, edgeLabel));
-        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertexes(
+        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertices(
                 FireflyId.of(FireflyVertex.class, outVertexId), Direction.OUT, fireflyEdgeId, edgeLabel));
     }
 
-    private void protectedWriteEdgeToVertexes(final FireflyId vertexId, final Direction direction,
+    private void protectedWriteEdgeToVertices(final FireflyId vertexId, final Direction direction,
                                               final FireflyId edgeId, final String edgeLabel) {
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;

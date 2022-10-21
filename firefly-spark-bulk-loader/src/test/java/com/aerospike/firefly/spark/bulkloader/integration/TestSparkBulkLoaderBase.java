@@ -47,7 +47,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDataAccuracy() {
         SparkBulkLoader.main(new String[]{getDefaultConfig()});
         testEdges();
-        testVertexes();
+        testVertices();
         testVertexEdgeConnections();
     }
 
@@ -108,7 +108,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("hello world", edges.get(0).value("testProperty"));
     }
 
-    private void testVertexes() {
+    private void testVertices() {
         final GraphTraversalSource g = graph.traversal();
         testVertexCount(g);
         testTypeMappings(g);
@@ -141,9 +141,9 @@ public abstract class TestSparkBulkLoaderBase {
 
     private void testDefaultVertexLabelAndProperty(final GraphTraversalSource g) {
         // Data set has a single vertex without a label - check that it correctly inserted with default vertex label value
-        final List<Vertex> vertexes = g.V().hasLabel("vertex").toList();
-        Assert.assertEquals(1, vertexes.size());
-        final Vertex v = vertexes.get(0);
+        final List<Vertex> vertices = g.V().hasLabel("vertex").toList();
+        Assert.assertEquals(1, vertices.size());
+        final Vertex v = vertices.get(0);
         // Check that properties with no type specified default to text
         Assert.assertEquals("hello world", v.value("defaultText"));
         Assert.assertEquals("17", v.value("defaultNumber"));

@@ -48,7 +48,7 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn -Dintegration.test.properties=linked test --no-transfer-progress
+          mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
   test-firefly-packed:
     name: Test Firefly Packed Data Model
     timeout-minutes: 120
@@ -66,7 +66,7 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn -Dintegration.test.properties=packed test --no-transfer-progress
+          mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-star-packed:
     name: Test Firefly Star Packed Data Model
     timeout-minutes: 120
@@ -84,7 +84,7 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn -Dintegration.test.properties="starpacked" test --no-transfer-progress
+          mvn -pl firefly-gremlin -Dintegration.test.properties="starpacked" test --no-transfer-progress
   test-firefly-bulk-loader:
     name: Test Firefly Bulk Loader
     timeout-minutes: 5
@@ -161,7 +161,7 @@ jobs:
           sleep 30
           
           echo "Running benchmark"
-          mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:

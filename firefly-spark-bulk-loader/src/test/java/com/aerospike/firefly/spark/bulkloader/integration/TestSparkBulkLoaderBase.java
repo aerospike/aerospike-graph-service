@@ -1,141 +1,86 @@
-package com.aerospike.firefly.bulkloader.integration;
+package com.aerospike.firefly.spark.bulkloader.integration;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.firefly.bulkloader.io.FireflyLoader;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.spark.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.Tokens;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ID_BUFFER_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ID_PROPERTY_NAME_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_ID_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_HOST;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_PORT;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.COUNTER;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.ID_MANAGER_SET;
-import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefault;
-
-public abstract class TestFireflyLoaderBase {
-    // Directories are relative to firefly/firefly-bulk-loader
-    protected static final String TEST_EDGE_DIRECTORY = "src/test/resources/sampledata/edges";
-    protected static final String TEST_VERTEX_DIRECTORY = "src/test/resources/sampledata/vertices";
-    protected Configuration config;
+public abstract class TestSparkBulkLoaderBase {
+    // Directories are relative to firefly/firefly-spark-bulk-loader
+    private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
     protected FireflyGraph graph = null;
 
     @Before
     public void beforeEach() {
-        resetConfig();
+        Configuration config = getTestConfig();
         graph = FireflyGraph.open(config);
-        graph.getBaseGraph().dropDatabase();
     }
 
     @After
     public void afterEach() {
+        graph.getBaseGraph().dropDatabase(true);
         graph.close();
     }
 
-    private void resetConfig() {
-        config = getDefaultTestConfig();
-        config.setProperty(FIREFLY_DATA_MODEL.toLowerCase(), getDataModel());
-        config.setProperty(EDGE_DIRECTORY_KEY, TEST_EDGE_DIRECTORY);
-        config.setProperty(VERTEX_DIRECTORY_KEY, TEST_VERTEX_DIRECTORY);
-    }
+    protected abstract Configuration getTestConfig();
 
-    public Configuration getDefaultTestConfig() {
-        return new MapConfiguration(new HashMap<>(){{
-            put(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
-            put(AEROSPIKE_PORT.toLowerCase(), "3000");
-            put(AEROSPIKE_NAMESPACE.toLowerCase(), "test");
-        }});
-    }
+    protected abstract String getDataModel();
 
-    abstract protected String getDataModel();
+    protected abstract String getDefaultConfig();
+
+    protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfig();
+
+    protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig();
 
     @Test
     public void testDataAccuracy() {
-        final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
-        bulkLoader.load();
+        SparkBulkLoader.main(new String[]{getDefaultConfig()});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
     }
 
     @Test
-    public void testIdBufferConfig() {
-        final long bufferSize = 25;
-        config.setProperty(ID_BUFFER_KEY, bufferSize);
-        final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
-        bulkLoader.load();
-        final AerospikeConnection connection = graph.getBaseGraph();
-        final AerospikeClient client = connection.getClient();
-        final String idManagerSet = getOrDefault(ID_MANAGER_SET, config);
-        final Key vertexIdKey = new Key(connection.getNamespace(), idManagerSet, Tokens.VERTEX_ID_COUNTER);
-        final Record vertexIdRecord = client.get(null, vertexIdKey);
-        Assert.assertEquals(-bufferSize, vertexIdRecord.getLong(COUNTER));
-        final Key edgeIdKey = new Key(connection.getNamespace(), idManagerSet, Tokens.EDGE_ID_COUNTER);
-        final Record edgeIdRecord = client.get(null, edgeIdKey);
-        Assert.assertEquals(-bufferSize, edgeIdRecord.getLong(COUNTER));
-    }
-
-    @Test
-    public void testUseProvidedIdTrue() {
-        config.setProperty(USE_PROVIDED_ID_KEY, true);
-        final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
-        bulkLoader.load();
+    public void testUseProvidedEdgeIdTrue() {
+        SparkBulkLoader.main(new String[]{getDefaultConfig()});
         final GraphTraversalSource g = graph.traversal();
-        final Vertex v = g.V().has("name", "Simon").next();
-        Assert.assertEquals(5L, v.id());
-        final VertexProperty providedId = v.property("~providedId");
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertFalse(providedId.isPresent());
     }
 
     @Test
-    public void testUseProvidedIdFalse() {
-        config.setProperty(USE_PROVIDED_ID_KEY, false);
-        final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
-        bulkLoader.load();
+    public void testUseProvidedEdgeIdFalse() {
+        SparkBulkLoader.main(new String[]{getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
         final GraphTraversalSource g = graph.traversal();
-        final Vertex v = g.V().has("name", "Simon").next();
-        Assert.assertNotEquals(5L, v.id());
-        final VertexProperty providedId = v.property("~providedId");
-        Assert.assertTrue(providedId.isPresent());
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertFalse(providedId.isPresent());
     }
 
     @Test
-    public void testProvidedIdPropertyNameName() {
-        final String idPropertyName = "someAbsurdPropertyNameForTheOldId";
-        config.setProperty(USE_PROVIDED_ID_KEY, false);
-        config.setProperty(ID_PROPERTY_NAME_KEY, idPropertyName);
-        final FireflyLoader bulkLoader = new FireflyLoader(graph, config);
-        bulkLoader.load();
+    public void testProvidedEdgeIdPropertyName() {
+        SparkBulkLoader.main(new String[]{getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
         final GraphTraversalSource g = graph.traversal();
-        final Vertex v = g.V().has("name", "Simon").next();
-        Assert.assertNotEquals(5L, v.id());
-        VertexProperty<String> providedId = v.property("~providedId");
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        Property providedId = e.property("~providedId");
         Assert.assertFalse(providedId.isPresent());
-        providedId = v.property(idPropertyName);
-        Assert.assertEquals("5", providedId.value());
+        providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertEquals("11", providedId.value());
     }
 
     private void testEdges() {

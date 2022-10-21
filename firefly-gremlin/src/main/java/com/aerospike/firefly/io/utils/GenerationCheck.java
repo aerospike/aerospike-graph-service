@@ -14,6 +14,9 @@ public class GenerationCheck {
     // We don't really want to limit these retries since generation related failures should just be retried.
     // However, infinite loops r scry :-O
     private static final int GENERATION_WRITE_FAILURES = 100000;
+    public static final String RECORD_TOO_BIG_ERROR = "Error: Vertex / edge exceeded max size. " +
+            "This can be due to too many properties / edges added to an element. Consider breaking " +
+            "this vertex / edge into more elements.";
 
     public static void writeGenerationCheck(final GenerationCheckFunction f) {
         int i = 0;
@@ -24,6 +27,8 @@ public class GenerationCheck {
             } catch (AerospikeException e) {
                 if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
                     continue;
+                } else if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                    throw new RuntimeException(RECORD_TOO_BIG_ERROR);
                 } else {
                     throw e;
                 }

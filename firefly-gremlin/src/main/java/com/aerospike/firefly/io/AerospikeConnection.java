@@ -68,6 +68,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
+    private static final int MaxRetries = 10;
 
     private final EventLoops eventLoops;
 
@@ -142,9 +143,7 @@ public class AerospikeConnection implements AutoCloseable {
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
-        conf.getKeys().forEachRemaining(key -> {
-            LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key)));
-        });
+        conf.getKeys().forEachRemaining(key -> LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key))));
         LOG.debug("\thost {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
         LOG.debug("\tport {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
         LOG.debug("\tns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
@@ -773,6 +772,7 @@ public class AerospikeConnection implements AutoCloseable {
         writeMetric.incrementAndGet();
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
+        writePolicy.maxRetries = MaxRetries;
         if (generation != -1) {
             // Set generation for write.
             writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;

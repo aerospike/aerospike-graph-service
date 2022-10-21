@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.structure;
+package com.aerospike.firefly.spark.bulkloader.structure;
 
 import com.aerospike.firefly.structure.id.FireflyId;
 
@@ -24,7 +24,11 @@ public abstract class SparkFireflyElement implements Serializable {
         this.properties = properties;
     }
 
-    public abstract FireflyId getId();
+    public abstract FireflyId getFireflyId();
+
+    public long getId() {
+        return this.id;
+    }
 
     public String getLabel() {
         return this.label;

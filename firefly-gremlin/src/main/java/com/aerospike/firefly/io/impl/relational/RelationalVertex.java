@@ -363,16 +363,16 @@ public abstract class RelationalVertex extends FireflyVertex {
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
-        // Get existing firefly record for the vertex.
+        // Get existing Firefly record for the vertex.
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
 
-        // Initialize edge counter, cache disable flag, and edge label map.
+        // Initialize edge counter, cache disable flag, edge label map, and generation.
         long edgeCounter = 0;
         boolean cacheDisabled = false;
         Map<String, List<Long>> labelEdges = new HashMap<>();
-
-        // If the firefly record is not null, grab existing the edge metadata from it.
         int generation = -1;
+
+        // If the Firefly record is not null, grab existing edge data from it.
         if (fireflyRecord != null && fireflyRecord.record != null) {
             labelEdges = (Map<String, List<Long>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
@@ -380,24 +380,33 @@ public abstract class RelationalVertex extends FireflyVertex {
             generation = fireflyRecord.record().generation;
         }
 
-        // Add the edge to the cache in the vertex if the cache has not grown too big.
-        final List<Long> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
-        if (edgeCounter < db.ID_CACHE_SIZE)
-            edges.add(NumericIdManager.convert(edgeId.value()));
-        else
-            cacheDisabled = true;
+        final Bin[] bins;
         edgeCounter++;
-
-        // Add edges to edge label map.
-        labelEdges.put(edgeLabel, edges);
-
-        // Write label to edge map back to vertex.
-        final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
-        final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(cacheDisabled));
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, edgeDataBin, edgeCounterBin, cacheDisabledBin);
+        if (cacheDisabled) {
+            // Cache is already disabled.
+            bins = new Bin[]{edgeCounterBin};
+        } else if (edgeCounter >= db.ID_CACHE_SIZE) {
+            // Cache is now disabled due to growing too big.
+            final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(true));
+            bins = new Bin[]{edgeCounterBin, cacheDisabledBin};
+        } else {
+            // Add the edge to the cache in the vertex if the cache has not grown too big.
+            final List<Long> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
+            edges.add(NumericIdManager.convert(edgeId.value()));
 
-        // Remove edge from local edge cache.
+            // Add edges to edge label map.
+            labelEdges.put(edgeLabel, edges);
+
+            // Write edge label map back to vertex.
+            final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
+            final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(false));
+            bins = new Bin[]{edgeDataBin, edgeCounterBin, cacheDisabledBin};
+        }
+
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, this.id, generation, bins);
+
+        // Add edge to local edge cache.
         addEdgeToJVMCache(direction, edgeId, edgeLabel);
     }
 

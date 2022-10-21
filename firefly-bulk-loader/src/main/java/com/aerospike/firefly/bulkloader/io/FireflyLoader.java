@@ -35,7 +35,7 @@ public class FireflyLoader implements AutoCloseable {
     private final VertexReader vertexReader;
     private final Map<Long, Map<String, List<Long>>> vertexIdToOutEdgesLabelIdsMap = new HashMap<>();
     private final Map<Long, Map<String, List<Long>>> vertexIdToInEdgesLabelIdsMap = new HashMap<>();
-    private final Set<Long> cacheDisabledVertexes = new HashSet<>();
+    private final Set<Long> cacheDisabledVertices = new HashSet<>();
     private boolean isClosed = false;
 
     private final List<Long> fireflyEdgeLoadTimes = new ArrayList<>();
@@ -75,10 +75,10 @@ public class FireflyLoader implements AutoCloseable {
             final long start = System.nanoTime();
             loadEdges();
             final long edgesDone = System.nanoTime();
-            loadVertexes();
-            final long vertexesDone = System.nanoTime();
+            loadVertices();
+            final long verticesDone = System.nanoTime();
             this.totalEdgeLoadTime = edgesDone - start;
-            this.totalVertexLoadTime = vertexesDone - edgesDone;
+            this.totalVertexLoadTime = verticesDone - edgesDone;
         } finally {
             close();
         }
@@ -103,11 +103,11 @@ public class FireflyLoader implements AutoCloseable {
         LOG.info("Bulk loader overhead time in ms: " + (this.totalEdgeLoadTime - totalFireflyEdgeLoadTime) / 1000000.0);
         LOG.info("Throughput of edges per second: " + 1000000000 / averageFireflyEdgeLoadTime);
 
-        LOG.info("===Loaded a total of " + this.fireflyVertexLoadTimes.size() + " vertexes===");
+        LOG.info("===Loaded a total of " + this.fireflyVertexLoadTimes.size() + " vertices===");
         LOG.info("Average Firefly time in ms: " + averageFireflyVertexLoadTime / 1000000.0);
         LOG.info("Total Firefly time in ms: " + totalFireflyVertexLoadTime / 1000000.0);
         LOG.info("Total bulk loader overhead time in ms : " + (this.totalVertexLoadTime - totalFireflyVertexLoadTime) / 1000000.0);
-        LOG.info("Throughput of vertexes per second: " + 1000000000 / averageFireflyVertexLoadTime);
+        LOG.info("Throughput of vertices per second: " + 1000000000 / averageFireflyVertexLoadTime);
     }
 
     private void loadVertex(final BulkLoaderVertex vertex) {
@@ -119,11 +119,11 @@ public class FireflyLoader implements AutoCloseable {
 
         final long start = System.nanoTime();
         this.graph.bulkWriteVertex(vertexId, vertex.getLabel(), vertex.getProperties(), outEdges, inEdges,
-                this.cacheDisabledVertexes.contains(vertexId));
+                this.cacheDisabledVertices.contains(vertexId));
         this.fireflyVertexLoadTimes.add(System.nanoTime() - start);
     }
 
-    private void loadVertexes() {
+    private void loadVertices() {
         BulkLoaderVertex vertex;
         while ((vertex = this.vertexReader.next()) != null) {
             loadVertex(vertex);
@@ -155,7 +155,7 @@ public class FireflyLoader implements AutoCloseable {
 
     private void recordVertexEdges(final long edgeId, final String edgeLabel, final long vertexId,
                                    final Map<Long, Map<String, List<Long>>> vertexEdgeRecords) {
-        if (!this.cacheDisabledVertexes.contains(vertexId)) {
+        if (!this.cacheDisabledVertices.contains(vertexId)) {
             final Map<String, List<Long>> edgeLabelsToEdgeIds = vertexEdgeRecords.getOrDefault(vertexId, new HashMap<>());
             final List<Long> edgeIds = edgeLabelsToEdgeIds.getOrDefault(edgeLabel, new ArrayList<>());
             edgeIds.add(edgeId);
@@ -168,7 +168,7 @@ public class FireflyLoader implements AutoCloseable {
                 }
             }
             if (totalSize > graph.getBaseGraph().ID_CACHE_SIZE) {
-                this.cacheDisabledVertexes.add(vertexId);
+                this.cacheDisabledVertices.add(vertexId);
                 vertexEdgeRecords.put(vertexId, Collections.emptyMap());
             }
         }

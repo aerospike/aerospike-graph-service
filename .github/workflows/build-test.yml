@@ -48,7 +48,7 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn -Dintegration.test.properties=linked test --no-transfer-progress -Dtest=ConcurrentFireflyInstanceTest -DfailIfNoTests=false
+          mvn -Dintegration.test.properties=linked test --no-transfer-progress
   test-firefly-packed:
     name: Test Firefly Packed Data Model
     timeout-minutes: 120
@@ -66,93 +66,93 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          mvn -Dintegration.test.properties=packed test --no-transfer-progress -Dtest=ConcurrentFireflyInstanceTest -DfailIfNoTests=false
-  #test-firefly-star-packed:
-  #  name: Test Firefly Star Packed Data Model
-  #  timeout-minutes: 120
-  #  needs: build-firefly-maven
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - uses: actions/checkout@v3
-  #    - uses: reugn/github-action-aerospike@v1
-  #      with:
-  #        server-version: 6.0.0.1
-  #    - name: Set up JDK 11
-  #      uses: actions/setup-java@v3
-  #      with:
-  #        java-version: '11'
-  #        distribution: 'temurin'
-  #    - name: Test with Maven
-  #      run: |
-  #        mvn -Dintegration.test.properties="starpacked" test --no-transfer-progress
-  #test-firefly-bulk-loader:
-  #  name: Test Firefly Bulk Loader
-  #  timeout-minutes: 5
-  #  needs: build-firefly-maven
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - uses: actions/checkout@v3
-  #    - uses: reugn/github-action-aerospike@v1
-  #      with:
-  #        server-version: 6.0.0.1
-  #    - name: Set up JDK 11
-  #      uses: actions/setup-java@v3
-  #      with:
-  #        java-version: '11'
-  #        distribution: 'temurin'
-  #    - name: Test with Maven
-  #      run: |
-  #        mvn clean install -DskipTests
-  #        mvn -pl firefly-bulk-loader test --no-transfer-progress
-  #benchmark-firefly:
-  #  name: Benchmark Firefly
-  #  timeout-minutes: 240
-  #  needs: build-firefly-maven
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - uses: actions/checkout@v3
-  #    - uses: reugn/github-action-aerospike@v1
-  #      with:
-  #        server-version: 6.0.0.1
-  #    - name: Set up JDK 11
-  #      uses: actions/setup-java@v3
-  #      with:
-  #        java-version: '11'
-  #        distribution: 'temurin'
-  #    - name: Launch Firefly in Gremlin-Server and Run Benchmark
-  #      run: |
-  #        echo "Downloading gremlin-server"
-  #        cd ..
-  #        wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
-  #
-  #        echo "Unzipping gremlin-server"
-  #        unzip -qq gremlin-server
-  #
-  #        echo "Build Firefly"
-  #        cd firefly
-  #        mvn clean install -DskipTests --no-transfer-progress
-  #
-  #        echo "Installing Firefly in gremlin-server"
-  #        ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
-  #
-  #        echo "Starting gremlin-server"
-  #        ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-  #
-  #        echo "Sleeping for 30 seconds while gremlin-server starts"
-  #        sleep 30
-  #
-  #        echo "Running benchmark"
-  #        mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
-  #    - name: Publish Benchmark Results
-  #      uses: benchmark-action/github-action-benchmark@v1
-  #      with:
-  #        name: Publish Benchmark Results
-  #        tool: 'customSmallerIsBetter'
-  #        output-file-path: firefly-gremlin/target/jmh-result.json
-  #        auto-push: true
-  #        alert-threshold: '105%'
-  #        comment-on-alert: true
-  #        fail-on-alert: false
-  #        alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-  #        github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
-  #        benchmark-data-dir-path: docs/
+          mvn -Dintegration.test.properties=packed test --no-transfer-progress
+  test-firefly-star-packed:
+    name: Test Firefly Star Packed Data Model
+    timeout-minutes: 120
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.0.0.1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn -Dintegration.test.properties="starpacked" test --no-transfer-progress
+  test-firefly-bulk-loader:
+    name: Test Firefly Bulk Loader
+    timeout-minutes: 5
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.0.0.1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn clean install -DskipTests
+          mvn -pl firefly-bulk-loader test --no-transfer-progress
+  benchmark-firefly:
+    name: Benchmark Firefly
+    timeout-minutes: 240
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.0.0.1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Launch Firefly in Gremlin-Server and Run Benchmark
+        run: |
+          echo "Downloading gremlin-server"
+          cd ..
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
+
+          echo "Unzipping gremlin-server"
+          unzip -qq gremlin-server
+          
+          echo "Build Firefly"
+          cd firefly
+          mvn clean install -DskipTests --no-transfer-progress
+          
+          echo "Installing Firefly in gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
+          
+          echo "Starting gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running benchmark"
+          mvn test -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
+      - name: Publish Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customSmallerIsBetter'
+          output-file-path: firefly-gremlin/target/jmh-result.json
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          benchmark-data-dir-path: docs/

@@ -100,6 +100,8 @@ public class SparkBulkLoader {
                 try (final FireflyGraph graph = FireflyGraph.open(config)) {
                     final boolean ignoreFailedProperties =
                             Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config));
+                    final boolean ignoreElementCreationFailed =
+                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
                     while (csvIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) csvIterator.next();
                         try {
@@ -107,8 +109,6 @@ public class SparkBulkLoader {
                                     ignoreFailedProperties);
                             graph.writeVertex(sparkVertex.getFireflyId(), sparkVertex.getLabel(), sparkVertex.getProperties());
                         } catch (final RuntimeException e) {
-                            final boolean ignoreElementCreationFailed =
-                                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
                             LOG.warn("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
                                 throw e;
@@ -130,6 +130,8 @@ public class SparkBulkLoader {
                     final boolean keepProvidedId = Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
                             config));
                     final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, config);
+                    final boolean ignoreElementCreationFailed =
+                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
                     while (csvIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) csvIterator.next();
                         try {
@@ -140,8 +142,6 @@ public class SparkBulkLoader {
                             graph.bulkWriteEdge(sparkEdge.getId(), sparkEdge.getLabel(), sparkEdge.getProperties(),
                                     sparkEdge.getInVertexId(), sparkEdge.getOutVertexId());
                         } catch (final RuntimeException e) {
-                            final boolean ignoreElementCreationFailed =
-                                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
                             LOG.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
                                 throw e;

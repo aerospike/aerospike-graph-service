@@ -13,10 +13,10 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values
      */
-    private final String counterName;
+    protected final String counterName;
     private final Class<? extends FireflyElement> type;
 
-    public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
+    public NumericIdManager(final Class<? extends FireflyElement> type, final String counterName) {
         this.counterName = counterName;
         this.type = type;
     }
@@ -26,7 +26,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public Long getNextId(FireflyGraph graph) {
+    public Long getNextId(final FireflyGraph graph) {
         return graph.getBaseGraph().decrementIdCounter(this.counterName);
     }
 
@@ -51,7 +51,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public boolean allow(Class<?> id) {
+    public boolean allow(final Class<?> id) {
         return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
 }

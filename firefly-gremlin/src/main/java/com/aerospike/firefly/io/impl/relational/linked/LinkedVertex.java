@@ -222,7 +222,7 @@ public class LinkedVertex extends RelationalVertex {
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
 
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexProperties, vertexPropertiesCounter);
-        } else if (vpCounter < db.ID_CACHE_SIZE - 1) {
+        } else if (vpCounter > db.ID_CACHE_SIZE - 1) {
             // Can only overwrite vertex property count.
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesCounter);

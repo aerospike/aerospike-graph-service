@@ -5,13 +5,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class BufferedNumericIdManager<T extends FireflyElement> extends NumericIdManager<T> {
+public class BufferedNumericIdManager extends NumericIdManager {
     private final long bufferSize;
     private AtomicLong bufferedId = null;
     private long bufferTrigger;
-    public BufferedNumericIdManager(final Class<? extends FireflyElement> type, final String counterName,
-                                    final long bufferSize) {
-        super(type, counterName);
+    public BufferedNumericIdManager(final String counterName, final long bufferSize) {
+        super(counterName);
         if (bufferSize < 1) {
             this.bufferSize = 1;
         } else {

@@ -67,9 +67,9 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager<FireflyVertex>(FireflyVertex.class, VERTEX_ID_COUNTER);
+                return new NumericIdManager(VERTEX_ID_COUNTER);
             else if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
+                return new NumericIdManager(EDGE_ID_COUNTER);
             else if (testsThatNeedUuidIdManager.contains(testMethodName))
                 throw new UnsupportedOperationException(UNIMPLEMENTED);
         } else if (test.equals(IoEdgeTest.class)) {
@@ -83,7 +83,7 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (edgeTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager<FireflyEdge>(FireflyEdge.class, EDGE_ID_COUNTER);
+                return new NumericIdManager(EDGE_ID_COUNTER);
         } else if (test.equals(IoVertexTest.class)) {
             final Set<String> vertexTestsThatNeedLongIdManager = new HashSet<String>() {{
                 add("shouldReadWriteVertexWithBOTHEdges[graphson-v1]");
@@ -103,10 +103,10 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
             }};
 
             if (vertexTestsThatNeedLongIdManager.contains(testMethodName))
-                return new NumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER);
+                return new NumericIdManager(VERTEX_ID_COUNTER);
         }
         //@todo review this default
-        return new NumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER);
+        return new NumericIdManager(VERTEX_ID_COUNTER);
 
     }
 

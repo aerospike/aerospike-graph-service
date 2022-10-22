@@ -146,11 +146,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
-        this.vertexPropertyIdManager = new BufferedNumericIdManager(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER,
+        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
-        this.vertexIdManager = new BufferedNumericIdManager(FireflyVertex.class, VERTEX_ID_COUNTER,
+        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)));
-        this.edgeIdManager = new BufferedNumericIdManager(FireflyEdge.class, EDGE_ID_COUNTER,
+        this.edgeIdManager = new BufferedNumericIdManager(EDGE_ID_COUNTER,
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);

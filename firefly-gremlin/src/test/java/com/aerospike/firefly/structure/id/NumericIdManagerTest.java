@@ -18,7 +18,7 @@ public class NumericIdManagerTest {
     @Before
     public void createIdManager() {
         // Regenerate each time so it is cleared.
-        idManager = new NumericIdManager<>(FireflyVertex.class, "TEST_COUNTER");
+        idManager = new NumericIdManager("TEST_COUNTER");
     }
 
     @Test
@@ -44,6 +44,6 @@ public class NumericIdManagerTest {
 
         // Invalid Strings or otherwise invalid types should throw an IllegalArgumentException.
         assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert("a"));
-        assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert(new NumericIdManager<>(FireflyVertex.class, "")));
+        assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert(new NumericIdManager("")));
     }
 }

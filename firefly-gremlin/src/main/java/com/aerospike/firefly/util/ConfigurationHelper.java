@@ -113,6 +113,7 @@ public final class ConfigurationHelper {
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
         public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
+        public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
 
 
     }
@@ -181,7 +182,7 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
-
+        put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
         put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");

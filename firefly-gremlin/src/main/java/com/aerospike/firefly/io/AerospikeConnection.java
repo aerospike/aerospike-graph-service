@@ -68,7 +68,6 @@ public class AerospikeConnection implements AutoCloseable {
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
-    private static final int MaxRetries = 10;
 
     private final EventLoops eventLoops;
 
@@ -132,6 +131,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
     public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
+    public final int AEROSPIKE_CONNECTION_MAX_RETRY;
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
@@ -214,7 +214,7 @@ public class AerospikeConnection implements AutoCloseable {
         CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CACHE_DISABLED, conf);
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
-
+        AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
 
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -772,7 +772,7 @@ public class AerospikeConnection implements AutoCloseable {
         writeMetric.incrementAndGet();
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = MaxRetries;
+        writePolicy.maxRetries = AEROSPIKE_CONNECTION_MAX_RETRY;
         if (generation != -1) {
             // Set generation for write.
             writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;

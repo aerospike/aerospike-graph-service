@@ -32,29 +32,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
-    private static final int THREAD_COUNT = 2;
-
-    // TODO (https://aerospike.atlassian.net/browse/GRAPH-90)
-    //  Switch to a single thread with aggregate ids in a bulk request
-    //  as opposed to 2 requests running in parallel.
-    private static final ExecutorService executorService = new ThreadPoolExecutor(THREAD_COUNT, THREAD_COUNT, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-
     private AerospikeConnection db;
     private Map<String, List<Long>> inEdgeIds;
     private Map<String, List<Long>> outEdgeIds;
@@ -136,44 +122,56 @@ public abstract class RelationalVertex extends FireflyVertex {
             return getInEdgeIds();
         } else {
             // Both.
-            final Future<List<Long>> inIds = executorService.submit(this::getInEdgeIds);
-            final Future<List<Long>> outIds = executorService.submit(this::getOutEdgeIds);
-            try {
-                List<Long> ids = inIds.get();
-                ids.addAll(outIds.get());
-                return ids;
-            } catch (InterruptedException | ExecutionException e) {
-                // Should not happen.
-                LOG.error("Error getting edge ids from vertex {} {}.", id.value().toString(), e);
-                throw new RuntimeException(e);
-            }
+            return getBothEdgeIds();
         }
     }
 
     /**
-     * Get incoming edge id for vertex.
+     * Get incoming edge ids for vertex.
      *
      * @return Iterator of all incoming edge ids.
      */
     private List<Long> getInEdgeIds() {
-        final List<Long> data = new ArrayList<>();
-        if (inEdgeIds != null) {
-            inEdgeIds.values().forEach(data::addAll);
+        if (inEdgeCount == -1) {
+            return IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.IN));
+        } else {
+            final List<Long> data = new ArrayList<>();
+            if (inEdgeIds != null) {
+                inEdgeIds.values().forEach(data::addAll);
+            }
+            return data;
         }
-        return (inEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.IN));
     }
 
     /**
-     * Get outgoing edge id for vertex.
+     * Get outgoing edge ids for vertex.
      *
      * @return Iterator of all outgoing edge ids.
      */
     private List<Long> getOutEdgeIds() {
-        final List<Long> data = new ArrayList<>();
-        if (outEdgeIds != null) {
-            outEdgeIds.values().forEach(data::addAll);
+        if (outEdgeCount == -1) {
+            return IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.OUT));
         }
-        return (outEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.OUT));
+        else {
+            final List<Long> data = new ArrayList<>();
+            if (outEdgeIds != null) {
+                outEdgeIds.values().forEach(data::addAll);
+            }
+            return data;
+        }
+    }
+
+    /**
+     * Get incoming and outgoing edge ids for vertex.
+     *
+     * @return Iterator of all incoming and outgoing edge ids.
+     */
+    private List<Long> getBothEdgeIds() {
+        if (inEdgeCount == -1 && outEdgeCount == -1) {
+            return IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.BOTH));
+        } else {
+            return Stream.concat(getInEdgeIds().stream(), getOutEdgeIds().stream()).collect(Collectors.toList());
+        }
     }
 
     /**
@@ -183,45 +181,30 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of edge ids.
      */
     private Iterator<Long> getEdgeIdsFromVertexByScan(final Direction direction) {
+        final Expression exp;
         if (direction == Direction.OUT || direction == Direction.IN) {
             // If direction is in or out, get that specific direction.
-            final Expression exp = Exp.build(
+            exp = Exp.build(
                     Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
                             Exp.val((Long) db.idToStorageType(this.id()))
                     ));
-
-            final ScanPolicy policy = new ScanPolicy();
-            policy.includeBinData = false;
-            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-            return IteratorUtils.map(i, keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject());
         } else {
             // If direction is both, we need to get in and out.
-            final Expression inExpression = Exp.build(
-                    Exp.eq(Exp.intBin(Direction.IN.name()),
-                            Exp.val((Long) db.idToStorageType(this.id()))
+            exp = Exp.build(
+                    Exp.or(
+                        Exp.eq(Exp.intBin(Direction.IN.name()),
+                                Exp.val((Long) db.idToStorageType(this.id()))
+                        ),
+                        Exp.eq(Exp.intBin(Direction.OUT.name()),
+                                Exp.val((Long) db.idToStorageType(this.id()))
+                        )
                     ));
-            final Expression outExpression = Exp.build(
-                    Exp.eq(Exp.intBin(Direction.OUT.name()),
-                            Exp.val((Long) db.idToStorageType(this.id()))
-                    ));
-
-            // Create scan policy, do not need bin data for this.
-            final ScanPolicy policy = new ScanPolicy();
-            policy.includeBinData = false;
-
-            // Run in and out scans in parallel.
-            final Future<Iterator<Map.Entry<Key, Record>>> inIterator = executorService.submit(() -> scanAllRecordsInSet(db.EDGE_AERO_SET, inExpression, policy));
-            final Future<Iterator<Map.Entry<Key, Record>>> outIterator = executorService.submit(() -> scanAllRecordsInSet(db.EDGE_AERO_SET, outExpression, policy));
-
-            // Concatenate the in and out iterators.
-            try {
-                return IteratorUtils.concat(IteratorUtils.map(outIterator.get(), keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject()),
-                        IteratorUtils.map(inIterator.get(), keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject()));
-            } catch (InterruptedException | ExecutionException e) {
-                LOG.error("Error getting edge ids from vertex {} by scan {}.", id.value().toString(), e);
-                throw new RuntimeException(e);
-            }
         }
+        // Create scan policy, do not need bin data for this.
+        final ScanPolicy policy = new ScanPolicy();
+        policy.includeBinData = false;
+        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
+        return IteratorUtils.map(i, keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject());
     }
 
     /**

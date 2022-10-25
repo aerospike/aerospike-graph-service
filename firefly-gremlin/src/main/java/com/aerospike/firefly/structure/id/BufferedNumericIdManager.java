@@ -11,16 +11,15 @@ public class BufferedNumericIdManager extends NumericIdManager {
     private long bufferTrigger;
     public BufferedNumericIdManager(final String counterName, final long bufferSize) {
         super(counterName);
-        if (bufferSize < 1) {
-            this.bufferSize = 1;
-        } else {
-            this.bufferSize = bufferSize;
-        }
+        this.bufferSize = bufferSize;
     }
 
     @Override
     public synchronized Long getNextId(final FireflyGraph graph) {
         if (this.bufferedId == null) {
+            if (this.bufferSize < 1) {
+                return super.getNextId(graph);
+            }
             this.bufferedId = new AtomicLong();
             bufferIds(graph);
             return getNextId(graph);
@@ -36,7 +35,7 @@ public class BufferedNumericIdManager extends NumericIdManager {
 
     private void bufferIds(FireflyGraph graph) {
         // This is the new last reserved ID
-        this.bufferTrigger = graph.getBaseGraph().decrementIdCounter(this.counterName ,this.bufferSize);
+        this.bufferTrigger = graph.getBaseGraph().decrementIdCounter(this.counterName, this.bufferSize);
         // Since Firefly returns decrementing negative long values as generated IDs, the first buffered ID to return is
         // the largest one
         this.bufferedId.set(this.bufferTrigger + bufferSize - 1);

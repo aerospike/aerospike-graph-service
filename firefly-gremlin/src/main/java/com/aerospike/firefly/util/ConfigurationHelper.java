@@ -32,8 +32,6 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
-
-
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -50,7 +48,6 @@ public final class ConfigurationHelper {
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
-
         }
 
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
@@ -85,13 +82,11 @@ public final class ConfigurationHelper {
         public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
         public static final String VP_COUNTER = "VP_COUNTER";
         public static final String GRAPH_ID = "GRAPH_ID";
-
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
         public static final String CACHE_DISABLED = "CACHE_DISABLED";
         public static final String INDEX_METADATA = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
-
         public static final String NUMERIC_VP_KV_INDEX = "NUMERIC_VP_KV_INDEX";
         public static final String STRING_VP_KV_INDEX = "STRING_VP_KV_INDEX";
         public static final String NUMERIC_V_VP_KV_INDEX = "NUMERIC_V_VP_KV_INDEX";
@@ -109,12 +104,15 @@ public final class ConfigurationHelper {
         public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
         public static final String USER_SUPPLIED_ID_EDGE_CACHE = "USER_SUPPLIED_ID_EDGE_CACHE";
         public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
-
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
         public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
-
-
+        public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
+		
+        // BufferedNumericIdManager
+        public static final String VERTEX_ID_BUFFER_SIZE = "VERTEX_ID_BUFFER_SIZE";
+        public static final String EDGE_ID_BUFFER_SIZE = "EDGE_ID_BUFFER_SIZE";
+        public static final String PROPERTY_ID_BUFFER_SIZE = "PROPERTY_ID_BUFFER_SIZE";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -181,11 +179,15 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
-
+        put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
         put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
+
+        put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
+        put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
+        put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
     }};
 
     public static Configuration loadFromFile(final Path path) {

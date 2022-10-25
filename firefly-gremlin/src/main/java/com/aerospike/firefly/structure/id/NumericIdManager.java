@@ -8,17 +8,15 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class NumericIdManager<T extends FireflyElement> implements IdManager<Long> {
+public class NumericIdManager implements IdManager<Long> {
     /**
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values
      */
-    private final String counterName;
-    private final Class<? extends FireflyElement> type;
+    protected final String counterName;
 
-    public NumericIdManager(Class<? extends FireflyElement> type, String counterName) {
+    public NumericIdManager(final String counterName) {
         this.counterName = counterName;
-        this.type = type;
     }
 
     private static String createErrorMessage(final Class<?> expectedType, final Object id) {
@@ -26,7 +24,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public Long getNextId(FireflyGraph graph) {
+    public Long getNextId(final FireflyGraph graph) {
         return graph.getBaseGraph().decrementIdCounter(this.counterName);
     }
 
@@ -51,7 +49,7 @@ public class NumericIdManager<T extends FireflyElement> implements IdManager<Lon
     }
 
     @Override
-    public boolean allow(Class<?> id) {
+    public boolean allow(final Class<?> id) {
         return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
 }

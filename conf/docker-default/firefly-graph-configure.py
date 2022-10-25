@@ -1,19 +1,24 @@
 import os
 import sys
 
-default_aerospike_host = "172.17.0.1"
 default_aerospike_port = "3000"
 default_aerospike_namespace = "test"
 default_firefly_data_model = "packed"
 
-aerospike_host = os.environ.get("AEROSPIKE_HOST", default_aerospike_host)
+if "AEROSPIKE_HOST" not in os.environ:
+    err = "Error: No AEROSPIKE_HOST was provided."
+    print(err)
+    raise Exception(err)
+aerospike_host = os.environ.get("AEROSPIKE_HOST")
 aerospike_port = os.environ.get("AEROSPIKE_PORT", default_aerospike_port)
 aerospike_namespace = os.environ.get("AEROSPIKE_NAMESPACE", default_aerospike_namespace)
 firefly_data_model = os.environ.get("FIREFLY_DATA_MODEL", default_firefly_data_model)
 
 # Environment variable could be set to empty string.
 if aerospike_host == "":
-    aerospike_host = default_aerospike_host
+    err = "Error: No AEROSPIKE_HOST was provided."
+    print(err)
+    raise Exception(err)
 if aerospike_port == "":
     aerospike_port = default_aerospike_port
 if aerospike_namespace == "":

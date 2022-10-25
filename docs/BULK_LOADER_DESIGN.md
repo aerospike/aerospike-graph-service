@@ -132,7 +132,7 @@ The following should be considered a minimum set of inputs for the bulk loader:
       - Limitation: ~id must be provided in a format which can be parsed as a `long`
       - This would only be feasible on a clean database ot prevent corruption of existing data
   - Lists of edge IDs for OUT and IN edges
-    - This is generated in memory in order to avoid a read-modify-write cycle on vertexes for every edge insert
+    - This is generated in memory in order to avoid a read-modify-write cycle on vertices for every edge insert
     - For extremely large datasets, especially ones with super nodes, this can eat up memory quickly
       - However unlikely, one super node may be enough to do this
     - Workaround: read-modify-write
@@ -152,9 +152,9 @@ The following should be considered a minimum set of inputs for the bulk loader:
   - Only technically two modes of bulk loading are supported currently
     - Isolated (not using provided ~id in the csv)
       - Inserts the entire dataset as its own isolated system via the generated IDs
-      - Existing edges and vertexes in the database are not connected to the newly bulk inserted ones
+      - Existing edges and vertices in the database are not connected to the newly bulk inserted ones
     - Overwrite (use the provided ~id in the csv)
-      - Overwrites existing vertexes and edges if they happen to use the ID provided
+      - Overwrites existing vertices and edges if they happen to use the ID provided
       - This is more of a FYI, since we assume if someone is bulk loading using provided ~id it is on a clean database
   - Do we want to support this?
     - If so, need to brainstorm ideas

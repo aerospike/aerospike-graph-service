@@ -8,6 +8,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
+import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
@@ -145,9 +146,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
-        this.vertexPropertyIdManager = new NumericIdManager<>(FireflyVertexProperty.class, VERTEX_PROPERTY_ID_COUNTER);
-        this.vertexIdManager = new NumericIdManager<>(FireflyVertex.class, VERTEX_ID_COUNTER);
-        this.edgeIdManager = new NumericIdManager<>(FireflyEdge.class, EDGE_ID_COUNTER);
+        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
+        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)));
+        this.edgeIdManager = new BufferedNumericIdManager(EDGE_ID_COUNTER,
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
@@ -209,6 +213,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                          final List<Map.Entry<String, Object>> properties,
                                          final Map<String, List<Long>> outEdges, final Map<String, List<Long>> inEdges,
                                          final boolean cacheDisabled);
+
+    public abstract void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
+                                               final long edgeId, final String edgeLabel);
 
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 

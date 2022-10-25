@@ -39,27 +39,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-configuration2</artifactId>
-            <version>2.8.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-text</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>com.aerospike</groupId>
             <artifactId>firefly-gremlin</artifactId>
             <version>${project.version}</version>
             <!--            <scope>compile</scope>-->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-configuration2</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-core -->
         <dependency>
@@ -93,6 +76,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-s3 -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.12.325</version>
+        </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-shade-plugin -->
         <dependency>
@@ -100,7 +89,6 @@
             <artifactId>maven-shade-plugin</artifactId>
             <version>3.2.4</version>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -176,12 +164,12 @@
                                     </excludes>
                                 </filter>
                             </filters>
-<!--                            <relocations>-->
-<!--                                <relocation>-->
-<!--                                    <pattern>com.acme.coyote</pattern>-->
-<!--                                    <shadedPattern>hidden.coyote</shadedPattern>-->
-<!--                                </relocation>-->
-<!--                            </relocations>-->
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.apache.commons</pattern>
+                                    <shadedPattern>shade.org.apache.commons</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <transformers>
                                 <!-- add Main-Class to manifest file -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">

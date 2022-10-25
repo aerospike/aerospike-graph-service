@@ -13,17 +13,16 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
 
 public class BufferedNumericIdManagerIntegrationTest {
-    // Buffer size is set to 3 in the default config
+    private static final String BUFFER_SIZE = "3";
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     private static FireflyGraph SETUP_GRAPH;
     private long baseline;
 
     @BeforeClass
     public static void beforeAll() {
-        final String configuredBufferSize = CONFIG.getString(EDGE_ID_BUFFER_SIZE.toLowerCase());
         CONFIG.setProperty(EDGE_ID_BUFFER_SIZE.toLowerCase(), "0");
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
-        CONFIG.setProperty(EDGE_ID_BUFFER_SIZE.toLowerCase(), configuredBufferSize);
+        CONFIG.setProperty(EDGE_ID_BUFFER_SIZE.toLowerCase(), BUFFER_SIZE);
     }
 
     @AfterClass

@@ -30,6 +30,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.*;
@@ -39,8 +40,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
@@ -269,7 +268,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertTrue(pass.get());
     }
 
-    //@Ignore
+    @Ignore
     @Test
     public void testAerospikeInfo() {
         final String binName = "age";
@@ -326,12 +325,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.createGraphIndexes();
 
         Thread.sleep(10);
-        final FireflyMetadata.CardinalityInfo vertexLabelCardinalityInfo = FireflyMetadata.vertexLabelCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo vertexStringPropertyCardinalityInfo = FireflyMetadata.vertexStringPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo vertexNumericPropertyCardinalityInfo = FireflyMetadata.vertexNumericPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeLabelCardinalityInfo = FireflyMetadata.edgeLabelCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeStringPropertyCardinalityInfo = FireflyMetadata.edgeStringPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeNumericPropertyCardinalityInfo = FireflyMetadata.edgeNumericPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo vertexLabelCardinalityInfo = graph.fireflyMetadata.vertexLabelCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo vertexStringPropertyCardinalityInfo = graph.fireflyMetadata.vertexStringPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo vertexNumericPropertyCardinalityInfo = graph.fireflyMetadata.vertexNumericPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeLabelCardinalityInfo = graph.fireflyMetadata.edgeLabelCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeStringPropertyCardinalityInfo = graph.fireflyMetadata.edgeStringPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeNumericPropertyCardinalityInfo = graph.fireflyMetadata.edgeNumericPropertyCardinalityInfo;
 
         // 12 vertices, 3 unique labels, 5 unique keys, 5 unique string values, 10 total string values, 2 unique numeric values, 5 total numeric values
         Assert.assertTrue(vertexLabelCardinalityInfo.valid);

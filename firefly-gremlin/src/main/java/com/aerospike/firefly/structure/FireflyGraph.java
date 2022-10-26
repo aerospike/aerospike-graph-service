@@ -128,6 +128,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
+    public FireflyMetadata fireflyMetadata;
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
@@ -156,9 +157,17 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
         if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
-            FireflyMetadata.startPeriodicUpdates(
-                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, db.NUMERIC_V_VP_KV_INDEX, db.STRING_V_VP_KV_INDEX, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX, db.METADATA_UPDATE_FREQUENCY);
+            fireflyMetadata = FireflyMetadata.startPeriodicUpdates(
+                    db,
+                    db.V_LABEL_INDEX,
+                    db.E_LABEL_INDEX,
+                    db.NUMERIC_V_VP_KV_INDEX,
+                    db.STRING_V_VP_KV_INDEX,
+                    db.NUMERIC_E_KV_INDEX,
+                    db.STRING_E_KV_INDEX,
+                    db.METADATA_UPDATE_FREQUENCY);
         }
+        fireflyMetadata = null;
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
@@ -412,8 +421,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
-        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
-            FireflyMetadata.stopPeriodicUpdates();
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE && fireflyMetadata != null) {
+            fireflyMetadata.close();
         }
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)

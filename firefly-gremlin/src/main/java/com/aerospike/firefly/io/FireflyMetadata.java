@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class FireflyMetadata extends TimerTask {
+public class FireflyMetadata extends TimerTask implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyMetadata.class);
     private static final String ENTRIES = "entries=";
     private static final String ENTRIES_PER_BVAL = "entries_per_bval=";
@@ -17,12 +17,12 @@ public class FireflyMetadata extends TimerTask {
     private static Timer time = new Timer();
     private static final Object TIME_LOCK = new Object();
     public static boolean isRunning = false;
-    public static CardinalityInfo vertexLabelCardinalityInfo = new CardinalityInfo();
-    public static CardinalityInfo edgeLabelCardinalityInfo = new CardinalityInfo();
-    public static CardinalityInfo vertexNumericPropertyCardinalityInfo = new CardinalityInfo();
-    public static CardinalityInfo vertexStringPropertyCardinalityInfo = new CardinalityInfo();
-    public static CardinalityInfo edgeNumericPropertyCardinalityInfo = new CardinalityInfo();
-    public static CardinalityInfo edgeStringPropertyCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo vertexLabelCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo edgeLabelCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo vertexNumericPropertyCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo vertexStringPropertyCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo edgeNumericPropertyCardinalityInfo = new CardinalityInfo();
+    public CardinalityInfo edgeStringPropertyCardinalityInfo = new CardinalityInfo();
     private final AerospikeConnection db;
     private final String vertexLabelIndex;
     private final String edgeLabelIndex;
@@ -47,38 +47,24 @@ public class FireflyMetadata extends TimerTask {
         this.db = db;
     }
 
-    public static void startPeriodicUpdates(final AerospikeConnection db,
-                                            final String vertexLabelIndex,
-                                            final String edgeLabelIndex,
-                                            final String vertexNumericPropertyIndex,
-                                            final String vertexStringPropertyIndex,
-                                            final String edgeNumericPropertyIndex,
-                                            final String edgeStringPropertyIndex,
-                                            final long updateFrequency) {
-        // Update every hour. This is from bval statistics specification in Aerospike. https://docs.aerospike.com/reference/metrics#entries_per_bval
-        synchronized (TIME_LOCK) {
-            time.schedule(
-                    new FireflyMetadata(db,
-                            vertexLabelIndex,
-                            edgeLabelIndex,
-                            vertexNumericPropertyIndex,
-                            vertexStringPropertyIndex,
-                            edgeNumericPropertyIndex,
-                            edgeStringPropertyIndex),
-                    0, // No delay.
-                    updateFrequency);
-            isRunning = true;
-        }
-    }
-
-    public static void stopPeriodicUpdates() {
-        synchronized (TIME_LOCK) {
-            if (isRunning) {
-                time.cancel();
-                time = new Timer();
-                isRunning = false;
-            }
-        }
+    public static FireflyMetadata startPeriodicUpdates(final AerospikeConnection db,
+                                                       final String vertexLabelIndex,
+                                                       final String edgeLabelIndex,
+                                                       final String vertexNumericPropertyIndex,
+                                                       final String vertexStringPropertyIndex,
+                                                       final String edgeNumericPropertyIndex,
+                                                       final String edgeStringPropertyIndex,
+                                                       final long updateFrequency) {
+        final FireflyMetadata fireflyMetadata =
+                new FireflyMetadata(db,
+                        vertexLabelIndex,
+                        edgeLabelIndex,
+                        vertexNumericPropertyIndex,
+                        vertexStringPropertyIndex,
+                        edgeNumericPropertyIndex,
+                        edgeStringPropertyIndex);
+        time.schedule(fireflyMetadata, 0, updateFrequency);
+        return fireflyMetadata;
     }
 
     // Periodic execution.
@@ -124,6 +110,11 @@ public class FireflyMetadata extends TimerTask {
             }
         }
         throw new Exception(String.format("Error, failed to find pattern %s inside string %s.", pattern, info));
+    }
+
+    @Override
+    public void close() {
+        time.cancel();
     }
 
     public static class CardinalityInfo {

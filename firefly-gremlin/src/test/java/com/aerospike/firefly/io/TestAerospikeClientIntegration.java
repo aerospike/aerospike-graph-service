@@ -29,7 +29,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.junit.Ignore;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
@@ -267,7 +269,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertTrue(pass.get());
     }
 
-    @Ignore
+    //@Ignore
     @Test
     public void testAerospikeInfo() {
         final String binName = "age";
@@ -289,6 +291,89 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 .get(0);
 
         assertEquals(reportedObjectCount, Long.valueOf(NUMBER_OF_RECORDS));
+    }
+
+    @Test
+    public void testFireflyMetadata() throws InterruptedException {
+        // Set metadata to update every millisecond for this test.
+        db.conf.setProperty(ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE.toLowerCase(), true);
+        db.conf.setProperty(ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY.toLowerCase(), "1");
+        graph.close();
+        graph = FireflyGraph.open(db.conf);
+
+        final Vertex a = graph.traversal().addV("label1").property("key1", "value1").next();
+        final Vertex b = graph.traversal().addV("label1").property("key1", "value1").next();
+        graph.traversal().addV("label1").property("key2", "value2").iterate();
+        graph.traversal().addV("label2").property("key2", "value2").iterate();
+        graph.traversal().addV("label2").property("key3", "value3").iterate();
+        graph.traversal().addV("label2").property("key3", "value3").iterate();
+        graph.traversal().addV("label3").property("key4", "value4").iterate();
+        graph.traversal().addV("label3").property("key4", "value4").iterate();
+        graph.traversal().addV("label3").property("key5", "value5").iterate();
+        graph.traversal().addV("label3").property("key5", "value5").iterate();
+        graph.traversal().addV("label3").property("key4", 1).iterate();
+        graph.traversal().addV("label3").property("key5", 2).iterate();
+
+        graph.traversal().addE("edgeLabel1").from(a).to(b).property("edgeKey1", "edgeValue1").iterate();
+        graph.traversal().addE("edgeLabel1").from(a).to(b).property("edgeKey1", "edgeValue1").iterate();
+        graph.traversal().addE("edgeLabel2").from(a).to(b).property("edgeKey2", "edgeValue2").iterate();
+        graph.traversal().addE("edgeLabel2").from(a).to(b).property("edgeKey2", "edgeValue2").iterate();
+        graph.traversal().addE("edgeLabel3").from(a).to(b).property("edgeKey3", 3).iterate();
+        graph.traversal().addE("edgeLabel3").from(a).to(b).property("edgeKey3", 3).iterate();
+
+        // Force an update on the server
+        db.dropGraphIndices();
+        db.createGraphIndexes();
+
+        Thread.sleep(10);
+        final FireflyMetadata.CardinalityInfo vertexLabelCardinalityInfo = FireflyMetadata.vertexLabelCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo vertexStringPropertyCardinalityInfo = FireflyMetadata.vertexStringPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo vertexNumericPropertyCardinalityInfo = FireflyMetadata.vertexNumericPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeLabelCardinalityInfo = FireflyMetadata.edgeLabelCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeStringPropertyCardinalityInfo = FireflyMetadata.edgeStringPropertyCardinalityInfo;
+        final FireflyMetadata.CardinalityInfo edgeNumericPropertyCardinalityInfo = FireflyMetadata.edgeNumericPropertyCardinalityInfo;
+
+        // 12 vertices, 3 unique labels, 5 unique keys, 5 unique string values, 10 total string values, 2 unique numeric values, 5 total numeric values
+        Assert.assertTrue(vertexLabelCardinalityInfo.valid);
+        Assert.assertTrue(vertexStringPropertyCardinalityInfo.valid);
+        Assert.assertTrue(vertexNumericPropertyCardinalityInfo.valid);
+
+        Assert.assertNotNull(vertexLabelCardinalityInfo.totalEntries);
+        Assert.assertNotNull(vertexStringPropertyCardinalityInfo.totalEntries);
+        Assert.assertNotNull(vertexNumericPropertyCardinalityInfo.totalEntries);
+
+        Assert.assertEquals(12L, vertexLabelCardinalityInfo.totalEntries.longValue());
+        Assert.assertEquals(10L, vertexStringPropertyCardinalityInfo.totalEntries.longValue());
+        Assert.assertEquals(2L, vertexNumericPropertyCardinalityInfo.totalEntries.longValue());
+
+        Assert.assertNotNull(vertexLabelCardinalityInfo.entriesPerBval);
+        Assert.assertNotNull(vertexStringPropertyCardinalityInfo.entriesPerBval);
+        Assert.assertNotNull(vertexNumericPropertyCardinalityInfo.entriesPerBval);
+
+        Assert.assertEquals(12L / 3L, vertexLabelCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(10L / 5L, vertexStringPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(2L / 2L, vertexNumericPropertyCardinalityInfo.entriesPerBval.longValue());
+
+        // 6 edges, 3 unique labels, 3 unique keys, 2 unique string values, 1 unique numeric values.
+        Assert.assertTrue(edgeLabelCardinalityInfo.valid);
+        Assert.assertTrue(edgeStringPropertyCardinalityInfo.valid);
+        Assert.assertTrue(edgeNumericPropertyCardinalityInfo.valid);
+
+        Assert.assertNotNull(edgeLabelCardinalityInfo.totalEntries);
+        Assert.assertNotNull(edgeStringPropertyCardinalityInfo.totalEntries);
+        Assert.assertNotNull(edgeNumericPropertyCardinalityInfo.totalEntries);
+
+        Assert.assertEquals(6L, edgeLabelCardinalityInfo.totalEntries.longValue());
+        Assert.assertEquals(4L, edgeStringPropertyCardinalityInfo.totalEntries.longValue());
+        Assert.assertEquals(2L, edgeNumericPropertyCardinalityInfo.totalEntries.longValue());
+
+        Assert.assertNotNull(edgeLabelCardinalityInfo.entriesPerBval);
+        Assert.assertNotNull(edgeStringPropertyCardinalityInfo.entriesPerBval);
+        Assert.assertNotNull(edgeNumericPropertyCardinalityInfo.entriesPerBval);
+
+        Assert.assertEquals(6L / 3L, edgeLabelCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(4L / 2L, edgeStringPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(2L / 1L, edgeNumericPropertyCardinalityInfo.entriesPerBval.longValue());
     }
 
     @Test

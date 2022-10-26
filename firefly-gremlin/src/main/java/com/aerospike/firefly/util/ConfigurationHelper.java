@@ -108,11 +108,16 @@ public final class ConfigurationHelper {
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
         public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
+<<<<<<< Updated upstream
 		
         // BufferedNumericIdManager
         public static final String VERTEX_ID_BUFFER_SIZE = "VERTEX_ID_BUFFER_SIZE";
         public static final String EDGE_ID_BUFFER_SIZE = "EDGE_ID_BUFFER_SIZE";
         public static final String PROPERTY_ID_BUFFER_SIZE = "PROPERTY_ID_BUFFER_SIZE";
+=======
+        public static final String ENABLE_PERIODIC_METADATA_UPDATE = "ENABLE_PERIODIC_METADATA_UPDATE";
+        public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
+>>>>>>> Stashed changes
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -184,10 +189,15 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
+<<<<<<< Updated upstream
 
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
+=======
+        put(Keys.ENABLE_PERIODIC_METADATA_UPDATE, "false");
+        put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+>>>>>>> Stashed changes
     }};
 
     public static Configuration loadFromFile(final Path path) {

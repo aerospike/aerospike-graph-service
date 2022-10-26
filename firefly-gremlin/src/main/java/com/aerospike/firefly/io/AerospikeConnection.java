@@ -123,8 +123,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String GLOBAL;
     public final String TEST_SET;
     public final Configuration conf;
-
-    // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
@@ -132,6 +130,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
+    public final boolean ENABLE_PERIODIC_METADATA_UPDATE;
+    public final long METADATA_UPDATE_FREQUENCY;
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
@@ -143,10 +143,7 @@ public class AerospikeConnection implements AutoCloseable {
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
-        conf.getKeys().forEachRemaining(key -> LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key))));
-        LOG.debug("\thost {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
-        LOG.debug("\tport {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
-        LOG.debug("\tns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+        conf.getKeys().forEachRemaining(key -> LOG.error(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key))));
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
@@ -159,7 +156,6 @@ public class AerospikeConnection implements AutoCloseable {
         this.client = new AerospikeClient(clientPolicy, hosts);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
-
         IN_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_VP_SET, conf);
         OUT_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_VP_SET, conf);
         IN_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_IN_SET, conf);
@@ -215,6 +211,8 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
+        ENABLE_PERIODIC_METADATA_UPDATE = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE, conf));
+        METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY, conf));
 
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -643,7 +641,7 @@ public class AerospikeConnection implements AutoCloseable {
         createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
+         createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
@@ -657,6 +655,8 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(getElementPropertySet(FireflyEdge.class), LABEL);
         dropIndex(getElementPropertySet(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(getElementPropertySet(FireflyEdge.class), E_LABEL_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertex.class), STRING_V_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertex.class), NUMERIC_V_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), STRING_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), NUMERIC_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyEdge.class), STRING_E_KV_INDEX);

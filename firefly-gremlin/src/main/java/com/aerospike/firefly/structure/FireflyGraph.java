@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
@@ -154,6 +155,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
+            FireflyMetadata.startPeriodicUpdates(
+                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, db.NUMERIC_V_VP_KV_INDEX, db.STRING_V_VP_KV_INDEX, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX, db.METADATA_UPDATE_FREQUENCY);
+        }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
@@ -407,6 +412,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
+            FireflyMetadata.stopPeriodicUpdates();
+        }
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)
                 .removeStrategies(FireflyTraversalCacheStrategy.class);

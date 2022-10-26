@@ -128,7 +128,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
-    public FireflyMetadata fireflyMetadata;
+    public FireflyMetadata fireflyMetadata = null;
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
@@ -167,7 +167,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                     db.STRING_E_KV_INDEX,
                     db.METADATA_UPDATE_FREQUENCY);
         }
-        fireflyMetadata = null;
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo

@@ -13,12 +13,10 @@ import java.util.TimerTask;
  */
 public class FireflyMetadataTask extends TimerTask {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyCardinalityMetadata.class);
-    private static Timer time = new Timer();
     private final FireflyMetadata task;
 
-    public FireflyMetadataTask(final FireflyMetadata task, final long updateFrequency) {
+    public FireflyMetadataTask(final FireflyMetadata task) {
         this.task = task;
-        time.schedule(this, 0, updateFrequency);
     }
 
     // Periodic execution.

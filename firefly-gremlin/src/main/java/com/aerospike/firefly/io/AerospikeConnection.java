@@ -641,7 +641,7 @@ public class AerospikeConnection implements AutoCloseable {
         createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 STRING_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.STRING, IndexCollectionType.MAPVALUES);
-         createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
+        createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                 NUMERIC_E_KV_INDEX,
                 getElementPropertySet(FireflyEdge.class), IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }

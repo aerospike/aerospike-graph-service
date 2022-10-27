@@ -4,6 +4,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -157,15 +158,27 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
         if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
-            fireflyMetadata = FireflyMetadata.startPeriodicUpdates(
-                    db,
-                    db.V_LABEL_INDEX,
-                    db.E_LABEL_INDEX,
-                    db.NUMERIC_V_VP_KV_INDEX,
-                    db.STRING_V_VP_KV_INDEX,
-                    db.NUMERIC_E_KV_INDEX,
-                    db.STRING_E_KV_INDEX,
-                    db.METADATA_UPDATE_FREQUENCY);
+            if (LinkedGraph.DATA_MODEL.equals(getDataModel())) {
+                fireflyMetadata = FireflyMetadata.startPeriodicUpdates(
+                        db,
+                        db.V_LABEL_INDEX,
+                        db.E_LABEL_INDEX,
+                        db.NUMERIC_VP_KV_INDEX,
+                        db.STRING_VP_KV_INDEX,
+                        db.NUMERIC_E_KV_INDEX,
+                        db.STRING_E_KV_INDEX,
+                        db.METADATA_UPDATE_FREQUENCY);
+            } else {
+                fireflyMetadata = FireflyMetadata.startPeriodicUpdates(
+                        db,
+                        db.V_LABEL_INDEX,
+                        db.E_LABEL_INDEX,
+                        db.NUMERIC_V_VP_KV_INDEX,
+                        db.STRING_V_VP_KV_INDEX,
+                        db.NUMERIC_E_KV_INDEX,
+                        db.STRING_E_KV_INDEX,
+                        db.METADATA_UPDATE_FREQUENCY);
+            }
         }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {

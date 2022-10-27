@@ -325,12 +325,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         db.createGraphIndexes();
 
         Thread.sleep(10);
-        final FireflyMetadata.CardinalityInfo vertexLabelCardinalityInfo = graph.fireflyMetadata.vertexLabelCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo vertexStringPropertyCardinalityInfo = graph.fireflyMetadata.vertexStringPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo vertexNumericPropertyCardinalityInfo = graph.fireflyMetadata.vertexNumericPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeLabelCardinalityInfo = graph.fireflyMetadata.edgeLabelCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeStringPropertyCardinalityInfo = graph.fireflyMetadata.edgeStringPropertyCardinalityInfo;
-        final FireflyMetadata.CardinalityInfo edgeNumericPropertyCardinalityInfo = graph.fireflyMetadata.edgeNumericPropertyCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo vertexLabelCardinalityInfo = graph.fireflyCardinalityMetadata.vertexLabelCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo vertexStringPropertyCardinalityInfo = graph.fireflyCardinalityMetadata.vertexStringPropertyCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo vertexNumericPropertyCardinalityInfo = graph.fireflyCardinalityMetadata.vertexNumericPropertyCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo edgeLabelCardinalityInfo = graph.fireflyCardinalityMetadata.edgeLabelCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo edgeStringPropertyCardinalityInfo = graph.fireflyCardinalityMetadata.edgeStringPropertyCardinalityInfo;
+        final FireflyCardinalityMetadata.CardinalityInfo edgeNumericPropertyCardinalityInfo = graph.fireflyCardinalityMetadata.edgeNumericPropertyCardinalityInfo;
 
         // 12 vertices, 3 unique labels, 5 unique keys, 5 unique string values, 10 total string values, 2 unique numeric values, 5 total numeric values
         Assert.assertTrue(vertexLabelCardinalityInfo.valid);

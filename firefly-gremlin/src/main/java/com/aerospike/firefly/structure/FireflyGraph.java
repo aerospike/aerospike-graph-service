@@ -1,8 +1,12 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.task.Task;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCardinalityMetadata;
+import com.aerospike.firefly.io.FireflyMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -15,6 +19,7 @@ import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -45,6 +50,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -127,6 +134,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
+    public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
+    private Timer fireflyCardinalityMetadataTask = new Timer(true);
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
@@ -154,6 +163,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
+            final String numericVpIndex;
+            final String stringVpIndex;
+            if (LinkedGraph.DATA_MODEL.equals(getDataModel())) {
+                numericVpIndex = db.NUMERIC_VP_KV_INDEX;
+                stringVpIndex = db.STRING_VP_KV_INDEX;
+            } else {
+                numericVpIndex = db.NUMERIC_V_VP_KV_INDEX;
+                stringVpIndex = db.STRING_V_VP_KV_INDEX;
+            }
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(
+                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, numericVpIndex, stringVpIndex, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX);
+            final TimerTask timerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+            fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.METADATA_UPDATE_FREQUENCY);
+
+        }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
@@ -407,6 +432,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE && fireflyCardinalityMetadataTask != null) {
+            fireflyCardinalityMetadataTask.cancel();
+        }
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)
                 .removeStrategies(FireflyTraversalCacheStrategy.class);

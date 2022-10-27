@@ -19,6 +19,9 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class StarPackedGraph extends PackedGraph {
     private static final Logger LOG = LoggerFactory.getLogger(StarPackedGraph.class);
     public static final String DATA_MODEL = "starpacked";

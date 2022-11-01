@@ -320,7 +320,7 @@ jobs:
   test-firefly-spark-bulk-loader:
     name: Test Firefly Spark Bulk Loader
     timeout-minutes: 5
-    needs: start-runner-spark-bulk-loader
+    needs: start-runner-bulk-loader-spark
     runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
     steps:
       - uses: actions/checkout@v3

@@ -8,7 +8,7 @@ on:
 
 jobs:
   start-runner-build:
-    name: Start self-hosted EC2 runner for build
+    name: Start Build Runner
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -46,7 +46,7 @@ jobs:
         run: |
           mvn clean package -DskipTests --no-transfer-progress
   stop-runner-build:
-    name: Stop self-hosted EC2 runner
+    name: Stop Build Runner
     needs:
       - build-firefly-maven
     runs-on: ubuntu-latest

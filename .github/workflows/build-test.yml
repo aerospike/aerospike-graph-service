@@ -67,7 +67,7 @@ jobs:
           label: ${{ needs.start-runner-build.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-build.outputs.ec2-instance-id }}
   start-runner-linked:
-    name: Start self-hosted EC2 runner for linked
+    name: Start Linked Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -91,7 +91,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-packed:
-    name: Start self-hosted EC2 runner for packed
+    name: Start Packed Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -115,7 +115,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-star-packed:
-    name: Start self-hosted EC2 runner for star packed
+    name: Start Star Packed Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -139,7 +139,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
-    name: Start self-hosted EC2 runner for docker
+    name: Start Docker Build Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -163,7 +163,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader:
-    name: Start self-hosted EC2 runner for bulk loader
+    name: Start Bulk Loader Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -187,7 +187,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader-spark:
-    name: Start self-hosted EC2 runner for spark bulk loader
+    name: Start Bulk Loader Spark Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -211,7 +211,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark:
-    name: Start self-hosted EC2 runner for benchmark
+    name: Start Benchmark Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -245,7 +245,7 @@ jobs:
         run: |
           docker build -t aerospike/firefly .
   test-firefly-linked:
-    name: Test Firefly Linked Data Model
+    name: Test Linked
     timeout-minutes: 120
     needs: start-runner-linked
     runs-on: ${{ needs.start-runner-linked.outputs.label }}
@@ -263,7 +263,7 @@ jobs:
         run: |
           mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
   test-firefly-packed:
-    name: Test Firefly Packed Data Model
+    name: Test Packed
     timeout-minutes: 120
     needs: start-runner-packed
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
@@ -281,7 +281,7 @@ jobs:
         run: |
           mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-star-packed:
-    name: Test Firefly Star Packed Data Model
+    name: Test Star Packed
     timeout-minutes: 120
     needs: start-runner-star-packed
     runs-on: ${{ needs.start-runner-star-packed.outputs.label }}
@@ -299,7 +299,7 @@ jobs:
         run: |
           mvn -pl firefly-gremlin -Dintegration.test.properties="starpacked" test --no-transfer-progress
   test-firefly-bulk-loader:
-    name: Test Firefly Bulk Loader
+    name: Test Bulk Loader
     timeout-minutes: 5
     needs: start-runner-bulk-loader
     runs-on: ${{ needs.start-runner-bulk-loader.outputs.label }}
@@ -318,7 +318,7 @@ jobs:
           mvn clean install -DskipTests
           mvn -pl firefly-bulk-loader test --no-transfer-progress
   test-firefly-spark-bulk-loader:
-    name: Test Firefly Spark Bulk Loader
+    name: Test Spark Bulk Loader
     timeout-minutes: 5
     needs: start-runner-bulk-loader-spark
     runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
@@ -388,7 +388,7 @@ jobs:
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
   stop-runner-linked:
-    name: Stop self-hosted EC2 runner
+    name: Stop Linked Runner
     needs:
       - start-runner-linked
       - test-firefly-linked
@@ -409,7 +409,7 @@ jobs:
           label: ${{ needs.start-runner-linked.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-linked.outputs.ec2-instance-id }}
   stop-runner-packed:
-    name: Stop self-hosted EC2 runner
+    name: Stop Packed Runner
     needs:
       - start-runner-packed
       - test-firefly-packed
@@ -430,7 +430,7 @@ jobs:
           label: ${{ needs.start-runner-packed.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
   stop-runner-star-packed:
-    name: Stop self-hosted EC2 runner
+    name: Stop Star Packed Runner
     needs:
       - start-runner-star-packed
       - test-firefly-star-packed
@@ -451,7 +451,7 @@ jobs:
           label: ${{ needs.start-runner-star-packed.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-star-packed.outputs.ec2-instance-id }}
   stop-runner-docker:
-    name: Stop self-hosted EC2 runner
+    name: Stop Docker Build Runner
     needs:
       - start-runner-docker
       - build-firefly-maven
@@ -472,7 +472,7 @@ jobs:
           label: ${{ needs.start-runner-docker.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-docker.outputs.ec2-instance-id }}
   stop-runner-bulk-loader:
-    name: Stop self-hosted EC2 runner
+    name: Stop Bulk Loader Runner
     needs:
       - start-runner-bulk-loader
       - test-firefly-bulk-loader
@@ -493,7 +493,7 @@ jobs:
           label: ${{ needs.start-runner-bulk-loader.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-bulk-loader.outputs.ec2-instance-id }}
   stop-runner-bulk-loader-spark:
-    name: Stop self-hosted EC2 runner
+    name: Stop Bulk Loader Spark Runner
     needs:
       - start-runner-bulk-loader-spark
       - test-firefly-spark-bulk-loader
@@ -514,7 +514,7 @@ jobs:
           label: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-bulk-loader-spark.outputs.ec2-instance-id }}
   stop-runner-benchmark:
-    name: Stop self-hosted EC2 runner
+    name: Stop Benchmark Runner
     needs:
       - start-runner-benchmark
       - benchmark-firefly

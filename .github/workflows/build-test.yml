@@ -7,171 +7,54 @@ on:
     branches: [main]
 
 jobs:
-  build-firefly-maven:
-    name: Build Firefly Maven
-    timeout-minutes: 120
+  start-runner:
+    name: Start self-hosted EC2 runner
     runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Build Maven Project
-        run: |
-          mvn clean package -DskipTests --no-transfer-progress
-  build-firefly-docker:
-    name: Build Firefly Docker
-    timeout-minutes: 120
-    needs: build-firefly-maven
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ${{ secrets.EC2_IMAGE_ID }}
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  do-the-job:
+    name: Do the job on the runner
+    needs: start-runner # required to start the main job when the runner is ready
+    runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
+    steps:
+      - name: Hello World
+        run: echo 'Hello World!'
+  stop-runner:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner # required to get output from the start-runner job
+      - do-the-job # required to wait when the main job is done
     runs-on: ubuntu-latest
+    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
-      - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: |
-          docker build -t aerospike/firefly .
-  test-firefly-linked:
-    name: Test Firefly Linked Data Model
-    timeout-minutes: 120
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
         with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
-  test-firefly-packed:
-    name: Test Firefly Packed Data Model
-    timeout-minutes: 120
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-star-packed:
-    name: Test Firefly Star Packed Data Model
-    timeout-minutes: 120
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn -pl firefly-gremlin -Dintegration.test.properties="starpacked" test --no-transfer-progress
-  test-firefly-bulk-loader:
-    name: Test Firefly Bulk Loader
-    timeout-minutes: 5
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn clean install -DskipTests
-          mvn -pl firefly-bulk-loader test --no-transfer-progress
-  test-firefly-spark-bulk-loader:
-    name: Test Firefly Spark Bulk Loader
-    timeout-minutes: 5
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn clean install -DskipTests
-          mvn -pl firefly-spark-bulk-loader test --no-transfer-progress
-  benchmark-firefly:
-    name: Benchmark Firefly
-    timeout-minutes: 240
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Launch Firefly in Gremlin-Server and Run Benchmark
-        run: |
-          echo "Downloading gremlin-server"
-          cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
-
-          echo "Unzipping gremlin-server"
-          unzip -qq gremlin-server
-          
-          echo "Build Firefly"
-          cd firefly
-          mvn clean install -DskipTests --no-transfer-progress
-          
-          echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
-          
-          echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-          
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-          
-          echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
-      - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: firefly-gremlin/target/jmh-result.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
-          benchmark-data-dir-path: docs/
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}gi

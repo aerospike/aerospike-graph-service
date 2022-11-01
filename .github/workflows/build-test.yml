@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  start-runner:
-    name: Start self-hosted EC2 runner
+  start-runner-build:
+    name: Start self-hosted EC2 runner for build
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -32,9 +32,9 @@ jobs:
           security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
     name: Build Firefly Maven
-    needs: start-runner
+    needs: start-runner-build
     timeout-minutes: 120
-    runs-on: ${{ needs.start-runner.outputs.label }}
+    runs-on: ${{ needs.start-runner-build.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 11
@@ -45,13 +45,13 @@ jobs:
       - name: Build Maven Project
         run: |
           mvn clean package -DskipTests --no-transfer-progress
-  stop-runner:
+  stop-runner-build:
     name: Stop self-hosted EC2 runner
     needs:
-      - start-runner # required to get output from the start-runner job
-      - build-firefly-maven # required to wait when the main job is done
+      - start-runner-build
+      - build-firefly-maven
     runs-on: ubuntu-latest
-    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
+    if: ${{ always() }}
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -64,5 +64,473 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-build.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-build.outputs.ec2-instance-id }}
+  start-runner-linked:
+    name: Start self-hosted EC2 runner for linked
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-packed:
+    name: Start self-hosted EC2 runner for packed
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-star-packed:
+    name: Start self-hosted EC2 runner for star packed
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-docker:
+    name: Start self-hosted EC2 runner for docker
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-bulk-loader:
+    name: Start self-hosted EC2 runner for bulk loader
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-bulk-loader-spark:
+    name: Start self-hosted EC2 runner for spark bulk loader
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-benchmark:
+    name: Start self-hosted EC2 runner for benchmark
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  build-firefly-docker:
+    name: Build Firefly Docker
+    timeout-minutes: 120
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-docker.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker Image
+        run: |
+          docker build -t aerospike/firefly .
+  test-firefly-linked:
+    name: Test Firefly Linked Data Model
+    timeout-minutes: 120
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-linked.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
+  test-firefly-packed:
+    name: Test Firefly Packed Data Model
+    timeout-minutes: 120
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-packed.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
+  test-firefly-star-packed:
+    name: Test Firefly Star Packed Data Model
+    timeout-minutes: 120
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-star-packed.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn -pl firefly-gremlin -Dintegration.test.properties="starpacked" test --no-transfer-progress
+  test-firefly-bulk-loader:
+    name: Test Firefly Bulk Loader
+    timeout-minutes: 5
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-bulk-loader.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn clean install -DskipTests
+          mvn -pl firefly-bulk-loader test --no-transfer-progress
+  test-firefly-spark-bulk-loader:
+    name: Test Firefly Spark Bulk Loader
+    timeout-minutes: 5
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn clean install -DskipTests
+          mvn -pl firefly-spark-bulk-loader test --no-transfer-progress
+  benchmark-firefly:
+    name: Benchmark Firefly
+    timeout-minutes: 240
+    needs: build-firefly-maven
+    runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Launch Firefly in Gremlin-Server and Run Benchmark
+        run: |
+          echo "Downloading gremlin-server"
+          cd ..
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
+          echo "Unzipping gremlin-server"
+          unzip -qq gremlin-server
+          
+          echo "Build Firefly"
+          cd firefly
+          mvn clean install -DskipTests --no-transfer-progress
+          
+          echo "Installing Firefly in gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
+          
+          echo "Starting gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running benchmark"
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
+      - name: Publish Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customSmallerIsBetter'
+          output-file-path: firefly-gremlin/target/jmh-result.json
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          benchmark-data-dir-path: docs/
+  stop-runner-linked:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-linked
+      - test-firefly-linked
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-linked.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-linked.outputs.ec2-instance-id }}
+  stop-runner-packed:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-packed
+      - test-firefly-packed
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-packed.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
+  stop-runner-star-packed:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-star-packed
+      - test-firefly-star-packed
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-star-packed.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-star-packed.outputs.ec2-instance-id }}
+  stop-runner-docker:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-docker
+      - build-firefly-maven
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-docker.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-docker.outputs.ec2-instance-id }}
+  stop-runner-bulk-loader:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-bulk-loader
+      - test-firefly-bulk-loader
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-bulk-loader.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-bulk-loader.outputs.ec2-instance-id }}
+  stop-runner-bulk-loader-spark:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-bulk-loader-spark
+      - test-firefly-spark-bulk-loader
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-bulk-loader-spark.outputs.ec2-instance-id }}
+  stop-runner-benchmark:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner-benchmark
+      - benchmark-firefly
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-benchmark.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-benchmark.outputs.ec2-instance-id }}

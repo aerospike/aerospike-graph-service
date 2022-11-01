@@ -49,6 +49,7 @@ jobs:
     name: Stop Build Runner
     needs:
       - build-firefly-maven
+      - start-runner-build
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -390,6 +391,7 @@ jobs:
     name: Stop Linked Runner
     needs:
       - test-firefly-linked
+      - start-runner-linked
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -410,6 +412,7 @@ jobs:
     name: Stop Packed Runner
     needs:
       - test-firefly-packed
+      - start-runner-packed
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -430,6 +433,7 @@ jobs:
     name: Stop Star Packed Runner
     needs:
       - test-firefly-star-packed
+      - start-runner-star-packed
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -450,6 +454,7 @@ jobs:
     name: Stop Docker Build Runner
     needs:
       - build-firefly-docker
+      - start-runner-docker
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -470,6 +475,7 @@ jobs:
     name: Stop Bulk Loader Runner
     needs:
       - test-firefly-bulk-loader
+      - start-runner-bulk-loader
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -490,6 +496,7 @@ jobs:
     name: Stop Bulk Loader Spark Runner
     needs:
       - test-firefly-spark-bulk-loader
+      - start-runner-bulk-loader-spark
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -510,6 +517,7 @@ jobs:
     name: Stop Benchmark Runner
     needs:
       - benchmark-firefly
+      - start-runner-benchmark
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

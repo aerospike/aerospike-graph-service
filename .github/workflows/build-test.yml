@@ -237,7 +237,7 @@ jobs:
   build-firefly-docker:
     name: Build Firefly Docker
     timeout-minutes: 120
-    needs: build-firefly-maven
+    needs: start-runner-docker
     runs-on: ${{ needs.start-runner-docker.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -247,7 +247,7 @@ jobs:
   test-firefly-linked:
     name: Test Firefly Linked Data Model
     timeout-minutes: 120
-    needs: build-firefly-maven
+    needs: start-runner-linked
     runs-on: ${{ needs.start-runner-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -265,7 +265,7 @@ jobs:
   test-firefly-packed:
     name: Test Firefly Packed Data Model
     timeout-minutes: 120
-    needs: build-firefly-maven
+    needs: start-runner-packed
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -283,7 +283,7 @@ jobs:
   test-firefly-star-packed:
     name: Test Firefly Star Packed Data Model
     timeout-minutes: 120
-    needs: build-firefly-maven
+    needs: start-runner-star-packed
     runs-on: ${{ needs.start-runner-star-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -301,7 +301,7 @@ jobs:
   test-firefly-bulk-loader:
     name: Test Firefly Bulk Loader
     timeout-minutes: 5
-    needs: build-firefly-maven
+    needs: start-runner-bulk-loader
     runs-on: ${{ needs.start-runner-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -320,7 +320,7 @@ jobs:
   test-firefly-spark-bulk-loader:
     name: Test Firefly Spark Bulk Loader
     timeout-minutes: 5
-    needs: build-firefly-maven
+    needs: start-runner-spark-bulk-loader
     runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -339,7 +339,7 @@ jobs:
   benchmark-firefly:
     name: Benchmark Firefly
     timeout-minutes: 240
-    needs: build-firefly-maven
+    needs: start-runner-benchmark
     runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
     steps:
       - uses: actions/checkout@v3

@@ -7,14 +7,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.DropStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NoneStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.List;
 
 /**
- * @author Simon Zhao (<a href="https://www.linkedin.com/in/simon-zhao-69a792ab/</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
@@ -36,7 +35,7 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
         }
         // V()
         final Step vStep = steps.get(0);
-        if (!(vStep instanceof GraphStep)) {
+        if (!(vStep instanceof FireflyGraphStep)) {
             return;
         } else {
             final FireflyGraphStep vGraphStep = (FireflyGraphStep) vStep;

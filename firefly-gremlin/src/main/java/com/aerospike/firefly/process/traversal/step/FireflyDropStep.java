@@ -10,7 +10,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * @author Simon Zhao (<a href="https://www.linkedin.com/in/simon-zhao-69a792ab/</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class FireflyDropStep extends AbstractStep {
     private final AtomicBoolean isDone = new AtomicBoolean(false);

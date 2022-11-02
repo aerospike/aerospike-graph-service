@@ -36,7 +36,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for build, don't need much power.
+          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
@@ -168,7 +168,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for build, don't need much power.
+          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader:
@@ -192,7 +192,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for build, don't need much power.
+          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader-spark:
@@ -216,7 +216,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for build, don't need much power.
+          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   # Benchmark is currently disabled, we will look to get a proper lab setup for this before we enable them again.

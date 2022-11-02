@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Firefly has the following jobs:
+# - Build Firefly Maven
+# - Build Firefly Docker
+# - Test Bulk Loader
+# - Test Spark Bulk Loader
+# - Test Linked Data Model
+# - Test Packed Data Model
+# - Test Star Packed Data Model
+
 jobs:
   start-runner-build:
     name: Start Build Runner
@@ -27,7 +36,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.small # Small for build, don't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
@@ -87,7 +96,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-packed:
@@ -111,7 +120,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-star-packed:
@@ -135,7 +144,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.large
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
@@ -159,7 +168,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.small # Small for build, don't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader:
@@ -183,7 +192,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.small # Small for build, don't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-bulk-loader-spark:
@@ -207,7 +216,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.xlarge
+          ec2-instance-type: t2.small # Small for build, don't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   #start-runner-benchmark:
@@ -231,7 +240,7 @@ jobs:
   #        mode: start
   #        github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   #        ec2-image-id: ami-09d4741104f30e958
-  #        ec2-instance-type: t2.xlarge
+  #        ec2-instance-type: t2.large
   #        subnet-id: subnet-0bdbb4255fbffb239
   #        security-group-id: sg-005fce4b475465f9e
   build-firefly-docker:

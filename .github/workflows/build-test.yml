@@ -96,7 +96,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.large
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-packed:
@@ -120,7 +120,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.large
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-star-packed:
@@ -144,7 +144,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.large
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
@@ -242,7 +242,7 @@ jobs:
   #        mode: start
   #        github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   #        ec2-image-id: ami-09d4741104f30e958
-  #        ec2-instance-type: t2.large
+  #        ec2-instance-type: t2.xlarge
   #        subnet-id: subnet-0bdbb4255fbffb239
   #        security-group-id: sg-005fce4b475465f9e
   build-firefly-docker:

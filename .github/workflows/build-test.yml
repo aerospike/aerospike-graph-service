@@ -219,6 +219,8 @@ jobs:
           ec2-instance-type: t2.small # Small for build, don't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  # Benchmark is currently disabled, we will look to get a proper lab setup for this before we enable them again.
+  #
   #start-runner-benchmark:
   #  name: Start Benchmark Runner
   #  runs-on: ubuntu-latest

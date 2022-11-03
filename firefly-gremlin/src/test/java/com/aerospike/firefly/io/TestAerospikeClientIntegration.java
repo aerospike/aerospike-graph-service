@@ -15,6 +15,7 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -24,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -40,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.*;
 
@@ -571,6 +574,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
         });
+
+        // Disable drop strategy to test this
+        config.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+        TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class)
+                .removeStrategies(FireflyGraphDropStrategy.class);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
@@ -596,8 +604,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
             assertFalse(vertxKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
-
-
+        } finally {
+            config.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 

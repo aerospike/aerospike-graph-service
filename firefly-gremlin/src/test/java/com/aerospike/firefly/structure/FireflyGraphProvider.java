@@ -1,12 +1,15 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.GraphTest;
 import org.apache.tinkerpop.gremlin.structure.io.IoEdgeTest;
@@ -19,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.Tokens.*;
 
 /**
@@ -124,6 +128,13 @@ public class FireflyGraphProvider extends AbstractGraphProvider {
         // Add GRAPH_ID:graphName and GRAPH:FireflyGraph.
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), graphName);
         configMap.put(Graph.GRAPH, FireflyGraph.class.getName());
+
+        // Disable FireflyGraphDropStrategy for this test since it truncates the DB so event for vertex removal doesn't fire
+        if (test.equals(EventStrategyProcessTest.class) && testMethodName.equals("shouldTriggerRemoveVertex")) {
+            configMap.put(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+            TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).removeStrategies(FireflyGraphDropStrategy.class);
+        }
+
         return configMap;
     }
 

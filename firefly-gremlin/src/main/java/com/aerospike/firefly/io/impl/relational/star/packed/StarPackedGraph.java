@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,9 @@ public class StarPackedGraph extends PackedGraph {
      */
     public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
+        TraversalStrategies.GlobalCache.registerStrategies(
+                StarPackedGraph.class,
+                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
     }
 
     @Override

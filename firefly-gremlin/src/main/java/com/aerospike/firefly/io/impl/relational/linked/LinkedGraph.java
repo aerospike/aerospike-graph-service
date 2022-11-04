@@ -6,7 +6,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -18,8 +17,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
-import org.apache.tinkerpop.gremlin.structure.Graph;
+
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Iterator;
@@ -33,14 +31,6 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.KEY_VALUE;
 final public class LinkedGraph extends RelationalGraph {
     public static final String DATA_MODEL = "linked";
 
-    static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                LinkedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create()));
-    }
-
     /**
      * Constructor for LinkedGraph.
      *
@@ -49,20 +39,9 @@ final public class LinkedGraph extends RelationalGraph {
      */
     public LinkedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, conf))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    LinkedGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
-        }
-    }
-
-
-    static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
     }
 
     @Override

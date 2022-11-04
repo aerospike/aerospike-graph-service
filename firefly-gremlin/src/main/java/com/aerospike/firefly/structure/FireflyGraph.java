@@ -7,6 +7,7 @@ import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
@@ -178,6 +179,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         }
 
+        final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
+        strategies.addStrategies(FireflyGraphStepStrategy.instance()).addStrategies(OptionsStrategy.build().create());
+
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
             // this can be supported by querying all nodes and dividing by replication factor,
@@ -185,17 +189,15 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
             if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    FireflyGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyGraphCountStrategy.instance()));
+            strategies.addStrategies(FireflyGraphCountStrategy.instance());
         }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    FireflyGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
+            strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
+        }
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
+            strategies.addStrategies(FireflyGraphDropStrategy.instance());
         }
     }
 

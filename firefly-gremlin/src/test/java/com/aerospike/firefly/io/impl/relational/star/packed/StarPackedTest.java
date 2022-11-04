@@ -1219,7 +1219,11 @@ public class StarPackedTest extends AbstractFireflySuite {
         Assert.assertEquals(Map.of(), getCompoundEdgeMap(joe, db.OUT_IN_SET));
         Assert.assertEquals(Map.of(), getCompoundEdgeMap(joe, db.OUT_OUT_SET));
 
-        g.V().drop().iterate();
+        lyndon.remove();
+        ishaan.remove();
+        simon.remove();
+        grant.remove();
+        joe.remove();
 
         validateVertexProperty(Map.of(), db.OUT_VP_SET, lyndon);
         validateVertexProperty(Map.of(), db.IN_VP_SET, lyndon);
@@ -1399,7 +1403,11 @@ public class StarPackedTest extends AbstractFireflySuite {
                        "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
-        g.V().drop().iterate();
+        lyndon.remove();
+        ishaan.remove();
+        simon.remove();
+        grant.remove();
+        joe.remove();
 
         validateVertexProperty(Map.of(), db.OUT_VP_SET, lyndon);
         validateVertexProperty(Map.of(), db.IN_VP_SET, lyndon);

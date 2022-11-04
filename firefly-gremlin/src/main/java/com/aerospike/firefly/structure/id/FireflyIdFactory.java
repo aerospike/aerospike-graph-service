@@ -113,6 +113,8 @@ public class FireflyIdFactory {
             idObj = ((FireflyEdge) id).id();
         } else if (id instanceof FireflyVertexProperty) {
             idObj = ((FireflyVertexProperty) id).id();
+        } else if (id instanceof FireflyId) {
+            return (FireflyId) id;
         }
         return createId(idObj, null);
     }

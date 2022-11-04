@@ -141,7 +141,7 @@ public class StarPackedVertex {
         final String finalAdjacentVertexDirDirSet1 = (direction.equals(Direction.IN) ? db.OUT_IN_SET : db.OUT_OUT_SET);
         edges.forEachRemaining(edge -> {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
-            if (!edge.id().equals(edgeId)) {
+            if (!((FireflyEdge)edge).id.equals(edgeId)) {
                 final FireflyId adjacentVertexId = ((FireflyEdge) edge).outVertexId();
                 LOG.trace("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId, edge.id(), edgeId);
 

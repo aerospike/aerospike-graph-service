@@ -3,13 +3,12 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -113,8 +112,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Create Firefly id for vertex property.
         final FireflyId vertexPropertyId = ElementHelper.getIdValue(keyValues).isPresent() ?
-                FireflyId.of(FireflyVertexProperty.class, ElementHelper.getIdValue(keyValues).get()) :
-                FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+                FireflyIdFactory.createId(ElementHelper.getIdValue(keyValues).get()) :
+                FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
@@ -147,20 +146,23 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
             throw elementAlreadyRemoved(Vertex.class, this.id);
 
         // Get id for edge.
-        FireflyId edgeId = FireflyId.createFromKeyValuesOrManager(graph, FireflyEdge.class, keyValues);
-        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+        FireflyId edgeId;
+        if (ElementHelper.getIdValue(keyValues).isEmpty()) {
+            edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+
+            // TODO: GRAPH-186.
+            while (graph.edgeExists(edgeId)) {
+                edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+            }
+        } else {
             try {
-                NumericIdManager.convert(edgeId.value());
+                edgeId = FireflyIdFactory.createFromKeyValues(FireflyEdge.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
             if (graph.edgeExists(edgeId)) {
-                throw Graph.Exceptions.edgeWithIdAlreadyExists(edgeId.value());
-            }
-        } else {
-            while (graph.edgeExists(edgeId)) {
-                edgeId = FireflyId.createFromManager(graph, FireflyEdge.class);
+                throw Graph.Exceptions.edgeWithIdAlreadyExists(edgeId);
             }
         }
 
@@ -223,7 +225,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, FireflyId.fromElement(this)).record();
+        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, id).record();
     }
 
 }

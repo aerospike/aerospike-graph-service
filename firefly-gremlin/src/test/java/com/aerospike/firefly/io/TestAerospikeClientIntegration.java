@@ -14,8 +14,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -67,13 +67,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), -1, bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, FireflyIdFactory.createId(id), -1, bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyIdFactory.createId(id))).record.getInt("age"), 32);
     }
 
     @Test
     public void testBasicDelete() {
-        FireflyId id = FireflyId.of(null, "foo");
+        FireflyId id = FireflyIdFactory.createId("1");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -134,23 +134,23 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testFireflyRecordIntegerId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(config);
-        FireflyId intId = FireflyId.of(null, 1);
+        FireflyId intId = FireflyIdFactory.createId(1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, intId, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
-        assertEquals(record.id(), intId.value());
+        assertEquals(record.id(), intId.getUserId());
     }
 
     @Test
     public void testFireflyRecordLongId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(config);
-        FireflyId fid = FireflyId.of(null, 1L);
+        FireflyId fid = FireflyIdFactory.createId(1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, fid, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
-        assertEquals(record.id(), fid.value());
+        assertEquals(record.id(), fid.getUserId());
     }
 
     @Test

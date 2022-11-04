@@ -11,6 +11,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTrav
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -130,7 +131,7 @@ final public class LinkedGraph extends RelationalGraph {
                         Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
@@ -159,7 +160,7 @@ final public class LinkedGraph extends RelationalGraph {
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(
+                        FireflyIdFactory.createId(kr.record.getLong(
                                 ConfigurationHelper.getOrDefault(
                                         ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
@@ -190,7 +191,7 @@ final public class LinkedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_PROPERTY_AERO_SET, db.NUMERIC_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 

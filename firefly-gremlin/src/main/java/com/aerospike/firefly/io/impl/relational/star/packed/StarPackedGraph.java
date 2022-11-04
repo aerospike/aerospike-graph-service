@@ -12,7 +12,6 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,8 +202,8 @@ public class StarPackedGraph extends PackedGraph {
         final List<String> sets = List.of(db.IN_IN_SET, db.IN_OUT_SET, db.OUT_IN_SET, db.OUT_OUT_SET, db.IN_VP_SET, db.OUT_VP_SET);
 
         // Remove vertex from the list.
-        LOG.debug("Removing vertex {} from sets: {}.", vertex.id.value().toString(), sets);
-        sets.forEach(set -> db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertex.id.toNumericId())));
+        LOG.debug("Removing vertex {} from sets: {}.", vertex.id.toString(), sets);
+        sets.forEach(set -> db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, vertex.id)));
     }
 
     public static boolean isStarPackedGraph(final FireflyGraph graph) {

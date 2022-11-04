@@ -82,7 +82,7 @@ public class FireflyIdNumeric implements FireflyId {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        return id.equals(((FireflyIdNumeric) o).id);
+        return getStorageId().equals(((FireflyIdNumeric) o).getStorageId());
     }
 
     static abstract class GetUserId {

@@ -74,7 +74,7 @@ public class StarPackedVertex {
         final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
         final Map<String, Long> vertexPropertyTypeHintMap = new HashMap<>();
         adjacentVertex.properties().forEachRemaining(vp -> {
-            vertexPropertyIdMap.put(vp.key(), (Long) vp.id());
+            vertexPropertyIdMap.put(vp.key(), (Long) ((FireflyVertexProperty)vp).id.getStorageId());
             vertexPropertyValueMap.put(vp.key(), vp.value());
             vertexPropertyTypeHintMap.put(vp.key(), db.getSupportedType(vp.value().getClass()));
         });
@@ -206,7 +206,7 @@ public class StarPackedVertex {
                 if (!innerEdgeMap.containsKey(label)) {
                     innerEdgeMap.put(label, new ArrayList<>());
                 }
-                innerEdgeMap.get(label).add(edgeId.getStorageTypeIdx());
+                innerEdgeMap.get(label).add((Long) edgeId.getStorageId());
                 adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 

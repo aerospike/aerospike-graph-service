@@ -7,6 +7,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.DropStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NoneStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
@@ -35,10 +36,10 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
         }
         // V()
         final Step vStep = steps.get(0);
-        if (!(vStep instanceof FireflyGraphStep)) {
+        if (!(vStep instanceof GraphStep)) {
             return;
         } else {
-            final FireflyGraphStep vGraphStep = (FireflyGraphStep) vStep;
+            final GraphStep vGraphStep = (GraphStep) vStep;
             // Ensure step is for vertices: V()
             if (!vGraphStep.returnsVertex()) {
                 return;
@@ -47,9 +48,15 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             if (vGraphStep.getIds().length != 0) {
                 return;
             }
-            // Ensure step has no filter steps: V() does not have any "has" steps chained after it, e.g. .hasLabel(...)
-            if (vGraphStep.getHasContainers().size() != 0) {
-                return;
+            // If FireflyGraphStepStrategy has applied to this traversal already, any HasStep will have been removed
+            // from the traversal and internalized within the FireflyGraphStep that replaced the original GraphStep.
+            // We need to check the FireFlyGraphStep in this case since steps.size() can now equal 3 despite the
+            // original traversal containing a HasStep if the FireflyGraphStepStrategy was applied. Summarized, ensure
+            // original traversal step V() does not have any HasStep chained after it, e.g. .hasLabel(...)
+            if (vGraphStep instanceof FireflyGraphStep) {
+                if (((FireflyGraphStep) vGraphStep).getHasContainers().size() != 0) {
+                    return;
+                }
             }
         }
         // drop()

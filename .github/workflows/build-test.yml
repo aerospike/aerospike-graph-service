@@ -311,7 +311,7 @@ jobs:
           mvn -pl firefly-gremlin -Dintegration.test.properties="starpacked" test --no-transfer-progress
   test-firefly-bulk-loader:
     name: Test Bulk Loader
-    timeout-minutes: 5
+    timeout-minutes: 15
     needs: start-runner-bulk-loader
     runs-on: ${{ needs.start-runner-bulk-loader.outputs.label }}
     steps:
@@ -330,7 +330,7 @@ jobs:
           mvn -pl firefly-bulk-loader test --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
-    timeout-minutes: 5
+    timeout-minutes: 15
     needs: start-runner-bulk-loader-spark
     runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
     steps:

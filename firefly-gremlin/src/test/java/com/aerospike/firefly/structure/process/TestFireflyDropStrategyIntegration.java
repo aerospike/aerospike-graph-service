@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.process;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -9,8 +8,8 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,7 +41,6 @@ public class TestFireflyDropStrategyIntegration {
 
     @Before
     public void beforeEach() {
-        removeStrategyFromGlobalCache();
         SETUP_GRAPH.getBaseGraph().dropDatabase();
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
         final FireflyVertex simon = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(1), "person", properties);
@@ -64,6 +62,11 @@ public class TestFireflyDropStrategyIntegration {
         SETUP_GRAPH.bulkWriteEdge(5, "stray", Collections.emptyList(), 5, 5);
     }
 
+    @After
+    public void afterEach() {
+        CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
+    }
+
     @Test
     public void testDropStrategyDefault() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
@@ -76,8 +79,6 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             assertDropStrategyEnabled(graph);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -95,8 +96,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(2, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(3, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -114,8 +113,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(3, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(3, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -133,8 +130,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(3, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(3, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -152,8 +147,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(2, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(2, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -183,8 +176,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(4, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(0, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -202,8 +193,6 @@ public class TestFireflyDropStrategyIntegration {
             Assert.assertEquals(0, vertexCount);
             edgeCount = g.E().count().next();
             Assert.assertEquals(1, edgeCount);
-        } finally {
-            CONFIG.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 
@@ -218,10 +207,5 @@ public class TestFireflyDropStrategyIntegration {
         Assert.assertEquals(0, vertexCount);
         edgeCount = g.E().count().next();
         Assert.assertEquals(0, edgeCount);
-    }
-
-    private void removeStrategyFromGlobalCache() {
-        TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class)
-                .removeStrategies(FireflyGraphDropStrategy.class);
     }
 }

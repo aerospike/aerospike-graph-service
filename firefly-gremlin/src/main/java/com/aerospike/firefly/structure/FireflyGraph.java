@@ -180,7 +180,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
 
         final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
-        strategies.addStrategies(FireflyGraphStepStrategy.instance()).addStrategies(OptionsStrategy.build().create());
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
@@ -190,14 +189,20 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
             strategies.addStrategies(FireflyGraphCountStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyGraphCountStrategy.class);
         }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
             strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
         }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
             strategies.addStrategies(FireflyGraphDropStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyGraphDropStrategy.class);
         }
     }
 

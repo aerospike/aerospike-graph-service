@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -16,7 +17,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -107,12 +107,8 @@ public class FireflyIdFactory {
      */
     public static FireflyId createId(final Object id) {
         Object idObj = id;
-        if (id instanceof FireflyVertex) {
-            idObj = ((FireflyVertex) id).id();
-        } else if (id instanceof FireflyEdge) {
-            idObj = ((FireflyEdge) id).id();
-        } else if (id instanceof FireflyVertexProperty) {
-            idObj = ((FireflyVertexProperty) id).id();
+        if (id instanceof Element) {
+            idObj = ((Element) id).id();
         } else if (id instanceof FireflyId) {
             return (FireflyId) id;
         }

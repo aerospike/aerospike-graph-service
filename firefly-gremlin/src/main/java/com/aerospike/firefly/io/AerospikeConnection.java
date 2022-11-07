@@ -424,14 +424,14 @@ public class AerospikeConnection implements AutoCloseable {
                     .forEach(strAry -> {
                         Map<String, String> data = new HashMap<>();
                         Arrays.stream(strAry).forEach(entryStr -> {
-                            if(entryStr.isEmpty())
+                            if (entryStr.isEmpty())
                                 return;
-                            if(entryStr.contains("="))
+                            if (entryStr.contains("="))
                                 data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
                             else
-                                data.put(Keys.RESULT,entryStr);
+                                data.put(Keys.RESULT, entryStr);
                         });
-                        if(data.size()>0)
+                        if (data.size() > 0)
                             results.add(data);
                     });
             return results;
@@ -559,6 +559,7 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
+    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
 
     /**
      * Cast an Id to its on-disk storage type
@@ -860,6 +861,22 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Increment the generation check retry count
+     */
+    public static void incrementGenerationCheckRetryMetric() {
+        generationCheckRetryMetric.incrementAndGet();
+    }
+
+    /**
+     * Return the generation check retry count
+     *
+     * @return generation check retry count
+     */
+    public static long getGenerationCheckRetryMetric() {
+        return generationCheckRetryMetric.get();
+    }
+
+    /**
      * Return a named key-value from a map
      * read its associated type-hint and reconstruct the correct JVM type for the value
      *
@@ -1004,11 +1021,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     private <V> void protectedWriteTypeHintedValueToMap(final String aeroSet,
-                                                       final FireflyId fid,
-                                                       final String mapName,
-                                                       final String mapKey,
-                                                       final V value,
-                                                       final Bin... additionalBins) {
+                                                        final FireflyId fid,
+                                                        final String mapName,
+                                                        final String mapKey,
+                                                        final V value,
+                                                        final Bin... additionalBins) {
         final Map<String, Object> data;
         final Map<String, Object> typeHints;
         final int generation;
@@ -1111,10 +1128,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Decrement an Id counter.
-     *
+     * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
      *
-     * @param name name of Counter to operate on
+     * @param name   name of Counter to operate on
      * @param amount amount on Counter to decrement
      * @return value of counter after operation
      */

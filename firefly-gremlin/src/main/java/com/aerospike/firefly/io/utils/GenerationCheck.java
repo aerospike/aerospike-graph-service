@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.utils;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
+import com.aerospike.firefly.io.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,7 @@ public class GenerationCheck {
                 f.function();
             } catch (AerospikeException e) {
                 if (e.getResultCode() == ResultCode.GENERATION_ERROR) {
+                    AerospikeConnection.incrementGenerationCheckRetryMetric();
                     continue;
                 } else if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
                     throw new RuntimeException(RECORD_TOO_BIG_ERROR);

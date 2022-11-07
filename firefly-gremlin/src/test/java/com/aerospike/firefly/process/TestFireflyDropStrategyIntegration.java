@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.process;
+package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;

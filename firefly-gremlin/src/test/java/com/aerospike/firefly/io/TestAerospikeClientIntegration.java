@@ -14,9 +14,10 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -24,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -33,15 +35,28 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static java.lang.Thread.sleep;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -351,7 +366,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(12L / 3L, vertexLabelCardinalityInfo.entriesPerBval.longValue());
         Assert.assertEquals(10L / 5L, vertexStringPropertyCardinalityInfo.entriesPerBval.longValue());
-        Assert.assertEquals(2L / 2L, vertexNumericPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(1L, vertexNumericPropertyCardinalityInfo.entriesPerBval.longValue());
 
         // 6 edges, 3 unique labels, 3 unique keys, 2 unique string values, 1 unique numeric values.
         Assert.assertTrue(edgeLabelCardinalityInfo.valid);
@@ -372,7 +387,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(6L / 3L, edgeLabelCardinalityInfo.entriesPerBval.longValue());
         Assert.assertEquals(4L / 2L, edgeStringPropertyCardinalityInfo.entriesPerBval.longValue());
-        Assert.assertEquals(2L / 1L, edgeNumericPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(2L, edgeNumericPropertyCardinalityInfo.entriesPerBval.longValue());
     }
 
     @Test
@@ -571,6 +586,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
         });
+
+        // Disable drop strategy to test this
+        config.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+        TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class)
+                .removeStrategies(FireflyGraphDropStrategy.class);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
@@ -582,7 +602,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
                     Set.of("0_G_META") :
-                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"),x);
+                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 1 : 7, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             Vertex a = graph.addVertex();
@@ -596,8 +616,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
             assertFalse(vertxKeys.hasNext());
             assertFalse(edgeKeys.hasNext());
-
-
+        } finally {
+            config.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
     }
 

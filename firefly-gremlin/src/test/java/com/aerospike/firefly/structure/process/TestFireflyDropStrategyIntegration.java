@@ -35,7 +35,7 @@ public class TestFireflyDropStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase();
         SETUP_GRAPH.close();
     }
 

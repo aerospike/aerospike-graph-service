@@ -40,6 +40,8 @@ public class GenerationCheck {
         if (i > GENERATION_WRITE_FAILURES) {
             LOG.error("Generation check failed after {} attempts", i);
             throw new RuntimeException("Generation check failed to write after " + GENERATION_WRITE_FAILURES + " retries");
+        } else if (i > 1) {
+            LOG.debug("Generation check retried {} times before succeeding", i - 1);
         }
     }
 

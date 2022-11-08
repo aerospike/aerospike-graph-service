@@ -23,18 +23,8 @@ public class FireflyDropStep extends AbstractStep {
     @Override
     protected Traverser.Admin processNextStart() throws NoSuchElementException {
         if (!isDone.getAndSet(true)) {
-            try {
-                // Guidelines for Deleting Data: https://discuss.aerospike.com/t/guidelines-for-deleting-data/3681/1
-                // If using the client APIs to perform the truncate command on a single-threaded application it is
-                // suggested to add a millisecond (ms) sleep. The truncate operation has a 1 millisecond resolution and
-                // writes occurring within the same millisecond are not deleted.
-                Thread.sleep(1);
-                final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-                graph.getBaseGraph().dropDatabase();
-                Thread.sleep(1);
-            } catch (final InterruptedException e) {
-                // Do nothing
-            }
+            final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
+            graph.getBaseGraph().dropDatabase();
         }
         throw FastNoSuchElementException.instance();
     }

@@ -66,7 +66,7 @@ public abstract class AbstractFireflySuite {
         if (isTestStarted) {
             LOG.info("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
         } else {
-            LOG.info("===> " + testName.getMethodName() + " did not start <===");
+            LOG.error("===> " + testName.getMethodName() + " did not start <===");
         }
     }
 

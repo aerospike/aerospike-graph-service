@@ -19,7 +19,8 @@ public class Util {
             final var vertices = graph.traversal().V();
             while (true) {
                 try {
-                    LOG.error("Found non-dropped vertex: " + vertices.next().toString());
+                    final var vertex = vertices.next();
+                    LOG.error("Found non-dropped vertex with ID '" + vertex.id() + "' and label '" + vertex.label() + "'");
                 } catch (final NoSuchElementException e) {
                     LOG.error("Done listing non-dropped vertices");
                     break;
@@ -32,7 +33,8 @@ public class Util {
             final var edges = graph.traversal().E();
             while (true) {
                 try {
-                    LOG.error("Found non-dropped edge: " + edges.next().toString());
+                    final var edge = edges.next();
+                    LOG.error("Found non-dropped edge with ID '" + edge.id() + "' and label '" + edge.label() + "'");
                 } catch (final NoSuchElementException e) {
                     LOG.error("Done listing non-dropped edges");
                     break;

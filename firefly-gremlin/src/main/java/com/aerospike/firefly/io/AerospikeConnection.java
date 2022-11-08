@@ -560,6 +560,7 @@ public class AerospikeConnection implements AutoCloseable {
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
     static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
+    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * Cast an Id to its on-disk storage type
@@ -874,6 +875,22 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public static long getGenerationCheckRetryMetric() {
         return generationCheckRetryMetric.get();
+    }
+
+
+    /**
+     * Set the generation check high-water mark
+     */
+    public static void setGenerationCheckHighWaterMark(final long value) {
+        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
+    }
+    /**
+     * Return the high-water mark for generation check retries
+     *
+     * @return number of retries
+     */
+    public static long getGenerationCheckHighWaterMark() {
+        return generationCheckHighWaterMark.get();
     }
 
     /**

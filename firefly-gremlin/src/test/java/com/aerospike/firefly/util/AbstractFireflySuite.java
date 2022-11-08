@@ -24,6 +24,7 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 public abstract class AbstractFireflySuite {
     @Rule public TestName testName = new TestName();
     private Instant start = Instant.now();
+    private boolean isTestStarted = true;
     protected static final Configuration config;
     protected static Logger LOG;
     protected static AerospikeConnection db;
@@ -51,21 +52,27 @@ public abstract class AbstractFireflySuite {
     public void beforeTest() {
         // Test check to see if we should run this test.
         Assume.assumeTrue(runTest());
-        if (clearData()) {
-            Util.clearGraph(graph);
-        }
         LOG.info("===> Running " + testName.getMethodName() + " <===");
+        if (clearData()) {
+            this.isTestStarted = false;
+            Util.cleanAndVerifyGraph(graph);
+        }
+        this.isTestStarted = true;
         start = Instant.now();
     }
 
     @After
     public void printTestTime() {
-        LOG.info("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
+        if (isTestStarted) {
+            LOG.info("===> " + testName.getMethodName() + " - " + Duration.between(start, Instant.now()).toMillis() + " ms <===");
+        } else {
+            LOG.info("===> " + testName.getMethodName() + " did not start <===");
+        }
     }
 
     @AfterClass
     public static void closeGraphClearData() {
-        Util.clearGraph(graph);
+        Util.cleanAndVerifyGraph(graph);
         graph.close();
         db.close();
     }

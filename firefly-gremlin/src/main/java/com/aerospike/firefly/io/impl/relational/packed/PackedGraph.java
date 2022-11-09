@@ -10,6 +10,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTrav
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
@@ -118,7 +119,7 @@ public class PackedGraph extends RelationalGraph {
                         Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -147,7 +148,7 @@ public class PackedGraph extends RelationalGraph {
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -176,7 +177,7 @@ public class PackedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 

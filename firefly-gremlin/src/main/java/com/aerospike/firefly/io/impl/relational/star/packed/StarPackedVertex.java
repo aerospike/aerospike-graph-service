@@ -33,7 +33,7 @@ public class StarPackedVertex {
         final String set = direction.equals(Direction.IN) ? db.IN_VP_SET : db.OUT_VP_SET;
 
         // We need to be careful here because order matters.
-        FireflyRecord record = FireflyRecord.read(db, set, vertex.id.toNumericId());
+        FireflyRecord record = FireflyRecord.read(db, set, vertex.id);
 
         // Read the ids, values, and type hints from the record.
         Map<String, List<Map<String, Long>>> vertexPropertyIds;
@@ -74,7 +74,7 @@ public class StarPackedVertex {
         final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
         final Map<String, Long> vertexPropertyTypeHintMap = new HashMap<>();
         adjacentVertex.properties().forEachRemaining(vp -> {
-            vertexPropertyIdMap.put(vp.key(), NumericIdManager.convert(vp.id()));
+            vertexPropertyIdMap.put(vp.key(), (Long) ((FireflyVertexProperty)vp).id.getStorageId());
             vertexPropertyValueMap.put(vp.key(), vp.value());
             vertexPropertyTypeHintMap.put(vp.key(), db.getSupportedType(vp.value().getClass()));
         });
@@ -141,13 +141,13 @@ public class StarPackedVertex {
         final String finalAdjacentVertexDirDirSet1 = (direction.equals(Direction.IN) ? db.OUT_IN_SET : db.OUT_OUT_SET);
         edges.forEachRemaining(edge -> {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
-            if (!edge.id().equals(edgeId.value())) {
+            if (!((FireflyEdge)edge).id.equals(edgeId)) {
                 final FireflyId adjacentVertexId = ((FireflyEdge) edge).outVertexId();
-                LOG.trace("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId.value(), edge.id(), edgeId.value());
+                LOG.trace("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId, edge.id(), edgeId);
 
                 // We need to be careful here because order matters.
-                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, finalAdjacentVertexDirDirSet1, adjacentVertexId.toNumericId());
-                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId.toNumericId());
+                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, finalAdjacentVertexDirDirSet1, adjacentVertexId);
+                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId);
 
                 // Get adjacent vertex records edge map.
                 final Map<String, List<Long>> adjacentVertexEdges;
@@ -174,7 +174,7 @@ public class StarPackedVertex {
                 }
 
                 final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
-                final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+                final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                                  String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
                 // Get the adjacent edge map.
@@ -206,7 +206,7 @@ public class StarPackedVertex {
                 if (!innerEdgeMap.containsKey(label)) {
                     innerEdgeMap.put(label, new ArrayList<>());
                 }
-                innerEdgeMap.get(label).add(NumericIdManager.convert(edgeId.value()));
+                innerEdgeMap.get(label).add((Long) edgeId.getStorageId());
                 adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
@@ -222,13 +222,15 @@ public class StarPackedVertex {
         final String adjacentVertexDirDirSet2 = (direction.equals(Direction.IN) ? db.IN_IN_SET : db.IN_OUT_SET);
         edges.forEachRemaining(edge -> {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
-            if (!edge.id().equals(edgeId.value())) {
+            if (!((FireflyEdge)edge).id.equals(edgeId)) {
                 final FireflyId adjacentVertexId = ((FireflyEdge) edge).inVertexId();
-                LOG.trace("Writing vertex {} adjacent vertex compound edge {} from edge {}", adjacentVertexId.value(), edge.id(), edgeId.value());
+                LOG.trace("Writing vertex {} adjacent vertex compound edge {} from edge {}", adjacentVertexId, edge.id(), edgeId);
 
                 // We need to be careful here because order matters.
-                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentVertexDirDirSet2, adjacentVertexId.toNumericId());
-                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId.toNumericId());
+                final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentVertexDirDirSet2, adjacentVertexId);
+                final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId
+
+                );
 
                 // Get adjacent vertex records edge map.
                 final Map<String, List<Long>> adjacentVertexEdges;
@@ -255,7 +257,7 @@ public class StarPackedVertex {
                 }
 
                 final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
-                final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+                final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                                  String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
                 // Get the adjacent edge map.
@@ -287,7 +289,7 @@ public class StarPackedVertex {
                 if (!innerEdgeMap.containsKey(label)) {
                     innerEdgeMap.put(label, new ArrayList<>());
                 }
-                innerEdgeMap.get(label).add(NumericIdManager.convert(edgeId.value()));
+                innerEdgeMap.get(label).add((Long) edgeId.getStorageId());
                 adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
@@ -387,7 +389,7 @@ public class StarPackedVertex {
             final FireflyId vpId = (direction.equals(Direction.IN)) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
 
             // Get all vertex property related bins.
-            final FireflyRecord record = FireflyRecord.read(db, set, vpId.toNumericId());
+            final FireflyRecord record = FireflyRecord.read(db, set, vpId);
             if (record == null) {
                 LOG.error("Could not find {} record for vertex {} when adding properties to adjacent lists of vertex {}.", set, vpId, vertex.id());
                 throw new RuntimeException(String.format("Could not find %s record for vertex %s when adding properties to adjacent lists of vertex %s.", set, vpId, vertex.id()));
@@ -420,13 +422,13 @@ public class StarPackedVertex {
                 LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id());
                 throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id()));
             }
-            final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+            final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                              String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
             vertexPropertyValues.get(edgeIndex).put(fireflyVertexProperty.key(), fireflyVertexProperty.value());
             vertexVPValue.put(edge.label(), vertexPropertyValues);
             vertexPropertyTypeHints.get(edgeIndex).put(fireflyVertexProperty.key(), db.getSupportedType(fireflyVertexProperty.value().getClass()));
             vertexVPTypeHint.put(edge.label(), vertexPropertyTypeHints);
-            vertexPropertyIds.get(edgeIndex).put(fireflyVertexProperty.key(), NumericIdManager.convert(fireflyVertexProperty.id()));
+            vertexPropertyIds.get(edgeIndex).put(fireflyVertexProperty.key(), (Long) fireflyVertexProperty.id.getStorageId());
             vertexVPId.put(edge.label(), vertexPropertyIds);
 
             // Create bins for the maps.
@@ -454,7 +456,7 @@ public class StarPackedVertex {
             final FireflyId vpId = (direction.equals(Direction.IN)) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
 
             // Get all vertex property related bins.
-            final FireflyRecord record = FireflyRecord.read(db, set, vpId.toNumericId());
+            final FireflyRecord record = FireflyRecord.read(db, set, vpId);
             if (record == null) {
                 LOG.error("Could not find {} record for vertex {} when adding properties to adjacent lists of vertex {}.", set, vpId, vertex.id());
                 throw new RuntimeException(String.format("Could not find %s record for vertex %s when adding properties to adjacent lists of vertex %s.", set, vpId, vertex.id()));
@@ -487,7 +489,7 @@ public class StarPackedVertex {
                 LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id());
                 throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id()));
             }
-            final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+            final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                              String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
             vertexPropertyValues.get(edgeIndex).remove(key);
             vertexVPValue.put(edge.label(), vertexPropertyValues);
@@ -511,7 +513,7 @@ public class StarPackedVertex {
                                                         final String set,
                                                         final FireflyId id,
                                                         final String bin) {
-        final FireflyRecord record = FireflyRecord.read(db, set, id.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, set, id);
         if (record == null) {
             return new HashMap<>();
         }
@@ -530,7 +532,7 @@ public class StarPackedVertex {
         final FireflyId vertexId = (direction.equals(Direction.IN)) ? edge.inVertexId() : edge.outVertexId();
 
         // Get all vertex property related bins.
-        final FireflyRecord record = FireflyRecord.read(db, vertexVPSet, vertexId.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, vertexVPSet, vertexId);
         if (record == null) {
             // Indicates vertex is already removed, so we can just return.
             return;
@@ -544,7 +546,7 @@ public class StarPackedVertex {
         // The tricky part is what entry of the list inside the map. Using the edge label we can get the list from the map,
         // but we still need to know the index to remove. To get that we must read the vertex and get the index from the
         // vertex record by reading the edge id from the edge label to id list map of the vertex.
-        final FireflyRecord vertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId.toNumericId());
+        final FireflyRecord vertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
         if (vertexRecord == null) {
             // Indicates vertex is already removed, so we can exit. The StarVertex removal is responsible for removing
             // the actual record.
@@ -554,7 +556,7 @@ public class StarPackedVertex {
         final String vertexEdgeMapBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
         final Map<String, List<Long>> vertexEdgeLabelToId = (Map<String, List<Long>>) vertexRecord.record.getMap(vertexEdgeMapBin);
         final List<Long> edgeIds = vertexEdgeLabelToId.get(edge.label());
-        final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+        final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                          String.format("Failed to find edge %s in vertex %s when removing adjacent vertex properties.", edge, vertexId));
 
         // Remove the vertex property values.
@@ -626,11 +628,11 @@ public class StarPackedVertex {
                                            final String adjacentDirDirSet,
                                            final String adjacentVertexDirBin) {
         final FireflyId adjacentVertexId = adjacentDirection.equals(Direction.IN) ? ((FireflyEdge) edge).outVertexId() : ((FireflyEdge) edge).inVertexId();
-        LOG.trace("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId.value(), compoundEdge.id());
+        LOG.trace("Removing compound edge {} between vertex {} and vertex {} that connects using edge {}.", edge.id(), vertex.id(), adjacentVertexId, compoundEdge.id());
 
         // We need to be careful here because order matters.
-        final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentDirDirSet, adjacentVertexId.toNumericId());
-        final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId.toNumericId());
+        final FireflyRecord adjacentVertexDirDirRecord = FireflyRecord.read(db, adjacentDirDirSet, adjacentVertexId);
+        final FireflyRecord adjacentVertexRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, adjacentVertexId);
 
         // Get adjacent vertex records edge map.
         final Map<String, List<Long>> adjacentVertexEdges;
@@ -656,7 +658,7 @@ public class StarPackedVertex {
         }
 
         final List<Long> edgeIds = adjacentVertexEdges.get(edgeLabel);
-        final int edgeIndex = findInList(edgeIds, NumericIdManager.convert(edge.id()),
+        final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
                                          String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
         // Get the adjacent edge map.
@@ -685,7 +687,7 @@ public class StarPackedVertex {
         }
         final Map<String, List<Long>> compoundEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
         final List<Long> compoundEdgeList = compoundEdgeMap.get(compoundEdge.label());
-        final int compoundIndex = findInList(compoundEdgeList, NumericIdManager.convert(compoundEdge.id()),
+        final int compoundIndex = findInList(compoundEdgeList, (Long) ((FireflyEdge)compoundEdge).id.getStorageId(),
                                              String.format("Failed to find compound edge id %s in compound edge set %s of map %s", compoundEdge.id(), compoundEdgeList, compoundEdgeMap));
 
         if (compoundEdgeList.size() == 1) {
@@ -716,7 +718,7 @@ public class StarPackedVertex {
         // This adjacent vertex edgeLabel->edgeIds map.
         final Map<String, List<Long>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES);
         final List<Long> edges = vertexEdgeMap.getOrDefault(edge.label(), new ArrayList<>());
-        final int listIndex = findInList(edges, NumericIdManager.convert(edge.id()), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
+        final int listIndex = findInList(edges, (Long) ((FireflyEdge) edge).id.getStorageId(), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
 
         // Need to find index of list.
         final List<Map<String, List<Long>>> inEdgeMapList = vertexInDirEdgeMap.getOrDefault(edge.label(), new ArrayList<>());

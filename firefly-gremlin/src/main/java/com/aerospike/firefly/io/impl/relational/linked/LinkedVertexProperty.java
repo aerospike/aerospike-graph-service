@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public static <V> FireflyVertexProperty<V> readVertexProperty(final FireflyGraph graph,
                                                                   final FireflyVertex parent,
                                                                   final FireflyId id) {
-        LOG.debug("Reading vertex property {} from {}", id.value(), parent.id());
+        LOG.debug("Reading vertex property {} from {}", id, parent.id);
 
         // Read record from Aerospike.
         final AerospikeConnection db = graph.getBaseGraph();
@@ -98,7 +99,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
      */
     public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
+        final FireflyId fid = FireflyIdFactory.createId(fireflyRecord.id());
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
         if (kv.isEmpty()) {
             return null;
@@ -126,7 +127,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         // Write the vertex property to the database
         final AerospikeConnection db = graph.getBaseGraph();
         final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, AerospikeConnection.idToStorageType(vertex.id()));
+        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertex.id.getStorageId());
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
         // Return the vertex property.
         return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
@@ -139,7 +140,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param id    Id of vertex property.
      */
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
-        LOG.debug("Removing vertex property {}", id.value());
+        LOG.debug("Removing vertex property {}", id);
         final AerospikeConnection db = graph.getBaseGraph();
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
     }
@@ -151,7 +152,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public void remove() {
         try {
             // Remove vertex property from vertex first so if we fail it will null out.
-            LOG.info("Removing vertex property {}", id.value());
+            LOG.info("Removing vertex property {}", id);
             removeVertexProperty(graph, id);
             if (vertex == null) {
                 graph.readVertex(vertexId).removeVertexProperty(label, id);

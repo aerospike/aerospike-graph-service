@@ -10,6 +10,7 @@ import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -66,7 +67,7 @@ final public class RelationalEdge extends FireflyEdge {
                                            final List<Map.Entry<String, Object>> properties,
                                            final FireflyVertex inVertex,
                                            final FireflyVertex outVertex) {
-        LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId.value(), outVertex.id(), label, inVertex.id(), properties);
+        LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
         final Map<String, Object> data = new HashMap<>();
@@ -96,8 +97,8 @@ final public class RelationalEdge extends FireflyEdge {
 
         });
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(db.idToStorageType(inVertex.id())));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(db.idToStorageType(outVertex.id())));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id.getStorageId()));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id.getStorageId()));
         final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints));
 
@@ -114,17 +115,17 @@ final public class RelationalEdge extends FireflyEdge {
      * @return Edge.
      */
     public static RelationalEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        LOG.debug("Reading edge {}.", edgeId.value().toString());
+        LOG.debug("Reading edge {}.", edgeId.toString());
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord edgeRecord = FireflyRecord.read(db, db.EDGE_AERO_SET, edgeId.toNumericId());
+        final FireflyRecord edgeRecord = FireflyRecord.read(db, db.EDGE_AERO_SET, edgeId);
         if (edgeRecord == null) {
             return null;
         }
-        return new RelationalEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, edgeRecord),
+        return new RelationalEdge(FireflyIdFactory.createFromRecord(db, edgeRecord),
                                   edgeRecord.record.getString(AerospikeConnection.LABEL),
                                   graph,
-                                  FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.OUT.name())),
-                                  FireflyId.of(FireflyVertex.class, edgeRecord.record.getLong(Direction.IN.name())));
+                                  FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.OUT.name())),
+                                FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.IN.name())));
     }
 
     /**
@@ -142,11 +143,11 @@ final public class RelationalEdge extends FireflyEdge {
         if (edgeRecord == null) {
             return null;
         }
-        return edgeRecord.stream().map(record -> new RelationalEdge(FireflyId.loadFromAerospike(db, FireflyEdge.class, record),
+        return edgeRecord.stream().map(record -> new RelationalEdge(FireflyIdFactory.createFromRecord(db, record),
                                                                     record.record.getString(AerospikeConnection.LABEL),
                                                                     graph,
-                                                                    FireflyId.of(FireflyVertex.class, record.record.getLong(Direction.OUT.name())),
-                                                                    FireflyId.of(FireflyVertex.class, record.record.getLong(Direction.IN.name())))).
+                                                                    FireflyIdFactory.createId(record.record.getLong(Direction.OUT.name())),
+                                                                    FireflyIdFactory.createId(record.record.getLong(Direction.IN.name())))).
                 collect(Collectors.toList());
     }
 
@@ -167,12 +168,12 @@ final public class RelationalEdge extends FireflyEdge {
             return null;
         }
         return new RelationalEdge(
-                FireflyId.loadFromAerospike(
-                        graph.getBaseGraph(), FireflyVertex.class, FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record)),
+                FireflyIdFactory.createFromRecord(
+                        graph.getBaseGraph(), FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record)),
                 record.getString(AerospikeConnection.LABEL),
                 graph,
-                FireflyId.of(FireflyVertex.class, record.getLong(Direction.OUT.name())),
-                FireflyId.of(FireflyVertex.class, record.getLong(Direction.IN.name())));
+                FireflyIdFactory.createId(record.getLong(Direction.OUT.name())),
+                FireflyIdFactory.createId(record.getLong(Direction.IN.name())));
     }
 
     /**
@@ -181,14 +182,14 @@ final public class RelationalEdge extends FireflyEdge {
     @Override
     public void removeEdge() {
         // Remove edge.
-        LOG.debug("Removing edge {}.", this.id.value().toString());
+        LOG.debug("Removing edge {}.", this.id);
 
         // The star data model holds some additional data that must be removed when the edge is removed.
         if (StarPackedGraph.isStarPackedGraph(graph)) {
             StarPackedGraph.removeEdge(db, this);
         }
 
-        db.delete(FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, id.toNumericId()));
+        db.delete(FireflyRecord.getKey(db.getNamespace(), db.EDGE_AERO_SET, id));
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;

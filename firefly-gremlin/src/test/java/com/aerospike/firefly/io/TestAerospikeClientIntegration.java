@@ -14,10 +14,10 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -35,7 +35,14 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -44,7 +51,12 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static java.lang.Thread.sleep;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -70,13 +82,13 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
-        FireflyRecord.write(db, db.TEST_SET, FireflyId.of(null, id), -1, bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyId.of(null, id))).record.getInt("age"), 32);
+        FireflyRecord.write(db, db.TEST_SET, FireflyIdFactory.createId(id), -1, bin1, bin2, bin3);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyIdFactory.createId(id))).record.getInt("age"), 32);
     }
 
     @Test
     public void testBasicDelete() {
-        FireflyId id = FireflyId.of(null, "foo");
+        FireflyId id = FireflyIdFactory.createId("1");
         Bin bin1 = new Bin("name", "John Doe");
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
@@ -137,23 +149,23 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testFireflyRecordIntegerId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(config);
-        FireflyId intId = FireflyId.of(null, 1);
+        FireflyId intId = FireflyIdFactory.createId(1);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, intId, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, intId);
-        assertEquals(record.id(), intId.value());
+        assertEquals(record.id(), intId.getUserId());
     }
 
     @Test
     public void testFireflyRecordLongId() {
         final String ns = ConfigurationHelper.aerospikeNamespace(config);
-        FireflyId fid = FireflyId.of(null, 1L);
+        FireflyId fid = FireflyIdFactory.createId(1L);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
         FireflyRecord.write(db, db.TEST_SET, fid, -1, bin21, bin22);
         FireflyRecord record = FireflyRecord.read(db, db.TEST_SET, fid);
-        assertEquals(record.id(), fid.value());
+        assertEquals(record.id(), fid.getUserId());
     }
 
     @Test
@@ -354,7 +366,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(12L / 3L, vertexLabelCardinalityInfo.entriesPerBval.longValue());
         Assert.assertEquals(10L / 5L, vertexStringPropertyCardinalityInfo.entriesPerBval.longValue());
-        Assert.assertEquals(2L / 2L, vertexNumericPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(1L, vertexNumericPropertyCardinalityInfo.entriesPerBval.longValue());
 
         // 6 edges, 3 unique labels, 3 unique keys, 2 unique string values, 1 unique numeric values.
         Assert.assertTrue(edgeLabelCardinalityInfo.valid);
@@ -375,7 +387,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(6L / 3L, edgeLabelCardinalityInfo.entriesPerBval.longValue());
         Assert.assertEquals(4L / 2L, edgeStringPropertyCardinalityInfo.entriesPerBval.longValue());
-        Assert.assertEquals(2L / 1L, edgeNumericPropertyCardinalityInfo.entriesPerBval.longValue());
+        Assert.assertEquals(2L, edgeNumericPropertyCardinalityInfo.entriesPerBval.longValue());
     }
 
     @Test
@@ -590,7 +602,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
                     Set.of("0_G_META") :
-                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"),x);
+                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 1 : 7, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             Vertex a = graph.addVertex();

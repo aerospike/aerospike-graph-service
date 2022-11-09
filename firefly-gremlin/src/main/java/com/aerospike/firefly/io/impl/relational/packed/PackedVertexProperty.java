@@ -1,16 +1,15 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
-import com.aerospike.client.Bin;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -81,7 +80,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             // Cannot get id.
             return new PackedVertexProperty<>(graph, null, parentId, null, null);
         }
-        return new PackedVertexProperty<>(graph, FireflyId.of(FireflyVertexProperty.class, propertyIdMap.get(key)), parentId, key, propertyValueMap.get(key));
+        return new PackedVertexProperty<>(graph, FireflyIdFactory.createId(propertyIdMap.get(key)), parentId, key, propertyValueMap.get(key));
     }
 
     /**
@@ -112,7 +111,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param id    Id of vertex property.
      */
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
-        LOG.debug("Removing vertex property {}", id.value());
+        LOG.debug("Removing vertex property {}", id);
 
         // Do nothing.
     }
@@ -123,7 +122,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     @Override
     public void remove() {
         try {
-            LOG.info("Removing vertex property {}", id.value());
+            LOG.info("Removing vertex property {}", id);
             if (vertex == null) {
                 graph.readVertex(vertexId).removeVertexProperty(label, id);
             } else {

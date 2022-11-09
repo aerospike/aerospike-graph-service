@@ -587,6 +587,8 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
+    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
+    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * return the set name for an elements properties
@@ -875,6 +877,39 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Increment the generation check retry count
+     */
+    public static void incrementGenerationCheckRetryMetric() {
+        generationCheckRetryMetric.incrementAndGet();
+    }
+
+    /**
+     * Return the generation check retry count
+     *
+     * @return generation check retry count
+     */
+    public static long getGenerationCheckRetryMetric() {
+        return generationCheckRetryMetric.get();
+    }
+
+
+    /**
+     * Set the generation check high-water mark
+     */
+    public static void setGenerationCheckHighWaterMark(final long value) {
+        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
+    }
+
+    /**
+     * Return the high-water mark for generation check retries
+     *
+     * @return number of retries
+     */
+    public static long getGenerationCheckHighWaterMark() {
+        return generationCheckHighWaterMark.get();
+    }
+
+    /**
      * Return a named key-value from a map
      * read its associated type-hint and reconstruct the correct JVM type for the value
      *
@@ -1117,7 +1152,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Decrement an Id counter by 1
      *
-     * @param name name of Counter to operate on
+     * @param name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {

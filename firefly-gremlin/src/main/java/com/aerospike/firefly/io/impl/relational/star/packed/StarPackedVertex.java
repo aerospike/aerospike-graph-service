@@ -30,7 +30,7 @@ public class StarPackedVertex {
                                                final FireflyVertex vertex,
                                                final FireflyVertex adjacentVertex,
                                                final String label) {
-        LOG.trace("Writing adjacent properties. Vertex: {}, adjacentVertex: {}.", vertex.id(), adjacentVertex.id());
+        LOG.trace("Writing adjacent properties. Vertex: {}, adjacentVertex: {}.", vertex.id, adjacentVertex.id);
         final String set = direction.equals(Direction.IN) ? db.IN_VP_SET : db.OUT_VP_SET;
 
         // We need to be careful here because order matters.
@@ -231,11 +231,11 @@ public class StarPackedVertex {
                 if (!innerEdgeMap.containsKey(label)) {
                     innerEdgeMap.put(label, new ArrayList<>());
                 }
-                innerEdgeMap.get(label).add((Long)((FireflyEdge) edge).id.getStorageId());
+                innerEdgeMap.get(label).add((Long) edgeId.getStorageId());
                 adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
-                LOG.trace("Writing bidirection edge for vertex {} on set {}={}", adjacentVertexId, dirDirSet, adjacentEdges);
+                LOG.error("Writing bidirection edge for vertex {} on set {}={}", adjacentVertexId, dirDirSet, adjacentEdges);
                 final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
                 FireflyRecord.writeElement(db, dirDirSet, adjacentVertexId, -1, bin);
             }
@@ -313,61 +313,6 @@ public class StarPackedVertex {
         bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexDirEdgeMap));
         FireflyRecord.writeElement(db, dirSet, id, -1, bin);
     }
-
-    //public static void writeCompoundEdgesOnNewEdge(final AerospikeConnection db,
-    //                                               final FireflyVertex vertex,
-    //                                               final Direction direction,
-    //                                               final String edgeLabel,
-    //                                               final FireflyVertex adjacentVertex,
-    //                                               final boolean enableIn,
-    //                                               final boolean enableOut) {
-    //    // This is implicitly ordered due to the fact that we do it in series. This means we don't have to deal with the
-    //    // complexity of ordering the compound edges.
-    //
-    //    if (enableIn) {
-    //        // We need to get set that need to be updated. This set is <direction>In.
-    //        final String dirInSet = direction.equals(Direction.IN) ? db.IN_IN_SET : db.OUT_IN_SET;
-    //
-    //        // Get this vertices current edgeLabel->list of edgeLabel->edgeIds map.
-    //        final Map<String, List<Map<String, List<Long>>>> vertexInDirEdgeMap = getOrDefaultHashMap(db, dirInSet, vertex.id, db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
-    //
-    //        // This adjacent vertex edgeLabel->edgeIds map.
-    //        final Map<String, List<Long>> adjacentVertexInEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, adjacentVertex.id, db.IN_EDGES);
-    //
-    //        // Insert into maps list again implicit ordering is on our side here, so we don't need to do any checks.
-    //        // Get in map of edge to edge lists, add the new in edge map, and insert it back.
-    //        final List<Map<String, List<Long>>> inEdgeMapList = vertexInDirEdgeMap.getOrDefault(edgeLabel, new ArrayList<>());
-    //        inEdgeMapList.add(adjacentVertexInEdgeMap);
-    //        vertexInDirEdgeMap.put(edgeLabel, inEdgeMapList);
-    //
-    //        // Create bin for the new map and insert in Aerospike.
-    //        LOG.trace("Writing compound edges for vertex {} on set {}={}", vertex.id, dirInSet, vertexInDirEdgeMap);
-    //        final Bin inBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexInDirEdgeMap));
-    //        FireflyRecord.writeElement(db, dirInSet, vertex.id, -1, inBin);
-    //    }
-    //
-    //    if (enableOut) {
-    //        // We need to get set that need to be updated. This set is <direction>Out.
-    //        final String dirOutSet = direction.equals(Direction.IN) ? db.IN_OUT_SET : db.OUT_OUT_SET;
-    //
-    //        // Get this vertices current edgeLabel->list of edgeLabel->edgeIds map.
-    //        final Map<String, List<Map<String, List<Long>>>> vertexOutDirEdgeMap = getOrDefaultHashMap(db, dirOutSet, vertex.id, db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
-    //
-    //        // This adjacent vertex edgeLabel->edgeIds map.
-    //        final Map<String, List<Long>> adjacentVertexOutEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, adjacentVertex.id, db.OUT_EDGES);
-    //
-    //        // Insert into maps list again implicit ordering is on our side here, so we don't need to do any checks.
-    //        // Get out map of edge to edge lists, add the new out edge map, and insert it back.
-    //        final List<Map<String, List<Long>>> outEdgeMapList = vertexOutDirEdgeMap.getOrDefault(edgeLabel, new ArrayList<>());
-    //        outEdgeMapList.add(adjacentVertexOutEdgeMap);
-    //        vertexOutDirEdgeMap.put(edgeLabel, outEdgeMapList);
-    //
-    //        // Create bin for the new map and insert in Aerospike.
-    //        LOG.trace("Writing compound edges for vertex {} on set {}={}=", vertex.id, dirOutSet, vertexOutDirEdgeMap);
-    //        final Bin outBin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(vertexOutDirEdgeMap));
-    //        FireflyRecord.writeElement(db, dirOutSet, vertex.id, -1, outBin);
-    //    }
-    //}
 
     public static void writeVertexPropertyToAdjacentVertices(final AerospikeConnection db,
                                                              final FireflyVertex vertex,
@@ -724,7 +669,7 @@ public class StarPackedVertex {
         }
         final Map<String, List<Long>> compoundEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
         final List<Long> compoundEdgeList = compoundEdgeMap.get(compoundEdge.label());
-        final int compoundIndex = findInList(compoundEdgeList, (Long) ((FireflyEdge) edge).id.getStorageId(),
+        final int compoundIndex = findInList(compoundEdgeList, (Long) ((FireflyEdge) compoundEdge).id.getStorageId(),
                                              String.format("Failed to find compound edge id %s in compound edge set %s of map %s", compoundEdge.id(), compoundEdgeList, compoundEdgeMap));
 
         if (compoundEdgeList.size() == 1) {

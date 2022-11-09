@@ -27,13 +27,13 @@ public final class Tokens {
 
 
     static {
-        // Default to linked.
+        // Default to packed, as it is currently our 'suggested' data model.
         final String integrationTestProperties = System.getProperty("integration.test.properties");
-        final Path linked = Path.of("../conf/integration-test-settings-starpacked.properties");
+        final Path packed = Path.of("../conf/integration-test-settings-packed.properties");
         if (System.getProperty("integration.test.properties") != null) {
-            INTEGRATION_TEST_PROPERTIES = INTEGRATION_TEST_CONFIGURATIONS.getOrDefault(integrationTestProperties, linked);
+            INTEGRATION_TEST_PROPERTIES = INTEGRATION_TEST_CONFIGURATIONS.getOrDefault(integrationTestProperties, packed);
         } else {
-            INTEGRATION_TEST_PROPERTIES = linked;
+            INTEGRATION_TEST_PROPERTIES = packed;
         }
     }
 }

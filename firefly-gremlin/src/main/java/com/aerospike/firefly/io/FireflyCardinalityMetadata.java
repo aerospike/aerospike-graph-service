@@ -30,7 +30,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     private final String edgeStringPropertyIndex;
     private final String edgeNumericPropertyIndex;
 
-    boolean previousFailure = false;
+    private boolean previousFailure = false;
 
     public FireflyCardinalityMetadata(final AerospikeConnection db,
                             final String vertexLabelIndex,

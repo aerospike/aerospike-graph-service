@@ -169,7 +169,7 @@ public class AerospikeConnection implements AutoCloseable {
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
-        conf.getKeys().forEachRemaining(key -> LOG.info("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
+        conf.getKeys().forEachRemaining(key -> LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         this.port = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));

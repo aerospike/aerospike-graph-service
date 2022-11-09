@@ -893,6 +893,7 @@ public class AerospikeConnection implements AutoCloseable {
     public static void setGenerationCheckHighWaterMark(final long value) {
         generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
     }
+
     /**
      * Return the high-water mark for generation check retries
      *
@@ -1145,7 +1146,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Decrement an Id counter by 1
      *
-     * @param name name of Counter to operate on
+     * @param name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {

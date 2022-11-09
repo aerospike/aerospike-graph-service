@@ -208,7 +208,7 @@ public class PackedVertex extends RelationalVertex {
     }
 
     private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
-        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.getStorageId());
+        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id, id);
 
         // Read the vertex's firefly record from the database
         final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);

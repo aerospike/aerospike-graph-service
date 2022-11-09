@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -905,6 +906,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.tryCommit(this.graph, (g) -> {
             Assert.assertEquals(id, v.property("name").id());
         });
+    }
+    @Test
+    public void shouldReturnConfigurationFromGraphVariable() {
+        Object stuff = graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME);
+        assertEquals(graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME),config);
     }
 
 }

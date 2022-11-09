@@ -1,6 +1,6 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
@@ -58,6 +58,6 @@ public class SparkFireflyVertex extends SparkFireflyElement {
 
     @Override
     public FireflyId getFireflyId() {
-        return FireflyId.of(FireflyVertex.class, this.id);
+        return FireflyIdFactory.createId(this.id);
     }
 }

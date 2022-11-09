@@ -3,13 +3,13 @@ package com.aerospike.firefly.structure;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -21,12 +21,6 @@ import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
-import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.Host;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedEdge;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
-import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
-import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -74,8 +68,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertexProperty() {
-        final FireflyId vertexId = FireflyId.createFromManager(graph, LinkedVertex.class);
-        final FireflyId vpid = FireflyId.createFromManager(graph, LinkedVertexProperty.class);
+        final FireflyId vertexId = FireflyIdFactory.createFromManager(graph, LinkedVertex.class);
+        final FireflyId vpid = FireflyIdFactory.createFromManager(graph, LinkedVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
         final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
 
@@ -86,7 +80,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final VertexProperty<Object> fireflyVertexPropertyRead = fireflyVertexPropertyIterator.next();
         assertEquals("aKey", fireflyVertexPropertyRead.key());
         assertEquals("aValue", fireflyVertexPropertyRead.value());
-        assertEquals(vertexId.value(), fireflyVertexPropertyRead.element().id());
+        assertEquals(vertexId.getUserId(), fireflyVertexPropertyRead.element().id());
         assertFalse(fireflyVertexPropertyIterator.hasNext());
 
     }
@@ -108,7 +102,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertex() {
-        FireflyId id = FireflyId.createFromManager(graph, FireflyVertex.class);
+        FireflyId id = FireflyIdFactory.createFromManager(graph, FireflyVertex.class);
         graph.writeVertex(id, "aVertexLabel", new ArrayList<>());
         FireflyVertex v = graph.readVertex(id);
         assertEquals(v.label(), "aVertexLabel");
@@ -118,8 +112,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void testVertexIterator() {
         List<Long> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
-            FireflyId next = FireflyId.createFromManager(graph, FireflyVertex.class);
-            usedIds.add((Long) next.value());
+            FireflyId next = FireflyIdFactory.createFromManager(graph, FireflyVertex.class);
+            usedIds.add((Long) next.getUserId());
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
@@ -496,7 +490,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
-        List<Long> i = graph.readVertex(FireflyId.fromObject(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        List<Long> i = graph.readVertex(FireflyIdFactory.createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         Object next = i.get(0);

@@ -1,10 +1,11 @@
-package com.aerospike.firefly.structure.process;
+package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -42,20 +43,20 @@ public class TestFireflyDropStrategyIntegration {
     public void beforeEach() {
         SETUP_GRAPH.getBaseGraph().dropDatabase();
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
-        final FireflyVertex simon = SETUP_GRAPH.writeVertex(FireflyId.of(FireflyVertex.class, 1), "person", properties);
+        final FireflyVertex simon = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(1), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
-        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(FireflyId.of(FireflyVertex.class, 2), "person", properties);
+        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(2), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Vincent"));
-        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(FireflyId.of(FireflyVertex.class, 3), "cat", properties);
+        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(3), "cat", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Mycroft"));
-        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(FireflyId.of(FireflyVertex.class, 4), "cat", properties);
-        SETUP_GRAPH.writeEdge(FireflyId.of(FireflyEdge.class, 1), "coworker", Collections.emptyList(),
+        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(4), "cat", properties);
+        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(1), "coworker", Collections.emptyList(),
                 lyndon, simon);
-        SETUP_GRAPH.writeEdge(FireflyId.of(FireflyEdge.class, 2), "coworker", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(2), "coworker", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.writeEdge(FireflyId.of(FireflyEdge.class, 3), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(3), "owns", Collections.emptyList(),
                 vincent, lyndon);
-        SETUP_GRAPH.writeEdge(FireflyId.of(FireflyEdge.class, 4), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(4), "owns", Collections.emptyList(),
                 mycroft, lyndon);
         // Write a stray edge that normal drop traversal would not remove
         SETUP_GRAPH.bulkWriteEdge(5, "stray", Collections.emptyList(), 5, 5);

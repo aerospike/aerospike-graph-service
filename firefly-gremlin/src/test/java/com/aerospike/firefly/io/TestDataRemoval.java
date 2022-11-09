@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.net.URL;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
-import static com.aerospike.firefly.io.Util.verifyClean;
+import static com.aerospike.firefly.util.Util.verifyClean;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 /**

@@ -4,7 +4,7 @@ import com.aerospike.firefly.io.EgoNetwork;
 import com.aerospike.firefly.io.PrefetchTask;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -76,12 +76,12 @@ public class SubgraphPrefetchTask implements PrefetchTask {
         Object startVertexId = ((GraphStep) traversal.getStartStep().getNextStep()).getIds()[0];
         //Fetch the ego network of the egoId and then fetch the EgoNetwork of each adjacent Vertex
         Runnable primeCacheOperation = () -> {
-            EgoNetwork.create(FireflyId.of(FireflyVertex.class, startVertexId), graph)
+            EgoNetwork.create(FireflyIdFactory.createId(startVertexId), graph)
                     .vertexRecords
                     .stream() // todo: parallelStream
                     .forEach(kr -> {
                         traversalCache.insert(kr.key, kr.record);
-                        EgoNetwork.create(FireflyId.of(FireflyVertex.class, kr.key.userKey.toLong()), graph)
+                        EgoNetwork.create(FireflyIdFactory.createId(kr.key.userKey.toLong()), graph)
                                 .records()
                                 .forEachRemaining(subKr -> {
                                     traversalCache.insert(subKr.key, subKr.record);

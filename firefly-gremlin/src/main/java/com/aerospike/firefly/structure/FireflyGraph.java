@@ -12,9 +12,9 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -339,22 +339,23 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
         // Create a new id or use the provided user-supplied id (if present and supported).
-        FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+        FireflyId idValue;
+        if (ElementHelper.getIdValue(keyValues).isEmpty()) {
+            idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
 
-        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            // TODO: GRAPH-186.
+            while (vertexExists(idValue)) {
+                idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
+            }
+        } else {
             try {
-                NumericIdManager.convert(idValue.value());
+                idValue = FireflyIdFactory.createFromKeyValues(FireflyVertex.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
             if (vertexExists(idValue)) {
-
-                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
-            }
-        } else {
-            while (vertexExists(idValue)) {
-                idValue = FireflyId.createFromManager(this, FireflyVertex.class);
+                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
             }
         }
 
@@ -362,7 +363,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         // Write fully qualified Vertex.
-
         final List<Map.Entry<String, Object>> properties = convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
         return writeVertex(idValue, label, properties);
     }
@@ -406,10 +406,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
         // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(NumericIdManager::convert).collect(Collectors.toList());
+        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList());
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
-        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyId.of(FireflyVertex.class, id)).allMatch(this::vertexExists)) {
+        // TODO: Should this be batch exists? Or removed for performance?
+        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyIdFactory.createId(id)).allMatch(this::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
@@ -425,7 +426,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
+                        Arrays.stream(edgeIds).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList()).iterator());
     }
 
     @Override

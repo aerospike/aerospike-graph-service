@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
@@ -26,26 +25,6 @@ public class NumericIdManager implements IdManager<Long> {
     @Override
     public Long getNextId(final FireflyGraph graph) {
         return graph.getBaseGraph().decrementIdCounter(this.counterName);
-    }
-
-    public static Long convert(Object id) {
-        if (id != null)
-            if (Element.class.isAssignableFrom(id.getClass()))
-                id = ((Element) id).id();
-            else if (FireflyId.class.isAssignableFrom(id.getClass()))
-                id = ((FireflyId) id).value();
-        if (null == id)
-            return null;
-        else if (id instanceof Number)
-            return ((Number) id).longValue();
-        else if (id instanceof String) {
-            try {
-                return Long.parseLong((String) id);
-            } catch (NumberFormatException nfe) {
-                throw new IllegalArgumentException(createErrorMessage(Long.class, id));
-            }
-        } else
-            throw new IllegalArgumentException(createErrorMessage(Long.class, id));
     }
 
     @Override

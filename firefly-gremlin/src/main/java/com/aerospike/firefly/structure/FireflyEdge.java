@@ -131,6 +131,6 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
 
     @Override
     public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(),graph.getBaseGraph().EDGE_AERO_SET,FireflyId.fromElement(this)).record();
+        return FireflyRecord.read(graph.getBaseGraph(),graph.getBaseGraph().EDGE_AERO_SET, id).record();
     }
 }

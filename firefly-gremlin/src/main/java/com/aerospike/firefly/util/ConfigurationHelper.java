@@ -125,7 +125,7 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
     }
 
-    private static final Map<String, String> defaultStringValues = new HashMap<>() {{
+    private static final Map<String, String> defaultValues = new HashMap<>() {{
         put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
@@ -201,12 +201,13 @@ public final class ConfigurationHelper {
         put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
+        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
     }};
 
-    final static Map<String, List<String>> defaultListStringValues = new HashMap<>() {{
-        put(Keys.OPTIMIZED_TWO_HOP_STEPS, new ArrayList<>());
-        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, new ArrayList<>());
-    }};
+    public static List<String> getOrDefaultList(final String key, final Configuration config) {
+        return Arrays.stream(getOrDefault(key, config).split(",")).map(String::trim).collect(Collectors.toList());
+    }
 
     public static Configuration loadFromFile(final Path path) {
         try {
@@ -264,54 +265,31 @@ public final class ConfigurationHelper {
         }});
     }
 
-    public static String getOrDefault(final String key, final Configuration config) {
-        validateConfigOrDefault(key, config);
-        final String configValue = config.getString(key.toLowerCase(), defaultStringValues.getOrDefault(key, ""));
+    public static String getOrDefault(final String key, Configuration config) {
+        final String lowerKey = key.toLowerCase();
+        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key))
+            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         try {
-            Keys.Sets.class.getField(key.toLowerCase());
+            Keys.Sets.class.getField(key);
         } catch (NoSuchFieldException e) {
-            return configValue;
+            return config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key);
         }
-
-        // Return config value with prefix.
-        return (PREFIX_MASK.contains(key.toLowerCase()) ? "" : getPrefix(config)) + configValue;
+        return (PREFIX_MASK.contains(lowerKey) ? "" : getPrefix(config)) + (config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key));
     }
 
-    private static void validateConfigOrDefault(final String key, final Configuration config) {
-        if (!config.containsKey(key.toLowerCase()) && !defaultStringValues.containsKey(key)) {
-            throw new ConfigurationRuntimeException("no default value available for key: " + key.toLowerCase());
-        }
+    private static String getPrefix(Configuration config) {
+        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) : defaultValues.get(Keys.GRAPH_ID) + "_";
     }
 
-    private static void validateConfigOrDefaultList(final String key, final Configuration config) {
-        if (!config.containsKey(key.toLowerCase()) && !defaultListStringValues.containsKey(key)) {
-            throw new ConfigurationRuntimeException("no default value available for key: " + key.toLowerCase());
-        }
-    }
-
-    public static List<String> getOrDefaultList(final String key, final Configuration config) {
-        validateConfigOrDefaultList(key, config);
-
-        if (config.containsKey(key.toLowerCase())) {
-            return Arrays.stream(config.getString(key.toLowerCase()).split(",")).map(String::trim).collect(Collectors.toList());
-        } else {
-            return defaultListStringValues.get(key);
-        }
-    }
-
-    private static String getPrefix(final Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) : defaultStringValues.get(Keys.GRAPH_ID) + "_";
-    }
-
-    public static String aerospikeNamespace(final Configuration c) {
+    public static String aerospikeNamespace(Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_NAMESPACE.toLowerCase());
     }
 
-    public static int aerospikePort(final Configuration c) {
+    public static int aerospikePort(Configuration c) {
         return c.get(Integer.class, Keys.AEROSPIKE_PORT.toLowerCase());
     }
 
-    public static String aerospikeHost(final Configuration c) {
+    public static String aerospikeHost(Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
 

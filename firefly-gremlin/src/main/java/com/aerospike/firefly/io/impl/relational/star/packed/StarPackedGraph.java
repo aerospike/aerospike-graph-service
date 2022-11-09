@@ -50,19 +50,12 @@ public class StarPackedGraph extends PackedGraph {
         TraversalStrategies.GlobalCache.registerStrategies(
                 StarPackedGraph.class,
                 TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
-        List<String> foo = new ArrayList<>();
-        foo.add("bazz");
         enableOutVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_OUT_VP);
         enableInVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_IN_VP);
         enableOutOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_OUT);
         enableOutIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_IN);
         enableInOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_OUT);
         enableInIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_IN);
-
-        LOG.info("StarPackedGraph: enableOutVp={}, enableInVp={}, enableOutOut={}, enableOutIn={}, enableInOut={}, enableInIn={}",
-                enableOutVp, enableInVp, enableOutOut, enableOutIn, enableInOut, enableInIn);
-        LOG.info("StarPackedGraph: db.OPTIMIZED_HOP_CONSTRAINT_STEPS={}", db.OPTIMIZED_HOP_CONSTRAINT_STEPS);
-        LOG.info("StarPackedGraph: db.OPTIMIZED_TWO_HOP_STEPS={}", db.OPTIMIZED_TWO_HOP_STEPS);
     }
 
     public static void removeVertexProperty(final AerospikeConnection db, final FireflyVertex vertex, final String key) {
@@ -117,6 +110,7 @@ public class StarPackedGraph extends PackedGraph {
         // so we don't need any fancy logic for that here.
 
         // Create list of all relevant sets, would be nice to make this static but unfortunately there are runtime additions.
+        // TODO: Fix.
         final List<String> sets = List.of(db.IN_IN_SET, db.IN_OUT_SET, db.OUT_IN_SET, db.OUT_OUT_SET, db.IN_VP_SET, db.OUT_VP_SET);
 
         // Remove vertex from the list.
@@ -209,7 +203,6 @@ public class StarPackedGraph extends PackedGraph {
 
         // 8. Loop through the inVertex in and out edges and add an out.in and in.in edge to the outVertex.
         if (enableInIn) {
-            System.out.println("writing in in");
             StarPackedVertex.writeBidirectionalEdgesToAdjacentVertices(db, inVertex, outVertex, edgeId, label, Direction.IN, Direction.IN);
         }
         if (enableInOut) {

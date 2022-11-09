@@ -34,16 +34,4 @@ public class NumericIdManagerTest {
         assertFalse(idManager.allow(NumericIdManager.class));
 
     }
-
-    @Test
-    public void testConvert() {
-        // Conversion to Long from valid Long String or int / long primitives should work.
-        assertEquals(1L, NumericIdManager.convert("1").longValue());
-        assertEquals(1L, NumericIdManager.convert(1).longValue());
-        assertEquals(1L, NumericIdManager.convert(1L).longValue());
-
-        // Invalid Strings or otherwise invalid types should throw an IllegalArgumentException.
-        assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert("a"));
-        assertThrows(IllegalArgumentException.class, () -> NumericIdManager.convert(new NumericIdManager("")));
-    }
 }

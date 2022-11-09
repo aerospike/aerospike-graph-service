@@ -14,6 +14,7 @@ import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import groovy.util.MapEntry;
@@ -82,7 +83,7 @@ public class LinkedVertex extends RelationalVertex {
             // Note, use LinkedVertexProperty.removeVertexProperty() function because it negates trying to remove
             // the vertex property from the vertex.
             final List<Long> vertexPropertyIdList = entry.getValue();
-            vertexPropertyIdList.forEach(id -> LinkedVertexProperty.removeVertexProperty(graph, FireflyId.of(FireflyVertexProperty.class, id)));
+            vertexPropertyIdList.forEach(id -> LinkedVertexProperty.removeVertexProperty(graph, FireflyIdFactory.createId(id)));
         });
         vertexPropertyIds = new HashMap<>();
     }
@@ -95,7 +96,7 @@ public class LinkedVertex extends RelationalVertex {
      * @return Map of label to list of VertexProperty
      */
     public Map<String, FireflyVertexProperty<?>> readVertexPropertiesByScan() {
-        final Long storageId = (Long) db.idToStorageType(id());
+        final Long storageId = (Long) id.getStorageId();
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(db.PARENT_VERTEX_ID),
@@ -112,7 +113,7 @@ public class LinkedVertex extends RelationalVertex {
         final Map<String, FireflyVertexProperty<?>> results = new HashMap<>();
         records.forEachRemaining(entry -> {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
-            final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
+            final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
@@ -132,7 +133,7 @@ public class LinkedVertex extends RelationalVertex {
     private <V> Iterator<VertexProperty<V>> getVertexPropertyByScan(final String key) {
         // TODO: Can we filter on key?
         LOG.debug("Getting vertex property by scan for {}", key);
-        final Long storageId = (Long) AerospikeConnection.idToStorageType(id());
+        final Long storageId = (Long) id.getStorageId();
         final Expression exp = Exp.build(
                 Exp.eq(
                         Exp.intBin(db.PARENT_VERTEX_ID),
@@ -150,7 +151,7 @@ public class LinkedVertex extends RelationalVertex {
         records.forEachRemaining(entry -> {
             if (entry.getKey().equals(key)) {
                 final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
-                final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, fireflyRecord.id());
+                final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
                 final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                         db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
                 final VertexProperty<?> vp = (kv.isEmpty()) ?
@@ -174,10 +175,10 @@ public class LinkedVertex extends RelationalVertex {
     }
 
     private void protectedRemoveVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
-        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
+        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId, id);
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
         if (record == null) {
             return;
         }
@@ -189,22 +190,22 @@ public class LinkedVertex extends RelationalVertex {
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                      vertexPropertyId.value(), id.value(), key);
+                      vertexPropertyId, id, key);
             return;
         }
 
         final List<Long> vertexPropertyIdsForKey = vertexPropertyIds.get(key);
-        if (vertexPropertyIdsForKey.contains((Long) vertexPropertyId.value())) {
-            vertexPropertyIdsForKey.remove((Long) vertexPropertyId.value());
+        if (vertexPropertyIdsForKey.contains((Long) vertexPropertyId.getStorageId())) {
+            vertexPropertyIdsForKey.remove((Long) vertexPropertyId.getStorageId());
         } else {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                      vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
+                      vertexPropertyId, id, key, vertexPropertyId);
             return;
         }
 
         // Remove item from vertex property Map.
         List<Long> list = vertexPropertyIds.get(key);
-        list.remove((Long) vertexPropertyId.value());
+        list.remove((Long) vertexPropertyId.getStorageId());
         if (list.size() == 0) {
             vertexPropertyIds.remove(key);
         }
@@ -256,7 +257,7 @@ public class LinkedVertex extends RelationalVertex {
             vertexPropertyIdsEntry.getValue().forEach(id -> {
                 // Create the property.
                 final FireflyVertexProperty<V> property = LinkedVertexProperty.readVertexProperty(
-                        graph, this, FireflyId.of(FireflyVertexProperty.class, id));
+                        graph, this, FireflyIdFactory.createId(id));
                 vertexProperties.add(new MapEntry(vertexPropertyIdsEntry.getKey(), property));
 
             });
@@ -287,7 +288,7 @@ public class LinkedVertex extends RelationalVertex {
                 (List<Long>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID).get(key) : vertexPropertyIds.get(key);
         final List<FireflyVertexProperty<?>> vertexProperties = new ArrayList<>();
         vertexPropertyIdList.forEach(vertexPropertyId -> {
-            final FireflyId fid = FireflyId.of(FireflyVertexProperty.class, vertexPropertyId);
+            final FireflyId fid = FireflyIdFactory.createId(vertexPropertyId);
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
             final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
@@ -310,8 +311,8 @@ public class LinkedVertex extends RelationalVertex {
     }
 
     private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
-        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id, id);
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
 
         final Map<String, List<Long>> labelIds;
         if (fireflyRecord == null || fireflyRecord.record() == null) {
@@ -332,7 +333,7 @@ public class LinkedVertex extends RelationalVertex {
         vertexPropertyIds.put(vertexProperty.key(), ids);
         vertexPropertyCount++;
         if (vpCounter < db.ID_CACHE_SIZE)
-            ids.add(NumericIdManager.convert(vertexProperty.id()));
+            ids.add((Long) vertexProperty.id.getStorageId());
         vpCounter++;
 
         labelIds.put(vertexProperty.key(), ids);

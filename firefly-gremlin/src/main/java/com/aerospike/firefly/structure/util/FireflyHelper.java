@@ -1,10 +1,10 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -72,7 +71,7 @@ public final class FireflyHelper {
     private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
         return graph.readEdges(vertex.getEdgeIdsFromVertex(direction).
                                        stream().
-                                       map(id -> FireflyId.of(FireflyEdge.class, id)).
+                                       map(id -> FireflyIdFactory.createId(id)).
                                        collect(Collectors.toList())).stream().filter(
                         edge -> (labels.isEmpty() || labels.contains(edge.label()))).
                 collect(Collectors.toList());

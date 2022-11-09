@@ -29,7 +29,7 @@ public final class Tokens {
     static {
         // Default to linked.
         final String integrationTestProperties = System.getProperty("integration.test.properties");
-        final Path linked = Path.of("../conf/integration-test-settings-linked.properties");
+        final Path linked = Path.of("../conf/integration-test-settings-starpacked.properties");
         if (System.getProperty("integration.test.properties") != null) {
             INTEGRATION_TEST_PROPERTIES = INTEGRATION_TEST_CONFIGURATIONS.getOrDefault(integrationTestProperties, linked);
         } else {

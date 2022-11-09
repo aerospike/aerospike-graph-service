@@ -74,8 +74,10 @@ public abstract class RelationalGraph extends FireflyGraph {
         // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
 
         // Add edge to inVertex and outVertex.
-        inVertex.writeEdge(Direction.IN, edgeId, label);
-        outVertex.writeEdge(Direction.OUT, edgeId, label);
+        if (!this.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //disable RMW pattern and rely on index for edge lookups
+            inVertex.writeEdge(Direction.IN, edgeId, label);
+            outVertex.writeEdge(Direction.OUT, edgeId, label);
+        }
 
         // Write edge to Aerospike and return FireflyEdge.
         return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
@@ -132,6 +134,7 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     private void protectedWriteEdgeToVertices(final FireflyId vertexId, final Direction direction,
                                               final FireflyId edgeId, final String edgeLabel) {
+
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;

@@ -87,8 +87,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final String E_OUT_INDEX;
 
 
-    private static final boolean SUPERNODE_INDEX_ENABLED = false;
-
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
@@ -156,6 +154,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
     public final boolean ENABLE_PERIODIC_METADATA_UPDATE;
     public final long METADATA_UPDATE_FREQUENCY;
+    public final boolean ADJACENCY_INDEX_ENABLED;
+    public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
+
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
@@ -244,6 +245,8 @@ public class AerospikeConnection implements AutoCloseable {
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
 
+        ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
+        EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
 
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
@@ -621,7 +624,7 @@ public class AerospikeConnection implements AutoCloseable {
     public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
         List<String> existingIndexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
-        if (SUPERNODE_INDEX_ENABLED) {
+        if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
@@ -830,6 +833,10 @@ public class AerospikeConnection implements AutoCloseable {
         return InfoOps.isEnterprise(client);
     }
 
+
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+        return queryIndex(setName,indexName,filter,new QueryPolicy());
+    }
     /**
      * Issue a query on an index providing a custom filter
      *
@@ -838,15 +845,14 @@ public class AerospikeConnection implements AutoCloseable {
      * @param filter    Custom Filter
      * @return Iterator of KeyRecord pair results
      */
-    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter, QueryPolicy policy) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(setName);
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
-        final QueryPolicy p = new QueryPolicy();
         try {
-            return client.query(p, stmt).iterator();
+            return client.query(policy, stmt).iterator();
         } catch (AerospikeException ae) {
             throw new RuntimeException(ae);
         }

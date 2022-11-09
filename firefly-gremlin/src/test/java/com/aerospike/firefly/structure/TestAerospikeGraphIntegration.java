@@ -844,7 +844,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[0])));
                 assertVertexEdgeCounts(this.graph, 1, 0);
             });
-        }else{
+        } else {
             LOG.info("Skipping shouldHandleListVertexPropertiesWithoutNullPropertyValues because graph does not support multi-properties");
         }
     }
@@ -907,10 +907,21 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Assert.assertEquals(id, v.property("name").id());
         });
     }
+
     @Test
     public void shouldReturnConfigurationFromGraphVariable() {
         Object stuff = graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME);
-        assertEquals(graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME),config);
+        assertEquals(graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME), config);
+    }
+
+    @Test
+    public void shouldReturnConfigurationFromMetadataVertex() {
+        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
+        List<VertexProperty<Object>> props = IteratorUtils.list(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().properties());
+        config.getKeys().forEachRemaining(key -> {
+            assertEquals(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().property(key).value(), config.getString(key));
+        });
+        assertEquals(IteratorUtils.list(graph.configuration().getKeys()).size(), props.size());
     }
 
 }

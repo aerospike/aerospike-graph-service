@@ -86,6 +86,9 @@ public final class ConfigurationHelper {
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
         public static final String CACHE_DISABLED = "CACHE_DISABLED";
+        public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
+        public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
+
         public static final String INDEX_METADATA = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
         public static final String NUMERIC_VP_KV_INDEX = "NUMERIC_VP_KV_INDEX";
@@ -196,6 +199,8 @@ public final class ConfigurationHelper {
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.ENABLE_PERIODIC_METADATA_UPDATE, "false");
         put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+        put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
+        put(Keys.ADJACENCY_INDEX_ENABLED, "true");
     }};
 
     final static Map<String, List<String>> defaultListStringValues = new HashMap<>() {{

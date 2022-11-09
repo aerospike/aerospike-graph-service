@@ -6,10 +6,10 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -102,7 +102,7 @@ public class PackedVertex extends RelationalVertex {
         for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
             // Create the property.
             final FireflyVertexProperty<V> property = new PackedVertexProperty<>(graph,
-                    FireflyId.of(PackedVertexProperty.class, vertexPropertyIds.get(vertexProperty.getKey())),
+                    FireflyIdFactory.createId(vertexPropertyIds.get(vertexProperty.getKey())),
                     this,
                     vertexProperty.getKey(),
                     vertexProperty.getValue());
@@ -133,7 +133,7 @@ public class PackedVertex extends RelationalVertex {
         final List<VertexProperty<V>> vertexProperties = new ArrayList<>();
         vertexProperties.add(
                 new PackedVertexProperty<>(graph,
-                        FireflyId.of(PackedVertexProperty.class, vertexPropertyId),
+                        FireflyIdFactory.createId(vertexPropertyId),
                         this,
                         key,
                         vertexProperty));
@@ -152,10 +152,10 @@ public class PackedVertex extends RelationalVertex {
     }
 
     private void protectedRemoveVertexProperty(final String key, final FireflyId vertexPropertyId) {
-        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId.value(), id.value());
+        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId, id);
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
         if (record == null) {
             return;
         }
@@ -169,14 +169,14 @@ public class PackedVertex extends RelationalVertex {
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                      vertexPropertyId.value(), id.value(), key);
+                      vertexPropertyId, id, key);
             return;
         }
 
         // Remove vertex property from vertex properties in vertex.
-        if (!vertexPropertyId.toNumericId().value().equals(vertexPropertyIds.get(key))) {
+        if (!vertexPropertyId.getStorageId().equals(vertexPropertyIds.get(key))) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                      vertexPropertyId.value(), id.value(), key, vertexPropertyId.value());
+                      vertexPropertyId, id, key, vertexPropertyId);
             return;
         }
 
@@ -208,10 +208,10 @@ public class PackedVertex extends RelationalVertex {
     }
 
     private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
-        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id.value(), id.value());
+        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id, id);
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
         if (record == null) {
             return;
         }
@@ -225,7 +225,7 @@ public class PackedVertex extends RelationalVertex {
 
         // Update maps for vertex properties and ids.
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
-        vertexPropertyIds.put(vertexProperty.key(), (Long) vertexProperty.id.toNumericId().value());
+        vertexPropertyIds.put(vertexProperty.key(), (Long) vertexProperty.id.getStorageId());
         vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));
         vertexPropertyCount++;
 

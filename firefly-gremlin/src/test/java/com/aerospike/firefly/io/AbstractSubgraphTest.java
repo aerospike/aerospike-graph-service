@@ -9,10 +9,8 @@ import com.aerospike.firefly.util.Util;
 import com.google.common.cache.CacheStats;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +61,7 @@ public class AbstractSubgraphTest {
 
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
-        Util.clearGraph(graph);
+        Util.cleanAndVerifyGraph(graph);
         graph.close();
         db.close();
     }

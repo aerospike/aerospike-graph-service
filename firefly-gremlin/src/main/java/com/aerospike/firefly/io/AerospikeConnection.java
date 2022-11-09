@@ -1,19 +1,43 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.*;
-import com.aerospike.client.async.*;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Host;
+import com.aerospike.client.Info;
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
+import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
+import com.aerospike.client.Value;
+import com.aerospike.client.async.EventLoops;
+import com.aerospike.client.async.EventPolicy;
+import com.aerospike.client.async.Monitor;
+import com.aerospike.client.async.NettyEventLoops;
+import com.aerospike.client.async.NioEventLoops;
+import com.aerospike.client.async.Throttles;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.*;
-import com.aerospike.client.query.*;
+import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.GenerationPolicy;
+import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.Policy;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.TraversalCache;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -271,7 +295,8 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo performance
         LOG.trace("Scanning {} ids.", setName);
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
+        return IteratorUtils.map(i, r -> (Long) FireflyIdFactory.createFromRecord(this,
+                FireflyRecord.fromRecord(this, r.getKey(), r.getValue())).getStorageId());
     }
 
     public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
@@ -559,22 +584,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
-
-    /**
-     * Cast an Id to its on-disk storage type
-     *
-     * @param origId raw id
-     * @return id cast to on-disk type
-     */
-    public static Object idToStorageType(Object origId) {
-        if (FireflyElement.class.isAssignableFrom(origId.getClass()))
-            origId = ((FireflyElement) origId).id();
-        if (Integer.class.equals(origId.getClass()))
-            return ((Integer) origId).longValue();
-        if (String.class.equals(origId.getClass()))
-            return Long.parseLong((String) origId);
-        return origId;
-    }
 
     /**
      * return the set name for an elements properties
@@ -1135,7 +1144,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null, name), -1, ctr);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyIdFactory.createId(name), -1, ctr);
         return 0L;
     }
 
@@ -1194,24 +1203,37 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropDatabase(boolean dropIndices) {
         LOG.info("Dropping database.");
-        client.truncate(null, namespace, EDGE_AERO_SET, null);
-        client.truncate(null, namespace, VERTEX_AERO_SET, null);
-        client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
-        client.truncate(null, namespace, ID_MANAGER_SET, null);
-        client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
-        client.truncate(null, namespace, TEST_SET, null);
-        client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
-        client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
-        client.truncate(null, namespace, GRAPH_METADATA_SET, null);
-        client.truncate(null, namespace, INDEX_METADATA, null);
-        client.truncate(null, namespace, OUT_VP_SET, null);
-        client.truncate(null, namespace, IN_VP_SET, null);
-        client.truncate(null, namespace, OUT_OUT_SET, null);
-        client.truncate(null, namespace, OUT_IN_SET, null);
-        client.truncate(null, namespace, IN_OUT_SET, null);
-        client.truncate(null, namespace, IN_IN_SET, null);
-        if (dropIndices)
-            dropGraphIndices();
+        try {
+            // If using the client APIs to perform the truncate command on a single-threaded application it is
+            // suggested to add a millisecond (ms) sleep. The truncate operation has a 1 millisecond resolution and
+            // writes occurring within the same millisecond are not deleted.
+            // Source: https://discuss.aerospike.com/t/guidelines-for-deleting-data/3681/1
+            Thread.sleep(1);
+            client.truncate(null, namespace, EDGE_AERO_SET, null);
+            client.truncate(null, namespace, VERTEX_AERO_SET, null);
+            client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
+            client.truncate(null, namespace, ID_MANAGER_SET, null);
+            client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
+            client.truncate(null, namespace, TEST_SET, null);
+            client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
+            client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
+            client.truncate(null, namespace, GRAPH_METADATA_SET, null);
+            client.truncate(null, namespace, INDEX_METADATA, null);
+            client.truncate(null, namespace, OUT_VP_SET, null);
+            client.truncate(null, namespace, IN_VP_SET, null);
+            client.truncate(null, namespace, OUT_OUT_SET, null);
+            client.truncate(null, namespace, OUT_IN_SET, null);
+            client.truncate(null, namespace, IN_OUT_SET, null);
+            client.truncate(null, namespace, IN_IN_SET, null);
+            if (dropIndices)
+                dropGraphIndices();
+            Thread.sleep(1);
+        } catch (final InterruptedException e) {
+            // Why would anyone invoke this method in a runner thread that can also have interrupt() called on it? Who
+            // knows - just be amazed that they did it with 1ms precision and handle it anyway.
+            LOG.warn("InterruptedException caught during database truncate: ", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

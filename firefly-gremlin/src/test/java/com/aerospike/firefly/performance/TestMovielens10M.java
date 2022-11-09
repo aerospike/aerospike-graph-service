@@ -2,9 +2,18 @@ package com.aerospike.firefly.performance;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.*;
+import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.IOUtil;
+import com.aerospike.firefly.util.Movielens;
+import com.aerospike.firefly.util.Unzip;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,8 +22,9 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.Util.verifyClean;
-import static com.aerospike.firefly.util.Movielens.*;
+import static com.aerospike.firefly.util.Movielens.MOVIELENS_10M_URL;
+import static com.aerospike.firefly.util.Movielens.YEAR;
+import static com.aerospike.firefly.util.Util.verifyClean;
 import static org.junit.Assert.assertEquals;
 
 /**

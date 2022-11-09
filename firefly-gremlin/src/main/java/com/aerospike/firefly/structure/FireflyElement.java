@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
@@ -24,7 +23,7 @@ public abstract class FireflyElement implements WrappedElement<Record>, Element 
 
     @Override
     public Object id() {
-        return this.id.value();
+        return this.id.getUserId();
     }
 
     @Override

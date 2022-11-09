@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -117,9 +118,11 @@ public final class ConfigurationHelper {
 
         public static final String ENABLE_PERIODIC_METADATA_UPDATE = "ENABLE_PERIODIC_METADATA_UPDATE";
         public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
+        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
+        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
     }
 
-    private static final Map<String, String> defaultValues = new HashMap<>() {{
+    private static final Map<String, String> defaultStringValues = new HashMap<>() {{
         put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
@@ -195,6 +198,11 @@ public final class ConfigurationHelper {
         put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
     }};
 
+    final static Map<String, List<String>> defaultListStringValues = new HashMap<>() {{
+        put(Keys.OPTIMIZED_TWO_HOP_STEPS, new ArrayList<>());
+        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, new ArrayList<>());
+    }};
+
     public static Configuration loadFromFile(final Path path) {
         try {
             Properties props = new Properties();
@@ -251,31 +259,54 @@ public final class ConfigurationHelper {
         }});
     }
 
-    public static String getOrDefault(final String key, Configuration config) {
-        final String lowerKey = key.toLowerCase();
-        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key))
-            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
+    public static String getOrDefault(final String key, final Configuration config) {
+        validateConfigOrDefault(key, config);
+        final String configValue = config.getString(key.toLowerCase(), defaultStringValues.getOrDefault(key, ""));
         try {
-            Keys.Sets.class.getField(key);
+            Keys.Sets.class.getField(key.toLowerCase());
         } catch (NoSuchFieldException e) {
-            return config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key);
+            return configValue;
         }
-        return (PREFIX_MASK.contains(lowerKey) ? "" : getPrefix(config)) + (config.containsKey(lowerKey) ? config.get(String.class, lowerKey) : defaultValues.get(key));
+
+        // Return config value with prefix.
+        return (PREFIX_MASK.contains(key.toLowerCase()) ? "" : getPrefix(config)) + configValue;
     }
 
-    private static String getPrefix(Configuration config) {
-        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) : defaultValues.get(Keys.GRAPH_ID) + "_";
+    private static void validateConfigOrDefault(final String key, final Configuration config) {
+        if (!config.containsKey(key.toLowerCase()) && !defaultStringValues.containsKey(key)) {
+            throw new ConfigurationRuntimeException("no default value available for key: " + key.toLowerCase());
+        }
     }
 
-    public static String aerospikeNamespace(Configuration c) {
+    private static void validateConfigOrDefaultList(final String key, final Configuration config) {
+        if (!config.containsKey(key.toLowerCase()) && !defaultListStringValues.containsKey(key)) {
+            throw new ConfigurationRuntimeException("no default value available for key: " + key.toLowerCase());
+        }
+    }
+
+    public static List<String> getOrDefaultList(final String key, final Configuration config) {
+        validateConfigOrDefaultList(key, config);
+
+        if (config.containsKey(key.toLowerCase())) {
+            return Arrays.stream(config.getString(key.toLowerCase()).split(",")).map(String::trim).collect(Collectors.toList());
+        } else {
+            return defaultListStringValues.get(key);
+        }
+    }
+
+    private static String getPrefix(final Configuration config) {
+        return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) : defaultStringValues.get(Keys.GRAPH_ID) + "_";
+    }
+
+    public static String aerospikeNamespace(final Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_NAMESPACE.toLowerCase());
     }
 
-    public static int aerospikePort(Configuration c) {
+    public static int aerospikePort(final Configuration c) {
         return c.get(Integer.class, Keys.AEROSPIKE_PORT.toLowerCase());
     }
 
-    public static String aerospikeHost(Configuration c) {
+    public static String aerospikeHost(final Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
 

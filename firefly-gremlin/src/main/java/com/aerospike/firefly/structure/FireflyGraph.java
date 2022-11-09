@@ -1,10 +1,8 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.task.Task;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
-import com.aerospike.firefly.io.FireflyMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;

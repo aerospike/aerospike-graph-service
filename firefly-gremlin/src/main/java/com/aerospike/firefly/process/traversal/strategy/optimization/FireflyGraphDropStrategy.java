@@ -10,6 +10,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NoneStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -18,6 +20,7 @@ import java.util.List;
  */
 public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphDropStrategy.class);
     private static final FireflyGraphDropStrategy INSTANCE = new FireflyGraphDropStrategy();
 
     private FireflyGraphDropStrategy() {
@@ -70,6 +73,7 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             return;
         }
 
+        LOG.info("Applying FireflyGraphDropStrategy.");
         TraversalHelper.removeAllSteps(traversal);
         traversal.addStep(new FireflyDropStep(traversal));
     }

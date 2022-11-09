@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.process;
+package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -34,7 +34,7 @@ public class TestFireflyDropStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase();
         SETUP_GRAPH.close();
     }
 

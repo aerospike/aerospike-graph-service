@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.After;
@@ -44,8 +45,8 @@ public abstract class AbstractFireflySuite {
     public static void openGraph() {
         LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
         db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        graph.getBaseGraph().dropDatabase();
+        db.dropDatabase();
+        graph = GraphFactory.createGraph(db,config);
     }
 
     @Before

@@ -3,7 +3,9 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.*;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -49,7 +51,7 @@ public class FireflyMetadataVertex implements Vertex {
 
     @Override
     public String label() {
-        return null;
+        return FIREFLY_CONFIGURATION_VARIABLE_NAME;
     }
 
     @Override
@@ -64,19 +66,22 @@ public class FireflyMetadataVertex implements Vertex {
 
     @Override
     public <V> Iterator<VertexProperty<V>> properties(final String... propertyKeys) {
-
+        List<String> keyList = IteratorUtils.list(config.getKeys());
+        keyList.add(graph.getBaseGraph().DATA_MODEL_NAME);
+        keyList.add(graph.getBaseGraph().DATA_MODEL_VER);
         for (String key : propertyKeys) {
-            if (!config.containsKey(key)) {
+            if (!keyList.contains(key)) {
                 throw Property.Exceptions.propertyDoesNotExist(this, key);
             }
         }
 
-        final Iterator<String> keys = propertyKeys.length > 0 ? List.of(propertyKeys).iterator() : config.getKeys();
+        final Iterator<String> requestedKeys = propertyKeys.length > 0 ? List.of(propertyKeys).iterator() : keyList.iterator();
+
 
         return new Iterator<VertexProperty<V>>() {
             @Override
             public boolean hasNext() {
-                return keys.hasNext();
+                return requestedKeys.hasNext();
             }
 
             @Override
@@ -84,8 +89,14 @@ public class FireflyMetadataVertex implements Vertex {
                 if (!hasNext()) {
                     throw new NoSuchElementException();
                 }
-                String nextKey = keys.next();
-                String nextValue = config.getString(nextKey);
+                String nextKey = requestedKeys.next();
+                String nextValue;
+                if (nextKey.equals(graph.getBaseGraph().DATA_MODEL_NAME))
+                    nextValue = graph.getBaseGraph().getDataModelName();
+                else if (nextKey.equals(graph.getBaseGraph().DATA_MODEL_VER))
+                    nextValue = String.valueOf(graph.getBaseGraph().getDataModelVerion());
+                else
+                    nextValue = config.getString(nextKey);
                 return new VertexProperty<V>() {
                     @Override
                     public Vertex element() {
@@ -94,7 +105,7 @@ public class FireflyMetadataVertex implements Vertex {
 
                     @Override
                     public <U> Iterator<Property<U>> properties(String... propertyKeys) {
-                        return null;
+                        return Collections.emptyIterator();
                     }
 
                     @Override
@@ -114,6 +125,7 @@ public class FireflyMetadataVertex implements Vertex {
 
                     @Override
                     public V value() throws NoSuchElementException {
+                        if (nextValue == null) return null;
                         return (V) nextValue;
                     }
 

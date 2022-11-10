@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
@@ -918,5 +919,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(IteratorUtils.list(graph.configuration().getKeys()).size(), props.size());
     }
 
+    @Test
+    public void testModelAndVersion() {
+        //This initializes the metadata for version and model, if drop database is called, its cleared
+        graph = GraphFactory.createGraph(db,config);
+
+        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
+        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(graph.getBaseGraph().DATA_MODEL_NAME).value());
+        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(graph.getBaseGraph().DATA_MODEL_VER).value());
+    }
 }
 

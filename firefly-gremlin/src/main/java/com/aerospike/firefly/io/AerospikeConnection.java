@@ -70,8 +70,8 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final String LABEL = "label";
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
-    private static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
-    private static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+    public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
+    public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
 
     public final String GRAPH_ID;
     public final String NUMERIC_VP_KV_INDEX;
@@ -362,7 +362,7 @@ public class AerospikeConnection implements AutoCloseable {
         return krl;
     }
 
-    public ComparableVersion getModelVersion() {
+    public ComparableVersion getDataModelVerion() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         Record dataModelRec = read(k);
         if (dataModelRec == null)

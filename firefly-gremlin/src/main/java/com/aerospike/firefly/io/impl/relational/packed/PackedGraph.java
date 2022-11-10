@@ -35,9 +35,11 @@ public class PackedGraph extends RelationalGraph {
      */
     public PackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        TraversalStrategies.GlobalCache.registerStrategies(
-                PackedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
+        synchronized (PackedGraph.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    PackedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
+        }
     }
 
     @Override

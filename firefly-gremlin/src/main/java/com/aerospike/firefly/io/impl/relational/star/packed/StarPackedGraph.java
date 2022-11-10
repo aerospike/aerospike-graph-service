@@ -34,9 +34,11 @@ public class StarPackedGraph extends PackedGraph {
      */
     public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        TraversalStrategies.GlobalCache.registerStrategies(
-                StarPackedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
+        synchronized (StarPackedGraph.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    StarPackedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(PackedGraph.class).clone());
+        }
     }
 
     @Override

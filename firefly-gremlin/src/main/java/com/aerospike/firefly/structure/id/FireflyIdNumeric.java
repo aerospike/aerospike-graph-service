@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyIdNumeric implements FireflyId {
+public class FireflyIdNumeric extends FireflyId {
     private final Long id;
 
     // Can be null.
@@ -71,6 +71,11 @@ public class FireflyIdNumeric implements FireflyId {
     @Override
     public Long getStorageTypeIdx() {
         return CONVERT_TO_STORAGE_IDX.get(userClass);
+    }
+
+    @Override
+    public Long getCachedId() {
+        return getStorageId();
     }
 
     @Override

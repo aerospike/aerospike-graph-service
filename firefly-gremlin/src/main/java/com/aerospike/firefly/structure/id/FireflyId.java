@@ -1,7 +1,9 @@
 package com.aerospike.firefly.structure.id;
 
-public interface FireflyId {
-    Object getUserId();
-    Object getStorageId();
-    Long getStorageTypeIdx();
+public abstract class FireflyId {
+    public abstract Object getUserId();
+    public abstract Object getStorageId();
+    public abstract Long getStorageTypeIdx();
+    public abstract boolean equals(Object o);
+    public abstract Object getCachedId();
 }

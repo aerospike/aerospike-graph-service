@@ -10,8 +10,8 @@ import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  */
 final public class RelationalEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
-    private AerospikeConnection db;
+    private final AerospikeConnection db;
 
     // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
@@ -122,10 +122,10 @@ final public class RelationalEdge extends FireflyEdge {
             return null;
         }
         return new RelationalEdge(FireflyIdFactory.createFromRecord(db, edgeRecord),
-                                  edgeRecord.record.getString(AerospikeConnection.LABEL),
-                                  graph,
-                                  FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.OUT.name())),
-                                FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.IN.name())));
+                edgeRecord.record.getString(AerospikeConnection.LABEL),
+                graph,
+                FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.OUT.name())),
+                FireflyIdFactory.createId(edgeRecord.record.getLong(Direction.IN.name())));
     }
 
     /**
@@ -144,10 +144,10 @@ final public class RelationalEdge extends FireflyEdge {
             return null;
         }
         return edgeRecord.stream().map(record -> new RelationalEdge(FireflyIdFactory.createFromRecord(db, record),
-                                                                    record.record.getString(AerospikeConnection.LABEL),
-                                                                    graph,
-                                                                    FireflyIdFactory.createId(record.record.getLong(Direction.OUT.name())),
-                                                                    FireflyIdFactory.createId(record.record.getLong(Direction.IN.name())))).
+                        record.record.getString(AerospikeConnection.LABEL),
+                        graph,
+                        FireflyIdFactory.createId(record.record.getLong(Direction.OUT.name())),
+                        FireflyIdFactory.createId(record.record.getLong(Direction.IN.name())))).
                 collect(Collectors.toList());
     }
 

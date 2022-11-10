@@ -313,12 +313,12 @@ public class AerospikeConnection implements AutoCloseable {
      * @param setName name of Aerospike set to scan
      * @return an Iterator of raw Long id values
      */
-    private Iterator<Long> scanAllIdsInSet(final String setName) {
+    private Iterator<FireflyId> scanAllIdsInSet(final String setName) {
         //@todo performance
         LOG.trace("Scanning {} ids.", setName);
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, r -> (Long) FireflyIdFactory.createFromRecord(this,
-                FireflyRecord.fromRecord(this, r.getKey(), r.getValue())).getStorageId());
+        return IteratorUtils.map(i,
+                r -> FireflyIdFactory.createFromRecord(this, FireflyRecord.fromRecord(this, r.getKey(), r.getValue())));
     }
 
     public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {

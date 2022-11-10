@@ -87,8 +87,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final String E_OUT_INDEX;
 
 
-    private static final boolean SUPERNODE_INDEX_ENABLED = false;
-
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
@@ -156,6 +154,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
     public final boolean ENABLE_PERIODIC_METADATA_UPDATE;
     public final long METADATA_UPDATE_FREQUENCY;
+    public final boolean ADJACENCY_INDEX_ENABLED;
+    public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
+
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
@@ -244,6 +245,8 @@ public class AerospikeConnection implements AutoCloseable {
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
 
+        ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
+        EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
 
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
@@ -449,14 +452,14 @@ public class AerospikeConnection implements AutoCloseable {
                     .forEach(strAry -> {
                         Map<String, String> data = new HashMap<>();
                         Arrays.stream(strAry).forEach(entryStr -> {
-                            if(entryStr.isEmpty())
+                            if (entryStr.isEmpty())
                                 return;
-                            if(entryStr.contains("="))
+                            if (entryStr.contains("="))
                                 data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
                             else
-                                data.put(Keys.RESULT,entryStr);
+                                data.put(Keys.RESULT, entryStr);
                         });
-                        if(data.size()>0)
+                        if (data.size() > 0)
                             results.add(data);
                     });
             return results;
@@ -584,6 +587,8 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
+    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
+    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * return the set name for an elements properties
@@ -619,7 +624,7 @@ public class AerospikeConnection implements AutoCloseable {
     public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
         List<String> existingIndexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
-        if (SUPERNODE_INDEX_ENABLED) {
+        if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
@@ -828,6 +833,10 @@ public class AerospikeConnection implements AutoCloseable {
         return InfoOps.isEnterprise(client);
     }
 
+
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+        return queryIndex(setName,indexName,filter,new QueryPolicy());
+    }
     /**
      * Issue a query on an index providing a custom filter
      *
@@ -836,15 +845,14 @@ public class AerospikeConnection implements AutoCloseable {
      * @param filter    Custom Filter
      * @return Iterator of KeyRecord pair results
      */
-    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter, QueryPolicy policy) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(setName);
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
-        final QueryPolicy p = new QueryPolicy();
         try {
-            return client.query(p, stmt).iterator();
+            return client.query(policy, stmt).iterator();
         } catch (AerospikeException ae) {
             throw new RuntimeException(ae);
         }
@@ -866,6 +874,39 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long getReadMetric() {
         return readMetric.get();
+    }
+
+    /**
+     * Increment the generation check retry count
+     */
+    public static void incrementGenerationCheckRetryMetric() {
+        generationCheckRetryMetric.incrementAndGet();
+    }
+
+    /**
+     * Return the generation check retry count
+     *
+     * @return generation check retry count
+     */
+    public static long getGenerationCheckRetryMetric() {
+        return generationCheckRetryMetric.get();
+    }
+
+
+    /**
+     * Set the generation check high-water mark
+     */
+    public static void setGenerationCheckHighWaterMark(final long value) {
+        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
+    }
+
+    /**
+     * Return the high-water mark for generation check retries
+     *
+     * @return number of retries
+     */
+    public static long getGenerationCheckHighWaterMark() {
+        return generationCheckHighWaterMark.get();
     }
 
     /**
@@ -1013,11 +1054,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     private <V> void protectedWriteTypeHintedValueToMap(final String aeroSet,
-                                                       final FireflyId fid,
-                                                       final String mapName,
-                                                       final String mapKey,
-                                                       final V value,
-                                                       final Bin... additionalBins) {
+                                                        final FireflyId fid,
+                                                        final String mapName,
+                                                        final String mapKey,
+                                                        final V value,
+                                                        final Bin... additionalBins) {
         final Map<String, Object> data;
         final Map<String, Object> typeHints;
         final int generation;
@@ -1111,7 +1152,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Decrement an Id counter by 1
      *
-     * @param name name of Counter to operate on
+     * @param name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {
@@ -1120,10 +1161,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Decrement an Id counter.
-     *
+     * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
      *
-     * @param name name of Counter to operate on
+     * @param name   name of Counter to operate on
      * @param amount amount on Counter to decrement
      * @return value of counter after operation
      */

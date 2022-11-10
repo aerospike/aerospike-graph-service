@@ -45,7 +45,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracy() {
-        SparkBulkLoader.main(new String[]{getDefaultConfig()});
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfig()});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -53,7 +53,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdTrue() {
-        SparkBulkLoader.main(new String[]{getDefaultConfig()});
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertEquals(11L, e.id());
@@ -63,7 +63,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdFalse() {
-        SparkBulkLoader.main(new String[]{getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());
@@ -73,7 +73,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyName() {
-        SparkBulkLoader.main(new String[]{getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());

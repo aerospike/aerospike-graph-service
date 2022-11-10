@@ -52,15 +52,14 @@ public class SparkBulkLoader {
         try {
             final CommandLine cmd = validInputs(args);
             env = cmd.hasOption("e") ? cmd.getOptionValue("e") : env;
-            if ( env.equals("local") ) {
+            if (env.equals("local")) {
                 final String DEFAULT_CONFIG_PATH = "conf/spark-bulk-loader-conf/config.properties";
                 config_path = cmd.hasOption("c") ? cmd.getOptionValue("c") : DEFAULT_CONFIG_PATH;
                 path = Path.of(config_path);
                 config = getConfig(path);
                 vertexFiles.addAll(validateAndGetFiles(getOrDefault(VERTEX_DIRECTORY_KEY, config)));
                 edgeFiles.addAll(validateAndGetFiles(getOrDefault(EDGE_DIRECTORY_KEY, config)));
-            }
-            else {
+            } else {
                 s3Client = AmazonS3ClientBuilder.standard().build();
                 bucket = cmd.getOptionValue("b");
                 config_path = cmd.getOptionValue("c");
@@ -78,12 +77,12 @@ public class SparkBulkLoader {
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
-        if ( env.equals("local"))
+        if (env.equals("local"))
             conf.setMaster("local[2]");
 
         conf.setAppName("firefly-bulk-loader")
-            .set("spark.driver.allowMultipleContexts", "false")
-            .set("spark.ui.enabled", "true");
+                .set("spark.driver.allowMultipleContexts", "false")
+                .set("spark.ui.enabled", "true");
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 
@@ -132,7 +131,7 @@ public class SparkBulkLoader {
                 logger.warn("PartitionId in VertexDataSet = " + TaskContext.getPartitionId()); //numerical value
                 ArrayList<Long> list = new ArrayList<>(0);
                 Configuration new_config = config;
-                if ( !env.equals("local") ) {
+                if (!env.equals("local")) {
                     s3Client = AmazonS3ClientBuilder.standard().build();
                     new_config = loadConfigFromS3(finalBucket, finalConfig_path);
                 }
@@ -168,7 +167,7 @@ public class SparkBulkLoader {
             edgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
                 logger.info("PartitionId in EdgeDataSet = " + TaskContext.getPartitionId()); //numerical value
                 Configuration new_config = config;
-                if ( !env.equals("local") ) {
+                if (!env.equals("local")) {
                     s3Client = AmazonS3ClientBuilder.standard().build();
                     new_config = loadConfigFromS3(finalBucket, finalConfig_path);
                 }
@@ -208,6 +207,7 @@ public class SparkBulkLoader {
 
     /**
      * Function to load config files from local path
+     *
      * @param directory
      * @return
      */
@@ -223,6 +223,7 @@ public class SparkBulkLoader {
     /**
      * Function to load input files from S3.
      * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
+     *
      * @param bucketName
      * @param folderKey
      * @return
@@ -236,7 +237,7 @@ public class SparkBulkLoader {
         }
         // listObjects loads 1000 object keys in one call.
         // if there are multiple directories with multi thousand files, then need to object each objects in batch using below method
-        while( response.isTruncated() ) {
+        while (response.isTruncated()) {
             response = s3Client.listNextBatchOfObjects(response);
             objects = response.getObjectSummaries();
             for (S3ObjectSummary object : objects) {
@@ -248,6 +249,7 @@ public class SparkBulkLoader {
 
     /**
      * Function to load config file from S3.
+     *
      * @param bucket
      * @param path
      * @return
@@ -270,6 +272,7 @@ public class SparkBulkLoader {
             throw new RuntimeException(e);
         }
     }
+
     public static CommandLine validInputs(String[] args) throws Exception {
         final Options options = new Options();
         Option envOption = new Option("e", "env", true, "local or prod");

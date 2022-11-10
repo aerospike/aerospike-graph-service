@@ -112,7 +112,7 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
 
     @Override
     public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_PROPERTY_AERO_SET, FireflyId.fromElement(this)).record();
+        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_PROPERTY_AERO_SET, id).record();
     }
 }
 

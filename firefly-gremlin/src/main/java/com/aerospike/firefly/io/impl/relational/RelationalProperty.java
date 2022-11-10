@@ -2,7 +2,6 @@ package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
@@ -44,7 +43,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
             final AerospikeConnection db = graph.getBaseGraph();
             db.removeTypeHintedValueFromMap(
                     db.getElementPropertySet(fireflyElement.getClass()),
-                    FireflyId.fromElement(fireflyElement),
+                    fireflyElement.id,
                     db.getElementPropertySet(fireflyElement.getClass()),
                     key());
 
@@ -88,7 +87,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
      */
     public static <V> Map<String, Property<V>> readProperties(final FireflyGraph graph, final FireflyElement element) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.getElementPropertySet(element.getClass()), element.id.toNumericId());
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.getElementPropertySet(element.getClass()), element.id);
         if (fireflyRecord == null)
             return new HashMap<>();
 
@@ -117,7 +116,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
         return new RelationalProperty<>(graph, element, key,
                 db.readTypeHintedValueFromMap(
                         db.getElementPropertySet(element.getClass()),
-                        FireflyId.fromElement(element).toNumericId(),
+                        element.id,
                         db.getElementPropertySet(element.getClass()),
                         key));
     }

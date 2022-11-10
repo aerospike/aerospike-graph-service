@@ -11,8 +11,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
@@ -24,8 +22,9 @@ import java.util.stream.Collectors;
 /**
  * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyTraversalCacheStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy> implements TraversalStrategy.ProviderOptimizationStrategy {
-    Logger LOG = LoggerFactory.getLogger(FireflyTraversalCacheStrategy.class);
+public class FireflyTraversalCacheStrategy
+        extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
+        implements TraversalStrategy.ProviderOptimizationStrategy {
     private static final FireflyTraversalCacheStrategy INSTANCE = new FireflyTraversalCacheStrategy();
     private static final HashSet<Class<? extends PrefetchTask>> prefetchTasks = new HashSet<>() {{
         add(SubgraphPrefetchTask.class);

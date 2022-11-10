@@ -2,19 +2,23 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.IdManager;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -45,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -127,6 +133,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     protected FireflyGraphComputerView graphComputerView = null;
     private AtomicBoolean closed = new AtomicBoolean(false);
+    public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
+    private Timer fireflyCardinalityMetadataTask = new Timer(true);
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
@@ -154,6 +162,24 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
+            final String numericVpIndex;
+            final String stringVpIndex;
+            if (LinkedGraph.DATA_MODEL.equals(getDataModel())) {
+                numericVpIndex = db.NUMERIC_VP_KV_INDEX;
+                stringVpIndex = db.STRING_VP_KV_INDEX;
+            } else {
+                numericVpIndex = db.NUMERIC_V_VP_KV_INDEX;
+                stringVpIndex = db.STRING_V_VP_KV_INDEX;
+            }
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(
+                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, numericVpIndex, stringVpIndex, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX);
+            final TimerTask timerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+            fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.METADATA_UPDATE_FREQUENCY);
+
+        }
+
+        final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
             //@todo
@@ -162,17 +188,21 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
             if (db.getClient().getNodes().length > 1)
                 throw new RuntimeException("fast count not supported for multi node");
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    FireflyGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyGraphCountStrategy.instance()));
+            strategies.addStrategies(FireflyGraphCountStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyGraphCountStrategy.class);
         }
 
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    FireflyGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
+            strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
+        }
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
+            strategies.addStrategies(FireflyGraphDropStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyGraphDropStrategy.class);
         }
     }
 
@@ -309,22 +339,23 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
         // Create a new id or use the provided user-supplied id (if present and supported).
-        FireflyId idValue = FireflyId.createFromKeyValuesOrManager(this, FireflyVertex.class, keyValues);
+        FireflyId idValue;
+        if (ElementHelper.getIdValue(keyValues).isEmpty()) {
+            idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
 
-        if (ElementHelper.getIdValue(keyValues).isPresent()) {
+            // TODO: GRAPH-186.
+            while (vertexExists(idValue)) {
+                idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
+            }
+        } else {
             try {
-                NumericIdManager.convert(idValue.value());
+                idValue = FireflyIdFactory.createFromKeyValues(FireflyVertex.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
             if (vertexExists(idValue)) {
-
-                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.value());
-            }
-        } else {
-            while (vertexExists(idValue)) {
-                idValue = FireflyId.createFromManager(this, FireflyVertex.class);
+                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
             }
         }
 
@@ -332,7 +363,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
 
         // Write fully qualified Vertex.
-
         final List<Map.Entry<String, Object>> properties = convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
         return writeVertex(idValue, label, properties);
     }
@@ -376,10 +406,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
         // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(NumericIdManager::convert).collect(Collectors.toList());
+        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList());
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
-        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyId.of(FireflyVertex.class, id)).allMatch(this::vertexExists)) {
+        // TODO: Should this be batch exists? Or removed for performance?
+        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyIdFactory.createId(id)).allMatch(this::vertexExists)) {
             throw new NoSuchElementException("vertex could not be found and edge could not be created");
         }
 
@@ -395,7 +426,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new FireflyEdgeIterator(this,
                 (edgeIds.length == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        Arrays.stream(edgeIds).map(NumericIdManager::convert).collect(Collectors.toList()).iterator());
+                        Arrays.stream(edgeIds).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList()).iterator());
     }
 
     @Override
@@ -407,6 +438,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
+        if (db.ENABLE_PERIODIC_METADATA_UPDATE && fireflyCardinalityMetadataTask != null) {
+            fireflyCardinalityMetadataTask.cancel();
+        }
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)
                 .removeStrategies(FireflyTraversalCacheStrategy.class);

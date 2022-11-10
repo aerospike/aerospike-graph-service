@@ -8,7 +8,10 @@ import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
@@ -22,6 +25,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -32,29 +36,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
-    private static final int THREAD_COUNT = 2;
-
-    // TODO (https://aerospike.atlassian.net/browse/GRAPH-90)
-    //  Switch to a single thread with aggregate ids in a bulk request
-    //  as opposed to 2 requests running in parallel.
-    private static final ExecutorService executorService = new ThreadPoolExecutor(THREAD_COUNT, THREAD_COUNT, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-
     private AerospikeConnection db;
     private Map<String, List<Long>> inEdgeIds;
     private Map<String, List<Long>> outEdgeIds;
@@ -100,7 +93,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Collect edges in both directions and remove them all.
         final List<Long> edgeIds = getEdgeIdsFromVertex(Direction.BOTH);
         edgeIds.forEach(edgeId -> {
-            final FireflyEdge edge = graph.readEdge(FireflyId.of(FireflyEdge.class, edgeId));
+            final FireflyEdge edge = graph.readEdge(FireflyIdFactory.createId(edgeId));
             if (edge != null) {
                 edge.remove();
             }
@@ -109,8 +102,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         removeVertexProperties();
 
         // Remove vertex.
-        LOG.debug("Removing vertex {}.", id.value().toString());
-        db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id.toNumericId()));
+        LOG.debug("Removing vertex {}.", id);
+        db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id));
 
         // The star data model holds some additional data that must be removed when the vertex is removed.
         if (StarPackedGraph.isStarPackedGraph(graph)) {
@@ -129,51 +122,76 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public List<Long> getEdgeIdsFromVertex(final Direction direction) {
-        LOG.trace("Getting edge ids from vertex {}.", id.value().toString());
+        LOG.trace("Getting edge ids from vertex {}.", id);
         if (direction.equals(Direction.OUT)) {
             return getOutEdgeIds();
         } else if (direction.equals(Direction.IN)) {
             return getInEdgeIds();
         } else {
             // Both.
-            final Future<List<Long>> inIds = executorService.submit(this::getInEdgeIds);
-            final Future<List<Long>> outIds = executorService.submit(this::getOutEdgeIds);
-            try {
-                List<Long> ids = inIds.get();
-                ids.addAll(outIds.get());
-                return ids;
-            } catch (InterruptedException | ExecutionException e) {
-                // Should not happen.
-                LOG.error("Error getting edge ids from vertex {} {}.", id.value().toString(), e);
-                throw new RuntimeException(e);
-            }
+            return getBothEdgeIds();
         }
     }
 
     /**
-     * Get incoming edge id for vertex.
+     * Get incoming edge ids for vertex.
      *
      * @return Iterator of all incoming edge ids.
      */
-    private List<Long> getInEdgeIds() {
-        final List<Long> data = new ArrayList<>();
-        if (inEdgeIds != null) {
-            inEdgeIds.values().forEach(data::addAll);
+    private Iterator<Long> getInEdgeIdsIter() {
+        if (graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //Use index if cache is globally disabled
+            return getEdgeIdsFromVertexByIndex(Direction.IN);
         }
-        return (inEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.IN));
+        if (inEdgeCount == -1) {
+            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) //Use index if available and cache is blown
+                return getEdgeIdsFromVertexByIndex(Direction.IN);
+            return getEdgeIdsFromVertexByScan(Direction.IN); //Fall back to scan if no index and cache is blown
+        } else { //Use cache
+            final List<Long> data = new ArrayList<>();
+            if (inEdgeIds != null) {
+                inEdgeIds.values().forEach(data::addAll);
+            }
+            return data.iterator();
+        }
     }
-
+    private List<Long> getInEdgeIds() {
+        return IteratorUtils.list(getInEdgeIdsIter());
+    }
     /**
-     * Get outgoing edge id for vertex.
+     * Get outgoing edge ids for vertex.
      *
      * @return Iterator of all outgoing edge ids.
      */
-    private List<Long> getOutEdgeIds() {
-        final List<Long> data = new ArrayList<>();
-        if (outEdgeIds != null) {
-            outEdgeIds.values().forEach(data::addAll);
+    private Iterator<Long> getOutEdgeIdsIter() {
+        if (graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //Use index if cache is globally disabled
+            return getEdgeIdsFromVertexByIndex(Direction.OUT);
         }
-        return (outEdgeCount != -1) ? data : IteratorUtils.list(getEdgeIdsFromVertexByScan(Direction.OUT));
+        if (outEdgeCount == -1) {
+            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) //Use index if available and cache is blown
+                return getEdgeIdsFromVertexByIndex(Direction.OUT);
+            return getEdgeIdsFromVertexByScan(Direction.OUT); //Fall back to scan if no index and cache is blown
+        } else { //Use Cache
+            final List<Long> data = new ArrayList<>();
+            if (outEdgeIds != null) {
+                outEdgeIds.values().forEach(data::addAll);
+            }
+            return data.iterator();
+        }
+    }
+    private List<Long> getOutEdgeIds() {
+       return IteratorUtils.list(getOutEdgeIdsIter());
+    }
+
+    /**
+     * Get incoming and outgoing edge ids for vertex.
+     *
+     * @return Iterator of all incoming and outgoing edge ids.
+     */
+    private List<Long> getBothEdgeIds() {
+        if (graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //Use index if cache is globally disabled
+            return IteratorUtils.list(getEdgeIdsFromVertexByIndex(Direction.BOTH));
+        }
+        return IteratorUtils.list(IteratorUtils.concat(getOutEdgeIdsIter(),getInEdgeIdsIter()));
     }
 
     /**
@@ -182,47 +200,51 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param direction Direction to scan.
      * @return Iterator of edge ids.
      */
-    private Iterator<Long> getEdgeIdsFromVertexByScan(final Direction direction) {
+    protected Iterator<Long> getEdgeIdsFromVertexByScan(final Direction direction) {
+        final Expression exp;
         if (direction == Direction.OUT || direction == Direction.IN) {
             // If direction is in or out, get that specific direction.
-            final Expression exp = Exp.build(
+            exp = Exp.build(
                     Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
-                            Exp.val((Long) db.idToStorageType(this.id()))
+                            Exp.val((Long) id.getStorageId())
                     ));
-
-            final ScanPolicy policy = new ScanPolicy();
-            policy.includeBinData = false;
-            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-            return IteratorUtils.map(i, keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject());
         } else {
             // If direction is both, we need to get in and out.
-            final Expression inExpression = Exp.build(
-                    Exp.eq(Exp.intBin(Direction.IN.name()),
-                            Exp.val((Long) db.idToStorageType(this.id()))
+            exp = Exp.build(
+                    Exp.or(
+                            Exp.eq(Exp.intBin(Direction.IN.name()),
+                                    Exp.val((Long) id.getStorageId())
+                            ),
+                            Exp.eq(Exp.intBin(Direction.OUT.name()),
+                                    Exp.val((Long) id.getStorageId())
+                            )
                     ));
-            final Expression outExpression = Exp.build(
-                    Exp.eq(Exp.intBin(Direction.OUT.name()),
-                            Exp.val((Long) db.idToStorageType(this.id()))
-                    ));
-
-            // Create scan policy, do not need bin data for this.
-            final ScanPolicy policy = new ScanPolicy();
-            policy.includeBinData = false;
-
-            // Run in and out scans in parallel.
-            final Future<Iterator<Map.Entry<Key, Record>>> inIterator = executorService.submit(() -> scanAllRecordsInSet(db.EDGE_AERO_SET, inExpression, policy));
-            final Future<Iterator<Map.Entry<Key, Record>>> outIterator = executorService.submit(() -> scanAllRecordsInSet(db.EDGE_AERO_SET, outExpression, policy));
-
-            // Concatenate the in and out iterators.
-            try {
-                return IteratorUtils.concat(IteratorUtils.map(outIterator.get(), keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject()),
-                        IteratorUtils.map(inIterator.get(), keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject()));
-            } catch (InterruptedException | ExecutionException e) {
-                LOG.error("Error getting edge ids from vertex {} by scan {}.", id.value().toString(), e);
-                throw new RuntimeException(e);
-            }
         }
+        // Create scan policy, do not need bin data for this.
+        final ScanPolicy policy = new ScanPolicy();
+        policy.includeBinData = false;
+        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
+        return IteratorUtils.map(i, keyRecordEntry -> (Long) keyRecordEntry.getKey().userKey.getObject());
     }
+
+    protected Iterator<Long> getEdgeIdsFromVertexByIndex(final Direction direction) {
+        final QueryPolicy queryPolicy = new QueryPolicy();
+        queryPolicy.sendKey = true;
+        queryPolicy.includeBinData = false;
+
+        Iterator<KeyRecord> iterator;
+        if (direction == Direction.OUT) {
+            iterator = db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(direction.name(), IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy);
+        } else if (direction == Direction.IN) {
+            iterator = db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(direction.name(), IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy);
+        } else {
+            iterator = IteratorUtils.concat(
+                    db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(Direction.IN.name(), IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy),
+                    db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(Direction.OUT.name(), IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy));
+        }
+        return IteratorUtils.map(iterator, keyRecordEntry -> (Long) keyRecordEntry.key.userKey.getObject());
+    }
+
 
     /**
      * Issue a scan query for all the records in the edge set.
@@ -259,7 +281,8 @@ public abstract class RelationalVertex extends FireflyVertex {
     private void removeEdgeFromJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
         final Map<String, List<Long>> edgeCache = direction == Direction.IN ? inEdgeIds : outEdgeIds;
         if (edgeCache.containsKey(edgeLabel)) {
-            edgeCache.get(edgeLabel).remove((Long) edgeId.toNumericId().value());
+            // Needs to be changed to support string (or other) edge ids.
+            edgeCache.get(edgeLabel).remove((Long) edgeId.getStorageId());
         }
     }
 
@@ -275,7 +298,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (!edgeCache.containsKey(edgeLabel)) {
             edgeCache.put(edgeLabel, new ArrayList<>());
         }
-        edgeCache.get(edgeLabel).add((Long) edgeId.toNumericId().value());
+        edgeCache.get(edgeLabel).add((Long) edgeId.getStorageId());
     }
 
     /**
@@ -291,14 +314,14 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     private void protectedRemoveEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        LOG.debug("Removing {} edge {} to vertex {}.", direction, edgeId.value(), id.value());
+        LOG.debug("Removing {} edge {} to vertex {}.", direction, edgeId, id);
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
         // Get existing firefly record for the vertex.
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
         if (fireflyRecord == null || fireflyRecord.record == null) {
             // Remove edge from local edge cache.
             removeEdgeFromJVMCache(direction, edgeId, edgeLabel);
@@ -330,7 +353,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         // Remove edge from edge list. If we have exceeded the cache, this operation might do nothing.
-        edges.remove(NumericIdManager.convert(edgeId));
+        edges.remove((Long) edgeId.getStorageId());
 
         // Update edge list in label to edge map.
         labelEdges.put(edgeLabel, edges);
@@ -357,14 +380,14 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     private void protectedWriteEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        LOG.debug("Adding {} {} edge {} to vertex {}.", edgeLabel, direction.name(), edgeId.value(), id.value());
+        LOG.debug("Adding {} {} edge {} to vertex {}.", edgeLabel, direction.name(), edgeId, id);
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionKey = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
         final String counterKey = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
 
         // Get existing Firefly record for the vertex.
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id.toNumericId());
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
 
         // Initialize edge counter, cache disable flag, edge label map, and generation.
         long edgeCounter = 0;
@@ -393,7 +416,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         } else {
             // Add the edge to the cache in the vertex if the cache has not grown too big.
             final List<Long> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
-            edges.add(NumericIdManager.convert(edgeId.value()));
+            edges.add((Long) edgeId.getStorageId());
 
             // Add edges to edge label map.
             labelEdges.put(edgeLabel, edges);
@@ -436,18 +459,18 @@ public abstract class RelationalVertex extends FireflyVertex {
         });
         vertexPropertyValueMap.forEach((key, value) -> value.forEach(v -> {
                     // Get id for vertex property.
-                    final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+                    final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
 
                     // Add to vertex property ids to map.
                     if (!vertexPropertyLabelIdMap.containsKey(key)) {
                         vertexPropertyLabelIdMap.put(key, new ArrayList<>());
                     }
-                    vertexPropertyLabelIdMap.get(key).add(NumericIdManager.convert(vertexPropertyId.value()));
+                    vertexPropertyLabelIdMap.get(key).add((Long) vertexPropertyId.getStorageId());
 
                     if (writeProperties) {
                         // Create a bin for the vertex property name (key) and a bin for the vertex property id.
                         final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-                        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, AerospikeConnection.idToStorageType(vertexId.value()));
+                        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
 
                         // Write vertex property with type hint.
                         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
@@ -480,11 +503,11 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Map<String, Long> vertexPropertyIdMap = new HashMap<>();
         properties.forEach(vp -> {
             // Get id for vertex property.
-            final FireflyId vertexPropertyId = FireflyId.createFromManager(graph, FireflyVertexProperty.class);
+            final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
 
             // Add id and vertex property.
             vertexPropertyValueMap.put(vp.getKey(), vp.getValue());
-            vertexPropertyIdMap.put(vp.getKey(), (Long) vertexPropertyId.toNumericId().value());
+            vertexPropertyIdMap.put(vp.getKey(), (Long) vertexPropertyId.getStorageId());
         });
 
         // Return vertex property value map.
@@ -507,7 +530,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                                             final String label,
                                             final List<Map.Entry<String, Object>> properties,
                                             final int vertexTypeHint) {
-        LOG.debug("Writing Vertex {} {}.", vertexId.value().toString(), properties);
+        LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
@@ -577,13 +600,13 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return FireflyVertex.
      */
     public static FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Reading vertex {}.", vertexId.value().toString());
+        LOG.debug("Reading vertex {}.", vertexId);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId.toNumericId());
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
         if (record == null) {
             return null;
         }
@@ -596,12 +619,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      * This function is static because it is used by the LinkedGraph
      * to write a new FireflyVertex.
      *
-     * @param graph    FireflyGraph to use.
+     * @param graph     FireflyGraph to use.
      * @param vertexIds FireflyIds to use.
      * @return FireflyVertex.
      */
     public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
-        LOG.debug("Reading vertices {}.", vertexIds.toString());
+        LOG.debug("Reading vertices {}.", vertexIds);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
@@ -638,7 +661,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Get id and label for vertex.
-        final FireflyId id = FireflyId.loadFromAerospike(db, FireflyVertex.class, FireflyRecord.fromRecord(db, keyRecord.key, record));
+        final FireflyId id = FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, keyRecord.key, record));
         final int vertexTypeHint = record.getInt(db.RELATIONAL_VERTEX_TYPE_HINT);
         final String label = record.getString(AerospikeConnection.LABEL);
 

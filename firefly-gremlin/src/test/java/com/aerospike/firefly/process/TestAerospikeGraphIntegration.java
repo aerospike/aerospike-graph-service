@@ -1,8 +1,6 @@
-package com.aerospike.firefly.structure.process;
+package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.util.AbstractFireflySuite;
-import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.TestHelper;
@@ -13,10 +11,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.FailStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.ConsoleMutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoTest;
 import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;

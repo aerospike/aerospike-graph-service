@@ -6,19 +6,18 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
-import org.apache.tinkerpop.gremlin.structure.Graph;
+
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Iterator;
@@ -32,14 +31,6 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.KEY_VALUE;
 final public class LinkedGraph extends RelationalGraph {
     public static final String DATA_MODEL = "linked";
 
-    static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                LinkedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create()));
-    }
-
     /**
      * Constructor for LinkedGraph.
      *
@@ -48,20 +39,9 @@ final public class LinkedGraph extends RelationalGraph {
      */
     public LinkedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, conf))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    LinkedGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
-        }
-    }
-
-
-    static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 LinkedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
     }
 
     @Override
@@ -130,7 +110,7 @@ final public class LinkedGraph extends RelationalGraph {
                         Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
@@ -159,7 +139,7 @@ final public class LinkedGraph extends RelationalGraph {
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(
+                        FireflyIdFactory.createId(kr.record.getLong(
                                 ConfigurationHelper.getOrDefault(
                                         ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
@@ -190,7 +170,7 @@ final public class LinkedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_PROPERTY_AERO_SET, db.NUMERIC_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyId.of(FireflyVertex.class, kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 

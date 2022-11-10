@@ -20,9 +20,9 @@ import java.net.URL;
 import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.Util.verifyClean;
 import static com.aerospike.firefly.util.Movielens.MOVIELENS_1M_URL;
 import static com.aerospike.firefly.util.Movielens.YEAR;
+import static com.aerospike.firefly.util.Util.verifyClean;
 import static org.junit.Assert.assertEquals;
 
 /**

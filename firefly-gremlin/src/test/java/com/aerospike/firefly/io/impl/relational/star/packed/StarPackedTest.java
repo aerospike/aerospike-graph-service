@@ -2,7 +2,7 @@ package com.aerospike.firefly.io.impl.relational.star.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -55,12 +55,12 @@ public class StarPackedTest extends AbstractFireflySuite {
         Assert.assertEquals(5, vertices.size());
         for (final Vertex v : vertices) {
             // Verify that these vertices do not have data in their connections.
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
         }
 
         // Let's create some edges.
@@ -75,12 +75,12 @@ public class StarPackedTest extends AbstractFireflySuite {
             if (v.id().equals(lyndon.id()) || v.id().equals(ishaan.id())) {
                 continue;
             }
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
         }
 
         VertexProperty<?> lyndonName = lyndon.property("name");
@@ -91,8 +91,8 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Validate that Lyndon and Ishaan have data in them.
         // For Ishaan we expect to have data in OUT_VP_SET and OUT_IN_SET, OUT_IN_SET will contain a list with an empty map.
         // For Lyndon we expect to have data in IN_VP_SET and IN_OUT_SET, IN_IN_SET will contain a list with an empty map.
-        final FireflyRecord ishaanOutVPLyndon = FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(ishaan.id())));
-        final FireflyRecord lyndonInVPIshaan = FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(lyndon.id())));
+        final FireflyRecord ishaanOutVPLyndon = FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) ishaan.id()));
+        final FireflyRecord lyndonInVPIshaan = FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) lyndon.id()));
 
         // Ishaan in.in and in.out and lyndon out.in and out.out are all null.
         Map<String, List<Map<String, List<Long>>>> ishaanInIn = null;
@@ -103,10 +103,10 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Ishaan out.in and lyndon in.out are maps with the referred edge at the tip.
         Map<String, List<Map<String, List<Long>>>> ishaanOutIn = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
         Map<String, List<Map<String, List<Long>>>> lyndonInOut = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Ishaan out.out and lyndon in.in have initial edges but no compound edge so empty map at end.
         Map<String, List<Map<String, List<Long>>>> ishaanOutOut = Map.ofEntries(Map.entry("referred", List.of(new HashMap<>())));
@@ -144,12 +144,12 @@ public class StarPackedTest extends AbstractFireflySuite {
             if (v.id().equals(lyndon.id()) || v.id().equals(ishaan.id()) || v.id().equals(simon.id())) {
                 continue;
             }
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
-            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(v.id()))));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.IN_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_IN_SET, FireflyIdFactory.createId((Long) v.id())));
+            Assert.assertNull(FireflyRecord.read(db, db.OUT_OUT_SET, FireflyIdFactory.createId((Long) v.id())));
         }
 
         VertexProperty<?> simonName = simon.property("name");
@@ -178,7 +178,7 @@ public class StarPackedTest extends AbstractFireflySuite {
         validateVertexProperty(lyndonOutVp, db.OUT_VP_SET, lyndon);
 
         // Validate Simons empty sets are indeed empty.
-        Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(simon.id()))));
+        Assert.assertNull(FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) simon.id())));
 
         final List<Object> lyndonReferredSimonList = new ArrayList<>();
         lyndonReferredSimonList.add(lyndonReferredSimon.id());
@@ -190,17 +190,17 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Simon in.out goes from Lyndon back to Simon.
         Map<String, List<Map<String, List<Long>>>> simonInOut = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         // Simon in.in goes from Lyndon to Ishaan
         Map<String, List<Map<String, List<Long>>>> simonInIn = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Lyndon out.in goes from Simon to Lyndon.
         lyndonOutIn = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         // Lyndon out.out goes to Simon but has no out so is empty.
         lyndonOutOut = Map.ofEntries(Map.entry("referred", List.of(new HashMap<>())));
@@ -208,7 +208,7 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Ishaan now has out.out from lyndon to Simon
         ishaanOutOut = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         Assert.assertEquals(simonOutOut, getCompoundEdgeMap(simon, db.OUT_OUT_SET));
         Assert.assertEquals(simonOutIn, getCompoundEdgeMap(simon, db.OUT_IN_SET));
@@ -225,7 +225,7 @@ public class StarPackedTest extends AbstractFireflySuite {
 
         // Ishaan should now be updated with new bi-directional edge info.
         // Validate that the other records are still null.
-        Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(ishaan.id()))));
+        Assert.assertNull(FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) ishaan.id())));
 
         // Currently we have Ishaan->Lyndon->Simon.
         // Now we can add some extra in/out edges from lyndon to see that the existing in and out vertex bi-directional edge maps are correct.
@@ -243,30 +243,30 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Joe in.in - Joe goes in on managedBy to Lyndon who go in on worksWith to Grant, in on referred to Ishaan, and in on manages to Joe.
         Map<String, List<Map<String, List<Long>>>> joeInIn = Map.ofEntries(
                 Map.entry("managedBy", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id()))),
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))))));
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id())),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id()))))));
 
         // Joe in.out - Joe goes in on managedBy to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         Map<String, List<Map<String, List<Long>>>> joeInOut = Map.ofEntries(
                 Map.entry("managedBy", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         // Joe out.in - Joe goes out on manages to Lyndon who goes in on manages to Joe, worksWith to Grant, and referred to Ishaan
         Map<String, List<Map<String, List<Long>>>> joeOutIn = Map.ofEntries(
                 Map.entry("manages", List.of(Map.ofEntries(
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id()))),
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id())),
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Joe out.out - Joe goes out on manages to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         Map<String, List<Map<String, List<Long>>>> joeOutOut = Map.ofEntries(
                 Map.entry("manages", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         Assert.assertEquals(joeInIn, getCompoundEdgeMap(joe, db.IN_IN_SET));
         Assert.assertEquals(joeInOut, getCompoundEdgeMap(joe, db.IN_OUT_SET));
@@ -276,30 +276,30 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Grant in.in - Grant goes in on worksWith to Lyndon who goes in on worksWith to Grant, manages to Joe, and referred to Ishaan
         Map<String, List<Map<String, List<Long>>>> grantInIn = Map.ofEntries(
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Grant in.out - Grant goes in on worksWith to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         Map<String, List<Map<String, List<Long>>>> grantInOut = Map.ofEntries(
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         // Grant out.in - Grant goes out on worksWith to Lyndon who goes in on worksWith to Grant, manages to Joe, and referred to Ishaan
         Map<String, List<Map<String, List<Long>>>> grantOutIn = Map.ofEntries(
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Grant out.out - Grant goes out on worksWith to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         Map<String, List<Map<String, List<Long>>>> grantOutOut = Map.ofEntries(
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         Assert.assertEquals(grantInIn, getCompoundEdgeMap(grant, db.IN_IN_SET));
         Assert.assertEquals(grantInOut, getCompoundEdgeMap(grant, db.IN_OUT_SET));
@@ -309,16 +309,16 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Simon in.out - Simon goes in on referred to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         simonInOut = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         // Simon in.in - Simon goes in on referred to Lyndon who goes in on worksWith to Grant, manages to Joe, and referred to Ishaan
         simonInIn = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Simon out.in and out.out - Simon has no out edges - null. (set previously)
         Assert.assertEquals(simonInIn, getCompoundEdgeMap(simon, db.IN_IN_SET));
@@ -331,16 +331,16 @@ public class StarPackedTest extends AbstractFireflySuite {
         // Ishaan out.in - Ishaan goes in on referred to Lyndon who goes in on worksWith to Grant, manages to Joe, and referred to Ishaan
         ishaanOutIn = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id()))),
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id())),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id())),
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Ishaan out.out - Ishaan goes out on referred to Lyndon who goes out on worksWith to Grant, managedBy to Joe, and referred to Simon
         ishaanOutOut = Map.ofEntries(
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))),
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id()))),
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id())),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id())),
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         Assert.assertEquals(ishaanInIn, getCompoundEdgeMap(ishaan, db.IN_IN_SET));
         Assert.assertEquals(ishaanInOut, getCompoundEdgeMap(ishaan, db.IN_OUT_SET));
@@ -353,9 +353,9 @@ public class StarPackedTest extends AbstractFireflySuite {
         //  On referred to Ishaan, there are no in edges.
         lyndonInIn = Map.ofEntries(
                 Map.entry("manages", List.of(Map.ofEntries(
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))))),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id()))))),
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))))),
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id()))))),
                 Map.entry("referred", List.of(new HashMap<>())));
 
         // Lyndon in.out - Lyndon goes in on manages to Joe, worksWith to Grant, and referred to Ishaan.
@@ -364,11 +364,11 @@ public class StarPackedTest extends AbstractFireflySuite {
         //  On referred to Ishaan, Ishaans out edge referred goes to Lyndon.
         lyndonInOut = Map.ofEntries(
                 Map.entry("manages", List.of(Map.ofEntries(
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))))),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id()))))),
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))))),
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id()))))),
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))))));
+                        Map.entry("referred", List.of((Long) ishaanReferredLyndon.id()))))));
 
         // Lyndon out.out - Lyndon goes out on managedBy to Joe, worksWith to Grant, and referred to Simon.
         //  On managedBy to Joe, Joes out edge manages goes to Lyndon.
@@ -376,9 +376,9 @@ public class StarPackedTest extends AbstractFireflySuite {
         //  On referred to Simon, there are no out edges.
         lyndonOutOut = Map.ofEntries(
                 Map.entry("managedBy", List.of(Map.ofEntries(
-                        Map.entry("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))))),
+                        Map.entry("manages", List.of((Long) joeManagesLyndon.id()))))),
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))))),
+                        Map.entry("worksWith", List.of((Long) grantWorksWithLyndon.id()))))),
                 Map.entry("referred", List.of(new HashMap<>())));
 
         // Lyndon out.in - Lyndon goes out on managedBy to Joe, worksWith to Grant, and referred to Simon.
@@ -387,11 +387,11 @@ public class StarPackedTest extends AbstractFireflySuite {
         //  On referred to Simon, Simons in edge referred goes to Lyndon.
         lyndonOutIn = Map.ofEntries(
                 Map.entry("managedBy", List.of(Map.ofEntries(
-                        Map.entry("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))))),
+                        Map.entry("managedBy", List.of((Long) lyndonManagedByJoe.id()))))),
                 Map.entry("worksWith", List.of(Map.ofEntries(
-                        Map.entry("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))))),
+                        Map.entry("worksWith", List.of((Long) lyndonWorksWithGrant.id()))))),
                 Map.entry("referred", List.of(Map.ofEntries(
-                        Map.entry("referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))))));
+                        Map.entry("referred", List.of((Long) lyndonReferredSimon.id()))))));
 
         Assert.assertEquals(lyndonInIn, getCompoundEdgeMap(lyndon, db.IN_IN_SET));
         Assert.assertEquals(lyndonInOut, getCompoundEdgeMap(lyndon, db.IN_OUT_SET));
@@ -443,7 +443,7 @@ public class StarPackedTest extends AbstractFireflySuite {
     }
 
     Map<String, List<Map<String, List<Long>>>> getCompoundEdgeMap(final Vertex vertex, final String set) {
-        FireflyRecord ffr = FireflyRecord.read(db, set, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        FireflyRecord ffr = FireflyRecord.read(db, set, FireflyIdFactory.createId((Long) vertex.id()));
         if (ffr == null) {
             return null;
         } else {
@@ -454,7 +454,7 @@ public class StarPackedTest extends AbstractFireflySuite {
     void validateVertexProperty(final Map<String, List<Set<VertexProperty>>> expectedProperties,
                                 final String set,
                                 final Vertex vertex) {
-        FireflyRecord ffr = FireflyRecord.read(db, set, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        FireflyRecord ffr = FireflyRecord.read(db, set, FireflyIdFactory.createId((Long) vertex.id()));
         if (ffr != null) {
             final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
             final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
@@ -472,7 +472,7 @@ public class StarPackedTest extends AbstractFireflySuite {
                     final Map<String, Object> vpValueMapInner = new HashMap<>();
                     final Map<String, Long> vpTypeHintMapInner = new HashMap<>();
                     setOfVPs.forEach(vp -> {
-                        vpIdMapInner.put(vp.key(), NumericIdManager.convert(vp.id()));
+                        vpIdMapInner.put(vp.key(), (Long) vp.id());
                         vpValueMapInner.put(vp.key(), vp.value());
                         vpTypeHintMapInner.put(vp.key(), db.getSupportedType(vp.value().getClass()));
                     });
@@ -555,98 +555,98 @@ public class StarPackedTest extends AbstractFireflySuite {
         );
         Map<String, List<Map<String, List<Long>>>> lyndonOutOut = Map.of(
                 "referred", List.of(Map.of()),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "managedBy", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "managedBy", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInIn = Map.of(
                 "referred", List.of(Map.of()),
-                "manages", List.of(Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                "manages", List.of(Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInOut = Map.of(
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))),
-                "manages", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))));
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()))),
+                "manages", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonOutIn = Map.of(
                 "managedBy", List.of(Map.of(
-                        "managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))),
+                        "managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))),
                 "referred", List.of(Map.of(
-                        "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))));
+                        "referred", List.of((Long) lyndonReferredSimon.id()))));
 
         Map<String, List<Set<VertexProperty>>> ishaanOutVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> ishaanInVP = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> ishaanInIn = null;
         Map<String, List<Map<String, List<Long>>>> ishaanInOut = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutIn = Map.of(
                 "referred", List.of(
-                        Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                               "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                               "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                        Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                               "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                               "referred", List.of((Long) ishaanReferredLyndon.id()))
                 ));
 
         Map<String, List<Set<VertexProperty>>> simonOutVP = null;
         Map<String, List<Set<VertexProperty>>> simonInVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> simonInIn = Map.of("referred", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutOut = null;
         Map<String, List<Map<String, List<Long>>>> simonInOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutIn = null;
 
         Map<String, List<Set<VertexProperty>>> grantOutVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> grantInVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> grantInIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantInOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         Map<String, List<Set<VertexProperty>>> joeOutVP = Map.of("manages", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> joeInVP = Map.of("managedBy", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> joeInIn = Map.of("managedBy", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutOut = Map.of("manages", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeInOut = Map.of("managedBy", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutIn = Map.of("manages", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         validateVertexProperty(lyndonOutVP, db.OUT_VP_SET, lyndon);
@@ -840,98 +840,98 @@ public class StarPackedTest extends AbstractFireflySuite {
         );
         Map<String, List<Map<String, List<Long>>>> lyndonOutOut = Map.of(
                 "referred", List.of(Map.of()),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "managedBy", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "managedBy", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInIn = Map.of(
                 "referred", List.of(Map.of()),
-                "manages", List.of(Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                "manages", List.of(Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInOut = Map.of(
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))),
-                "manages", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))));
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()))),
+                "manages", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonOutIn = Map.of(
                 "managedBy", List.of(Map.of(
-                        "managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))),
+                        "managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))),
                 "referred", List.of(Map.of(
-                        "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))));
+                        "referred", List.of((Long) lyndonReferredSimon.id()))));
 
         Map<String, List<Set<VertexProperty>>> ishaanOutVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> ishaanInVP = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> ishaanInIn = null;
         Map<String, List<Map<String, List<Long>>>> ishaanInOut = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutIn = Map.of(
                 "referred", List.of(
-                        Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                               "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                               "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                        Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                               "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                               "referred", List.of((Long) ishaanReferredLyndon.id()))
                 ));
 
         Map<String, List<Set<VertexProperty>>> simonOutVP = null;
         Map<String, List<Set<VertexProperty>>> simonInVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> simonInIn = Map.of("referred", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutOut = null;
         Map<String, List<Map<String, List<Long>>>> simonInOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutIn = null;
 
         Map<String, List<Set<VertexProperty>>> grantOutVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> grantInVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> grantInIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantInOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         Map<String, List<Set<VertexProperty>>> joeOutVP = Map.of("manages", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> joeInVP = Map.of("managedBy", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> joeInIn = Map.of("managedBy", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutOut = Map.of("manages", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeInOut = Map.of("managedBy", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutIn = Map.of("manages", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         validateVertexProperty(lyndonOutVP, db.OUT_VP_SET, lyndon);
@@ -976,37 +976,37 @@ public class StarPackedTest extends AbstractFireflySuite {
                 "managedBy", List.of(Set.of(joeName, joePosition)),
                 "worksWith", List.of(Set.of(grantName, grantPosition)));
         lyndonOutOut = Map.of(
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "managedBy", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "managedBy", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))));
         lyndonOutIn = Map.of(
                 "managedBy", List.of(Map.of(
-                        "managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                        "managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
 
         ishaanOutOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
 
         simonInVP = new HashMap<>();
         simonInIn = new HashMap<>();
         simonInOut = new HashMap<>();
 
         grantOutOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id())
                 )));
         grantInOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id())
                 )));
 
         joeOutOut = Map.of("manages", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id())
                 )));
         joeInOut = Map.of("managedBy", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id()))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id())
                 )));
 
         validateVertexProperty(lyndonOutVP, db.OUT_VP_SET, lyndon);
@@ -1052,36 +1052,36 @@ public class StarPackedTest extends AbstractFireflySuite {
                 "worksWith", List.of(Set.of(grantName, grantPosition))
         );
         lyndonOutOut = Map.of(
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
                 "managedBy", List.of(Map.of()));
         lyndonInIn = Map.of(
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))),
                 "referred", List.of(Map.of()));
         lyndonInOut = Map.of(
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()))));
         lyndonOutIn = Map.of(
                 "managedBy", List.of(Map.of(
-                        "managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                        "managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
 
         ishaanOutIn = Map.of(
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())),
-                                           "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))));
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()),
+                                           "worksWith", List.of((Long) grantWorksWithLyndon.id()))));
 
         grantInIn = Map.of("worksWith", List.of(
-                Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         grantOutIn = Map.of("worksWith", List.of(
-                Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         joeOutVP = new HashMap<>();
         joeInIn = Map.of("managedBy", List.of(
-                Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         joeOutOut = new HashMap<>();
         joeOutIn = new HashMap<>();
@@ -1130,8 +1130,8 @@ public class StarPackedTest extends AbstractFireflySuite {
         lyndonInIn = Map.of("worksWith", List.of(Map.of()),
                             "referred", List.of(Map.of()));
         lyndonInOut = Map.of(
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()))));
         lyndonOutIn = Map.of();
 
         ishaanOutOut = Map.of("referred", List.of(Map.of()));
@@ -1219,7 +1219,11 @@ public class StarPackedTest extends AbstractFireflySuite {
         Assert.assertEquals(Map.of(), getCompoundEdgeMap(joe, db.OUT_IN_SET));
         Assert.assertEquals(Map.of(), getCompoundEdgeMap(joe, db.OUT_OUT_SET));
 
-        g.V().drop().iterate();
+        lyndon.remove();
+        ishaan.remove();
+        simon.remove();
+        grant.remove();
+        joe.remove();
 
         validateVertexProperty(Map.of(), db.OUT_VP_SET, lyndon);
         validateVertexProperty(Map.of(), db.IN_VP_SET, lyndon);
@@ -1305,101 +1309,105 @@ public class StarPackedTest extends AbstractFireflySuite {
         );
         Map<String, List<Map<String, List<Long>>>> lyndonOutOut = Map.of(
                 "referred", List.of(Map.of()),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))),
-                "managedBy", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))));
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))),
+                "managedBy", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInIn = Map.of(
                 "referred", List.of(Map.of()),
-                "manages", List.of(Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))));
+                "manages", List.of(Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonInOut = Map.of(
-                "referred", List.of(Map.of("referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))),
-                "manages", List.of(Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())))));
+                "referred", List.of(Map.of("referred", List.of((Long) ishaanReferredLyndon.id()))),
+                "manages", List.of(Map.of("manages", List.of((Long) joeManagesLyndon.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) grantWorksWithLyndon.id()))));
         Map<String, List<Map<String, List<Long>>>> lyndonOutIn = Map.of(
                 "managedBy", List.of(Map.of(
-                        "managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())))),
-                "worksWith", List.of(Map.of("worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())))),
+                        "managedBy", List.of((Long) lyndonManagedByJoe.id()))),
+                "worksWith", List.of(Map.of("worksWith", List.of((Long) lyndonWorksWithGrant.id()))),
                 "referred", List.of(Map.of(
-                        "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))));
+                        "referred", List.of((Long) lyndonReferredSimon.id()))));
 
         Map<String, List<Set<VertexProperty>>> ishaanOutVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> ishaanInVP = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> ishaanInIn = null;
         Map<String, List<Map<String, List<Long>>>> ishaanInOut = null;
         Map<String, List<Map<String, List<Long>>>> ishaanOutIn = Map.of(
                 "referred", List.of(
-                        Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                               "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                               "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                        Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                               "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                               "referred", List.of((Long) ishaanReferredLyndon.id()))
                 ));
 
         Map<String, List<Set<VertexProperty>>> simonOutVP = null;
         Map<String, List<Set<VertexProperty>>> simonInVP = Map.of("referred", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> simonInIn = Map.of("referred", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutOut = null;
         Map<String, List<Map<String, List<Long>>>> simonInOut = Map.of("referred", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> simonOutIn = null;
 
         Map<String, List<Set<VertexProperty>>> grantOutVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> grantInVP = Map.of("worksWith", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> grantInIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantInOut = Map.of("worksWith", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> grantOutIn = Map.of("worksWith", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
         Map<String, List<Set<VertexProperty>>> joeOutVP = Map.of("manages", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Set<VertexProperty>>> joeInVP = Map.of("managedBy", List.of(Set.of(lyndonName, lyndonPosition)));
         Map<String, List<Map<String, List<Long>>>> joeInIn = Map.of("managedBy", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutOut = Map.of("manages", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeInOut = Map.of("managedBy", List.of(
-                Map.of("managedBy", List.of(NumericIdManager.convert(lyndonManagedByJoe.id())),
-                       "worksWith", List.of(NumericIdManager.convert(lyndonWorksWithGrant.id())),
-                       "referred", List.of(NumericIdManager.convert(lyndonReferredSimon.id())))
+                Map.of("managedBy", List.of((Long) lyndonManagedByJoe.id()),
+                       "worksWith", List.of((Long) lyndonWorksWithGrant.id()),
+                       "referred", List.of((Long) lyndonReferredSimon.id()))
         ));
         Map<String, List<Map<String, List<Long>>>> joeOutIn = Map.of("manages", List.of(
-                Map.of("manages", List.of(NumericIdManager.convert(joeManagesLyndon.id())),
-                       "worksWith", List.of(NumericIdManager.convert(grantWorksWithLyndon.id())),
-                       "referred", List.of(NumericIdManager.convert(ishaanReferredLyndon.id())))
+                Map.of("manages", List.of((Long) joeManagesLyndon.id()),
+                       "worksWith", List.of((Long) grantWorksWithLyndon.id()),
+                       "referred", List.of((Long) ishaanReferredLyndon.id()))
         ));
 
-        g.V().drop().iterate();
+        lyndon.remove();
+        ishaan.remove();
+        simon.remove();
+        grant.remove();
+        joe.remove();
 
         validateVertexProperty(Map.of(), db.OUT_VP_SET, lyndon);
         validateVertexProperty(Map.of(), db.IN_VP_SET, lyndon);
@@ -1440,32 +1448,32 @@ public class StarPackedTest extends AbstractFireflySuite {
     // This function is very useful when debugging the star data model.
     void dumpInfo(final Vertex vertex) {
         System.out.println("Vertex: " + vertex.property("name"));
-        final FireflyRecord outProperties = FireflyRecord.read(db, db.OUT_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord outProperties = FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tOut Properties:");
         if (outProperties != null) {
             System.out.println("\t\t " + outProperties.record.getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
         }
-        final FireflyRecord inProperties = FireflyRecord.read(db, db.IN_VP_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord inProperties = FireflyRecord.read(db, db.IN_VP_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tIn Properties:");
         if (inProperties != null) {
             System.out.println("\t\t " + inProperties.record.getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
         }
-        final FireflyRecord inIn = FireflyRecord.read(db, db.IN_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord inIn = FireflyRecord.read(db, db.IN_IN_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tIn in:");
         if (inIn != null) {
             System.out.println("\t\t " + inIn.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
-        final FireflyRecord outOut = FireflyRecord.read(db, db.OUT_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord outOut = FireflyRecord.read(db, db.OUT_OUT_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tOut out:");
         if (outOut != null) {
             System.out.println("\t\t " + outOut.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
-        final FireflyRecord inOut = FireflyRecord.read(db, db.IN_OUT_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord inOut = FireflyRecord.read(db, db.IN_OUT_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tIn out:");
         if (inOut != null) {
             System.out.println("\t\t " + inOut.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
-        final FireflyRecord outIn = FireflyRecord.read(db, db.OUT_IN_SET, FireflyId.of(FireflyVertex.class, NumericIdManager.convert(vertex.id())));
+        final FireflyRecord outIn = FireflyRecord.read(db, db.OUT_IN_SET, FireflyIdFactory.createId((Long) vertex.id()));
         System.out.println("\tOut in:");
         if (outIn != null) {
             System.out.println("\t\t " + outIn.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));

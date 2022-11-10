@@ -36,7 +36,6 @@ public class FireflyRecord {
     }};
     protected final Key key;
     public final Record record;
-    public final Class<? extends Serializable> storageClass;
     private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
 
     static {
@@ -51,16 +50,13 @@ public class FireflyRecord {
      * @param ac           AerospikeConnection instance
      * @param key          Aerospike Key to wrap
      * @param record       Aerospike Record to wrap
-     * @param storageClass
      */
-    private FireflyRecord(AerospikeConnection ac,
+    private FireflyRecord(final AerospikeConnection ac,
                           final Key key,
-                          final Record record,
-                          final Class<? extends Serializable> storageClass) {
+                          final Record record) {
         this.ac = ac;
         this.key = key;
         this.record = record;
-        this.storageClass = storageClass;
     }
 
     public Key key() {
@@ -84,29 +80,10 @@ public class FireflyRecord {
         return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
     }
 
-    private static Object keyToStorageType(final Object origId) {
-        if (Integer.class.equals(origId.getClass()))
-            return ((Integer) origId).longValue();
-        return origId;
-    }
-
 
     //Convert a numeric type-hint stored on disk to the class it represents
     private static Class<? extends Serializable> idTypeFromIdx(final long idx) {
         return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == idx).collect(Collectors.toList()).get(0).getKey();
-    }
-    //Return the numeric type hint for a given class
-    private static Long getSupportedIdTypeIdx(final Class clazz) {
-        if (!AerospikeConnection.IdToDiskTypeMap.containsKey(clazz))
-            throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
-        return SupportedKeyTypes.get(clazz);
-    }
-
-    //Return the numeric type hint for a given class
-    private static Long getSupportedKeyTypeIdx(final Class clazz) {
-        if (!AerospikeConnection.KeyToDiskTypeMap.containsKey(clazz))
-            throw new UnsupportedOperationException(clazz.getName() + " is not a supported id type");
-        return AerospikeConnection.SupportedValueTypes.get(clazz);
     }
 
     //return the TinkerPop ID of this firefly record
@@ -120,37 +97,9 @@ public class FireflyRecord {
         return record;
     }
 
-    //Construct an Aerospike key from a Firefly ID
+    // Construct an Aerospike key from a Firefly ID
     public static Key getKey(final String namespace, final String set, final FireflyId id) {
-        final Key key;
-        Class<? extends Object> clazz = id.value().getClass();
-        if (clazz.isAssignableFrom(Long.class))
-            key = new Key(namespace, set, (Long) id.value());
-        else if (clazz.equals(Integer.class))
-            key = new Key(namespace, set, (Long) keyToStorageType(id.value()));
-        else if (clazz.equals(String.class))
-            key = new Key(namespace, set, (String) id.value());
-        else if (clazz.equals(byte[].class))
-            key = new Key(namespace, set, (byte[]) id.value());
-        else
-            throw new UnsupportedOperationException(id.value().getClass() + " unsupported key type");
-        return key;
-    }
-
-    //Construct an Aerospike key from a Firefly ID for an Element type
-    private static Key getElementKey(final String namespace, final String set, final FireflyId id) {
-        final Key key;
-        if (id.value().getClass().equals(Long.class))
-            key = new Key(namespace, set, (Long) id.value());
-        else if (id.value().getClass().equals(Integer.class))
-            key = new Key(namespace, set, (Long) keyToStorageType(id.value()));
-        else if (id.value().getClass().equals(String.class))
-            key = new Key(namespace, set, Long.parseLong((String) id.value()));
-        else if (id.value().getClass().equals(byte[].class))
-            key = new Key(namespace, set, (byte[]) id.value());
-        else
-            throw new UnsupportedOperationException(id.value().getClass() + " unsupported key type");
-        return key;
+        return new Key(namespace, set, Value.get(id.getStorageId()));
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
@@ -158,11 +107,8 @@ public class FireflyRecord {
         final Record record = db.read(key);
         if (record == null)
             return null;
-        final long idTypeIdx = record.getLong(db.ID_TYPE);
-        final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
-        final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(db, key, record, storageClass);
+        return new FireflyRecord(db, key, record);
     }
 
     public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
@@ -176,10 +122,7 @@ public class FireflyRecord {
             final Record record = records[i];
             if (record == null)
                 continue;
-            final long idTypeIdx = record.getLong(db.ID_TYPE);
-            final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
-            final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
-            fireflyRecords.add(new FireflyRecord(db, keys[i], record, storageClass));
+            fireflyRecords.add(new FireflyRecord(db, keys[i], record));
         }
         return fireflyRecords;
     }
@@ -194,11 +137,8 @@ public class FireflyRecord {
     public static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
         if (record == null)
             return null;
-        final long idTypeIdx = record.getLong(db.ID_TYPE);
-        final Class<? extends Serializable> userClass = idTypeFromIdx(idTypeIdx);
-        final Class<? extends Serializable> storageClass = AerospikeConnection.KeyToDiskTypeMap.get(userClass);
 
-        return new FireflyRecord(db, key, record, storageClass);
+        return new FireflyRecord(db, key, record);
     }
 
     /**
@@ -213,9 +153,8 @@ public class FireflyRecord {
                                 final FireflyId id,
                                 final int generation,
                                 final Bin... bins) {
-        final Long supportedIdTypeIdx = getSupportedKeyTypeIdx(id.value().getClass());
         final Key key = getKey(db.getNamespace(), set, id);
-        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
+        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         db.write(key, generation, listOfBins.toArray(new Bin[0]));
@@ -233,11 +172,10 @@ public class FireflyRecord {
                                     final FireflyId id,
                                     final int generation,
                                     final Bin... bins) {
-        final Long supportedIdTypeIdx = getSupportedIdTypeIdx(id.value().getClass());
-        final Key key = getElementKey(db.getNamespace(), set, id);
+        final Key key = getKey(db.getNamespace(), set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         if (generation == -1) {
-            final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(supportedIdTypeIdx));
+            final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
             listOfBins.add(idTypeBin);
         }
         db.write(key, generation, listOfBins.toArray(new Bin[0]));

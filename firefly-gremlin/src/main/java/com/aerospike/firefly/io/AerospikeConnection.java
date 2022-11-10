@@ -1,19 +1,43 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.*;
-import com.aerospike.client.async.*;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Host;
+import com.aerospike.client.Info;
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
+import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
+import com.aerospike.client.Value;
+import com.aerospike.client.async.EventLoops;
+import com.aerospike.client.async.EventPolicy;
+import com.aerospike.client.async.Monitor;
+import com.aerospike.client.async.NettyEventLoops;
+import com.aerospike.client.async.NioEventLoops;
+import com.aerospike.client.async.Throttles;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
-import com.aerospike.client.policy.*;
-import com.aerospike.client.query.*;
+import com.aerospike.client.policy.ClientPolicy;
+import com.aerospike.client.policy.GenerationPolicy;
+import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.Policy;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.TraversalCache;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -62,8 +86,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final String E_IN_INDEX;
     private final String E_OUT_INDEX;
 
-
-    private static final boolean SUPERNODE_INDEX_ENABLED = false;
 
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
@@ -123,8 +145,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String GLOBAL;
     public final String TEST_SET;
     public final Configuration conf;
-
-    // User supplied id cache
     public final String USER_SUPPLIED_ID_CACHE_SET;
     public final String USER_SUPPLIED_ID_VERTEX_CACHE;
     public final String USER_SUPPLIED_ID_EDGE_CACHE;
@@ -132,6 +152,11 @@ public class AerospikeConnection implements AutoCloseable {
     public final ConcurrentHashMap<UUID, TraversalCache> traversalCacheSet;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
+    public final boolean ENABLE_PERIODIC_METADATA_UPDATE;
+    public final long METADATA_UPDATE_FREQUENCY;
+    public final boolean ADJACENCY_INDEX_ENABLED;
+    public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
+
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
@@ -143,13 +168,10 @@ public class AerospikeConnection implements AutoCloseable {
     public AerospikeConnection(final Configuration conf) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
-        conf.getKeys().forEachRemaining(key -> LOG.debug(String.format("\tconfig: [%s]:[%s]", key, conf.get(String.class, key))));
-        LOG.debug("\thost {} {}", ConfigurationHelper.Keys.AEROSPIKE_HOST, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_HOST));
-        LOG.debug("\tport {} {}", ConfigurationHelper.Keys.AEROSPIKE_PORT, conf.get(Integer.class, ConfigurationHelper.Keys.AEROSPIKE_PORT));
-        LOG.debug("\tns {} {}", ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf.get(String.class, ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+        conf.getKeys().forEachRemaining(key -> LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
         this.conf = conf;
         this.host = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
-        this.port = Integer.valueOf(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+        this.port = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
         this.namespace = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
 
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
@@ -159,7 +181,6 @@ public class AerospikeConnection implements AutoCloseable {
         this.client = new AerospikeClient(clientPolicy, hosts);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
-
         IN_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_VP_SET, conf);
         OUT_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_VP_SET, conf);
         IN_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_IN_SET, conf);
@@ -215,6 +236,8 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
+        ENABLE_PERIODIC_METADATA_UPDATE = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE, conf));
+        METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY, conf));
 
         // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -222,6 +245,8 @@ public class AerospikeConnection implements AutoCloseable {
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
 
+        ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
+        EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
 
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
@@ -273,7 +298,8 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo performance
         LOG.trace("Scanning {} ids.", setName);
         final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-        return IteratorUtils.map(i, keyRecordEntry -> NumericIdManager.convert(keyRecordEntry.getKey().userKey.getObject()));
+        return IteratorUtils.map(i, r -> (Long) FireflyIdFactory.createFromRecord(this,
+                FireflyRecord.fromRecord(this, r.getKey(), r.getValue())).getStorageId());
     }
 
     public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
@@ -426,14 +452,14 @@ public class AerospikeConnection implements AutoCloseable {
                     .forEach(strAry -> {
                         Map<String, String> data = new HashMap<>();
                         Arrays.stream(strAry).forEach(entryStr -> {
-                            if(entryStr.isEmpty())
+                            if (entryStr.isEmpty())
                                 return;
-                            if(entryStr.contains("="))
+                            if (entryStr.contains("="))
                                 data.put(entryStr.split("=")[0], entryStr.split("=")[1]);
                             else
-                                data.put(Keys.RESULT,entryStr);
+                                data.put(Keys.RESULT, entryStr);
                         });
-                        if(data.size()>0)
+                        if (data.size() > 0)
                             results.add(data);
                     });
             return results;
@@ -561,22 +587,8 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
-
-    /**
-     * Cast an Id to its on-disk storage type
-     *
-     * @param origId raw id
-     * @return id cast to on-disk type
-     */
-    public static Object idToStorageType(Object origId) {
-        if (FireflyElement.class.isAssignableFrom(origId.getClass()))
-            origId = ((FireflyElement) origId).id();
-        if (Integer.class.equals(origId.getClass()))
-            return ((Integer) origId).longValue();
-        if (String.class.equals(origId.getClass()))
-            return Long.parseLong((String) origId);
-        return origId;
-    }
+    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
+    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * return the set name for an elements properties
@@ -612,7 +624,7 @@ public class AerospikeConnection implements AutoCloseable {
     public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
         List<String> existingIndexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
-        if (SUPERNODE_INDEX_ENABLED) {
+        if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
                     IndexType.NUMERIC, IndexCollectionType.DEFAULT);
@@ -657,6 +669,8 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(getElementPropertySet(FireflyEdge.class), LABEL);
         dropIndex(getElementPropertySet(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(getElementPropertySet(FireflyEdge.class), E_LABEL_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertex.class), STRING_V_VP_KV_INDEX);
+        dropIndex(getElementPropertySet(FireflyVertex.class), NUMERIC_V_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), STRING_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyVertexProperty.class), NUMERIC_VP_KV_INDEX);
         dropIndex(getElementPropertySet(FireflyEdge.class), STRING_E_KV_INDEX);
@@ -819,6 +833,10 @@ public class AerospikeConnection implements AutoCloseable {
         return InfoOps.isEnterprise(client);
     }
 
+
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+        return queryIndex(setName,indexName,filter,new QueryPolicy());
+    }
     /**
      * Issue a query on an index providing a custom filter
      *
@@ -827,15 +845,14 @@ public class AerospikeConnection implements AutoCloseable {
      * @param filter    Custom Filter
      * @return Iterator of KeyRecord pair results
      */
-    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
+    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter, QueryPolicy policy) {
         final Statement stmt = new Statement();
         stmt.setNamespace(namespace);
         stmt.setSetName(setName);
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
-        final QueryPolicy p = new QueryPolicy();
         try {
-            return client.query(p, stmt).iterator();
+            return client.query(policy, stmt).iterator();
         } catch (AerospikeException ae) {
             throw new RuntimeException(ae);
         }
@@ -857,6 +874,39 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long getReadMetric() {
         return readMetric.get();
+    }
+
+    /**
+     * Increment the generation check retry count
+     */
+    public static void incrementGenerationCheckRetryMetric() {
+        generationCheckRetryMetric.incrementAndGet();
+    }
+
+    /**
+     * Return the generation check retry count
+     *
+     * @return generation check retry count
+     */
+    public static long getGenerationCheckRetryMetric() {
+        return generationCheckRetryMetric.get();
+    }
+
+
+    /**
+     * Set the generation check high-water mark
+     */
+    public static void setGenerationCheckHighWaterMark(final long value) {
+        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
+    }
+
+    /**
+     * Return the high-water mark for generation check retries
+     *
+     * @return number of retries
+     */
+    public static long getGenerationCheckHighWaterMark() {
+        return generationCheckHighWaterMark.get();
     }
 
     /**
@@ -1004,11 +1054,11 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     private <V> void protectedWriteTypeHintedValueToMap(final String aeroSet,
-                                                       final FireflyId fid,
-                                                       final String mapName,
-                                                       final String mapKey,
-                                                       final V value,
-                                                       final Bin... additionalBins) {
+                                                        final FireflyId fid,
+                                                        final String mapName,
+                                                        final String mapKey,
+                                                        final V value,
+                                                        final Bin... additionalBins) {
         final Map<String, Object> data;
         final Map<String, Object> typeHints;
         final int generation;
@@ -1102,7 +1152,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Decrement an Id counter by 1
      *
-     * @param name name of Counter to operate on
+     * @param name of Counter to operate on
      * @return value of counter after operation
      */
     public long decrementIdCounter(final String name) {
@@ -1111,10 +1161,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Decrement an Id counter.
-     *
+     * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
      *
-     * @param name name of Counter to operate on
+     * @param name   name of Counter to operate on
      * @param amount amount on Counter to decrement
      * @return value of counter after operation
      */
@@ -1135,7 +1185,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyId.of(null, name), -1, ctr);
+        FireflyRecord.write(this, ID_MANAGER_SET, FireflyIdFactory.createId(name), -1, ctr);
         return 0L;
     }
 
@@ -1194,24 +1244,37 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropDatabase(boolean dropIndices) {
         LOG.info("Dropping database.");
-        client.truncate(null, namespace, EDGE_AERO_SET, null);
-        client.truncate(null, namespace, VERTEX_AERO_SET, null);
-        client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
-        client.truncate(null, namespace, ID_MANAGER_SET, null);
-        client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
-        client.truncate(null, namespace, TEST_SET, null);
-        client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
-        client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
-        client.truncate(null, namespace, GRAPH_METADATA_SET, null);
-        client.truncate(null, namespace, INDEX_METADATA, null);
-        client.truncate(null, namespace, OUT_VP_SET, null);
-        client.truncate(null, namespace, IN_VP_SET, null);
-        client.truncate(null, namespace, OUT_OUT_SET, null);
-        client.truncate(null, namespace, OUT_IN_SET, null);
-        client.truncate(null, namespace, IN_OUT_SET, null);
-        client.truncate(null, namespace, IN_IN_SET, null);
-        if (dropIndices)
-            dropGraphIndices();
+        try {
+            // If using the client APIs to perform the truncate command on a single-threaded application it is
+            // suggested to add a millisecond (ms) sleep. The truncate operation has a 1 millisecond resolution and
+            // writes occurring within the same millisecond are not deleted.
+            // Source: https://discuss.aerospike.com/t/guidelines-for-deleting-data/3681/1
+            Thread.sleep(1);
+            client.truncate(null, namespace, EDGE_AERO_SET, null);
+            client.truncate(null, namespace, VERTEX_AERO_SET, null);
+            client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
+            client.truncate(null, namespace, ID_MANAGER_SET, null);
+            client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
+            client.truncate(null, namespace, TEST_SET, null);
+            client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
+            client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
+            client.truncate(null, namespace, GRAPH_METADATA_SET, null);
+            client.truncate(null, namespace, INDEX_METADATA, null);
+            client.truncate(null, namespace, OUT_VP_SET, null);
+            client.truncate(null, namespace, IN_VP_SET, null);
+            client.truncate(null, namespace, OUT_OUT_SET, null);
+            client.truncate(null, namespace, OUT_IN_SET, null);
+            client.truncate(null, namespace, IN_OUT_SET, null);
+            client.truncate(null, namespace, IN_IN_SET, null);
+            if (dropIndices)
+                dropGraphIndices();
+            Thread.sleep(1);
+        } catch (final InterruptedException e) {
+            // Why would anyone invoke this method in a runner thread that can also have interrupt() called on it? Who
+            // knows - just be amazed that they did it with 1ms precision and handle it anyway.
+            LOG.warn("InterruptedException caught during database truncate: ", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

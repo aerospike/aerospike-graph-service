@@ -6,23 +6,17 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 
@@ -31,16 +25,7 @@ import java.util.Iterator;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class PackedGraph extends RelationalGraph {
-    private static final Logger LOG = LoggerFactory.getLogger(PackedGraph.class);
     public static final String DATA_MODEL = "packed";
-
-    static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                PackedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create()));
-    }
 
     /**
      * Constructor for PackedGraph.
@@ -50,20 +35,9 @@ public class PackedGraph extends RelationalGraph {
      */
     public PackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, conf))) {
-            TraversalStrategies.GlobalCache.registerStrategies(
-                    PackedGraph.class,
-                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone()
-                            .addStrategies(FireflyTraversalCacheStrategy.instance()));
-        }
-    }
-
-
-    static {
         TraversalStrategies.GlobalCache.registerStrategies(
                 PackedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyGraphStepStrategy.instance()));
+                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
     }
 
     @Override
@@ -145,7 +119,7 @@ public class PackedGraph extends RelationalGraph {
                         Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -174,7 +148,7 @@ public class PackedGraph extends RelationalGraph {
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -203,7 +177,7 @@ public class PackedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyId.of(FireflyVertex.class, kr.key.userKey.getObject())));
+                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 

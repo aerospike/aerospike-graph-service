@@ -48,12 +48,6 @@ public abstract class AbstractFireflySuite {
         graph.getBaseGraph().dropDatabase();
     }
 
-    public static FireflyGraph getNewGraph() {
-        LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
-        db = AerospikeConnection.connect(config);
-        return FireflyGraph.open(config);
-    }
-
     @Before
     public void beforeTest() {
         // Test check to see if we should run this test.

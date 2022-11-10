@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+
 public class StarPackedTest {
 
     private static final List<Path> CONFIG_FILES;
@@ -46,18 +48,21 @@ public class StarPackedTest {
     FireflyGraph graph;
     AerospikeConnection db;
 
+    public static void clearDatabase() {
+        try (final AerospikeConnection db = AerospikeConnection.connect(
+                ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            db.dropDatabase();
+        }
+    }
+
     @BeforeClass
     public static void clearDatabaseBefore() {
-        final FireflyGraph fireflyGraph = AbstractFireflySuite.getNewGraph();
-        fireflyGraph.getBaseGraph().dropDatabase();
-        fireflyGraph.close();
+        clearDatabase();
     }
 
     @AfterClass
     public static void clearDatabaseAfter() {
-        final FireflyGraph fireflyGraph = AbstractFireflySuite.getNewGraph();
-        fireflyGraph.getBaseGraph().dropDatabase();
-        fireflyGraph.close();
+        clearDatabase();
     }
 
     @Test

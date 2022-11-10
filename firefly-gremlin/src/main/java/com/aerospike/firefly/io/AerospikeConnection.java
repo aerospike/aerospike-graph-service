@@ -159,6 +159,9 @@ public class AerospikeConnection implements AutoCloseable {
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
 
+    private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
+    private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
+
     /**
      * Construct a new AerospikeConnection
      *
@@ -247,6 +250,25 @@ public class AerospikeConnection implements AutoCloseable {
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
+
+
+        // Validate two hop steps.
+        for (final String step : OPTIMIZED_TWO_HOP_STEPS) {
+            if (!VALID_OPTIMIZED_TWO_HOP_STEPS.contains(step)) {
+                LOG.error("Error starting graph with OPTIMIZED_TWO_HOP_STEPS {}. Valid values are {}.", OPTIMIZED_TWO_HOP_STEPS, VALID_OPTIMIZED_TWO_HOP_STEPS);
+                throw new IllegalArgumentException("Error starting graph with OPTIMIZED_TWO_HOP_STEPS " + OPTIMIZED_TWO_HOP_STEPS +
+                        ". Valid values are " + VALID_OPTIMIZED_TWO_HOP_STEPS + ".");
+            }
+        }
+
+        // Validate hop constraint steps.
+        for (final String step : OPTIMIZED_HOP_CONSTRAINT_STEPS) {
+            if (!VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(step)) {
+                LOG.error("Error starting graph with OPTIMIZED_HOP_CONSTRAINT_STEPS {}. Valid values are {}.", OPTIMIZED_HOP_CONSTRAINT_STEPS, VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS);
+                throw new IllegalArgumentException("Error starting graph with OPTIMIZED_HOP_CONSTRAINT_STEPS " + OPTIMIZED_HOP_CONSTRAINT_STEPS +
+                        ". Valid values are " + VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS + ".");
+            }
+        }
     }
 
     /**

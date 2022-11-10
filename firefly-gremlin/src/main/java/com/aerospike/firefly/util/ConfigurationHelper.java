@@ -206,7 +206,10 @@ public final class ConfigurationHelper {
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
-        return Arrays.stream(getOrDefault(key, config).split(",")).map(String::trim).collect(Collectors.toList());
+        // Adds a space if it is empty. Remove the space.
+        final List<String> values = Arrays.stream(getOrDefault(key, config).split(",")).map(String::trim).collect(Collectors.toList());
+        values.remove("");
+        return values;
     }
 
     public static Configuration loadFromFile(final Path path) {

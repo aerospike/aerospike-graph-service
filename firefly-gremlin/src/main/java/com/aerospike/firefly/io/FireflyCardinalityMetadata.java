@@ -30,7 +30,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     private final String edgeStringPropertyIndex;
     private final String edgeNumericPropertyIndex;
 
-    private boolean previousFailure = false;
+    private String previousFailure;
 
     public FireflyCardinalityMetadata(final AerospikeConnection db,
                             final String vertexLabelIndex,
@@ -70,14 +70,14 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         try {
             // Use previous failure flag to make sure we don't spam the log. If it fails, print it once, then if it starts working and failing again, print it again.
             final CardinalityInfo cardinalityInfo = new CardinalityInfo(getValue(info, ENTRIES) * nodeCount, getValue(info, ENTRIES_PER_BVAL) * nodeCount);
-            previousFailure = false;
+            previousFailure = "";
             return cardinalityInfo;
         } catch (Exception e) {
             // Invalid.
-            if (!previousFailure) {
+            if (!e.getMessage().equals(previousFailure)) {
                 LOG.error("Failed to get cardinality info from {}.", info, e);
             }
-            previousFailure = true;
+            previousFailure = e.getMessage();
             return new CardinalityInfo();
         }
     }

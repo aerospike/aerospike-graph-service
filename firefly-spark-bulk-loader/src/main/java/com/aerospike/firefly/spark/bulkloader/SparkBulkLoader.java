@@ -50,10 +50,10 @@ public class SparkBulkLoader {
         final Set<String> vertexFiles = new HashSet<>();
         final Set<String> edgeFiles = new HashSet<>();
         try {
-            CommandLine cmd = validInputs(args);
+            final CommandLine cmd = validInputs(args);
             env = cmd.hasOption("e") ? cmd.getOptionValue("e") : env;
             if ( env.equals("local") ) {
-                String DEFAULT_CONFIG_PATH = "conf/spark-bulk-loader-conf/config.properties";
+                final String DEFAULT_CONFIG_PATH = "conf/spark-bulk-loader-conf/config.properties";
                 config_path = cmd.hasOption("c") ? cmd.getOptionValue("c") : DEFAULT_CONFIG_PATH;
                 path = Path.of(config_path);
                 config = getConfig(path);
@@ -91,7 +91,7 @@ public class SparkBulkLoader {
         final List<Dataset<Row>> edgeDatasets = new ArrayList<>();
 
         for (final String vertexFile : vertexFiles) {
-            Map<String, String> options = new HashMap<>();
+            final Map<String, String> options = new HashMap<>();
             options.put("header", "true");
             final Dataset<Row> vertexData = spark.read().options(options).csv(vertexFile);
             final Set<String> headers = new HashSet<>();
@@ -108,7 +108,7 @@ public class SparkBulkLoader {
         }
 
         for (final String edgeFile : edgeFiles) {
-            Map<String, String> options = new HashMap<>();
+            final Map<String, String> options = new HashMap<>();
             options.put("header", "true");
             final Dataset<Row> edgeData = spark.read().options(options).csv(edgeFile);
             final Set<String> headers = new HashSet<>();
@@ -131,7 +131,7 @@ public class SparkBulkLoader {
             vertexData.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
                 logger.warn("PartitionId in VertexDataSet = " + TaskContext.getPartitionId()); //numerical value
                 ArrayList<Long> list = new ArrayList<>(0);
-                var new_config = config;
+                Configuration new_config = config;
                 if ( !env.equals("local") ) {
                     s3Client = AmazonS3ClientBuilder.standard().build();
                     new_config = loadConfigFromS3(finalBucket, finalConfig_path);
@@ -164,10 +164,10 @@ public class SparkBulkLoader {
         // Edges
         for (final Dataset<Row> edgeData : edgeDatasets) {
             final String finalBucket = bucket;
-            String finalConfig_path = config_path;
+            final String finalConfig_path = config_path;
             edgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
                 logger.info("PartitionId in EdgeDataSet = " + TaskContext.getPartitionId()); //numerical value
-                var new_config = config;
+                Configuration new_config = config;
                 if ( !env.equals("local") ) {
                     s3Client = AmazonS3ClientBuilder.standard().build();
                     new_config = loadConfigFromS3(finalBucket, finalConfig_path);
@@ -228,12 +228,14 @@ public class SparkBulkLoader {
      * @return
      */
     public static Set<String> getObjectsListFromS3(final String bucketName, final String folderKey) {
-        Set<String> keys = new HashSet<>();
+        final Set<String> keys = new HashSet<>();
         ObjectListing response = s3Client.listObjects(bucketName, folderKey);
         List<S3ObjectSummary> objects = response.getObjectSummaries();
         for (S3ObjectSummary object : objects) {
             keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
         }
+        // listObjects loads 1000 object keys in one call.
+        // if there are multiple directories with multi thousand files, then need to object each objects in batch using below method
         while( response.isTruncated() ) {
             response = s3Client.listNextBatchOfObjects(response);
             objects = response.getObjectSummaries();
@@ -252,11 +254,11 @@ public class SparkBulkLoader {
      */
     public static Configuration loadConfigFromS3(final String bucket, final String path) {
         try {
-            Properties props = new Properties();
-            S3Object s3Object = s3Client.getObject(bucket, path);
-            InputStream is = s3Object.getObjectContent();
+            final Properties props = new Properties();
+            final S3Object s3Object = s3Client.getObject(bucket, path);
+            final InputStream is = s3Object.getObjectContent();
             props.load(is);
-            HashMap<String, Object> configData = new HashMap<>();
+            final HashMap<String, Object> configData = new HashMap<>();
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
@@ -269,7 +271,7 @@ public class SparkBulkLoader {
         }
     }
     public static CommandLine validInputs(String[] args) throws Exception {
-        Options options = new Options();
+        final Options options = new Options();
         Option envOption = new Option("e", "env", true, "local or prod");
         options.addOption(envOption);
 
@@ -283,8 +285,8 @@ public class SparkBulkLoader {
     }
 
     public static CommandLine validInputs(String[] args, Options options) throws Exception {
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cmd;
+        final CommandLineParser parser = new DefaultParser();
+        final CommandLine cmd;
         try {
             cmd = parser.parse(options, args);
         } catch (Exception e) {

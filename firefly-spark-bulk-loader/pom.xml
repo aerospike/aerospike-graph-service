@@ -16,7 +16,6 @@
             <groupId>com.aerospike</groupId>
             <artifactId>firefly-gremlin</artifactId>
             <version>${project.version}</version>
-<!--            <scope>compile</scope>-->
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -48,7 +47,6 @@
             <groupId>com.aerospike</groupId>
             <artifactId>firefly-gremlin</artifactId>
             <version>${project.version}</version>
-            <!--            <scope>compile</scope>-->
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-core -->
         <dependency>

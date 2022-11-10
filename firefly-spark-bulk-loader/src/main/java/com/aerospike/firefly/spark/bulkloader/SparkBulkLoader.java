@@ -6,7 +6,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.cli.*;
@@ -83,7 +83,7 @@ public class SparkBulkLoader {
 
         conf.setAppName("firefly-bulk-loader")
             .set("spark.driver.allowMultipleContexts", "false")
-            .set("spark.ui.enabled", "false");
+            .set("spark.ui.enabled", "true");
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 
@@ -206,6 +206,11 @@ public class SparkBulkLoader {
         spark.stop();
     }
 
+    /**
+     * Function to load config files from local path
+     * @param directory
+     * @return
+     */
     static private Set<String> validateAndGetFiles(final String directory) {
         File file = new File(directory);
         File[] directories = file.listFiles(File::isDirectory);
@@ -215,17 +220,36 @@ public class SparkBulkLoader {
         return Collections.singleton(directory);
     }
 
+    /**
+     * Function to load input files from S3.
+     * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
+     * @param bucketName
+     * @param folderKey
+     * @return
+     */
     public static Set<String> getObjectsListFromS3(final String bucketName, final String folderKey) {
         Set<String> keys = new HashSet<>();
-        ListObjectsV2Result response = s3Client.listObjectsV2(bucketName, folderKey);
+        ObjectListing response = s3Client.listObjects(bucketName, folderKey);
         List<S3ObjectSummary> objects = response.getObjectSummaries();
-
         for (S3ObjectSummary object : objects) {
             keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+        }
+        while( response.isTruncated() ) {
+            response = s3Client.listNextBatchOfObjects(response);
+            objects = response.getObjectSummaries();
+            for (S3ObjectSummary object : objects) {
+                keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+            }
         }
         return keys;
     }
 
+    /**
+     * Function to load config file from S3.
+     * @param bucket
+     * @param path
+     * @return
+     */
     public static Configuration loadConfigFromS3(final String bucket, final String path) {
         try {
             Properties props = new Properties();

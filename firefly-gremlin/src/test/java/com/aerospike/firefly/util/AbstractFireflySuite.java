@@ -45,8 +45,8 @@ public abstract class AbstractFireflySuite {
     public static void openGraph() {
         LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
-        graph = GraphFactory.createGraph(db,config);
+        graph = FireflyGraph.open(config);
+        graph.getBaseGraph().dropDatabase();
     }
 
     @Before

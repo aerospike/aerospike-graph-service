@@ -916,7 +916,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         config.getKeys().forEachRemaining(key -> {
             assertEquals(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().property(key).value(), config.getString(key));
         });
-        assertEquals(IteratorUtils.list(graph.configuration().getKeys()).size(), props.size());
+        assertEquals(IteratorUtils.list(graph.configuration().getKeys()).size() + 2, props.size());
     }
 
     @Test

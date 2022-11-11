@@ -112,6 +112,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
         public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
+        public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
 
         // BufferedNumericIdManager
@@ -192,6 +193,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
         put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
+        put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");

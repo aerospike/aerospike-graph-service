@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -203,6 +204,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             strategies.addStrategies(FireflyGraphDropStrategy.instance());
         } else {
             strategies.removeStrategies(FireflyGraphDropStrategy.class);
+        }
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
+            strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
+        } else {
+            strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
         }
     }
 

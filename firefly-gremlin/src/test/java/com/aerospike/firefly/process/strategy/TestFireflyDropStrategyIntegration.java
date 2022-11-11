@@ -1,10 +1,8 @@
-package com.aerospike.firefly.process;
+package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;

@@ -26,6 +26,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -718,6 +719,30 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Add edge to local edge cache.
         addEdgeToJVMCache(direction, edgeId, edgeLabel);
+    }
+
+    public void appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String ... edgeIds) {
+        if (edgeIds == null || edgeIds.length == 0) {
+            if (direction == Direction.IN || direction == Direction.BOTH) {
+                final List<FireflyId> inEdgeIds = getInEdgeIds();
+                if (inEdgeIds != null) {
+                    adjacentVertexIds.addAll(
+                            inEdgeIds.stream().map(id ->
+                                            ((FireflyIdComposite)id).getOutVertexId()).
+                                    collect(Collectors.toList()));
+                }
+            }
+            if (direction == Direction.OUT || direction == Direction.BOTH) {
+                final List<FireflyId> outEdgeIds = getOutEdgeIds();
+                if (outEdgeIds != null) {
+                    adjacentVertexIds.addAll(
+                            outEdgeIds.stream().map(id ->
+                                    ((FireflyIdComposite)id).getInVertexId()).
+                                    collect(Collectors.toList()));
+                }
+            }
+        }
+        // Need to add support for filtering with labels.
     }
 
     static class PropertyValueIdMaps {

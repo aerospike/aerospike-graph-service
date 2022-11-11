@@ -85,8 +85,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String E_LABEL_INDEX;
     private final String E_IN_INDEX;
     private final String E_OUT_INDEX;
-
-
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
@@ -156,9 +154,13 @@ public class AerospikeConnection implements AutoCloseable {
     public final long METADATA_UPDATE_FREQUENCY;
     public final boolean ADJACENCY_INDEX_ENABLED;
     public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
-
+    public final List<String> OPTIMIZED_TWO_HOP_STEPS; // Optionally: ["out_out", "out_in", "in_out", "in_in"].
+    public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
+
+    private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
+    private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
 
     /**
      * Construct a new AerospikeConnection
@@ -238,18 +240,35 @@ public class AerospikeConnection implements AutoCloseable {
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
         ENABLE_PERIODIC_METADATA_UPDATE = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PERIODIC_METADATA_UPDATE, conf));
         METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.METADATA_UPDATE_FREQUENCY, conf));
-
-        // User supplied id cache.
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
         USER_SUPPLIED_ID_VERTEX_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_CACHE, conf);
         USER_SUPPLIED_ID_EDGE_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_EDGE_CACHE, conf);
         USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, conf);
-
+        OPTIMIZED_TWO_HOP_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_TWO_HOP_STEPS, conf);
+        OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);
         ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
-
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
+
+
+        // Validate two hop steps.
+        for (final String step : OPTIMIZED_TWO_HOP_STEPS) {
+            if (!VALID_OPTIMIZED_TWO_HOP_STEPS.contains(step)) {
+                LOG.error("Error starting graph with OPTIMIZED_TWO_HOP_STEPS {}. Valid values are {}.", OPTIMIZED_TWO_HOP_STEPS, VALID_OPTIMIZED_TWO_HOP_STEPS);
+                throw new IllegalArgumentException("Error starting graph with OPTIMIZED_TWO_HOP_STEPS " + OPTIMIZED_TWO_HOP_STEPS +
+                        ". Valid values are " + VALID_OPTIMIZED_TWO_HOP_STEPS + ".");
+            }
+        }
+
+        // Validate hop constraint steps.
+        for (final String step : OPTIMIZED_HOP_CONSTRAINT_STEPS) {
+            if (!VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(step)) {
+                LOG.error("Error starting graph with OPTIMIZED_HOP_CONSTRAINT_STEPS {}. Valid values are {}.", OPTIMIZED_HOP_CONSTRAINT_STEPS, VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS);
+                throw new IllegalArgumentException("Error starting graph with OPTIMIZED_HOP_CONSTRAINT_STEPS " + OPTIMIZED_HOP_CONSTRAINT_STEPS +
+                        ". Valid values are " + VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS + ".");
+            }
+        }
     }
 
     /**

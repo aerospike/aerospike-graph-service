@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -120,6 +121,8 @@ public final class ConfigurationHelper {
 
         public static final String ENABLE_PERIODIC_METADATA_UPDATE = "ENABLE_PERIODIC_METADATA_UPDATE";
         public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
+        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
+        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -198,7 +201,16 @@ public final class ConfigurationHelper {
         put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
+        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
     }};
+
+    public static List<String> getOrDefaultList(final String key, final Configuration config) {
+        // Adds a space if it is empty. Remove the space.
+        final List<String> values = Arrays.stream(getOrDefault(key, config).split(",")).map(String::trim).collect(Collectors.toList());
+        values.remove("");
+        return values;
+    }
 
     public static Configuration loadFromFile(final Path path) {
         try {

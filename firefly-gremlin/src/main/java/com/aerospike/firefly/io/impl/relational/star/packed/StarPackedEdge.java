@@ -24,8 +24,7 @@ public class StarPackedEdge extends RelationalEdge {
         // Concrete example of how to remove an edge between two vertices:
         //
         // First let's consider the following sets:
-        //   Vertex, inVP, outVP, inIn, inOut, outIn, outOut.
-        //      Vertex holds the data 1 one vertex.
+        //   inVP, outVP, inIn, inOut, outIn, outOut.
         //      inVP holds the properties for the attached in vertices.
         //      outVP holds the properties for the attached out vertices.
         //      inIn holds the in edges for the in vertices.
@@ -40,10 +39,12 @@ public class StarPackedEdge extends RelationalEdge {
         //  4. Loop through the outVertex in and out edges and remove an out.out and in.out paths to inVertex via outVertex from adjacent vertices.
         //  5. Remove in.in and in.out paths that go through outVertex from inVertex.
         //  6. Remove out.in and out.out paths that go through inVertex from outVertex.
-        //  Actual edge is removed separately, and so is the edge in the vertex records.
+        //
+        //  Removal of the edge itself is done separately, and so is removing the edge from the vertex records.
+
+        final StarPackedGraph graph = (StarPackedGraph) this.graph;
 
         // 1. Find the properties of the out vertex in the outVP set of the in vertex and remove it.
-        final StarPackedGraph graph = (StarPackedGraph) this.graph;
         if (graph.enableOutVp) {
             StarPackedVertex.removeAdjacentVertexPropertiesFromVertex(db, this, Direction.OUT);
         }

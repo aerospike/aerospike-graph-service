@@ -18,7 +18,6 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -27,7 +26,6 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -48,11 +46,11 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
-    private AerospikeConnection db;
     private Map<String, List<Long>> inEdgeIds;
     private Map<String, List<Long>> outEdgeIds;
     private long inEdgeCount;
     private long outEdgeCount;
+    protected AerospikeConnection db;
 
     /**
      * Constructor for RelationalVertex.
@@ -104,11 +102,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id);
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id));
-
-        // The star data model holds some additional data that must be removed when the vertex is removed.
-        if (StarPackedGraph.isStarPackedGraph(graph)) {
-            StarPackedGraph.removeVertex(db, this);
-        }
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
@@ -583,7 +576,9 @@ public abstract class RelationalVertex extends FireflyVertex {
             case LinkedVertex.VERTEX_TYPE_HINT:
                 return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<Long>>) vertexPropertyIds, vertexPropertyIds.size(), db);
             case PackedVertex.VERTEX_TYPE_HINT:
-                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, Long>) vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
+                return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new HashMap<>(), new HashMap<>(),
+                        -1, -1, (Map<String, Long>) vertexPropertyIds, vertexPropertyValueMap,
+                        vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -674,7 +669,9 @@ public abstract class RelationalVertex extends FireflyVertex {
                 case LinkedVertex.VERTEX_TYPE_HINT:
                     return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
                 case PackedVertex.VERTEX_TYPE_HINT:
-                    return new PackedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), new HashMap<>(), new HashMap<>(), vertexPropertyCount, db);
+                    return PackedVertex.PackedVertexFactory.create(id, label, graph, new HashMap<>(), new HashMap<>(),
+                            -1, -1, new HashMap<>(), new HashMap<>(), new HashMap<>(), vertexPropertyCount,
+                            db);
                 default:
                     // Should never happen.
                     throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -710,7 +707,9 @@ public abstract class RelationalVertex extends FireflyVertex {
                 }
                 final Map<String, Long> vertexPropertyIds = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
                         (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
-                return new PackedVertex(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyCount, db);
+                return PackedVertex.PackedVertexFactory.create(id, label, graph, inEdgeIds, outEdgeIds, inEdgeCount,
+                        outEdgeCount, vertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints,
+                        vertexPropertyCount, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);

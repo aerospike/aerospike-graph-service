@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**

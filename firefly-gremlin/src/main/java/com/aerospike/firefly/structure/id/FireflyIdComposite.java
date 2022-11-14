@@ -1,9 +1,15 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.firefly.structure.FireflyEdge;
+
 import java.nio.ByteBuffer;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class FireflyIdComposite extends FireflyId {
     private final byte[] id;
+    private final FireflyId edgeId;
 
     public FireflyIdComposite(final FireflyId edgeId, final FireflyId inVertexId, final FireflyId outVertexId) {
         this.id = new byte[Long.BYTES * 3];
@@ -15,10 +21,12 @@ public class FireflyIdComposite extends FireflyId {
             this.id[i + Long.BYTES] = inId[i];
             this.id[i + Long.BYTES * 2] = outId[i];
         }
+        this.edgeId = edgeId;
     }
 
     public FireflyIdComposite(final byte[] ids) {
         id = ids;
+        this.edgeId = FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0));
     }
 
     private byte[] longToBytes(final long x) {
@@ -49,17 +57,17 @@ public class FireflyIdComposite extends FireflyId {
 
     @Override
     public Object getUserId() {
-        return getEdgeId().getUserId();
+        return edgeId.getUserId();
     }
 
     @Override
     public Object getStorageId() {
-        return id;
+        return longFromBytes(0);
     }
 
     @Override
     public Long getStorageTypeIdx() {
-        return 4L;
+        return edgeId.getStorageTypeIdx();
     }
 
     @Override
@@ -70,10 +78,8 @@ public class FireflyIdComposite extends FireflyId {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        FireflyIdComposite that = (FireflyIdComposite) o;
-
+        if (o == null || getClass() != o.getClass()) return edgeId.equals(o);
+        final FireflyIdComposite that = (FireflyIdComposite) o;
         return java.util.Arrays.equals(id, that.id);
     }
 }

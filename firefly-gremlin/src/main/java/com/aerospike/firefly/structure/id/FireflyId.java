@@ -1,5 +1,8 @@
 package com.aerospike.firefly.structure.id;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public abstract class FireflyId {
     public abstract Object getUserId();
     public abstract Object getStorageId();

@@ -186,7 +186,6 @@
                                 </transformer>
                             </transformers>
                         </configuration>
-
                     </execution>
                 </executions>
             </plugin>

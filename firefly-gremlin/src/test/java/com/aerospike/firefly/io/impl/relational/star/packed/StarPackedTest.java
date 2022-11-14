@@ -3,6 +3,7 @@ package com.aerospike.firefly.io.impl.relational.star.packed;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -480,7 +482,22 @@ public class StarPackedTest {
         if (ffr == null) {
             return null;
         } else {
-            return (Map<String, List<Map<String, List<Long>>>>) ffr.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+            final Map<String, List<Map<String, List<Object>>>> compoundEdgeMap = (Map<String, List<Map<String, List<Object>>>>) ffr.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+            final Map<String, List<Map<String, List<Long>>>> compoundEdgeMapLong = new HashMap<>();
+            compoundEdgeMap.forEach((k, v) -> {
+                final List<Map<String, List<Long>>> longList = new ArrayList<>();
+                v.forEach(l -> {
+                    final Map<String, List<FireflyId>> ffids = FireflyIdFactory.convertMapListObjectToFireflyIdMap(l);
+                    final Map<String, List<Long>> ffStorageId = new HashMap<>();
+                    ffids.forEach((m, n) -> {
+                        List<Long> longs = n.stream().map(i -> (Long)i.getStorageId()).collect(Collectors.toList());
+                        ffStorageId.put(m, longs);
+                    });
+                    longList.add(ffStorageId);
+                });
+                compoundEdgeMapLong.put(k, longList);
+            });
+            return compoundEdgeMapLong;
         }
     }
 

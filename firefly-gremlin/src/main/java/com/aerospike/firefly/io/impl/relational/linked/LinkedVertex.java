@@ -183,7 +183,7 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         // Read this vertex and update in case we have had concurrent updates.
-        final LinkedVertex linkedVertex = (LinkedVertex)fromRecord(graph, new KeyRecord(record.key(), record.record()));
+        final LinkedVertex linkedVertex = (LinkedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
         this.vertexPropertyCount = linkedVertex.vertexPropertyCount;
         this.vertexPropertyIds = linkedVertex.vertexPropertyIds;
 
@@ -218,7 +218,7 @@ public class LinkedVertex extends RelationalVertex {
         final int generation = record.record.generation;
         if (vpCounter <= db.ID_CACHE_SIZE - 1) {
             // Can directly overwrite vertex property map.
-            final Bin vertexProperties = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
+            final Bin vertexProperties = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapListToStorage(vertexPropertyIds)));
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
 
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexProperties, vertexPropertiesCounter);
@@ -252,7 +252,7 @@ public class LinkedVertex extends RelationalVertex {
         // Requires that the properties be read from the database, because they have been removed in a traversal
         final Map<String, List<FireflyId>> reReadIdMap;
         if (record != null) {
-            final Map<String, List<Object>> vertexPropertyIds = (Map<String, List<Object>>)record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Object>> vertexPropertyIds = (Map<String, List<Object>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
             reReadIdMap = FireflyIdFactory.convertMapListObjectToFireflyIdMap(vertexPropertyIds);
         } else {
             reReadIdMap = vertexPropertyIds;
@@ -286,8 +286,8 @@ public class LinkedVertex extends RelationalVertex {
             return Collections.emptyIterator();
         }
 
-        FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
-        List<FireflyId> vertexPropertyIdList;
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, this.id);
+        final List<FireflyId> vertexPropertyIdList;
         if (record != null) {
             final List<Object> ids = (List<Object>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID).get(key);
             vertexPropertyIdList = FireflyIdFactory.convertObjectListToFireflyIdList(ids);

@@ -39,7 +39,6 @@ public class PackedVertex extends RelationalVertex {
     private Map<String, Object> vertexPropertyValues;
     private Map<String, Long> vertexPropertyValuesTypeHints;
     private long vertexPropertyCount;
-    protected AerospikeConnection db;
 
     /**
      * Constructor for PackedVertex.
@@ -57,17 +56,17 @@ public class PackedVertex extends RelationalVertex {
      * @param db                   Aerospike connection.
      */
     protected PackedVertex(final FireflyId fid,
-                        final String label,
-                        final FireflyGraph graph,
-                        final Map<String, List<FireflyId>> inEdgeIds,
-                        final Map<String, List<FireflyId>> outEdgeIds,
-                        final long inEdgeCount,
-                        final long outEdgeCount,
-                        final Map<String, FireflyId> vertexPropertyIds,
-                        final Map<String, Object> vertexPropertyValues,
-                        final Map<String, Long> vertexPropertyValuesTypeHints,
-                        final long vertexPropertyCount,
-                        final AerospikeConnection db) {
+                           final String label,
+                           final FireflyGraph graph,
+                           final Map<String, List<FireflyId>> inEdgeIds,
+                           final Map<String, List<FireflyId>> outEdgeIds,
+                           final long inEdgeCount,
+                           final long outEdgeCount,
+                           final Map<String, FireflyId> vertexPropertyIds,
+                           final Map<String, Object> vertexPropertyValues,
+                           final Map<String, Long> vertexPropertyValuesTypeHints,
+                           final long vertexPropertyCount,
+                           final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
 
         // To enable values to have index functions run, cardinality must be single.
@@ -79,7 +78,6 @@ public class PackedVertex extends RelationalVertex {
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
         this.vertexPropertyValues = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValues;
         this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValuesTypeHints;
-        this.db = db;
     }
 
     @Override

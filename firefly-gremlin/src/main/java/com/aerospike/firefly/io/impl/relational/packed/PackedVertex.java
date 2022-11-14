@@ -56,7 +56,7 @@ public class PackedVertex extends RelationalVertex {
      * @param vertexPropertyCount  vertex property count.
      * @param db                   Aerospike connection.
      */
-    public PackedVertex(final FireflyId fid,
+    protected PackedVertex(final FireflyId fid,
                         final String label,
                         final FireflyGraph graph,
                         final Map<String, List<FireflyId>> inEdgeIds,

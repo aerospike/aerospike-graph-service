@@ -4,26 +4,86 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.NumericIdManager;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class StarPackedVertex {
+public class StarPackedVertex extends PackedVertex {
     public static final int VERTEX_TYPE_HINT = 2;
     private static final Logger LOG = LoggerFactory.getLogger(StarPackedVertex.class);
+
+    public StarPackedVertex(final FireflyId fid,
+                            final String label,
+                            final FireflyGraph graph,
+                            final Map<String, List<Long>> inEdgeIds,
+                            final Map<String, List<Long>> outEdgeIds,
+                            final long inEdgeCount,
+                            final long outEdgeCount,
+                            final Map<String, Long> vertexPropertyIds,
+                            final Map<String, Object> vertexPropertyValues,
+                            final Map<String, Long> vertexPropertyValuesTypeHints,
+                            final long vertexPropertyCount,
+                            final AerospikeConnection db) {
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds,
+                vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount, db);
+    }
+
+    /**
+     * Remove vertex. Any edges attached to a vertex must be removed
+     * when the edge is removed.
+     */
+    @Override
+    public void remove() {
+        super.remove();
+
+        // The star data model holds some additional data that must be removed when the vertex is removed.
+
+        // To remove the vertex, we must simply remove the additional sets that are associated with the vertex.
+        // The edge addition / removal is what builds and tears down the additional data in the sets,
+        // so we don't need any fancy logic for that here.
+
+        // Create list of all relevant sets, would be nice to make this static but unfortunately there are runtime
+        // additions.
+        final List<String> sets = List.of(this.db.IN_IN_SET, this.db.IN_OUT_SET, this.db.OUT_IN_SET,
+                this.db.OUT_OUT_SET, this.db.IN_VP_SET, this.db.OUT_VP_SET);
+
+        // Remove vertex from the list.
+        LOG.debug("Removing vertex {} from sets: {}.", this.id.toString(), sets);
+        sets.forEach(set ->
+                this.db.delete(FireflyRecord.getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id)));
+    }
+
+    /**
+     * Remove the vertex property from the vertex.
+     *
+     * @param key              vertex property label.
+     * @param vertexPropertyId id of the vertex property to remove.
+     */
+    @Override
+    public void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId) {
+        final StarPackedGraph graph = (StarPackedGraph) this.graph;
+        removeVertexPropertyFromAdjacentVertices(key, graph.enableInVp, graph.enableOutVp);
+        super.removeVertexPropertyForModel(key, vertexPropertyId);
+    }
 
     public static void writeAdjacentProperties(final AerospikeConnection db,
                                                final Direction direction,
@@ -328,17 +388,14 @@ public class StarPackedVertex {
         }
     }
 
-    public static void removeVertexPropertyFromAdjacentVertices(final AerospikeConnection db,
-                                                                final FireflyVertex vertex,
-                                                                final String key,
-                                                                final boolean enableInVp,
-                                                                final boolean enableOutVp) {
+    private void removeVertexPropertyFromAdjacentVertices(final String key, final boolean enableInVp,
+                                                          final boolean enableOutVp) {
         // These are intentionally flipped.
         if (enableInVp) {
-            removeVertexPropertyAdjacentVertexViaEdges(db, Direction.OUT, vertex, key);
+            removeVertexPropertyAdjacentVertexViaEdges(Direction.OUT, key);
         }
         if (enableOutVp) {
-            removeVertexPropertyAdjacentVertexViaEdges(db, Direction.IN, vertex, key);
+            removeVertexPropertyAdjacentVertexViaEdges(Direction.IN, key);
         }
     }
 
@@ -409,13 +466,11 @@ public class StarPackedVertex {
         });
     }
 
-    private static void removeVertexPropertyAdjacentVertexViaEdges(final AerospikeConnection db,
-                                                                   final Direction direction,
-                                                                   final FireflyVertex vertex,
-                                                                   final String key) {
+    private void removeVertexPropertyAdjacentVertexViaEdges(final Direction direction, final String key) {
+        final AerospikeConnection db = this.db;
         // We need to loop through attached vertices, getting their edge in the opposite direction (which points at
         // this vertex) and then add the property.
-        final Iterator<Edge> edges = vertex.edges(direction);
+        final Iterator<Edge> edges = this.edges(direction);
 
         // Set is switched since this is running on adjacent vertex.
         final String set = direction.equals(Direction.IN) ? db.OUT_VP_SET : db.IN_VP_SET;
@@ -426,8 +481,8 @@ public class StarPackedVertex {
             // Get all vertex property related bins.
             final FireflyRecord record = FireflyRecord.read(db, set, vpId);
             if (record == null) {
-                LOG.error("Could not find {} record for vertex {} when adding properties to adjacent lists of vertex {}.", set, vpId, vertex.id());
-                throw new RuntimeException(String.format("Could not find %s record for vertex %s when adding properties to adjacent lists of vertex %s.", set, vpId, vertex.id()));
+                LOG.error("Could not find {} record for vertex {} when adding properties to adjacent lists of vertex {}.", set, vpId, this.id());
+                throw new RuntimeException(String.format("Could not find %s record for vertex %s when adding properties to adjacent lists of vertex %s.", set, vpId, this.id()));
 
             }
 
@@ -438,15 +493,15 @@ public class StarPackedVertex {
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
                     vertexVPTypeHint == null || !vertexVPTypeHint.containsKey(edge.label()) ||
                     vertexVPId == null || !vertexVPId.containsKey(edge.label())) {
-                LOG.error("Vertex property list {} of vertex {} were missing edge label {} when adding properties to adjacent lists of vertex {}.", set, vpId, edge.label(), vertex.id());
-                throw new RuntimeException(String.format("Vertex property list %s of vertex %s were missing edge label %s when adding properties to adjacent lists of vertex %s.", set, vpId, edge.label(), vertex.id()));
+                LOG.error("Vertex property list {} of vertex {} were missing edge label {} when adding properties to adjacent lists of vertex {}.", set, vpId, edge.label(), this.id());
+                throw new RuntimeException(String.format("Vertex property list %s of vertex %s were missing edge label %s when adding properties to adjacent lists of vertex %s.", set, vpId, edge.label(), this.id()));
             }
 
             // To get our entry, we need to find which position this edge exists in in the master list of the vertex.
             final Map<String, List<Long>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES : db.IN_EDGES);
             if (!edgeLabelToId.containsKey(edge.label())) {
-                LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), vertex.id(), vpId);
-                throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), vertex.id(), vpId));
+                LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), this.id(), vpId);
+                throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), this.id(), vpId));
             }
 
             final List<Long> edgeIds = edgeLabelToId.get(edge.label());
@@ -454,11 +509,11 @@ public class StarPackedVertex {
             final List<Map<String, Long>> vertexPropertyTypeHints = vertexVPTypeHint.get(edge.label());
             final List<Map<String, Long>> vertexPropertyIds = vertexVPId.get(edge.label());
             if (edgeIds.size() != vertexPropertyValues.size()) {
-                LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id());
-                throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id()));
+                LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, this.id());
+                throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, this.id()));
             }
             final int edgeIndex = findInList(edgeIds, (Long) ((FireflyEdge) edge).id.getStorageId(),
-                                             String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
+                                             String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, this.id()));
             vertexPropertyValues.get(edgeIndex).remove(key);
             vertexVPValue.put(edge.label(), vertexPropertyValues);
             vertexPropertyTypeHints.get(edgeIndex).remove(key);
@@ -745,7 +800,7 @@ public class StarPackedVertex {
         }
     }
 
-    private static void  removeFromMap(final Map<String, List<Map<String, ?>>> map,
+    private static void removeFromMap(final Map<String, List<Map<String, ?>>> map,
                                       final String key,
                                       final int index,
                                       final boolean removeKey,

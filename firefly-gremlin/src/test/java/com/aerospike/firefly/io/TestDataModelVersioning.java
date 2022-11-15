@@ -119,7 +119,7 @@ public class TestDataModelVersioning {
 
         @Override
         public void bulkWriteVertex(long vertexId, String label, List<Map.Entry<String, Object>> properties,
-                                    Map<String, List<Long>> outEdges, Map<String, List<Long>> inEdges,
+                                    Map<String, List<FireflyId>> outEdges, Map<String, List<FireflyId>> inEdges,
                                     boolean cacheDisabled) {
         }
 

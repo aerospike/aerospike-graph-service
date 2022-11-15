@@ -42,15 +42,17 @@ public class StarPackedGraph extends PackedGraph {
      */
     public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        TraversalStrategies.GlobalCache.registerStrategies(
-                StarPackedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
-        enableOutVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_OUT_VP);
-        enableInVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_IN_VP);
-        enableOutOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_OUT);
-        enableOutIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_IN);
-        enableInOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_OUT);
-        enableInIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_IN);
+        synchronized (StarPackedGraph.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    StarPackedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(PackedGraph.class).clone());
+            enableOutVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_OUT_VP);
+            enableInVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_IN_VP);
+            enableOutOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_OUT);
+            enableOutIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_IN);
+            enableInOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_OUT);
+            enableInIn = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_IN_IN);
+        }
     }
 
     public static boolean isStarPackedGraph(final FireflyGraph graph) {

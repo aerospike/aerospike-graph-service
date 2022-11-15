@@ -119,22 +119,19 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldCopyFromGraphAToGraphB", reason = "Test enabled by MultiProperties, likely did not work prior")
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
-    public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
-
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-
-    public final IdManager<Long> vertexIdManager;
-    public final IdManager<Long> edgeIdManager;
-    public final IdManager<Long> vertexPropertyIdManager;
-    protected final AerospikeConnection db;
+    public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
+    private AtomicBoolean closed = new AtomicBoolean(false);
+    private Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
     private final Configuration configuration;
     private final FireflyGraphVariables variables;
-
+    protected final AerospikeConnection db;
     protected FireflyGraphComputerView graphComputerView = null;
-    private AtomicBoolean closed = new AtomicBoolean(false);
+    public final IdManager<Long> vertexIdManager;
+    public final IdManager<Long> edgeIdManager;
+    public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
-    private Timer fireflyCardinalityMetadataTask = new Timer(true);
 
     static {
         TraversalStrategies.GlobalCache.registerStrategies(
@@ -179,30 +176,32 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         }
 
-        final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
+        synchronized (FireflyGraph.class) {
+            final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
 
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
-            //@todo
-            // this can be supported by querying all nodes and dividing by replication factor,
-            // but since there is another known issue with Info lagging, and querying all nodes would produce results
-            // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-            if (db.getClient().getNodes().length > 1)
-                throw new RuntimeException("fast count not supported for multi node");
-            strategies.addStrategies(FireflyGraphCountStrategy.instance());
-        } else {
-            strategies.removeStrategies(FireflyGraphCountStrategy.class);
-        }
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
+                //@todo
+                // this can be supported by querying all nodes and dividing by replication factor,
+                // but since there is another known issue with Info lagging, and querying all nodes would produce results
+                // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
+                if (db.getClient().getNodes().length > 1)
+                    throw new RuntimeException("fast count not supported for multi node");
+                strategies.addStrategies(FireflyGraphCountStrategy.instance());
+            } else {
+                strategies.removeStrategies(FireflyGraphCountStrategy.class);
+            }
 
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
-            strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
-        } else {
-            strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
-        }
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
+                strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
+            } else {
+                strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
+            }
 
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
-            strategies.addStrategies(FireflyGraphDropStrategy.instance());
-        } else {
-            strategies.removeStrategies(FireflyGraphDropStrategy.class);
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
+                strategies.addStrategies(FireflyGraphDropStrategy.instance());
+            } else {
+                strategies.removeStrategies(FireflyGraphDropStrategy.class);
+            }
         }
     }
 

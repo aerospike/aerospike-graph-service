@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -11,6 +12,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,31 +35,37 @@ public class TestRelationalVertex extends AbstractFireflySuite {
     @Test
     public void scanAndIndexHaveEquivalentResultsBoth() {
         RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<Long> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.BOTH));
-        List<Long> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.BOTH));
-        Collections.sort(idsByIndex);
-        Collections.sort(idsByScan);
-        assertEquals(idsByScan.size(), idsByIndex.size());
-        assertEquals(idsByScan, idsByIndex);
+        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.BOTH));
+        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.BOTH));
+        List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        Collections.sort(longIdsByIndex);
+        Collections.sort(longIdsByScan);
+        assertEquals(longIdsByScan.size(), longIdsByIndex.size());
+        assertEquals(longIdsByScan, longIdsByIndex);
     }
     @Test
     public void scanAndIndexHaveEquivalentResultsIN() {
         RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<Long> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.IN));
-        List<Long> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.IN));
-        Collections.sort(idsByIndex);
-        Collections.sort(idsByScan);
-        assertEquals(idsByScan.size(), idsByIndex.size());
-        assertEquals(idsByScan, idsByIndex);
+        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.IN));
+        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.IN));
+        List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        Collections.sort(longIdsByIndex);
+        Collections.sort(longIdsByScan);
+        assertEquals(longIdsByScan.size(), longIdsByIndex.size());
+        assertEquals(longIdsByScan, longIdsByIndex);
     }
     @Test
     public void scanAndIndexHaveEquivalentResultsOUT() {
         RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<Long> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.OUT));
-        List<Long> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.OUT));
-        Collections.sort(idsByIndex);
-        Collections.sort(idsByScan);
-        assertEquals(idsByScan.size(), idsByIndex.size());
-        assertEquals(idsByScan, idsByIndex);
+        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.OUT));
+        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.OUT));
+        List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
+        Collections.sort(longIdsByIndex);
+        Collections.sort(longIdsByScan);
+        assertEquals(longIdsByScan.size(), longIdsByIndex.size());
+        assertEquals(longIdsByScan, longIdsByIndex);
     }
 }

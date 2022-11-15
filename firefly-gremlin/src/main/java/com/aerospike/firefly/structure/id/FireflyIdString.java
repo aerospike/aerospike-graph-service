@@ -3,7 +3,7 @@ package com.aerospike.firefly.structure.id;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyIdString implements FireflyId {
+public class FireflyIdString extends FireflyId {
     private final String id;
 
     // Package private. Only the factory should be instantiating this.
@@ -26,6 +26,10 @@ public class FireflyIdString implements FireflyId {
         return 5L;
     }
 
+    @Override
+    public String getCachedId() {
+        return getStorageId();
+    }
 
     @Override
     public String toString() {

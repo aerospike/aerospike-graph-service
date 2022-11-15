@@ -52,7 +52,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
-    public abstract List<Long> getEdgeIdsFromVertex(final Direction direction);
+    public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
@@ -142,16 +142,18 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Get id for edge.
         FireflyId edgeId;
+        final FireflyId inVertexId = ((FireflyVertex)vertex).id;
+        final FireflyId outVertexId = this.id;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+            edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
 
             // TODO: GRAPH-186.
             while (graph.edgeExists(edgeId)) {
-                edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+                edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
             }
         } else {
             try {
-                edgeId = FireflyIdFactory.createFromKeyValues(FireflyEdge.class, keyValues);
+                edgeId = FireflyIdFactory.createEdgeIdFromKeyValues(inVertexId, outVertexId, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();

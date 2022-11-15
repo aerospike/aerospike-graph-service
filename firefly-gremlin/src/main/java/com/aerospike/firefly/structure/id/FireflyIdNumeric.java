@@ -1,12 +1,11 @@
 package com.aerospike.firefly.structure.id;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyIdNumeric implements FireflyId {
+public class FireflyIdNumeric extends FireflyId {
     private final Long id;
 
     // Can be null.
@@ -74,6 +73,11 @@ public class FireflyIdNumeric implements FireflyId {
     }
 
     @Override
+    public Long getCachedId() {
+        return getStorageId();
+    }
+
+    @Override
     public String toString() {
         return id.toString();
     }
@@ -81,8 +85,8 @@ public class FireflyIdNumeric implements FireflyId {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        return getStorageId().equals(((FireflyIdNumeric) o).getStorageId());
+        if (o instanceof FireflyId) return getStorageId().equals(((FireflyId) o).getStorageId());
+        return false;
     }
 
     static abstract class GetUserId {

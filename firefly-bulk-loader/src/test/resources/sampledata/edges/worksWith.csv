@@ -1,7 +1,0 @@
-~id,~label,~from,~to
-2,worksWith,3,4
-3,worksWith,3,5
-4,worksWith,4,3
-5,worksWith,4,5
-6,worksWith,5,3
-7,worksWith,5,4

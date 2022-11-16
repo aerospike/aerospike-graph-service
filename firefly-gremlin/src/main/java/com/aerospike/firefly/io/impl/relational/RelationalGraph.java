@@ -202,14 +202,16 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public void bulkWriteVertex(final long vertexId, final String label,
-                                final List<Map.Entry<String, Object>> properties, final Map<String, List<Long>> outEdges,
-                                final Map<String, List<Long>> inEdges, final boolean cacheDisabled) {
+                                final List<Map.Entry<String, Object>> properties, final Map<String, List<FireflyId>> outEdges,
+                                final Map<String, List<FireflyId>> inEdges, final boolean cacheDisabled) {
         final int vertexTypeHint = getTypeHint();
         final Map<String, ?> vertexPropertyIds;
+        final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
                 vertexPropertyIds = getPropertyIdMap(this, properties, FireflyIdFactory.createId(vertexId), true);
+                vertexPropertyIdsWritable = FireflyIdFactory.convertMapListToCache((Map<String, List<FireflyId>>) vertexPropertyIds);
                 vertexPropertyValueMap = null;
                 break;
             case StarPackedVertex.VERTEX_TYPE_HINT:
@@ -217,6 +219,7 @@ public abstract class RelationalGraph extends FireflyGraph {
             case PackedVertex.VERTEX_TYPE_HINT:
                 final RelationalVertex.PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(this, properties);
                 vertexPropertyIds = propertyValueIdMaps.idMap;
+                vertexPropertyIdsWritable = FireflyIdFactory.convertMapToCache(propertyValueIdMaps.idMap);
                 vertexPropertyValueMap = propertyValueIdMaps.valueMap;
                 break;
             default:
@@ -226,9 +229,9 @@ public abstract class RelationalGraph extends FireflyGraph {
 
         // Create vertex bins for vertex label, property ids, and property counter.
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin vertexPropertyIdsBin = new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
+        final Bin vertexPropertyIdsBin = new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
         final Bin vertexPropertyCounterBin =
-                new Bin(this.db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIds.size())));
+                new Bin(this.db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdsWritable.size())));
         final Bin typeHint = new Bin(this.db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
 
         // Load edges.
@@ -249,12 +252,12 @@ public abstract class RelationalGraph extends FireflyGraph {
             outEdgeCountValue = Value.get(db.ID_CACHE_SIZE);
         } else {
             long outEdgeCount = 0;
-            for (final Map.Entry<String, List<Long>> labelToIds : outEdges.entrySet()) {
+            for (final Map.Entry<String, List<FireflyId>> labelToIds : outEdges.entrySet()) {
                 outEdgeCount += labelToIds.getValue().size();
             }
             outEdgeCountValue = Value.get(outEdgeCount);
         }
-        final Bin outEdgeDataBin = new Bin(this.db.OUT_EDGES, Value.get(outEdges));
+        final Bin outEdgeDataBin = new Bin(this.db.OUT_EDGES, Value.get(FireflyIdFactory.convertMapListToCache(outEdges)));
         final Bin outEdgeCounterBin = new Bin(this.db.OUT_EDGE_COUNTER, outEdgeCountValue);
 
         // Create vertex bins for in edges.
@@ -263,12 +266,12 @@ public abstract class RelationalGraph extends FireflyGraph {
             inEdgeCountValue = Value.get(db.ID_CACHE_SIZE);
         } else {
             long inEdgeCount = 0;
-            for (final Map.Entry<String, List<Long>> labelToIds : inEdges.entrySet()) {
+            for (final Map.Entry<String, List<FireflyId>> labelToIds : inEdges.entrySet()) {
                 inEdgeCount += labelToIds.getValue().size();
             }
             inEdgeCountValue = Value.get(inEdgeCount);
         }
-        final Bin inEdgeDataBin = new Bin(this.db.IN_EDGES, Value.get(inEdges));
+        final Bin inEdgeDataBin = new Bin(this.db.IN_EDGES, Value.get(FireflyIdFactory.convertMapListToCache(inEdges)));
         final Bin inEdgeCounterBin = new Bin(this.db.IN_EDGE_COUNTER, inEdgeCountValue);
 
         // Create vertex bin for cache state.

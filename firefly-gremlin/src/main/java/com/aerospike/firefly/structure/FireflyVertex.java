@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -57,17 +56,13 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
-     * Function to remove vertex properties. Goes here so it can ensure it hits the star model as well.
+     * Function to remove vertex properties.
      *
      * @param key              Vertex property key.
      * @param vertexPropertyId Vertex property id.
      */
     public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
-        if (StarPackedGraph.isStarPackedGraph(graph)) {
-            StarPackedGraph.removeVertexProperty(graph.getBaseGraph(), this, key);
-        }
         removeVertexPropertyForModel(key, vertexPropertyId);
-
     }
 
     /**

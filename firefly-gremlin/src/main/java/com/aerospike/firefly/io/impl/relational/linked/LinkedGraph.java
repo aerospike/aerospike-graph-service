@@ -39,9 +39,11 @@ final public class LinkedGraph extends RelationalGraph {
      */
     public LinkedGraph(final AerospikeConnection db, final Configuration conf) {
         super(db, conf);
-        TraversalStrategies.GlobalCache.registerStrategies(
-                LinkedGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
+        synchronized (LinkedGraph.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    LinkedGraph.class,
+                    TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class).clone());
+        }
     }
 
     @Override

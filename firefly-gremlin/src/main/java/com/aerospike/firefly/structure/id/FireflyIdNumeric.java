@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -86,8 +85,8 @@ public class FireflyIdNumeric extends FireflyId {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        return getStorageId().equals(((FireflyIdNumeric) o).getStorageId());
+        if (o instanceof FireflyId) return getStorageId().equals(((FireflyId) o).getStorageId());
+        return false;
     }
 
     static abstract class GetUserId {

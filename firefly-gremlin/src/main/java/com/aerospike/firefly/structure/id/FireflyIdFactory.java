@@ -209,6 +209,21 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
+    public static Map<String, List<Object>> convertMapListToCache(final Map<String, List<FireflyId>> fireflyObjectIds) {
+        if (fireflyObjectIds == null) {
+            return new HashMap<>();
+        }
+        final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
+        for (final String label : fireflyObjectIds.keySet()) {
+            final List<Object> ids = new ArrayList<>();
+            for (final FireflyId id : fireflyObjectIds.get(label)) {
+                ids.add(id.getCachedId());
+            }
+            labelEdgeIds.put(label, ids);
+        }
+        return labelEdgeIds;
+    }
+
     public static Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new HashMap<>();
@@ -216,6 +231,18 @@ public class FireflyIdFactory {
         final Map<String, Object> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final Object id = fireflyObjectIds.get(label).getStorageId();
+            labelEdgeIds.put(label, id);
+        }
+        return labelEdgeIds;
+    }
+
+    public static Map<String, Object> convertMapToCache(final Map<String, FireflyId> fireflyObjectIds) {
+        if (fireflyObjectIds == null) {
+            return new HashMap<>();
+        }
+        final Map<String, Object> labelEdgeIds = new HashMap<>();
+        for (final String label : fireflyObjectIds.keySet()) {
+            final Object id = fireflyObjectIds.get(label).getCachedId();
             labelEdgeIds.put(label, id);
         }
         return labelEdgeIds;

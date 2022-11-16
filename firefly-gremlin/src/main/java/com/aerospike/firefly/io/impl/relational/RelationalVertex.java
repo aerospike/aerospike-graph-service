@@ -18,7 +18,6 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -47,7 +46,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
-    private final AerospikeConnection db;
+    protected final AerospikeConnection db;
     private final Map<String, List<FireflyId>> inEdgeIds;
     private final Map<String, List<FireflyId>> outEdgeIds;
     private final long inEdgeCount;
@@ -81,286 +80,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         this.db = db;
     }
 
-    /**
-     * Get property id map.
-     *
-     * @param graph           Graph to use.
-     * @param properties      Properties.
-     * @param vertexId        Vertex id.
-     * @param writeProperties Write properties flag.
-     * @return Property id map.
-     */
-    public static Map<String, List<FireflyId>> getPropertyIdMap(final FireflyGraph graph,
-                                                           final List<Map.Entry<String, Object>> properties,
-                                                           final FireflyId vertexId,
-                                                           final boolean writeProperties) {
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Loop through properties and populate the vertex property id cache and vertex property label id map.
-        final Map<String, List<FireflyId>> vertexPropertyLabelIdMap = new HashMap<>();
-        final Map<String, List<Object>> vertexPropertyValueMap = new HashMap<>();
-        properties.forEach(vp -> {
-            if (!vertexPropertyValueMap.containsKey(vp.getKey())) {
-                vertexPropertyValueMap.put(vp.getKey(), new ArrayList<>());
-            }
-            vertexPropertyValueMap.get(vp.getKey()).add(vp.getValue());
-        });
-        vertexPropertyValueMap.forEach((key, value) -> value.forEach(v -> {
-                    // Get id for vertex property.
-                    final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
-
-                    // Add to vertex property ids to map.
-                    if (!vertexPropertyLabelIdMap.containsKey(key)) {
-                        vertexPropertyLabelIdMap.put(key, new ArrayList<>());
-                    }
-                    vertexPropertyLabelIdMap.get(key).add(vertexPropertyId);
-
-                    if (writeProperties) {
-                        // Create a bin for the vertex property name (key) and a bin for the vertex property id.
-                        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-                        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
-
-                        // Write vertex property with type hint.
-                        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
-                    }
-                }
-        ));
-        return vertexPropertyLabelIdMap;
-    }
-
-    /**
-     * Get property value map.
-     *
-     * @param graph      Graph to use.
-     * @param properties Properties.
-     * @return Property value map.
-     */
-    public static PropertyValueIdMaps getPropertyValueIdMaps(final FireflyGraph graph, final List<Map.Entry<String, Object>> properties) {
-        // Loop through properties nad populate the vertex properties value map.
-        final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
-        final Map<String, FireflyId> vertexPropertyIdMap = new HashMap<>();
-        properties.forEach(vp -> {
-            // Get id for vertex property.
-            final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
-
-            // Add id and vertex property.
-            vertexPropertyValueMap.put(vp.getKey(), vp.getValue());
-            vertexPropertyIdMap.put(vp.getKey(), vertexPropertyId);
-        });
-
-        // Return vertex property value map.
-        return new PropertyValueIdMaps(vertexPropertyValueMap, vertexPropertyIdMap);
-    }
-
-    /**
-     * Write and construct a FireflyVertex using the provided parameters.
-     * This function is static because it is used by the RelationalGraph
-     * to write a new FireflyVertex.
-     *
-     * @param graph      FireflyGraph to use.
-     * @param vertexId   id of vertex,.
-     * @param label      String label of vertex.
-     * @param properties Map of properties to add to vertex.
-     * @return FireflyVertex.
-     */
-    public static FireflyVertex writeVertex(final FireflyGraph graph,
-                                            final FireflyId vertexId,
-                                            final String label,
-                                            final List<Map.Entry<String, Object>> properties,
-                                            final int vertexTypeHint) {
-        LOG.debug("Writing Vertex {} {}.", vertexId, properties);
-
-        // Get database connection.
-        final AerospikeConnection db = graph.getBaseGraph();
-        Map<String, ?> vertexPropertyIds;
-        Map<String, ?> vertexPropertyIdsWritable;
-        final Map<String, Object> vertexPropertyValueMap;
-        switch (vertexTypeHint) {
-            case LinkedVertex.VERTEX_TYPE_HINT:
-                vertexPropertyIds = getPropertyIdMap(graph, properties, vertexId, true);
-                vertexPropertyIdsWritable = FireflyIdFactory.convertMapListToStorage((Map<String, List<FireflyId>>)vertexPropertyIds);
-                vertexPropertyValueMap = null;
-                break;
-            case StarPackedVertex.VERTEX_TYPE_HINT:
-                // Star specific
-                // Fall through
-            case PackedVertex.VERTEX_TYPE_HINT:
-                final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, properties);
-                vertexPropertyIds = propertyValueIdMaps.idMap;
-                vertexPropertyIdsWritable = FireflyIdFactory.convertMapToStorage(propertyValueIdMaps.idMap);
-                vertexPropertyValueMap = propertyValueIdMaps.valueMap;
-                break;
-            default:
-                // Should never happen.
-                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
-        }
-
-        // Create vertex bins for vertex label, property ids, and property counter.
-        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
-        final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdsWritable.size())));
-        final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
-
-        // Write vertex bins to Aerospike.
-        final Map<String, Long> vertexPropertyTypeHintMap;
-        if (vertexPropertyValueMap != null) {
-            final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
-            vertexPropertyTypeHintMap = new HashMap<>();
-            for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
-                vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
-            }
-            final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
-
-            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
-        } else {
-            vertexPropertyTypeHintMap = null;
-
-            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
-        }
-
-        switch (vertexTypeHint) {
-            case LinkedVertex.VERTEX_TYPE_HINT:
-                return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<FireflyId>>) vertexPropertyIds, vertexPropertyIds.size(), db);
-            case PackedVertex.VERTEX_TYPE_HINT:
-                return new PackedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap, vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
-            default:
-                // Should never happen.
-                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
-        }
-    }
-
-    /**
-     * Read and construct a FireflyVertex using the FireflyId.
-     * This function is static because it is used by the LinkedGraph
-     * to write a new FireflyVertex.
-     *
-     * @param graph    FireflyGraph to use.
-     * @param vertexId FireflyId to use.
-     * @return FireflyVertex.
-     */
-    public static FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Reading vertex {}.", vertexId);
-
-        // Get database connection.
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
-        if (record == null) {
-            return null;
-        }
-
-        return fromRecord(graph, new KeyRecord(record.key(), record.record()));
-    }
-
-    /**
-     * Read and construct a list of FireflyVertex using the list of FireflyId.
-     * This function is static because it is used by the LinkedGraph
-     * to write a new FireflyVertex.
-     *
-     * @param graph     FireflyGraph to use.
-     * @param vertexIds FireflyIds to use.
-     * @return FireflyVertex.
-     */
-    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
-        LOG.debug("Reading vertices {}.", vertexIds);
-
-        // Get database connection.
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Batch read vertex records.
-        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
-        if (vertexRecords == null) {
-            return null;
-        }
-
-        // Convert records to vertices.
-        return vertexRecords.stream().map(record -> fromRecord(graph, new KeyRecord(record.key(), record.record))).
-                collect(Collectors.toList());
-    }
-
-    /**
-     * Construct vertex from Record.
-     *
-     * @param graph     FireflyGraph to use.
-     * @param keyRecord Record to construct vertex with.
-     * @return FireflyVertex.
-     */
-    public static FireflyVertex fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
-        if (keyRecord == null) {
-            return null;
-        }
-
-        final Record record = keyRecord.record;
-
-        // Read the vertex's firefly record from the database
-        if (record == null) {
-            return null;
-        }
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Get id and label for vertex.
-        final FireflyId id = FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, keyRecord.key, record));
-        final int vertexTypeHint = record.getInt(db.RELATIONAL_VERTEX_TYPE_HINT);
-        final String label = record.getString(AerospikeConnection.LABEL);
-
-        // If cache is disabled, inEdgeIds and outEdgeIds are null.
-        final boolean cacheDisabled = record.getBoolean(db.CACHE_DISABLED);
-        final long vertexPropertyCount = record.getLong(db.VP_COUNTER);
-        if (cacheDisabled) {
-            // Set inEdgeIds and outEdgeIds to null (invalid).
-            switch (vertexTypeHint) {
-                case LinkedVertex.VERTEX_TYPE_HINT:
-                    return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
-                case PackedVertex.VERTEX_TYPE_HINT:
-                    return new PackedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), new HashMap<>(), new HashMap<>(), vertexPropertyCount, db);
-                default:
-                    // Should never happen.
-                    throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
-            }
-        }
-
-        // Get incoming and outgoing edge count.
-        final long inEdgeCount = record.getLong(db.IN_EDGE_COUNTER);
-        final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER);
-
-        // Get inEdgeIds and outEdgeIds, if the number of either exceeds the cache size, set to null (invalid).
-        final Map<String, List<Object>> inEdgeIds = (inEdgeCount < db.ID_CACHE_SIZE) ?
-                (Map<String, List<Object>>) record.getMap(db.IN_EDGES) : new HashMap<>();
-        final Map<String, List<Object>> outEdgeIds = (outEdgeCount < db.ID_CACHE_SIZE) ?
-                (Map<String, List<Object>>) record.getMap(db.OUT_EDGES) : new HashMap<>();
-        final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(inEdgeIds);
-        final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(outEdgeIds);
-        // Create vertex based on type hint.
-        switch (vertexTypeHint) {
-            case LinkedVertex.VERTEX_TYPE_HINT: {
-                // Get vertex properties and vertex property counter from record.
-                final Map<String, List<Object>> vertexProperties = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                        (Map<String, List<Object>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
-                final Map<String, List<FireflyId>> fireflyVertexProperties = FireflyIdFactory.convertMapListObjectToFireflyIdMap(vertexProperties);
-                return new LinkedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount, outEdgeCount, fireflyVertexProperties, vertexPropertyCount, db);
-            }
-            case PackedVertex.VERTEX_TYPE_HINT:
-                // Get vertex properties and vertex property counter from record.
-                final Map<String, Object> vertexPropertyValues = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                        (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE) : new HashMap<>();
-                final Map<String, Long> vertexPropertyTypeHints = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                        (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT) : new HashMap<>();
-                for (String key : vertexPropertyValues.keySet()) {
-                    vertexPropertyValues.put(key, db.convertValuetoTypeUsingHint(vertexPropertyValues.get(key), vertexPropertyTypeHints.get(key)));
-                }
-                final Map<String, Object> vertexPropertyIds = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
-                        (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
-                final Map<String, FireflyId> fireflyVertexPropertyIds = FireflyIdFactory.convertMapObjectToFireflyIdMap(vertexPropertyIds);
-                return new PackedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount, outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyCount, db);
-            default:
-                // Should never happen.
-                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
-        }
-    }
-
     protected abstract void removeVertexProperties();
 
     /**
@@ -383,11 +102,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id);
         db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, id));
-
-        // The star data model holds some additional data that must be removed when the vertex is removed.
-        if (StarPackedGraph.isStarPackedGraph(graph)) {
-            StarPackedGraph.removeVertex(db, this);
-        }
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
@@ -502,9 +216,9 @@ public abstract class RelationalVertex extends FireflyVertex {
                             )
                     ));
         }
-        // Create scan policy, do not need bin data for this.
+        // Create scan policy, need bin data for this.
         final ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
+        policy.includeBinData = true;
         final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
         return IteratorUtils.map(i, keyRecordEntry -> {
                     final FireflyId edgeId = FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject());
@@ -721,8 +435,311 @@ public abstract class RelationalVertex extends FireflyVertex {
         addEdgeToJVMCache(direction, edgeId, edgeLabel);
     }
 
-    public void appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String ... edgeIds) {
-        if (edgeIds == null || edgeIds.length == 0) {
+    /**
+     * Get property id map.
+     *
+     * @param graph           Graph to use.
+     * @param properties      Properties.
+     * @param vertexId        Vertex id.
+     * @param writeProperties Write properties flag.
+     * @return Property id map.
+     */
+    public static Map<String, List<FireflyId>> getPropertyIdMap(final FireflyGraph graph,
+                                                                final List<Map.Entry<String, Object>> properties,
+                                                                final FireflyId vertexId,
+                                                                final boolean writeProperties) {
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        // Loop through properties and populate the vertex property id cache and vertex property label id map.
+        final Map<String, List<FireflyId>> vertexPropertyLabelIdMap = new HashMap<>();
+        final Map<String, List<Object>> vertexPropertyValueMap = new HashMap<>();
+        properties.forEach(vp -> {
+            if (!vertexPropertyValueMap.containsKey(vp.getKey())) {
+                vertexPropertyValueMap.put(vp.getKey(), new ArrayList<>());
+            }
+            vertexPropertyValueMap.get(vp.getKey()).add(vp.getValue());
+        });
+        vertexPropertyValueMap.forEach((key, value) -> value.forEach(v -> {
+                    // Get id for vertex property.
+                    final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
+
+                    // Add to vertex property ids to map.
+                    if (!vertexPropertyLabelIdMap.containsKey(key)) {
+                        vertexPropertyLabelIdMap.put(key, new ArrayList<>());
+                    }
+                    vertexPropertyLabelIdMap.get(key).add(vertexPropertyId);
+
+                    if (writeProperties) {
+                        // Create a bin for the vertex property name (key) and a bin for the vertex property id.
+                        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
+                        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
+
+                        // Write vertex property with type hint.
+                        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
+                    }
+                }
+        ));
+        return vertexPropertyLabelIdMap;
+    }
+
+    static class PropertyValueIdMaps {
+        public final Map<String, Object> valueMap;
+        public final Map<String, FireflyId> idMap;
+
+        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
+            this.valueMap = valueMap;
+            this.idMap = idMap;
+        }
+    }
+
+    /**
+     * Get property value map.
+     *
+     * @param graph      Graph to use.
+     * @param properties Properties.
+     * @return Property value map.
+     */
+    public static PropertyValueIdMaps getPropertyValueIdMaps(final FireflyGraph graph, final List<Map.Entry<String, Object>> properties) {
+        // Loop through properties nad populate the vertex properties value map.
+        final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
+        final Map<String, FireflyId> vertexPropertyIdMap = new HashMap<>();
+        properties.forEach(vp -> {
+            // Get id for vertex property.
+            final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
+
+            // Add id and vertex property.
+            vertexPropertyValueMap.put(vp.getKey(), vp.getValue());
+            vertexPropertyIdMap.put(vp.getKey(), vertexPropertyId);
+        });
+
+        // Return vertex property value map.
+        return new PropertyValueIdMaps(vertexPropertyValueMap, vertexPropertyIdMap);
+    }
+
+    /**
+     * Write and construct a FireflyVertex using the provided parameters.
+     * This function is static because it is used by the RelationalGraph
+     * to write a new FireflyVertex.
+     *
+     * @param graph      FireflyGraph to use.
+     * @param vertexId   id of vertex,.
+     * @param label      String label of vertex.
+     * @param properties Map of properties to add to vertex.
+     * @return FireflyVertex.
+     */
+    public static FireflyVertex writeVertex(final FireflyGraph graph,
+                                            final FireflyId vertexId,
+                                            final String label,
+                                            final List<Map.Entry<String, Object>> properties,
+                                            final int vertexTypeHint) {
+        LOG.debug("Writing Vertex {} {}.", vertexId, properties);
+
+        // Get database connection.
+        final AerospikeConnection db = graph.getBaseGraph();
+        Map<String, ?> vertexPropertyIds;
+        Map<String, ?> vertexPropertyIdsWritable;
+        final Map<String, Object> vertexPropertyValueMap;
+        switch (vertexTypeHint) {
+            case LinkedVertex.VERTEX_TYPE_HINT:
+                vertexPropertyIds = getPropertyIdMap(graph, properties, vertexId, true);
+                vertexPropertyIdsWritable = FireflyIdFactory.convertMapListToStorage((Map<String, List<FireflyId>>) vertexPropertyIds);
+                vertexPropertyValueMap = null;
+                break;
+            case StarPackedVertex.VERTEX_TYPE_HINT:
+                // Star specific
+                // Fall through
+            case PackedVertex.VERTEX_TYPE_HINT:
+                final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, properties);
+                vertexPropertyIds = propertyValueIdMaps.idMap;
+                vertexPropertyIdsWritable = FireflyIdFactory.convertMapToStorage(propertyValueIdMaps.idMap);
+                vertexPropertyValueMap = propertyValueIdMaps.valueMap;
+                break;
+            default:
+                // Should never happen.
+                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
+        }
+
+        // Create vertex bins for vertex label, property ids, and property counter.
+        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
+        final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
+        final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdsWritable.size())));
+        final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
+
+        // Write vertex bins to Aerospike.
+        final Map<String, Long> vertexPropertyTypeHintMap;
+        if (vertexPropertyValueMap != null) {
+            final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
+            vertexPropertyTypeHintMap = new HashMap<>();
+            for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
+                vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
+            }
+            final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
+
+            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
+        } else {
+            vertexPropertyTypeHintMap = null;
+
+            // Set generation to -1 (no generation check) because this is the initial write of the vertex.
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
+        }
+
+        switch (vertexTypeHint) {
+            case LinkedVertex.VERTEX_TYPE_HINT:
+                return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, (Map<String, List<FireflyId>>) vertexPropertyIds, vertexPropertyIds.size(), db);
+            case PackedVertex.VERTEX_TYPE_HINT:
+                return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new HashMap<>(), new HashMap<>(),
+                        -1, -1, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
+                        vertexPropertyTypeHintMap, vertexPropertyIds.size(), db);
+            default:
+                // Should never happen.
+                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
+        }
+    }
+
+    /**
+     * Read and construct a FireflyVertex using the FireflyId.
+     * This function is static because it is used by the LinkedGraph
+     * to write a new FireflyVertex.
+     *
+     * @param graph    FireflyGraph to use.
+     * @param vertexId FireflyId to use.
+     * @return FireflyVertex.
+     */
+    public static FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
+        LOG.debug("Reading vertex {}.", vertexId);
+
+        // Get database connection.
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        // Read the vertex's firefly record from the database
+        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
+        if (record == null) {
+            return null;
+        }
+
+        return fromRecord(graph, new KeyRecord(record.key(), record.record()));
+    }
+
+    /**
+     * Read and construct a list of FireflyVertex using the list of FireflyId.
+     * This function is static because it is used by the LinkedGraph
+     * to write a new FireflyVertex.
+     *
+     * @param graph     FireflyGraph to use.
+     * @param vertexIds FireflyIds to use.
+     * @return FireflyVertex.
+     */
+    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
+        LOG.debug("Reading vertices {}.", vertexIds);
+
+        // Get database connection.
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        // Batch read vertex records.
+        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
+        if (vertexRecords == null) {
+            return null;
+        }
+
+        // Convert records to vertices.
+        return vertexRecords.stream().map(record -> fromRecord(graph, new KeyRecord(record.key(), record.record))).
+                collect(Collectors.toList());
+    }
+
+    /**
+     * Construct vertex from Record.
+     *
+     * @param graph     FireflyGraph to use.
+     * @param keyRecord Record to construct vertex with.
+     * @return FireflyVertex.
+     */
+    public static FireflyVertex fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
+        if (keyRecord == null) {
+            return null;
+        }
+
+        final Record record = keyRecord.record;
+
+        // Read the vertex's firefly record from the database
+        if (record == null) {
+            return null;
+        }
+        final AerospikeConnection db = graph.getBaseGraph();
+
+        // Get id and label for vertex.
+        final FireflyId id = FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, keyRecord.key, record));
+        final int vertexTypeHint = record.getInt(db.RELATIONAL_VERTEX_TYPE_HINT);
+        final String label = record.getString(AerospikeConnection.LABEL);
+
+        // If cache is disabled, inEdgeIds and outEdgeIds are null.
+        final boolean cacheDisabled = record.getBoolean(db.CACHE_DISABLED);
+        final long vertexPropertyCount = record.getLong(db.VP_COUNTER);
+        if (cacheDisabled) {
+            // Set inEdgeIds and outEdgeIds to null (invalid).
+            switch (vertexTypeHint) {
+                case LinkedVertex.VERTEX_TYPE_HINT:
+                    return new LinkedVertex(id, label, graph, new HashMap<>(), new HashMap<>(), -1, -1, new HashMap<>(), vertexPropertyCount, db);
+                case PackedVertex.VERTEX_TYPE_HINT:
+                    return PackedVertex.PackedVertexFactory.create(id, label, graph, new HashMap<>(), new HashMap<>(),
+                            -1, -1, new HashMap<>(), new HashMap<>(), new HashMap<>(), vertexPropertyCount,
+                            db);
+                default:
+                    // Should never happen.
+                    throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
+            }
+        }
+
+        // Get incoming and outgoing edge count.
+        final long inEdgeCount = record.getLong(db.IN_EDGE_COUNTER);
+        final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER);
+
+        // Get inEdgeIds and outEdgeIds, if the number of either exceeds the cache size, set to null (invalid).
+        final Map<String, List<Object>> inEdgeIds = (inEdgeCount < db.ID_CACHE_SIZE) ?
+                (Map<String, List<Object>>) record.getMap(db.IN_EDGES) : new HashMap<>();
+        final Map<String, List<Object>> outEdgeIds = (outEdgeCount < db.ID_CACHE_SIZE) ?
+                (Map<String, List<Object>>) record.getMap(db.OUT_EDGES) : new HashMap<>();
+        final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(inEdgeIds);
+        final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(outEdgeIds);
+        // Create vertex based on type hint.
+        switch (vertexTypeHint) {
+            case LinkedVertex.VERTEX_TYPE_HINT: {
+                // Get vertex properties and vertex property counter from record.
+                final Map<String, List<Object>> vertexProperties = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                        (Map<String, List<Object>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
+                final Map<String, List<FireflyId>> fireflyVertexProperties = FireflyIdFactory.convertMapListObjectToFireflyIdMap(vertexProperties);
+                return new LinkedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount, outEdgeCount, fireflyVertexProperties, vertexPropertyCount, db);
+            }
+            case PackedVertex.VERTEX_TYPE_HINT:
+                // Get vertex properties and vertex property counter from record.
+                final Map<String, Object> vertexPropertyValues = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                        (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE) : new HashMap<>();
+                final Map<String, Long> vertexPropertyTypeHints = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                        (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT) : new HashMap<>();
+                for (String key : vertexPropertyValues.keySet()) {
+                    vertexPropertyValues.put(key, db.convertValuetoTypeUsingHint(vertexPropertyValues.get(key), vertexPropertyTypeHints.get(key)));
+                }
+                final Map<String, Object> vertexPropertyIds = (vertexPropertyCount < db.ID_CACHE_SIZE) ?
+                        (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID) : new HashMap<>();
+                final Map<String, FireflyId> fireflyVertexPropertyIds = FireflyIdFactory.convertMapObjectToFireflyIdMap(vertexPropertyIds);
+                return PackedVertex.PackedVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount,
+                        outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints,
+                        vertexPropertyCount, db);
+            default:
+                // Should never happen.
+                throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
+        }
+    }
+
+    /**
+     * Used by strategies to leverage composite ids to get adjacent vertex ids.
+     *
+     * @param adjacentVertexIds List of adjacent vertex ids to append to.
+     * @param direction Direction of edges to get adjacent vertex ids for.
+     * @param edgeLabels Labels of edges to filter with.
+     */
+    public void appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String ... edgeLabels) {
+        if (edgeLabels == null || edgeLabels.length == 0) {
             if (direction == Direction.IN || direction == Direction.BOTH) {
                 final List<FireflyId> inEdgeIds = getInEdgeIds();
                 if (inEdgeIds != null) {
@@ -737,21 +754,11 @@ public abstract class RelationalVertex extends FireflyVertex {
                 if (outEdgeIds != null) {
                     adjacentVertexIds.addAll(
                             outEdgeIds.stream().map(id ->
-                                    ((FireflyIdComposite)id).getInVertexId()).
+                                            ((FireflyIdComposite)id).getInVertexId()).
                                     collect(Collectors.toList()));
                 }
             }
         }
         // Need to add support for filtering with labels.
-    }
-
-    static class PropertyValueIdMaps {
-        public final Map<String, Object> valueMap;
-        public final Map<String, FireflyId> idMap;
-
-        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
-            this.valueMap = valueMap;
-            this.idMap = idMap;
-        }
     }
 }

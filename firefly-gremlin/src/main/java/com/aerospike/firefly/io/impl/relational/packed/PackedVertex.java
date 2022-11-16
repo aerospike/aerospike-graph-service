@@ -6,6 +6,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -37,7 +39,6 @@ public class PackedVertex extends RelationalVertex {
     private Map<String, Object> vertexPropertyValues;
     private Map<String, Long> vertexPropertyValuesTypeHints;
     private long vertexPropertyCount;
-    private AerospikeConnection db;
 
     /**
      * Constructor for PackedVertex.
@@ -54,18 +55,18 @@ public class PackedVertex extends RelationalVertex {
      * @param vertexPropertyCount  vertex property count.
      * @param db                   Aerospike connection.
      */
-    public PackedVertex(final FireflyId fid,
-                        final String label,
-                        final FireflyGraph graph,
-                        final Map<String, List<FireflyId>> inEdgeIds,
-                        final Map<String, List<FireflyId>> outEdgeIds,
-                        final long inEdgeCount,
-                        final long outEdgeCount,
-                        final Map<String, FireflyId> vertexPropertyIds,
-                        final Map<String, Object> vertexPropertyValues,
-                        final Map<String, Long> vertexPropertyValuesTypeHints,
-                        final long vertexPropertyCount,
-                        final AerospikeConnection db) {
+    protected PackedVertex(final FireflyId fid,
+                           final String label,
+                           final FireflyGraph graph,
+                           final Map<String, List<FireflyId>> inEdgeIds,
+                           final Map<String, List<FireflyId>> outEdgeIds,
+                           final long inEdgeCount,
+                           final long outEdgeCount,
+                           final Map<String, FireflyId> vertexPropertyIds,
+                           final Map<String, Object> vertexPropertyValues,
+                           final Map<String, Long> vertexPropertyValuesTypeHints,
+                           final long vertexPropertyCount,
+                           final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
 
         // To enable values to have index functions run, cardinality must be single.
@@ -77,7 +78,6 @@ public class PackedVertex extends RelationalVertex {
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
         this.vertexPropertyValues = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValues;
         this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValuesTypeHints;
-        this.db = db;
     }
 
     @Override
@@ -188,7 +188,7 @@ public class PackedVertex extends RelationalVertex {
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
-        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds));
+        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds)));
         final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints));
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
@@ -259,5 +259,30 @@ public class PackedVertex extends RelationalVertex {
     @Override
     protected Set<String> readVertexPropertyKeys() {
         return vertexPropertyValues.keySet();
+    }
+
+    public static class PackedVertexFactory {
+        public static PackedVertex create(final FireflyId fid,
+                                          final String label,
+                                          final FireflyGraph graph,
+                                          final Map<String, List<FireflyId>> inEdgeIds,
+                                          final Map<String, List<FireflyId>> outEdgeIds,
+                                          final long inEdgeCount,
+                                          final long outEdgeCount,
+                                          final Map<String, FireflyId> vertexPropertyIds,
+                                          final Map<String, Object> vertexPropertyValues,
+                                          final Map<String, Long> vertexPropertyValuesTypeHints,
+                                          final long vertexPropertyCount,
+                                          final AerospikeConnection db) {
+            if (StarPackedGraph.isStarPackedGraph(graph)) {
+                return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
+                        db);
+            } else {
+                return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
+                        db);
+            }
+        }
     }
 }

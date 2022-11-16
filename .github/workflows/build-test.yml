@@ -9,7 +9,6 @@ on:
 # Firefly has the following jobs:
 # - Build Firefly Maven
 # - Build Firefly Docker
-# - Test Bulk Loader
 # - Test Spark Bulk Loader
 # - Test Linked Data Model
 # - Test Packed Data Model
@@ -36,7 +35,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
+          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
@@ -144,35 +143,11 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
+          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-bulk-loader:
-    name: Start Bulk Loader Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # "Small for this action - doesn't need much power.
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-bulk-loader-spark:
-    name: Start Bulk Loader Spark Runner
+  start-runner-spark-bulk-loader:
+    name: Start Spark Bulk Loader Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -267,30 +242,11 @@ jobs:
       - name: Test with Maven
         run: |
           mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-bulk-loader:
-    name: Test Bulk Loader
-    timeout-minutes: 15
-    needs: start-runner-bulk-loader
-    runs-on: ${{ needs.start-runner-bulk-loader.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: reugn/github-action-aerospike@v1
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn clean install -DskipTests
-          mvn -pl firefly-bulk-loader test --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
     timeout-minutes: 15
-    needs: start-runner-bulk-loader-spark
-    runs-on: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
+    needs: start-runner-spark-bulk-loader
+    runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: reugn/github-action-aerospike@v1
@@ -419,32 +375,11 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-docker.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-docker.outputs.ec2-instance-id }}
-  stop-runner-bulk-loader:
-    name: Stop Bulk Loader Runner
-    needs:
-      - test-firefly-bulk-loader
-      - start-runner-bulk-loader
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-bulk-loader.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-bulk-loader.outputs.ec2-instance-id }}
-  stop-runner-bulk-loader-spark:
-    name: Stop Bulk Loader Spark Runner
+  stop-runner-spark-bulk-loader:
+    name: Stop Spark Bulk Loader Runner
     needs:
       - test-firefly-spark-bulk-loader
-      - start-runner-bulk-loader-spark
+      - start-runner-spark-bulk-loader
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -459,8 +394,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-bulk-loader-spark.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-bulk-loader-spark.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader.outputs.ec2-instance-id }}
   #stop-runner-benchmark:
   #  name: Stop Benchmark Runner
   #  needs:

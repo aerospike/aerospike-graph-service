@@ -51,15 +51,11 @@ public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<Tr
 
             traversal.removeStep(vertexStep);
             traversal.addStep(index, new FireflyCompositeIdStep(traversal, vertexStep.getDirection(), vertexStep.getEdgeLabels()));
-            System.out.println("\tVertex step edge labels: " + Arrays.toString(vertexStep.getEdgeLabels()));
-            System.out.println("\tVertex step direction: " + vertexStep.getDirection());
-            System.out.println("\tVertex step returns vertex: " + vertexStep.returnsVertex());
         }
         // Find in/out steps.
     }
 
     public static FireflyCompositeEdgeIdStrategy instance() {
-        System.out.println("Getting composite id strategy instance.");
         return INSTANCE;
     }
 }

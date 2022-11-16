@@ -51,7 +51,6 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
     public static void loadAirRoutes() throws IOException, InterruptedException {
         Assume.assumeTrue(!graph.getDataModel().equals(StarPackedGraph.DATA_MODEL));
         graph.getBaseGraph().dropDatabase();
-        Thread.sleep(10000);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         g = graph.traversal();
         g.V().drop().iterate();

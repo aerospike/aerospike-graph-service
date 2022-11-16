@@ -3,36 +3,25 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.structure.FireflyEdge;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdComposite extends FireflyId {
-    private final byte[] id;
-    private final FireflyId edgeId;
+    private byte[] id;
+    private final FireflyId adjacentId;
+    private FireflyId edgeId;
 
-    public FireflyIdComposite(final FireflyId edgeId, final FireflyId inVertexId, final FireflyId outVertexId) {
-        this.id = new byte[Long.BYTES * 3];
-        final byte[] eId = longToBytes((Long) edgeId.getStorageId());
-        final byte[] inId = longToBytes((Long) inVertexId.getStorageId());
-        final byte[] outId = longToBytes((Long) outVertexId.getStorageId());
-        for (int i = 0; i < Long.BYTES; i++) {
-            this.id[i] = eId[i];
-            this.id[i + Long.BYTES] = inId[i];
-            this.id[i + Long.BYTES * 2] = outId[i];
-        }
+    public FireflyIdComposite(final FireflyId edgeId, final FireflyId adjacentId) {
+        this.adjacentId = adjacentId;
         this.edgeId = edgeId;
     }
 
     public FireflyIdComposite(final byte[] ids) {
         id = ids;
-        this.edgeId = FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0));
-    }
-
-    private byte[] longToBytes(final long x) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(x);
-        return buffer.array();
+        edgeId = null;
+        adjacentId = null;
     }
 
     private long longFromBytes(final int idx) {
@@ -43,42 +32,67 @@ public class FireflyIdComposite extends FireflyId {
     }
 
     public FireflyId getEdgeId() {
+        if (edgeId != null) {
+            return edgeId;
+        }
         return new FireflyIdNumeric(longFromBytes(0));
     }
 
-    public FireflyId getInVertexId() {
+    public FireflyId getAdjacentId() {
+        if (adjacentId != null) {
+            return adjacentId;
+        }
         return FireflyIdFactory.createId(longFromBytes(Long.BYTES));
-    }
-
-    public FireflyId getOutVertexId() {
-        return FireflyIdFactory.createId(longFromBytes(Long.BYTES * 2));
     }
 
 
     @Override
     public Object getUserId() {
-        return edgeId.getUserId();
+        if (edgeId != null) {
+            return edgeId.getUserId();
+        }
+        return FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0)).getUserId();
     }
 
     @Override
     public Object getStorageId() {
+        if (edgeId != null) {
+            return edgeId.getStorageId();
+        }
         return longFromBytes(0);
     }
 
     @Override
     public Long getStorageTypeIdx() {
-        return edgeId.getStorageTypeIdx();
+        if (edgeId != null) {
+            return edgeId.getStorageTypeIdx();
+        }
+        edgeId = FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0));
+        return FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0)).getStorageTypeIdx();
     }
 
     @Override
     public byte[] getCachedId() {
+        if (id == null) {
+            final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2);
+            buffer.putLong((Long) edgeId.getStorageId());
+            buffer.putLong((Long) adjacentId.getStorageId());
+            id = buffer.array();
+        }
         return id.clone();
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return edgeId.equals(o);
+        if (o == null || getClass() != o.getClass()) {
+            if (edgeId != null) {
+                return edgeId.equals(o);
+            } else {
+                edgeId = FireflyIdFactory.createFromUser(FireflyEdge.class, longFromBytes(0));
+                return edgeId.equals(o);
+            }
+        }
         final FireflyIdComposite that = (FireflyIdComposite) o;
         return java.util.Arrays.equals(id, that.id);
     }

@@ -43,7 +43,8 @@ public class CompositeIdTest extends AbstractFireflySuite {
         final FireflyId fooId = FireflyIdFactory.createId(foo.id());
         final FireflyId barId = FireflyIdFactory.createId(bar.id());
         final FireflyId bazId = FireflyIdFactory.createId(baz.id());
-        final FireflyId compositeId = FireflyIdFactory.createEdgeId(bazId, barId, fooId);
+        final FireflyId compositeFooId = FireflyIdFactory.createEdgeId(bazId, fooId);
+        final FireflyId compositeBarId = FireflyIdFactory.createEdgeId(bazId, barId);
         final Map<String, List<FireflyId>> barInFireflyIdMap = FireflyIdFactory.convertMapListObjectToFireflyIdMap(barInEdges);
         final Map<String, List<FireflyId>> fooOutFireflyIdMap = FireflyIdFactory.convertMapListObjectToFireflyIdMap(fooOutEdges);
 
@@ -53,27 +54,7 @@ public class CompositeIdTest extends AbstractFireflySuite {
         Assert.assertTrue(fooOutFireflyIdMap.containsKey("baz"));
         Assert.assertEquals(1, barInFireflyIdMap.get("baz").size());
         Assert.assertEquals(1, fooOutFireflyIdMap.get("baz").size());
-        Assert.assertEquals(compositeId, barInFireflyIdMap.get("baz").get(0));
-        Assert.assertEquals(compositeId, fooOutFireflyIdMap.get("baz").get(0));
-    }
-
-    @Test
-    public void testCompositeIds() {
-        final GraphTraversalSource g = graph.traversal();
-        final Vertex foo = g.addV("foo").next();
-        final Vertex bar = g.addV("bar").next();
-        final Edge baz = g.addE("baz").from(foo).to(bar).next();
-        final Edge baz2 = g.addE("baz2").from(bar).to(foo).next();
-        final Object bar2 = g.V(foo.id()).out().next();
-        final Object foo2 = g.V(foo.id()).out().out().next();
-        System.out.println(bar2);
-        System.out.println("bar : " + bar);
-        System.out.println("bar2 : " + bar2);
-        System.out.println("foo : " + foo);
-        System.out.println("foo2 : " + foo2);
-        final Object path = g.V(foo.id()).out().path().next();
-        final Object path2 = g.V(foo.id()).out().out().path().next();
-        System.out.println("path : " + path);
-        System.out.println("path2 : " + path2);
+        Assert.assertEquals(compositeFooId, barInFireflyIdMap.get("baz").get(0));
+        Assert.assertEquals(compositeBarId, fooOutFireflyIdMap.get("baz").get(0));
     }
 }

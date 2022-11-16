@@ -29,6 +29,7 @@ import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,36 +198,40 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of edge ids.
      */
     protected Iterator<FireflyId> getEdgeIdsFromVertexByScan(final Direction direction) {
-        final Expression exp;
-        if (direction == Direction.OUT || direction == Direction.IN) {
-            // If direction is in or out, get that specific direction.
-            exp = Exp.build(
-                    Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
-                            Exp.val((Long) id.getStorageId())
-                    ));
-        } else {
-            // If direction is both, we need to get in and out.
-            exp = Exp.build(
-                    Exp.or(
-                            Exp.eq(Exp.intBin(Direction.IN.name()),
-                                    Exp.val((Long) id.getStorageId())
-                            ),
-                            Exp.eq(Exp.intBin(Direction.OUT.name()),
-                                    Exp.val((Long) id.getStorageId())
-                            )
-                    ));
-        }
         // Create scan policy, need bin data for this.
         final ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = true;
-        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-        return IteratorUtils.map(i, keyRecordEntry -> {
+
+        Iterator<FireflyId> iterator = EmptyIterator.instance();
+        if (direction == Direction.OUT || direction == Direction.BOTH) {
+            final Expression exp = Exp.build(
+                    Exp.eq(
+                            Exp.intBin(Direction.OUT.name()),
+                            Exp.val((Long) id.getStorageId())
+                    )
+            );
+            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
+            IteratorUtils.concat(iterator, IteratorUtils.map(i, keyRecordEntry -> {
                     final FireflyId edgeId = FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject());
-                    final FireflyId inVertexId = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.IN.name()));
-                    final FireflyId outVertexId = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.OUT.name()));
-                    return FireflyIdFactory.createEdgeId(edgeId, inVertexId, outVertexId);
-                }
-        );
+                    final FireflyId adjacentVertex = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.OUT.name()));
+                    return FireflyIdFactory.createEdgeId(edgeId, adjacentVertex);
+            }));
+
+        } else if (direction == Direction.IN || direction == Direction.BOTH) {
+            final Expression exp = Exp.build(
+                    Exp.eq(
+                            Exp.intBin(Direction.IN.name()),
+                            Exp.val((Long) id.getStorageId())
+                    )
+            );
+            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
+            IteratorUtils.concat(iterator, IteratorUtils.map(i, keyRecordEntry -> {
+                final FireflyId edgeId = FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject());
+                final FireflyId adjacentVertex = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.IN.name()));
+                return FireflyIdFactory.createEdgeId(edgeId, adjacentVertex);
+            }));
+        }
+        return iterator;
     }
 
     protected Iterator<FireflyId> getEdgeIdsFromVertexByIndex(final Direction direction) {
@@ -699,8 +704,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                 (Map<String, List<Object>>) record.getMap(db.IN_EDGES) : new HashMap<>();
         final Map<String, List<Object>> outEdgeIds = (outEdgeCount < db.ID_CACHE_SIZE) ?
                 (Map<String, List<Object>>) record.getMap(db.OUT_EDGES) : new HashMap<>();
-        final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(inEdgeIds);
-        final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(outEdgeIds);
+        final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.fastConvertMapListObjectToFireflyIdMap(inEdgeIds);
+        final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.fastConvertMapListObjectToFireflyIdMap(outEdgeIds);
         // Create vertex based on type hint.
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT: {
@@ -745,7 +750,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 if (inEdgeIds != null) {
                     adjacentVertexIds.addAll(
                             inEdgeIds.stream().map(id ->
-                                            ((FireflyIdComposite)id).getOutVertexId()).
+                                            ((FireflyIdComposite)id).getAdjacentId()).
                                     collect(Collectors.toList()));
                 }
             }
@@ -754,7 +759,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 if (outEdgeIds != null) {
                     adjacentVertexIds.addAll(
                             outEdgeIds.stream().map(id ->
-                                            ((FireflyIdComposite)id).getInVertexId()).
+                                            ((FireflyIdComposite)id).getAdjacentId()).
                                     collect(Collectors.toList()));
                 }
             }

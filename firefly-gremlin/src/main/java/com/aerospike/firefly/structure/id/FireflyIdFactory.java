@@ -44,16 +44,15 @@ public class FireflyIdFactory {
      * Create an id for a specific FireflyElement type.
      *
      * @param id          Id to use for element.
-     * @param inVertexId  Id of in vertex.
-     * @param outVertexId Id of out vertex.
+     * @param adjacentVertex  Id of adjacent vertex.
      * @return FireflyId.
      */
-    public static FireflyId createEdgeIdFromUser(final Object id, final FireflyId inVertexId, final FireflyId outVertexId) {
+    public static FireflyId createEdgeIdFromUser(final Object id, final FireflyId adjacentVertex) {
         // Generate edge id.
         final FireflyId edgeId = createFromUser(FireflyEdge.class, id);
 
         // Generate composite id.
-        return new FireflyIdComposite(edgeId, inVertexId, outVertexId);
+        return new FireflyIdComposite(edgeId, adjacentVertex);
     }
 
     /**
@@ -149,12 +148,12 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createEdgeId(final FireflyId edgeId, final FireflyId inVertex, final FireflyId outVertex) {
-        return new FireflyIdComposite(edgeId, inVertex, outVertex);
+    public static FireflyId createEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(edgeId, adjacentVertex);
     }
 
-    public static FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId inVertex, final FireflyId outVertex) {
-        return new FireflyIdComposite(createId(graph.edgeIdManager.getNextId(graph), null), inVertex, outVertex);
+    public static FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
     }
 
     public static FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
@@ -166,12 +165,12 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createEdgeIdFromKeyValues(final FireflyId inVertexId, final FireflyId outVertexId, final Object... keyValues) {
+    public static FireflyId createEdgeIdFromKeyValues(final FireflyId adjacentVertexId, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {
             throw new IllegalArgumentException("Id not found in keyValues");
         } else {
-            return createEdgeIdFromUser(id.get(), inVertexId, outVertexId);
+            return createEdgeIdFromUser(id.get(), adjacentVertexId);
         }
     }
 
@@ -180,9 +179,6 @@ public class FireflyIdFactory {
     }
 
     public static Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new HashMap<>();
-        }
         final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<FireflyId> fireflyIds = new ArrayList<>();
@@ -194,10 +190,22 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
+    public static Map<String, List<FireflyId>> fastConvertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new HashMap<>();
         }
+        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
+        for (final String label : fireflyObjectIds.keySet()) {
+            final List<FireflyId> fireflyIds = new ArrayList<>();
+            for (final Object edge : fireflyObjectIds.get(label)) {
+                fireflyIds.add(new FireflyIdComposite((byte[]) edge));
+            }
+            labelEdgeIds.put(label, fireflyIds);
+        }
+        return labelEdgeIds;
+    }
+
+    public static Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
         final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();

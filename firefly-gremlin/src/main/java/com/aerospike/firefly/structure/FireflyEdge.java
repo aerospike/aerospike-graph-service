@@ -109,7 +109,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         if (outVertex != null) {
             outVertex.removeEdge(Direction.OUT, id, label);
         }
-        removed = true;
+        this.removed = true;
     }
 
     @Override

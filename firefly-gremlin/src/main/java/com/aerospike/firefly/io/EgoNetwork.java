@@ -38,13 +38,14 @@ public class EgoNetwork {
     }
 
     private EgoNetwork read() {
-        List<Long> outEdgeIds = ego.getEdgeIdsFromVertex(Direction.OUT);
-        List<Long> inEdgeIds = ego.getEdgeIdsFromVertex(Direction.IN);
+        List<FireflyId> outEdgeIds = ego.getEdgeIdsFromVertex(Direction.OUT);
+        List<FireflyId> inEdgeIds = ego.getEdgeIdsFromVertex(Direction.IN);
 
+        // Almost all instances of (Long) casting to read FireflyIds has been removed, this is one of the last ones.
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
+                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId.getStorageId())).collect(Collectors.toList());
         List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
+                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId.getStorageId())).collect(Collectors.toList());
 
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));

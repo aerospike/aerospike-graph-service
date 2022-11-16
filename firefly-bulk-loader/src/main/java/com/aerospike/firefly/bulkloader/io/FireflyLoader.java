@@ -6,6 +6,8 @@ import com.aerospike.firefly.bulkloader.util.EdgeIdHandler;
 import com.aerospike.firefly.bulkloader.util.IdHandler;
 import com.aerospike.firefly.bulkloader.util.VertexIdHandler;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +35,8 @@ public class FireflyLoader implements AutoCloseable {
     private final IdHandler vertexIdHandler;
     private final EdgeReader edgeReader;
     private final VertexReader vertexReader;
-    private final Map<Long, Map<String, List<Long>>> vertexIdToOutEdgesLabelIdsMap = new HashMap<>();
-    private final Map<Long, Map<String, List<Long>>> vertexIdToInEdgesLabelIdsMap = new HashMap<>();
+    private final Map<Long, Map<String, List<FireflyId>>> vertexIdToOutEdgesLabelIdsMap = new HashMap<>();
+    private final Map<Long, Map<String, List<FireflyId>>> vertexIdToInEdgesLabelIdsMap = new HashMap<>();
     private final Set<Long> cacheDisabledVertices = new HashSet<>();
     private boolean isClosed = false;
 
@@ -112,9 +114,9 @@ public class FireflyLoader implements AutoCloseable {
 
     private void loadVertex(final BulkLoaderVertex vertex) {
         final long vertexId = this.vertexIdHandler.getId(vertex.getId());
-        final Map<String, List<Long>> outEdges =
+        final Map<String, List<FireflyId>> outEdges =
                 this.vertexIdToOutEdgesLabelIdsMap.getOrDefault(vertexId, Collections.emptyMap());
-        final Map<String, List<Long>> inEdges =
+        final Map<String, List<FireflyId>> inEdges =
                 this.vertexIdToInEdgesLabelIdsMap.getOrDefault(vertexId, Collections.emptyMap());
 
         final long start = System.nanoTime();
@@ -136,10 +138,10 @@ public class FireflyLoader implements AutoCloseable {
         final long toVertexId = this.vertexIdHandler.getId(edge.getToId());
 
         // Record this edge to the set of outgoing edges of the "from" vertex
-        recordVertexEdges(edgeId, edge.getLabel(), fromVertexId, this.vertexIdToOutEdgesLabelIdsMap);
+        recordVertexEdges(edgeId, edge.getLabel(), fromVertexId, toVertexId, fromVertexId, this.vertexIdToOutEdgesLabelIdsMap);
 
         // Record this edge to the set of incoming edges of the "to" vertex
-        recordVertexEdges(edgeId, edge.getLabel(), toVertexId, this.vertexIdToInEdgesLabelIdsMap);
+        recordVertexEdges(edgeId, edge.getLabel(), fromVertexId, toVertexId, toVertexId, this.vertexIdToInEdgesLabelIdsMap);
 
         final long start = System.nanoTime();
         this.graph.bulkWriteEdge(edgeId, edge.getLabel(), edge.getProperties(), toVertexId, fromVertexId);
@@ -153,17 +155,22 @@ public class FireflyLoader implements AutoCloseable {
         }
     }
 
-    private void recordVertexEdges(final long edgeId, final String edgeLabel, final long vertexId,
-                                   final Map<Long, Map<String, List<Long>>> vertexEdgeRecords) {
+    private void recordVertexEdges(final long edgeId, final String edgeLabel, final long inVertex, final long outVertex, final long vertexId,
+                                   final Map<Long, Map<String, List<FireflyId>>> vertexEdgeRecords) {
         if (!this.cacheDisabledVertices.contains(vertexId)) {
-            final Map<String, List<Long>> edgeLabelsToEdgeIds = vertexEdgeRecords.getOrDefault(vertexId, new HashMap<>());
-            final List<Long> edgeIds = edgeLabelsToEdgeIds.getOrDefault(edgeLabel, new ArrayList<>());
-            edgeIds.add(edgeId);
+            final FireflyId ffIdInVertex = FireflyIdFactory.createId(inVertex);
+            final FireflyId ffIdOutVertex = FireflyIdFactory.createId(outVertex);
+            final FireflyId ffIdEdge = FireflyIdFactory.createId(edgeId);
+            final FireflyId compositeId = FireflyIdFactory.createEdgeId(ffIdEdge, ffIdInVertex, ffIdOutVertex);
+
+            final Map<String, List<FireflyId>> edgeLabelsToEdgeIds = vertexEdgeRecords.getOrDefault(vertexId, new HashMap<>());
+            final List<FireflyId> edgeIds = edgeLabelsToEdgeIds.getOrDefault(edgeLabel, new ArrayList<>());
+            edgeIds.add(compositeId);
             edgeLabelsToEdgeIds.put(edgeLabel, edgeIds);
             vertexEdgeRecords.put(vertexId, edgeLabelsToEdgeIds);
             long totalSize = 0;
-            for (final Map.Entry<Long, Map<String, List<Long>>> vertexEdgeRecord : vertexEdgeRecords.entrySet()) {
-                for (final Map.Entry<String, List<Long>> edgeLabelToEdgeIds : vertexEdgeRecord.getValue().entrySet()) {
+            for (final Map.Entry<Long, Map<String, List<FireflyId>>> vertexEdgeRecord : vertexEdgeRecords.entrySet()) {
+                for (final Map.Entry<String, List<FireflyId>> edgeLabelToEdgeIds : vertexEdgeRecord.getValue().entrySet()) {
                     totalSize += edgeLabelToEdgeIds.getValue().size();
                 }
             }

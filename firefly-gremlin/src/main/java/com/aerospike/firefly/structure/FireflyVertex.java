@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -53,21 +52,17 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
-    public abstract List<Long> getEdgeIdsFromVertex(final Direction direction);
+    public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
-     * Function to remove vertex properties. Goes here so it can ensure it hits the star model as well.
+     * Function to remove vertex properties.
      *
      * @param key              Vertex property key.
      * @param vertexPropertyId Vertex property id.
      */
     public void removeVertexProperty(final String key, final FireflyId vertexPropertyId) {
-        if (StarPackedGraph.isStarPackedGraph(graph)) {
-            StarPackedGraph.removeVertexProperty(graph.getBaseGraph(), this, key);
-        }
         removeVertexPropertyForModel(key, vertexPropertyId);
-
     }
 
     /**
@@ -147,16 +142,18 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Get id for edge.
         FireflyId edgeId;
+        final FireflyId inVertexId = ((FireflyVertex)vertex).id;
+        final FireflyId outVertexId = this.id;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+            edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
 
             // TODO: GRAPH-186.
             while (graph.edgeExists(edgeId)) {
-                edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+                edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
             }
         } else {
             try {
-                edgeId = FireflyIdFactory.createFromKeyValues(FireflyEdge.class, keyValues);
+                edgeId = FireflyIdFactory.createEdgeIdFromKeyValues(inVertexId, outVertexId, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();

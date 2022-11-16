@@ -41,7 +41,7 @@ public class FireflyMetadataVertex implements Vertex {
 
     @Override
     public Iterator<Vertex> vertices(Direction direction, String... edgeLabels) {
-        throw new UnsupportedOperationException("Metadata vertices do not have edges");
+        throw new UnsupportedOperationException("Metadata vertices do not have adjacent vertices");
     }
 
     @Override
@@ -125,7 +125,6 @@ public class FireflyMetadataVertex implements Vertex {
 
                     @Override
                     public V value() throws NoSuchElementException {
-                        if (nextValue == null) return null;
                         return (V) nextValue;
                     }
 

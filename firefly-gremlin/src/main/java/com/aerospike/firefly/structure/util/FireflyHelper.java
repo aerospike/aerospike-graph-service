@@ -80,13 +80,6 @@ public final class FireflyHelper {
         return getEdgeList(graph, vertex, direction, labels).iterator();
     }
 
-    public static Iterator<Vertex> getVertices(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
-        final List<FireflyId> vertexIds = new ArrayList<>();
-        ((RelationalVertex)vertex).appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
-        final List<Vertex> vertices = new ArrayList<>(graph.readVertices(vertexIds));
-        return vertices.iterator();
-    }
-
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
         return graph.queryEdgePropertyStringMatchIndex(key, value);
     }

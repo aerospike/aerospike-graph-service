@@ -53,6 +53,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
     public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
+
+    public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels);
+
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
@@ -178,12 +181,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
-        return FireflyHelper.inComputerMode(this.graph) ? direction.equals(Direction.BOTH) ?
-                IteratorUtils.concat(
-                        IteratorUtils.map(this.edges(Direction.OUT, edgeLabels), Edge::inVertex),
-                        IteratorUtils.map(this.edges(Direction.IN, edgeLabels), Edge::outVertex)) :
-                IteratorUtils.map(this.edges(direction, edgeLabels), edge -> edge.vertices(direction.opposite()).next()) :
-                FireflyHelper.getVertices(graph, this, direction, edgeLabels);
+        return getVerticesFromVertex(direction, edgeLabels).iterator();
     }
 
     @Override

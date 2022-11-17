@@ -14,12 +14,14 @@ public class FireflyIdNumeric extends FireflyId {
     private static Map<Class, GetUserId> CONVERT_TO_USER_CLASS = Map.of(
             Long.class, new GetLongId(),
             Integer.class, new GetIntegerId(),
+            Double.class, new GetDoubleId(),
             String.class, new GetStringId()
     );
 
     private static Map<Class, Long> CONVERT_TO_STORAGE_IDX = Map.of(
             Long.class, 1L,
             Integer.class, 2L,
+            Double.class, 3L,
             String.class, 5L
     );
 
@@ -45,9 +47,7 @@ public class FireflyIdNumeric extends FireflyId {
         this.id = id.longValue();
         this.userClass = userClass == null ? Long.class : userClass;
 
-        if (this.userClass != Long.class &&
-                this.userClass != Integer.class &&
-                this.userClass != String.class) {
+        if (!CONVERT_TO_STORAGE_IDX.containsKey(this.userClass)) {
             // Should not happen in production, but add case for it anyway.
             throw new RuntimeException(String.format("Error, cannot create numeric id with user class of %s.", this.userClass.getName()));
         }
@@ -104,6 +104,13 @@ public class FireflyIdNumeric extends FireflyId {
         @Override
         public Object getUserId(final Number id) {
             return id.intValue();
+        }
+    }
+
+    static class GetDoubleId extends GetUserId {
+        @Override
+        public Object getUserId(final Number id) {
+            return id.doubleValue();
         }
     }
 

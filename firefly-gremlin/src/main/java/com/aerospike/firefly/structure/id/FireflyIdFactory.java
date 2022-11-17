@@ -28,6 +28,7 @@ public class FireflyIdFactory {
     private static final Map<Class<? extends Serializable>, Long> TYPE_TO_IDX = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
+        put(Double.class, 3L);
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
@@ -36,6 +37,7 @@ public class FireflyIdFactory {
         put(0L, null);
         put(1L, Long.class);
         put(2L, Integer.class);
+        put(3L, Double.class);
         put(4L, byte[].class);
         put(5L, String.class);
     }};
@@ -62,13 +64,18 @@ public class FireflyIdFactory {
      * @param id   Id to use for element.
      * @return FireflyId.
      */
-    public static FireflyId createFromUser(final Class<? extends FireflyElement> type, final Object id) {
-        // Should ask id factories
-        boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
-        Object numericId;
+    public static FireflyId createFromUser(final Class<? extends FireflyElement> type, Object id) {
         if (id instanceof FireflyElement) {
             return ((FireflyElement) id).id;
+        } else if (id instanceof Element) {
+            id = ((Element) id).id();
         }
+
+        if (id instanceof Float) {
+            id = ((Float) id).doubleValue();
+        }
+        boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
+        final Object numericId;
         if (id instanceof String) {
             try {
                 numericId = Long.parseLong((String) id);
@@ -84,6 +91,9 @@ public class FireflyIdFactory {
                 !FireflyVertexProperty.class.isAssignableFrom(type)) {
             throw new UnsupportedOperationException(type + " not a Firefly Element ");
         } else if (FireflyVertex.class.isAssignableFrom(type) && !supportedType) {
+            System.out.println("Type: " + type);
+            System.out.println("Id: " + id);
+            System.out.println("Id.class(): " + id.getClass().getName());
             throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
         } else if (FireflyEdge.class.isAssignableFrom(type) && !supportedType) {
             throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
@@ -182,18 +192,6 @@ public class FireflyIdFactory {
     }
 
     public static Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
-        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final List<FireflyId> fireflyIds = new ArrayList<>();
-            for (final Object edge : fireflyObjectIds.get(label)) {
-                fireflyIds.add(FireflyIdFactory.createId(edge));
-            }
-            labelEdgeIds.put(label, fireflyIds);
-        }
-        return labelEdgeIds;
-    }
-
-    public static Map<String, List<FireflyId>> fastConvertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new HashMap<>();
         }
@@ -201,7 +199,11 @@ public class FireflyIdFactory {
         for (final String label : fireflyObjectIds.keySet()) {
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final Object edge : fireflyObjectIds.get(label)) {
-                fireflyIds.add(new FireflyIdComposite((byte[]) edge));
+                if (edge instanceof byte[]) {
+                    fireflyIds.add(new FireflyIdComposite((byte[]) edge));
+                } else {
+                    fireflyIds.add(FireflyIdFactory.createId(edge));
+                }
             }
             labelEdgeIds.put(label, fireflyIds);
         }
@@ -209,6 +211,10 @@ public class FireflyIdFactory {
     }
 
     public static Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
+        if (fireflyObjectIds == null) {
+            return new HashMap<>();
+        }
+
         final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();

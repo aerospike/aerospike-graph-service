@@ -206,11 +206,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             } else {
                 strategies.removeStrategies(FireflyGraphDropStrategy.class);
             }
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
-            }
+            // if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
+            //     strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
+            // } else {
+            //     strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
+            // }
         }
     }
 

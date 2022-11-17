@@ -20,6 +20,7 @@ import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
+import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -55,6 +56,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -411,6 +413,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
+        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && ((String) vertexIdsOrVertices[0]).equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+            return IteratorUtils.of(new FireflyMetadataVertex(this));
+        }
         // Convert vertexIds to longs
         final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id ->
                 (Long) FireflyIdFactory.createFromUser(FireflyVertex.class, id).getStorageId()).collect(Collectors.toList());

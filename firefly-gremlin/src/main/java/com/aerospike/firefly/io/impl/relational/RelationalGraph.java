@@ -22,6 +22,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.NumericIdManager;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -43,6 +44,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLE
  */
 public abstract class RelationalGraph extends FireflyGraph {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalGraph.class);
+    public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
 
     /**
      * Constructor for RelationalGraph.
@@ -408,6 +410,9 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public <V> V readGraphVariable(final String key) {
+        if (Objects.equals(key, FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+            return (V) this.configuration();
+        }
         return db.readTypeHintedValueFromMap(db.GRAPH_VARIABLES_SET, FireflyIdFactory.createId(GRAPH_VARIABLES_RECORD), db.GRAPH_VARIABLES_MAP, key);
     }
 

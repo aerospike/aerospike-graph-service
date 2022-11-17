@@ -66,6 +66,9 @@ public class FireflyIdFactory {
         // Should ask id factories
         boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
         Object numericId;
+        if (id instanceof FireflyElement) {
+            return ((FireflyElement) id).id;
+        }
         if (id instanceof String) {
             try {
                 numericId = Long.parseLong((String) id);

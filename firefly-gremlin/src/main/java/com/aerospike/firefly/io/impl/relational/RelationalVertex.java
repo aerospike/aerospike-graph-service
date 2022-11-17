@@ -36,10 +36,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
@@ -132,10 +134,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      *
      * @return Iterator of all incoming edge ids.
      */
-    private Iterator<FireflyId> getInEdgeIdsIter() {
+    private Iterator<FireflyId> getInEdgeIdsIter(final String... labels) {
         if (graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //Use index if cache is globally disabled
             return getEdgeIdsFromVertexByIndex(Direction.IN);
         }
+
+        final Set<String> labelList = labels.length == 0 ? new HashSet<>() : Set.of(labels);
         if (inEdgeCount == -1) {
             if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) //Use index if available and cache is blown
                 return getEdgeIdsFromVertexByIndex(Direction.IN);
@@ -143,13 +147,17 @@ public abstract class RelationalVertex extends FireflyVertex {
         } else { //Use cache
             final List<FireflyId> data = new ArrayList<>();
             if (inEdgeIds != null) {
-                inEdgeIds.values().forEach(data::addAll);
+                for (final Map.Entry<String, List<FireflyId>> entry : inEdgeIds.entrySet()) {
+                    if (labelList.isEmpty() || labelList.contains(entry.getKey())) {
+                        data.addAll(entry.getValue());
+                    }
+                }
             }
             return data.iterator();
         }
     }
 
-    private List<FireflyId> getInEdgeIds() {
+    private List<FireflyId> getInEdgeIds(final String... labels) {
         return IteratorUtils.list(getInEdgeIdsIter());
     }
 
@@ -235,6 +243,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     protected Iterator<FireflyId> getEdgeIdsFromVertexByIndex(final Direction direction) {
+        // TODO: Proper filtering.
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = false;

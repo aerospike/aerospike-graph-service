@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -54,7 +55,7 @@ public class CompositeIdTest extends AbstractFireflySuite {
         Assert.assertTrue(fooOutFireflyIdMap.containsKey("baz"));
         Assert.assertEquals(1, barInFireflyIdMap.get("baz").size());
         Assert.assertEquals(1, fooOutFireflyIdMap.get("baz").size());
-        Assert.assertEquals(compositeFooId, barInFireflyIdMap.get("baz").get(0));
-        Assert.assertEquals(compositeBarId, fooOutFireflyIdMap.get("baz").get(0));
+        Assert.assertArrayEquals((byte[]) compositeFooId.getCachedId(), (byte[]) barInFireflyIdMap.get("baz").get(0).getCachedId());
+        Assert.assertArrayEquals((byte[]) compositeBarId.getCachedId(), (byte[]) fooOutFireflyIdMap.get("baz").get(0).getCachedId());
     }
 }

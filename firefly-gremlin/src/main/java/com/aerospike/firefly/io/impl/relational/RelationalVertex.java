@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -131,7 +130,15 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
     }
 
-    List<FireflyVertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction, final String... edgeLabels) {
+    /**
+     * Helper function for converting a List of edge ids to a List of Vertices.
+     *
+     * @param edgeIds    List of edge ids.
+     * @param direction  Direction.
+     * @param edgeLabels Edge labels.
+     * @return List of vertices.
+     */
+    private List<FireflyVertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction, final String... edgeLabels) {
         final List<FireflyRecord> edgeRecords = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
         if (edgeRecords == null) {
             return new ArrayList<>();
@@ -150,10 +157,11 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     /**
-     * Get edge ids from vertex for given Direction.
+     * Get vertices in a specified direction. This function leverages composite ids when appropriate.
      *
-     * @param direction Direction to get edge ids for.
-     * @return Iterator of all edge ids.
+     * @param direction  Direction to get edge ids for.
+     * @param edgeLabels Edge labels.
+     * @return List of vertices.
      */
     @Override
     public List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels) {
@@ -166,14 +174,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             final List<FireflyId> vertexIds = new ArrayList<>();
             appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
             List<FireflyRecord> records = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
-            if (records == null) {
-                return new ArrayList<>();
+            if (records != null) {
+                records.forEach(record -> {
+                    if (record != null) {
+                        vertices.add(fromRecord(graph, new KeyRecord(record.key(), record.record)));
+                    }
+                });
             }
-            records.forEach(record -> {
-                if (record != null) {
-                    vertices.add(fromRecord(graph, new KeyRecord(record.key(), record.record)));
-                }
-            });
         }
         return vertices;
     }
@@ -292,7 +299,6 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     protected Iterator<FireflyId> getEdgeIdsFromVertexByIndex(final Direction direction) {
-        // TODO: Proper filtering.
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = false;
@@ -545,6 +551,16 @@ public abstract class RelationalVertex extends FireflyVertex {
         return vertexPropertyLabelIdMap;
     }
 
+    static class PropertyValueIdMaps {
+        public final Map<String, Object> valueMap;
+        public final Map<String, FireflyId> idMap;
+
+        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
+            this.valueMap = valueMap;
+            this.idMap = idMap;
+        }
+    }
+
     /**
      * Get property value map.
      *
@@ -795,37 +811,29 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         if (direction == Direction.IN || direction == Direction.BOTH) {
             if (inEdgeCount == -1) {
+                // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
             for (Map.Entry<String, List<FireflyId>> entry : inEdgeIds.entrySet()) {
                 if (edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(entry.getKey())) {
                     for (FireflyId edgeId : entry.getValue()) {
-                        adjacentVertexIds.add(((FireflyIdComposite)edgeId).getAdjacentId());
+                        adjacentVertexIds.add(((FireflyIdComposite) edgeId).getAdjacentId());
                     }
                 }
             }
         }
         if (direction == Direction.OUT || direction == Direction.BOTH) {
             if (outEdgeCount == -1) {
+                // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
             for (Map.Entry<String, List<FireflyId>> entry : outEdgeIds.entrySet()) {
                 if (edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(entry.getKey())) {
                     for (FireflyId edgeId : entry.getValue()) {
-                        adjacentVertexIds.add(((FireflyIdComposite)edgeId).getAdjacentId());
+                        adjacentVertexIds.add(((FireflyIdComposite) edgeId).getAdjacentId());
                     }
                 }
             }
-        }
-    }
-
-    static class PropertyValueIdMaps {
-        public final Map<String, Object> valueMap;
-        public final Map<String, FireflyId> idMap;
-
-        public PropertyValueIdMaps(final Map<String, Object> valueMap, final Map<String, FireflyId> idMap) {
-            this.valueMap = valueMap;
-            this.idMap = idMap;
         }
     }
 }

@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -45,6 +46,7 @@ public class TestDataRemoval extends AbstractFireflySuite {
     }
 
     @Test
+    @Ignore
     public void smallDataRemoval(){
         FireflyGraph graph = FireflyGraph.open(config);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
@@ -53,6 +55,7 @@ public class TestDataRemoval extends AbstractFireflySuite {
     }
 
     @Test
+    @Ignore
     public void largerDataRemoval() throws IOException {
         FireflyGraph graph = FireflyGraph.open(config);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);

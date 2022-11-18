@@ -262,40 +262,30 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of edge ids.
      */
     protected Iterator<FireflyId> getEdgeIdsFromVertexByScan(final Direction direction) {
+        final Expression exp;
+        if (direction == Direction.OUT || direction == Direction.IN) {
+            // If direction is in or out, get that specific direction.
+            exp = Exp.build(
+                    Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
+                            Exp.val((Long) id.getStorageId())
+                    ));
+        } else {
+            // If direction is both, we need to get in and out.
+            exp = Exp.build(
+                    Exp.or(
+                            Exp.eq(Exp.intBin(Direction.IN.name()),
+                                    Exp.val((Long) id.getStorageId())
+                            ),
+                            Exp.eq(Exp.intBin(Direction.OUT.name()),
+                                    Exp.val((Long) id.getStorageId())
+                            )
+                    ));
+        }
         // Create scan policy, need bin data for this.
         final ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = true;
-
-        Iterator<FireflyId> iterator = EmptyIterator.instance();
-        if (direction == Direction.OUT || direction == Direction.BOTH) {
-            final Expression exp = Exp.build(
-                    Exp.eq(
-                            Exp.intBin(Direction.OUT.name()),
-                            Exp.val((Long) id.getStorageId())
-                    )
-            );
-            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-            IteratorUtils.concat(iterator, IteratorUtils.map(i, keyRecordEntry -> {
-                final FireflyId edgeId = FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject());
-                final FireflyId adjacentVertex = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.OUT.name()));
-                return FireflyIdFactory.createEdgeId(edgeId, adjacentVertex);
-            }));
-
-        } else if (direction == Direction.IN || direction == Direction.BOTH) {
-            final Expression exp = Exp.build(
-                    Exp.eq(
-                            Exp.intBin(Direction.IN.name()),
-                            Exp.val((Long) id.getStorageId())
-                    )
-            );
-            final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-            IteratorUtils.concat(iterator, IteratorUtils.map(i, keyRecordEntry -> {
-                final FireflyId edgeId = FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject());
-                final FireflyId adjacentVertex = FireflyIdFactory.createId(keyRecordEntry.getValue().getValue(Direction.IN.name()));
-                return FireflyIdFactory.createEdgeId(edgeId, adjacentVertex);
-            }));
-        }
-        return iterator;
+        final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
+        return IteratorUtils.map(i, keyRecordEntry -> FireflyIdFactory.createId(keyRecordEntry.getKey().userKey.getObject()));
     }
 
     protected Iterator<FireflyId> getEdgeIdsFromVertexByIndex(final Direction direction) {

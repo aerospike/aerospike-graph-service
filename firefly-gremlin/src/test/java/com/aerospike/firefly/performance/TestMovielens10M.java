@@ -75,7 +75,6 @@ public class TestMovielens10M extends AbstractFireflySuite {
     }
 
     @Test
-    @Ignore
     public void testYearExtraction() {
         String title = "Gilda (1946)";
         String[] tokens = title.split("[()]");

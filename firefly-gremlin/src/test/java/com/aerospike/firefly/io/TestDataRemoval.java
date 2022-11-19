@@ -46,7 +46,6 @@ public class TestDataRemoval extends AbstractFireflySuite {
     }
 
     @Test
-    @Ignore
     public void smallDataRemoval(){
         FireflyGraph graph = FireflyGraph.open(config);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
@@ -55,7 +54,6 @@ public class TestDataRemoval extends AbstractFireflySuite {
     }
 
     @Test
-    @Ignore
     public void largerDataRemoval() throws IOException {
         FireflyGraph graph = FireflyGraph.open(config);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);

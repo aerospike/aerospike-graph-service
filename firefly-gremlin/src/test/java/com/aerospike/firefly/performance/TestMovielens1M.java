@@ -75,7 +75,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
     }
 
     @Test
-    @Ignore
     public void testYearExtraction() {
         String title = "Gilda (1946)";
         String[] tokens = title.split("[()]");
@@ -84,7 +83,6 @@ public class TestMovielens1M extends AbstractFireflySuite {
     }
 
     @Test
-    @Ignore
     public void testQueryMovieLens1M() {
         long vCountStart = System.currentTimeMillis();
         long vCount = graph.traversal().V().count().next();

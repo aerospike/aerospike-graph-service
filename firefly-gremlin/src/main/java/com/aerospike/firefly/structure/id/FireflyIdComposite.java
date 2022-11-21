@@ -9,6 +9,11 @@ import java.util.Objects;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdComposite extends FireflyId {
+    /* The composite id is used so heavily in different forms that
+       the edge id, adjacent id, and id array are not always all needed
+       but sometimes needed multiple times. Because of this, these are
+       calculated lazily (and latched when needed the first time),
+       to increase performance. */
     private byte[] id;
     private final FireflyId adjacentId;
     private FireflyId edgeId;
@@ -95,5 +100,14 @@ public class FireflyIdComposite extends FireflyId {
         }
         final FireflyIdComposite that = (FireflyIdComposite) o;
         return java.util.Arrays.equals(id, that.id);
+    }
+
+    @Override
+    public String toString() {
+        return "FireflyIdComposite{" +
+                "id=" + java.util.Arrays.toString(id) +
+                ", adjacentId=" + adjacentId +
+                ", edgeId=" + edgeId +
+                '}';
     }
 }

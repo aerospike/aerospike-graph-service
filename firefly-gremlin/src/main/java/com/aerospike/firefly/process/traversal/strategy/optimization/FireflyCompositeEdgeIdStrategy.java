@@ -18,7 +18,6 @@ import java.util.List;
  */
 public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyCompositeEdgeIdStrategy.class);
     private static final FireflyCompositeEdgeIdStrategy INSTANCE = new FireflyCompositeEdgeIdStrategy();
 
     private FireflyCompositeEdgeIdStrategy() {
@@ -32,16 +31,15 @@ public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<Tr
         final List<Step> steps = traversal.getSteps();
 
         // We need to find VertexSteps.
-        // In particular we need vertex steps that return a vertex.
-
+        // In particular, we need vertex steps that return a vertex.
         for (int index = 0; index < steps.size(); index++) {
-            Step<?, ?> step = steps.get(index);
             // If it's not a VertexStep, skip it.
-            if (!(step instanceof VertexStep)) {
+            if (!(steps.get(index) instanceof VertexStep)) {
                 continue;
             }
 
-            final VertexStep<?> vertexStep = (VertexStep<?>) step;
+            // Cast to VertexStep so we have access to the methods.
+            final VertexStep<?> vertexStep = (VertexStep<?>) steps.get(index);
 
             // If it does not return a vertex, skip it. This is the case for something like:
             //  g.V().outE() <- In this case we can let the tinkerpop core handle it.
@@ -49,10 +47,10 @@ public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<Tr
                 continue;
             }
 
+            // Replace vertex step with composite id step.
             traversal.removeStep(vertexStep);
             traversal.addStep(index, new FireflyCompositeIdStep(traversal, vertexStep.getDirection(), vertexStep.getEdgeLabels()));
         }
-        // Find in/out steps.
     }
 
     public static FireflyCompositeEdgeIdStrategy instance() {

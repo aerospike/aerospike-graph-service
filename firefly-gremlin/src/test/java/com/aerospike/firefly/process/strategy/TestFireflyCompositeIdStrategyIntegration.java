@@ -1,34 +1,24 @@
 package com.aerospike.firefly.process.strategy;
 
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
+import com.aerospike.firefly.util.PerfUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.AbstractMap;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
@@ -57,7 +47,6 @@ public class TestFireflyCompositeIdStrategyIntegration {
         CONFIG.clearProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase());
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         final GraphTraversalSource g = SETUP_GRAPH.traversal();
-        if (g.V().has("code", "SFO").toList().size() > 0) return;
         SETUP_GRAPH.getBaseGraph().dropDatabase();
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         g.V().drop().iterate();
@@ -71,7 +60,7 @@ public class TestFireflyCompositeIdStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        // SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase();
         SETUP_GRAPH.close();
     }
 
@@ -110,39 +99,37 @@ public class TestFireflyCompositeIdStrategyIntegration {
     public void testCompositeIdStrategyPerformance() {
         CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), true);
         final GraphTraversalSource g_composite;
-        final Duration composite_duration_sfo;
-        final Duration composite_duration_yyj;
+        final PerfUtil.Results composite_sfo_results;
+        final PerfUtil.Results composite_yyj_results;
         try (final FireflyGraph graph_composite = FireflyGraph.open(CONFIG)) {
             g_composite = graph_composite.traversal();
-
-            Instant start = Instant.now();
-            g_composite.V().has("code", "SFO").out().out().toList();
-            composite_duration_sfo = Duration.between(start, Instant.now());
-
-            start = Instant.now();
-            g_composite.V().has("code", "YYJ").out().out().toList();
-            composite_duration_yyj = Duration.between(start, Instant.now());
+            composite_sfo_results = PerfUtil.runTestBatch(100, () -> {
+                List<Vertex> data = g_composite.V().has("code", "SFO").out().out().toList();
+            });
+            composite_yyj_results = PerfUtil.runTestBatch(100, () -> {
+                List<Vertex> data = g_composite.V().has("code", "YYJ").out().out().toList();
+            });
         }
 
         CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), false);
         final GraphTraversalSource g_standard;
-        final Duration standard_duration_sfo;
-        final Duration standard_duration_yyj;
+        final PerfUtil.Results standard_sfo_results;
+        final PerfUtil.Results standard_yyj_results;
         try (final FireflyGraph graph_standard = FireflyGraph.open(CONFIG)) {
             g_standard = graph_standard.traversal();
-
-            Instant start = Instant.now();
-            g_standard.V().has("code", "SFO").out().out().toList();
-            standard_duration_sfo = Duration.between(start, Instant.now());
-
-            start = Instant.now();
-            g_standard.V().has("code", "YYJ").out().out().toList();
-            standard_duration_yyj = Duration.between(start, Instant.now());
+            standard_sfo_results = PerfUtil.runTestBatch(100, () -> {
+                List<Vertex> data = g_standard.V().has("code", "SFO").out().out().toList();
+            });
+            standard_yyj_results = PerfUtil.runTestBatch(100, () -> {
+                List<Vertex> data = g_standard.V().has("code", "YYJ").out().out().toList();
+            });
         }
 
-        System.out.println("Composite Id Strategy sfo: " + composite_duration_sfo.toMillis() + "ms");
-        System.out.println("Composite Id Strategy yyj: " + composite_duration_yyj.toMillis() + "ms");
-        System.out.println("Standard Id Strategy sfo: " + standard_duration_sfo.toMillis() + "ms");
-        System.out.println("Standard Id Strategy yyj: " + standard_duration_yyj.toMillis() + "ms");
+        System.out.println("SFO Airport Results:");
+        System.out.println("\tComposite Id Strategy\n" + composite_sfo_results);
+        System.out.println("\tStandard Id Strategy\n" + standard_sfo_results);
+        System.out.println("YYJ Airport Results:");
+        System.out.println("\tComposite Id Strategy\n" + composite_yyj_results);
+        System.out.println("\tStandard Id Strategy\n" + standard_yyj_results);
     }
 }

@@ -124,6 +124,7 @@ public final class ConfigurationHelper {
         public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
         public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
+        public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -205,6 +206,7 @@ public final class ConfigurationHelper {
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
+        put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

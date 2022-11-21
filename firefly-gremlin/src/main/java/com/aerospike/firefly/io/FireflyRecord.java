@@ -112,29 +112,25 @@ public class FireflyRecord {
     }
 
     public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+        if (ids.size() == 0) {
+            return new ArrayList<>();
+        }
+
+        // Batch reading in Aerospike is capped based on settings in the server.
         final List<FireflyRecord> fireflyRecords = new ArrayList<>();
-        int startIndex = 0;
-        int endIndex = 5000;
-        do {
-            if (endIndex > ids.size()) {
-                endIndex = ids.size();
+        for (int i = 0; i < ids.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, ids.size())) {
+            final List<FireflyId> subList = ids.subList(i, Math.min(ids.size(), i + db.AEROSPIKE_BATCH_READ_SIZE));
+            final List<Key> keys = subList.stream().map(id -> getKey(db.getNamespace(), set, id)).collect(Collectors.toList());
+            final Record[] records = db.read(keys.toArray(new Key[0]));
+            if (records != null) {
+                for (int j = 0; j < records.length; j++) {
+                    final Record record = records[j];
+                    if (record != null) {
+                        fireflyRecords.add(new FireflyRecord(db, keys.get(j), record));
+                    }
+                }
             }
-            final List<FireflyId> subIds = ids.subList(startIndex, endIndex);
-
-            final Key[] keys = subIds.stream().map(id -> getKey(db.getNamespace(), set, id)).toArray(Key[]::new);
-            final Record[] records = db.read(keys);
-            if (records == null)
-                continue;
-
-            for (int i = 0; i < records.length; i++) {
-                final Record record = records[i];
-                if (record == null)
-                    continue;
-                fireflyRecords.add(new FireflyRecord(db, keys[i], record));
-            }
-            startIndex = endIndex;
-            endIndex += 5000;
-        } while ((endIndex - 5000) < ids.size());
+        }
 
         if (fireflyRecords.isEmpty()) {
             return null;

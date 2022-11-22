@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -23,10 +24,12 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
     public FireflyCompositeIdStep(final Traversal.Admin traversal,
                                   final Direction direction,
-                                  final String[] edgeLabels) {
+                                  final String[] edgeLabels,
+                                  final Set<String> labels) {
         super(traversal);
         this.direction = direction;
         this.edgeLabels = edgeLabels;
+        this.labels = labels;
     }
 
     static class FireflyCompositeIdStepInfo {
@@ -72,7 +75,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         for (final FireflyCompositeIdStepInfo info : fireflyCompositeIdStepInfos) {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the vertex and add it to the output set using the split.
-                // Not this is invoked info.size times,
+                // Note, this is invoked info.size times.
                 output.add(info.traverser.split(vertices.get(i++), this));
             }
         }

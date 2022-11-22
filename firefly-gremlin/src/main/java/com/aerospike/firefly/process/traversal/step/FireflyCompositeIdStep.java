@@ -44,6 +44,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
+        System.out.println("Executing composite id strategy.");
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Vertex> output = new TraverserSet<>();
         final FireflyGraph firefly = ((FireflyGraph) getTraversal().getGraph().get());

@@ -142,7 +142,7 @@ public class RelationalEdge extends FireflyEdge {
 
         final List<FireflyRecord> edgeRecord = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
         if (edgeRecord == null) {
-            return null;
+            return new ArrayList<>();
         }
         return edgeRecord.stream().map(record -> RelationalEdgeFactory.create(
                 FireflyIdFactory.createFromRecord(db, record),

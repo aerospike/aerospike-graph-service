@@ -214,7 +214,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     private List<FireflyId> getInEdgeIds(final String... labels) {
-        return IteratorUtils.list(getInEdgeIdsIter());
+        return IteratorUtils.list(getInEdgeIdsIter(labels));
     }
 
     /**
@@ -698,7 +698,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Batch read vertex records.
         final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
         if (vertexRecords == null) {
-            return null;
+            return new ArrayList<>();
         }
 
         // Convert records to vertices.
@@ -796,34 +796,39 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param adjacentVertexIds List of adjacent vertex ids to append to.
      * @param direction         Direction of edges to get adjacent vertex ids for.
      * @param edgeLabels        Labels of edges to filter with.
+     * @return how many vertices were added.
      */
-    public void appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String... edgeLabels) {
+    public int appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String... edgeLabels) {
+        int i = 0;
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         if (direction == Direction.IN || direction == Direction.BOTH) {
-            if (inEdgeCount == -1) {
+            if (this.inEdgeCount == -1) {
                 // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
-            for (Map.Entry<String, List<FireflyId>> entry : inEdgeIds.entrySet()) {
+            for (final Map.Entry<String, List<FireflyId>> entry : this.inEdgeIds.entrySet()) {
                 if (edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(entry.getKey())) {
                     for (FireflyId edgeId : entry.getValue()) {
                         adjacentVertexIds.add(((FireflyIdComposite) edgeId).getAdjacentId());
+                        i++;
                     }
                 }
             }
         }
         if (direction == Direction.OUT || direction == Direction.BOTH) {
-            if (outEdgeCount == -1) {
+            if (this.outEdgeCount == -1) {
                 // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
-            for (Map.Entry<String, List<FireflyId>> entry : outEdgeIds.entrySet()) {
+            for (final Map.Entry<String, List<FireflyId>> entry : this.outEdgeIds.entrySet()) {
                 if (edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(entry.getKey())) {
                     for (FireflyId edgeId : entry.getValue()) {
                         adjacentVertexIds.add(((FireflyIdComposite) edgeId).getAdjacentId());
+                        i++;
                     }
                 }
             }
         }
+        return i;
     }
 }

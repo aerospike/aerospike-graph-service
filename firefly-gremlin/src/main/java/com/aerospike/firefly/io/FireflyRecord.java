@@ -133,7 +133,7 @@ public class FireflyRecord {
         }
 
         if (fireflyRecords.isEmpty()) {
-            return null;
+            return new ArrayList<>();
         }
         return fireflyRecords;
     }

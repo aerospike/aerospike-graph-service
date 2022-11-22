@@ -117,12 +117,6 @@ public class TestDataModelVersioning {
             return getDataModelName();
         }
 
-        @Override
-        public void bulkWriteVertex(long vertexId, String label, List<Map.Entry<String, Object>> properties,
-                                    Map<String, List<FireflyId>> outEdges, Map<String, List<FireflyId>> inEdges,
-                                    boolean cacheDisabled) {
-        }
-
         public static String getDataModelName() {
             return DATA_MODEL;
         }

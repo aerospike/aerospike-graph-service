@@ -41,7 +41,6 @@ public class LinkedVertex extends RelationalVertex {
     public static final int VERTEX_TYPE_HINT = 0;
 
     private Map<String, List<FireflyId>> vertexPropertyIds;
-    private long vertexPropertyCount;
     private AerospikeConnection db;
 
     /**
@@ -55,7 +54,7 @@ public class LinkedVertex extends RelationalVertex {
      * @param inEdgeCount         incoming edge count.
      * @param outEdgeCount        outgoing edge count.
      * @param vertexPropertyIds   vertex property ids.
-     * @param vertexPropertyCount vertex property count.
+     * @param isCacheDisabled     is cache disabled.
      * @param db                  Aerospike connection.
      */
     public LinkedVertex(final FireflyId fid,
@@ -66,10 +65,9 @@ public class LinkedVertex extends RelationalVertex {
                         final long inEdgeCount,
                         final long outEdgeCount,
                         final Map<String, List<FireflyId>> vertexPropertyIds,
-                        final long vertexPropertyCount,
+                        final boolean isCacheDisabled,
                         final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
-        this.vertexPropertyCount = vertexPropertyCount;
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isCacheDisabled, db);
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
         this.db = db;
     }
@@ -184,7 +182,6 @@ public class LinkedVertex extends RelationalVertex {
 
         // Read this vertex and update in case we have had concurrent updates.
         final LinkedVertex linkedVertex = (LinkedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
-        this.vertexPropertyCount = linkedVertex.vertexPropertyCount;
         this.vertexPropertyIds = linkedVertex.vertexPropertyIds;
 
         if (!vertexPropertyIds.containsKey(key)) {
@@ -209,20 +206,18 @@ public class LinkedVertex extends RelationalVertex {
             vertexPropertyIds.remove(key);
         }
 
-        vertexPropertyCount--;
-
         // Decrement counter
         final long vpCounter = getVertexPropertyCount() - vertexPropertyIdsForKey.size();
 
         // Write back.
         final int generation = record.record.generation;
-        if (vpCounter <= db.ID_CACHE_SIZE - 1) {
+        if (vpCounter <= db.ID_CACHE_SIZE) {
             // Can directly overwrite vertex property map.
             final Bin vertexProperties = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapListToCache(vertexPropertyIds)));
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
 
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexProperties, vertexPropertiesCounter);
-        } else if (vpCounter > db.ID_CACHE_SIZE - 1) {
+        } else if (vpCounter > db.ID_CACHE_SIZE) {
             // Can only overwrite vertex property count.
             final Bin vertexPropertiesCounter = new Bin(db.VP_COUNTER, Value.get(vpCounter));
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesCounter);
@@ -339,8 +334,7 @@ public class LinkedVertex extends RelationalVertex {
         final List<Object> ids = labelIds.getOrDefault(vertexProperty.key(), new ArrayList<>());
         final List<FireflyId> fireflyIds = FireflyIdFactory.convertObjectListToFireflyIdList(ids);
         vertexPropertyIds.put(vertexProperty.key(), fireflyIds);
-        vertexPropertyCount++;
-        if (vpCounter < db.ID_CACHE_SIZE)
+        if (vpCounter <= db.ID_CACHE_SIZE)
             ids.add(vertexProperty.id.getStorageId());
         vpCounter++;
 

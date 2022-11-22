@@ -66,8 +66,9 @@ public class PackedVertex extends RelationalVertex {
                            final Map<String, Object> vertexPropertyValues,
                            final Map<String, Long> vertexPropertyValuesTypeHints,
                            final long vertexPropertyCount,
+                           final boolean isCacheDisabled,
                            final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, db);
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isCacheDisabled, db);
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
@@ -273,15 +274,16 @@ public class PackedVertex extends RelationalVertex {
                                           final Map<String, Object> vertexPropertyValues,
                                           final Map<String, Long> vertexPropertyValuesTypeHints,
                                           final long vertexPropertyCount,
+                                          final boolean isCacheDisabled,
                                           final AerospikeConnection db) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
                         vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        db);
+                        isCacheDisabled, db);
             } else {
                 return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
                         vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        db);
+                        isCacheDisabled, db);
             }
         }
     }

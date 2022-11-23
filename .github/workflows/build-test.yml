@@ -462,8 +462,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-movielens-packed.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-movielens-packed.outputs.ec2-instance-id }}
   stop-runner-packed:
     name: Stop Packed Runner
     needs:
@@ -483,8 +483,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-movielens-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-movielens-packed.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-packed.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
   stop-runner-docker:
     name: Stop Docker Build Runner
     needs:

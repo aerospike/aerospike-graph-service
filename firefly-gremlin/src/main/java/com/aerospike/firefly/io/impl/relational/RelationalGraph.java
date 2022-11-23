@@ -74,11 +74,10 @@ public abstract class RelationalGraph extends FireflyGraph {
                                  final FireflyVertex inVertex,
                                  final FireflyVertex outVertex) {
         // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
-
         // Add edge to inVertex and outVertex.
         if (!this.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //disable RMW pattern and rely on index for edge lookups
-            inVertex.writeEdge(Direction.IN, edgeId, label);
-            outVertex.writeEdge(Direction.OUT, edgeId, label);
+            outVertex.writeEdge(Direction.OUT, FireflyIdFactory.createEdgeId(edgeId, inVertex.id), label);
+            inVertex.writeEdge(Direction.IN, FireflyIdFactory.createEdgeId(edgeId, outVertex.id), label);
         }
 
         // Write edge to Aerospike and return FireflyEdge.
@@ -128,10 +127,15 @@ public abstract class RelationalGraph extends FireflyGraph {
     public void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
                                         final long edgeId, final String edgeLabel) {
         final FireflyId fireflyEdgeId = FireflyIdFactory.createId(edgeId);
+        final FireflyId fireflyInVertexId = FireflyIdFactory.createId(inVertexId);
+        final FireflyId fireflyOutVertexId = FireflyIdFactory.createId(outVertexId);
+        final FireflyId fireflyInVertexEdgeId = FireflyIdFactory.createEdgeId(fireflyEdgeId, fireflyOutVertexId);
+        final FireflyId fireflyOutVertexEdgeId = FireflyIdFactory.createEdgeId(fireflyEdgeId, fireflyInVertexId);
+
         GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertices(
-                FireflyIdFactory.createId(inVertexId), Direction.IN, fireflyEdgeId, edgeLabel));
+                fireflyInVertexId, Direction.IN, fireflyInVertexEdgeId, edgeLabel));
         GenerationCheck.writeGenerationCheck(() -> protectedWriteEdgeToVertices(
-                FireflyIdFactory.createId(outVertexId), Direction.OUT, fireflyEdgeId, edgeLabel));
+                fireflyOutVertexId, Direction.OUT, fireflyOutVertexEdgeId, edgeLabel));
     }
 
     private void protectedWriteEdgeToVertices(final FireflyId vertexId, final Direction direction,
@@ -147,12 +151,12 @@ public abstract class RelationalGraph extends FireflyGraph {
         // Initialize edge counter, cache disable flag, edge label map, and generation.
         long edgeCounter = 0;
         boolean cacheDisabled = false;
-        Map<String, List<Long>> labelEdges = new HashMap<>();
+        Map<String, List<Object>> labelEdges = new HashMap<>();
         int generation = -1;
 
         // If the Firefly record is not null, grab existing edge data from it.
         if (fireflyRecord != null && fireflyRecord.record != null) {
-            labelEdges = (Map<String, List<Long>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
+            labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
             cacheDisabled = fireflyRecord.record().getBoolean(db.CACHE_DISABLED);
             generation = fireflyRecord.record().generation;
@@ -170,8 +174,8 @@ public abstract class RelationalGraph extends FireflyGraph {
             bins = new Bin[]{edgeCounterBin, cacheDisabledBin};
         } else {
             // Add the edge to the cache in the vertex if the cache has not grown too big.
-            final List<Long> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
-            edges.add((Long) edgeId.getStorageId());
+            final List<Object> edges = labelEdges.getOrDefault(edgeLabel, new ArrayList<>());
+            edges.add(edgeId.getCachedId());
 
             // Add edges to edge label map.
             labelEdges.put(edgeLabel, edges);

@@ -30,16 +30,17 @@ public class PerfUtil {
 
         @Override
         public String toString() {
-            return String.format("run count: %d\n" +
-                            "avg: %f\n" +
-                            "min: %f ms\n" +
-                            "max: %f ms\n" +
-                            "85th: %f ms\n" +
-                            "90th: %f ms\n" +
-                            "99th: %f ms\n" +
-                            "99.9th: %f ms\n" +
-                            "99.99th: %f ms\n" +
-                            "99.999th: %f ms\n",
+            return String.format(
+                            "\trun count: %d\n" +
+                            "\t\tavg:     %f ms\n" +
+                            "\t\tmin:     %f ms\n" +
+                            "\t\tmax:     %f ms\n" +
+                            "\t\tp85:     %f ms\n" +
+                            "\t\tp90:     %f ms\n" +
+                            "\t\tp99:     %f ms\n" +
+                            "\t\tp99.9:   %f ms\n" +
+                            "\t\tp99.99:  %f ms\n" +
+                            "\t\tp99.999: %f ms\n",
                     runCount,
                     nsToMs(avg), nsToMs(min), nsToMs(max),
                     nsToMs(percentiles.get(85.)),
@@ -69,22 +70,11 @@ public class PerfUtil {
             long finish = System.nanoTime();
             results.add(finish - start);
         });
-        results.sort(new Comparator<Long>() {
-            @Override
-            public int compare(Long o1, Long o2) {
-                return o2.compareTo(o1);
-            }
-        });
-        System.out.println(results);
-        final long average = results.stream().reduce((l1, l2) -> l1 + l2).get() / results.size();
+        results.sort(Comparator.reverseOrder());
+        final long average = results.stream().reduce(Long::sum).get() / results.size();
         final long max = results.get(0);
         final long min = results.get(results.size() - 1);
-        results.sort(new Comparator<Long>() {
-            @Override
-            public int compare(Long o1, Long o2) {
-                return o1.compareTo(o2);
-            }
-        });
+        results.sort(Long::compareTo);
         return new Results(runCount, min, max, average, new HashMap<>() {{
             put(85., PerfUtil.percentile(results, 85));
             put(90., PerfUtil.percentile(results, 90));

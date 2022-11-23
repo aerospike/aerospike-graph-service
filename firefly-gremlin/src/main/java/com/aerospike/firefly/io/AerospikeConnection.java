@@ -158,6 +158,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
 
     public final ThreadLocal<Traversal.Admin> currentTraversal = new ThreadLocal<>();
+    public final int AEROSPIKE_BATCH_READ_SIZE;
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
@@ -248,6 +249,7 @@ public class AerospikeConnection implements AutoCloseable {
         OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);
         ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
+        AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         traversalCacheSet = new ConcurrentHashMap<>();
         cacheTasks = new ArrayList<>();
 

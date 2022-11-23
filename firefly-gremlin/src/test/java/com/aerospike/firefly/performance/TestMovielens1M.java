@@ -7,11 +7,13 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.Movielens;
 import com.aerospike.firefly.util.Unzip;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -83,25 +85,32 @@ public class TestMovielens1M extends AbstractFireflySuite {
 
     @Test
     public void testQueryMovieLens1M() {
-        long vCountStart = System.currentTimeMillis();
-        long vCount = graph.traversal().V().count().next();
-        long vCountEnd = System.currentTimeMillis();
-        long searchPeopleRatedGilda = g.V().hasLabel("person").out().has("name", "Gilda (1946)").count().next();
-        long sprgEnd = System.currentTimeMillis();
-        long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
-        long sgrbpEnd = System.currentTimeMillis();
-        assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
-        long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
-        assertEquals(1L, oneMovie);
+        // Disable composite ids for movielens because it introudces an out barrier on a step that uses a ton of memory and will OOME.
+        // TODO GRAPH 213.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+        try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+            long vCountStart = System.currentTimeMillis();
+            long vCount = graph.traversal().V().count().next();
+            long vCountEnd = System.currentTimeMillis();
+            long searchPeopleRatedGilda = g.V().hasLabel("person").out().has("name", "Gilda (1946)").count().next();
+            long sprgEnd = System.currentTimeMillis();
+            long searchGildaRatedByPeople = g.V().has("name", "Gilda (1946)").inE().outV().count().next();
+            long sgrbpEnd = System.currentTimeMillis();
+            assertEquals(searchPeopleRatedGilda, searchGildaRatedByPeople);
+            long oneMovie = g.V().has(YEAR, 1946).has("name", "Gilda (1946)").count().next();
+            assertEquals(1L, oneMovie);
 
-        LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
-        LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
-        LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
+            LOG.info("Vertex count {} time {} seconds", vCount, (vCountEnd - vCountStart) / 1000);
+            LOG.info("searchPeopleRatedGilda time {} seconds", (sprgEnd - vCountEnd) / 1000);
+            LOG.info("searchGildaRatedByPeople time {} seconds", (sgrbpEnd - sprgEnd) / 1000);
 
-        final Long verticesLoaded = graph.traversal().V().count().next();
-        final Long edgesLoaded = graph.traversal().E().count().next();
-        System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));
-        graph.traversal().V().drop().iterate();
-        verifyClean(graph);
+            final Long verticesLoaded = graph.traversal().V().count().next();
+            final Long edgesLoaded = graph.traversal().E().count().next();
+            System.out.println(String.format("movielens vertex count [%d] edge count [%d]", verticesLoaded, edgesLoaded));
+            graph.traversal().V().drop().iterate();
+            verifyClean(graph);
+        }
     }
 }

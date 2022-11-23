@@ -1,11 +1,8 @@
 package com.aerospike.firefly.io.impl.relational;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.Value;
+import com.aerospike.client.*;
 import com.aerospike.client.async.Monitor;
+import com.aerospike.client.cdt.*;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.QueryPolicy;
@@ -42,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
@@ -104,6 +102,20 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
+    }
+
+    public void addEdgeIdToCache(Direction direction, String label, Object id) {
+        ListPolicy pol = new ListPolicy();
+
+        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long)this.id.getStorageId()),
+                ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+        );
+    }
+
+    public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
+        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getStorageId()),
+                ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
+        );
     }
 
     /**
@@ -310,7 +322,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        GenerationCheck.writeGenerationCheck(() -> protectedRemoveEdge(direction, edgeId, edgeLabel));
+        this.removeEdgeIdFromCache(direction, edgeLabel, edgeId.getUserId());
+        this.removeEdgeFromJVMCache(direction, edgeId, edgeLabel);
     }
 
     private void protectedRemoveEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
@@ -377,7 +390,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        GenerationCheck.writeGenerationCheck(() -> protectedWriteEdge(direction, edgeId, edgeLabel));
+        this.addEdgeIdToCache(direction, edgeLabel, edgeId.getUserId());
+        this.addEdgeToJVMCache(direction, edgeId, edgeLabel);
     }
 
     private void protectedWriteEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
@@ -565,6 +579,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
 
         // Write vertex bins to Aerospike.
+        final Map<String, List<Long>> uninitalizedEdgeCacheIn = new HashMap<>();
+        final Bin edgeCacheIn = new Bin(Direction.IN.name(), uninitalizedEdgeCacheIn);
+        final Map<String, List<Long>> uninitalizedEdgeCacheOut = new HashMap<>();
+        final Bin edgeCacheOut = new Bin(Direction.OUT.name(), uninitalizedEdgeCacheOut);
         final Map<String, Long> vertexPropertyTypeHintMap;
         if (vertexPropertyValueMap != null) {
             final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
@@ -575,12 +593,12 @@ public abstract class RelationalVertex extends FireflyVertex {
             final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
 
             // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, edgeCacheOut, edgeCacheIn, vertexPropertyIdsBin, vertexPropertyValuesBin, vertexPropertyCounterBin, vertexPropertyValuesTypeHintsBin, typeHint);
         } else {
             vertexPropertyTypeHintMap = null;
 
             // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
+            FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, labelBin, edgeCacheOut, edgeCacheIn, vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
         }
 
         switch (vertexTypeHint) {

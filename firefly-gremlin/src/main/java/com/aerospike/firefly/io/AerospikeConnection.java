@@ -107,6 +107,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String GRAPH_VARIABLES_RECORD;
     public final String GRAPH_VARIABLES_MAP;
     public final String EDGE_AERO_SET;
+
     public final String VERTEX_AERO_SET;
     public final String IN_VP_SET;
     public final String OUT_VP_SET;

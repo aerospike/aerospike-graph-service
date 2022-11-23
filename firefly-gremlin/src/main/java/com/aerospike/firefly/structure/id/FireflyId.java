@@ -1,5 +1,7 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.Key;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */

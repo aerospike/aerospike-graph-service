@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.impl.GraphFactory;
+import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
@@ -923,11 +924,23 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void testModelAndVersion() {
         //This initializes the metadata for version and model, if drop database is called, its cleared
-        graph = GraphFactory.createGraph(db,config);
+        graph = GraphFactory.createGraph(db, config);
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
         assertEquals(graph.getBaseGraph().getDataModelName(), it.property(graph.getBaseGraph().DATA_MODEL_NAME).value());
         assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(graph.getBaseGraph().DATA_MODEL_VER).value());
+    }
+
+    @Test
+    public void testOperateCache() {
+        RelationalVertex a = (RelationalVertex) graph.addVertex(T.label, "a");
+        RelationalVertex b = (RelationalVertex) graph.addVertex(T.label, "b");
+        Edge e1 = graph.traversal().addE("oneLabel").from(a).to(b).next();
+        Edge e2 = graph.traversal().addE("twoLabel").from(b).to(a).next();
+        List<Edge> allEdges = graph.traversal().E().toList();
+        List<Edge> e1e = graph.traversal().V(a).bothE().toList();
+        List<Edge> e2e = graph.traversal().V(b).bothE().toList();
+        assertEquals((Long) 1L, (Long) graph.traversal().V(a).inE().count().next());
     }
 }
 

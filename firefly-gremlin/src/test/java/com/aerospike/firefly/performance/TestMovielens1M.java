@@ -86,9 +86,11 @@ public class TestMovielens1M extends AbstractFireflySuite {
     @Test
     public void testQueryMovieLens1M() {
         // Disable composite ids for movielens because it introudces an out barrier on a step that uses a ton of memory and will OOME.
+        // TODO GRAPH 213.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
         try (FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
             long vCountStart = System.currentTimeMillis();
             long vCount = graph.traversal().V().count().next();
             long vCountEnd = System.currentTimeMillis();

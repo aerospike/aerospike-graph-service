@@ -112,7 +112,6 @@ public class FireflyRecord {
     }
 
     public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
-        System.out.println("batchReading " + ids.size() + " ids");
         if (ids.size() == 0) {
             return new ArrayList<>();
         }
@@ -122,9 +121,7 @@ public class FireflyRecord {
         for (int i = 0; i < ids.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, ids.size())) {
             final List<FireflyId> subList = ids.subList(i, Math.min(ids.size(), i + db.AEROSPIKE_BATCH_READ_SIZE));
             final List<Key> keys = subList.stream().map(id -> getKey(db.getNamespace(), set, id)).collect(Collectors.toList());
-            System.out.println("Reading " + i + " to " + Math.min(ids.size(), i + db.AEROSPIKE_BATCH_READ_SIZE));
             final Record[] records = db.read(keys.toArray(new Key[0]));
-            System.out.println("Read " + i + " to " + Math.min(ids.size(), i + db.AEROSPIKE_BATCH_READ_SIZE));
             if (records != null) {
                 for (int j = 0; j < records.length; j++) {
                     final Record record = records[j];

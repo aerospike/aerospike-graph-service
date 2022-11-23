@@ -91,9 +91,6 @@ public class FireflyIdFactory {
                 !FireflyVertexProperty.class.isAssignableFrom(type)) {
             throw new UnsupportedOperationException(type + " not a Firefly Element ");
         } else if (FireflyVertex.class.isAssignableFrom(type) && !supportedType) {
-            System.out.println("Type: " + type);
-            System.out.println("Id: " + id);
-            System.out.println("Id.class(): " + id.getClass().getName());
             throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
         } else if (FireflyEdge.class.isAssignableFrom(type) && !supportedType) {
             throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();

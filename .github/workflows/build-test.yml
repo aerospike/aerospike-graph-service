@@ -277,7 +277,7 @@ jobs:
   test-firefly-movielens-linked:
     name: Test Movielens Linked
     timeout-minutes: 120
-    needs: start-runner-movielens-packed
+    needs: start-runner-movielens-linked
     runs-on: ${{ needs.start-runner-movielens-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -371,6 +371,7 @@ jobs:
   #        cd ..
   #        wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.0/apache-tinkerpop-gremlin-server-3.6.0-bin.zip --quiet
   #        echo "Unzipping gremlin-server"
+  #        unzip -qq gremlin-server
   #        unzip -qq gremlin-server
   #
   #        echo "Build Firefly"

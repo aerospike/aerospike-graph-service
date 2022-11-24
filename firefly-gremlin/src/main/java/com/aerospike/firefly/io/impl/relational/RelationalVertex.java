@@ -1,9 +1,11 @@
 package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
@@ -47,6 +49,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
@@ -114,18 +117,24 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     public void addEdgeIdToCache(Direction direction, String label, FireflyId id) {
-        if (this.id.getCachedId() instanceof byte[])
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
-                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-            );
-        else if (this.id.getCachedId() instanceof String)
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
-                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-            );
-        else
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
-                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-            );
+        try {
+            if (this.id.getCachedId() instanceof byte[])
+                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
+                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+                );
+            else if (this.id.getCachedId() instanceof String)
+                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
+                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+                );
+            else
+                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
+                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+                );
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG)
+                throw new RuntimeException(RECORD_TOO_BIG_ERROR);
+            throw ae;
+        }
     }
 
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
@@ -170,7 +179,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param edgeLabels Edge labels.
      * @return List of vertices.
      */
-    private List<FireflyVertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction, final String... edgeLabels) {
+    private List<FireflyVertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction,
+                                                    final String... edgeLabels) {
         final List<FireflyRecord> edgeRecords = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
         if (edgeRecords == null) {
             return new ArrayList<>();
@@ -348,7 +358,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param policy ScanPolicy to use during Scan
      * @return Iterator of Map.Entry Key, Record
      */
-    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String set, final Expression exp, final ScanPolicy policy) {
+    protected Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String set, final Expression exp,
+                                                                   final ScanPolicy policy) {
         LOG.trace("Issuing scan query of all records in {}:{} with filter {}.",
                 db.getNamespace(), set, exp);
         final Monitor scanMonitor = new Monitor();
@@ -592,7 +603,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param properties Properties.
      * @return Property value map.
      */
-    public static PropertyValueIdMaps getPropertyValueIdMaps(final FireflyGraph graph, final List<Map.Entry<String, Object>> properties) {
+    public static PropertyValueIdMaps getPropertyValueIdMaps(final FireflyGraph graph,
+                                                             final List<Map.Entry<String, Object>> properties) {
         // Loop through properties nad populate the vertex properties value map.
         final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
         final Map<String, FireflyId> vertexPropertyIdMap = new HashMap<>();
@@ -836,7 +848,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param edgeLabels        Labels of edges to filter with.
      * @return how many vertices were added.
      */
-    public int appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction, final String... edgeLabels) {
+    public int appendAdjacentVertexIds(final List<FireflyId> adjacentVertexIds, final Direction direction,
+                                       final String... edgeLabels) {
         int i = 0;
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         if (direction == Direction.IN || direction == Direction.BOTH) {

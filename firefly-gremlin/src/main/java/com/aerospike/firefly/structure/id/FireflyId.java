@@ -9,4 +9,9 @@ public abstract class FireflyId {
     public abstract Long getStorageTypeIdx();
     public abstract boolean equals(Object o);
     public abstract Object getCachedId();
+
+    @Override
+    public int hashCode() {
+        return getStorageId().hashCode();
+    }
 }

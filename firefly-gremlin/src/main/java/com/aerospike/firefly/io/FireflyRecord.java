@@ -119,42 +119,31 @@ public class FireflyRecord {
         }
 
         // Batch reading in Aerospike is capped based on settings in the server.
-        final List<FireflyRecord> fireflyRecords = new ArrayList<>();
         final Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
-        final List<FireflyId> idsToRead = new ArrayList<>();
-        for (final FireflyId id : ids) {
-            if (idToRecord.containsKey(id)) {
-                fireflyRecords.add(idToRecord.get(id));
-            } else {
-                idToRecord.put(id, null);
-                idsToRead.add(id);
-                if (idsToRead.size() == db.AEROSPIKE_BATCH_READ_SIZE) {
-                    final Record[] records = db.read(idsToRead.stream().map(idd ->
-                            getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
-                    for (int i = 0; i < records.length; i++) {
-                        if (records[i] != null) {
-                            final FireflyId idd = ids.get(i);
-                            final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
-                            fireflyRecords.add(fireflyRecord);
-                            idToRecord.put(idd, fireflyRecord);
-                        }
-                    }
-                }
-            }
-        }
-        if (idsToRead.size() > 0) {
-            final Record[] records = db.read(idsToRead.stream().map(idd ->
-                    getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
-            for (int i = 0; i < records.length; i++) {
-                if (records[i] != null) {
-                    final FireflyId idd = ids.get(i);
-                    final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
-                    fireflyRecords.add(fireflyRecord);
-                    idToRecord.put(idd, fireflyRecord);
-                }
-            }
+        final Set<FireflyId> uniqueIds = new HashSet<>(ids);
+
+        // Batch reading in Aerospike is capped based on settings in the server.
+        for (int i = 0; i < uniqueIds.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, uniqueIds.size())) {
+            final List<FireflyId> subList = uniqueIds.stream().skip(i).
+                    limit(Math.min(uniqueIds.size(), i + db.AEROSPIKE_BATCH_READ_SIZE)).collect(Collectors.toList());
+            executeBatchRead(db, set, idToRecord, subList);
         }
         return ids.stream().map(idToRecord::get).collect(Collectors.toList());
+    }
+
+    private static void executeBatchRead(final AerospikeConnection db,
+                                         final String set,
+                                         final Map<FireflyId, FireflyRecord> idToRecord,
+                                         final List<FireflyId> idsToRead) {
+        final Record[] records = db.read(idsToRead.stream().map(idd ->
+                getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
+        for (int i = 0; i < records.length; i++) {
+            if (records[i] != null) {
+                final FireflyId idd = idsToRead.get(i);
+                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
+                idToRecord.put(idd, fireflyRecord);
+            }
+        }
     }
 
     /**

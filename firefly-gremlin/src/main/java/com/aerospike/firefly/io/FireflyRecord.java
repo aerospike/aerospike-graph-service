@@ -118,15 +118,15 @@ public class FireflyRecord {
             return new ArrayList<>();
         }
 
-        Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
-
         // Batch reading in Aerospike is capped based on settings in the server.
         final List<FireflyRecord> fireflyRecords = new ArrayList<>();
-        final Set<FireflyId> idsToRead = new HashSet<>();
+        final Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
+        final List<FireflyId> idsToRead = new ArrayList<>();
         for (final FireflyId id : ids) {
             if (idToRecord.containsKey(id)) {
                 fireflyRecords.add(idToRecord.get(id));
             } else {
+                idToRecord.put(id, null);
                 idsToRead.add(id);
                 if (idsToRead.size() == db.AEROSPIKE_BATCH_READ_SIZE) {
                     final Record[] records = db.read(idsToRead.stream().map(idd ->

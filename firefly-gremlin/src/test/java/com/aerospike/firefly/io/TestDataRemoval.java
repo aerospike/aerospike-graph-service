@@ -6,6 +6,7 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;

@@ -28,6 +28,7 @@ public class FireflyIdFactory {
     private static final Map<Class<? extends Serializable>, Long> TYPE_TO_IDX = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
+        put(Double.class, 3L);
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
@@ -36,6 +37,7 @@ public class FireflyIdFactory {
         put(0L, null);
         put(1L, Long.class);
         put(2L, Integer.class);
+        put(3L, Double.class);
         put(4L, byte[].class);
         put(5L, String.class);
     }};
@@ -44,16 +46,15 @@ public class FireflyIdFactory {
      * Create an id for a specific FireflyElement type.
      *
      * @param id          Id to use for element.
-     * @param inVertexId  Id of in vertex.
-     * @param outVertexId Id of out vertex.
+     * @param adjacentVertex  Id of adjacent vertex.
      * @return FireflyId.
      */
-    public static FireflyId createEdgeIdFromUser(final Object id, final FireflyId inVertexId, final FireflyId outVertexId) {
+    public static FireflyId createEdgeIdFromUser(final Object id, final FireflyId adjacentVertex) {
         // Generate edge id.
         final FireflyId edgeId = createFromUser(FireflyEdge.class, id);
 
         // Generate composite id.
-        return new FireflyIdComposite(edgeId, inVertexId, outVertexId);
+        return new FireflyIdComposite(edgeId, adjacentVertex);
     }
 
     /**
@@ -63,10 +64,18 @@ public class FireflyIdFactory {
      * @param id   Id to use for element.
      * @return FireflyId.
      */
-    public static FireflyId createFromUser(final Class<? extends FireflyElement> type, final Object id) {
-        // Should ask id factories
+    public static FireflyId createFromUser(final Class<? extends FireflyElement> type, Object id) {
+        if (id instanceof FireflyElement) {
+            return ((FireflyElement) id).id;
+        } else if (id instanceof Element) {
+            id = ((Element) id).id();
+        }
+
+        if (id instanceof Float) {
+            id = ((Float) id).doubleValue();
+        }
         boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
-        Object numericId;
+        final Object numericId;
         if (id instanceof String) {
             try {
                 numericId = Long.parseLong((String) id);
@@ -149,12 +158,12 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createEdgeId(final FireflyId edgeId, final FireflyId inVertex, final FireflyId outVertex) {
-        return new FireflyIdComposite(edgeId, inVertex, outVertex);
+    public static FireflyId createEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(edgeId, adjacentVertex);
     }
 
-    public static FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId inVertex, final FireflyId outVertex) {
-        return new FireflyIdComposite(createId(graph.edgeIdManager.getNextId(graph), null), inVertex, outVertex);
+    public static FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
     }
 
     public static FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
@@ -166,12 +175,12 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createEdgeIdFromKeyValues(final FireflyId inVertexId, final FireflyId outVertexId, final Object... keyValues) {
+    public static FireflyId createEdgeIdFromKeyValues(final FireflyId adjacentVertexId, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {
             throw new IllegalArgumentException("Id not found in keyValues");
         } else {
-            return createEdgeIdFromUser(id.get(), inVertexId, outVertexId);
+            return createEdgeIdFromUser(id.get(), adjacentVertexId);
         }
     }
 
@@ -187,7 +196,11 @@ public class FireflyIdFactory {
         for (final String label : fireflyObjectIds.keySet()) {
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final Object edge : fireflyObjectIds.get(label)) {
-                fireflyIds.add(FireflyIdFactory.createId(edge));
+                if (edge instanceof byte[]) {
+                    fireflyIds.add(new FireflyIdComposite((byte[]) edge));
+                } else {
+                    fireflyIds.add(FireflyIdFactory.createId(edge));
+                }
             }
             labelEdgeIds.put(label, fireflyIds);
         }
@@ -198,6 +211,7 @@ public class FireflyIdFactory {
         if (fireflyObjectIds == null) {
             return new HashMap<>();
         }
+
         final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();

@@ -113,16 +113,34 @@ public abstract class RelationalVertex extends FireflyVertex {
         this.removed = true;
     }
 
-    public void addEdgeIdToCache(Direction direction, String label, Object id) {
-        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long)this.id.getCachedId()),
-                ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-        );
+    public void addEdgeIdToCache(Direction direction, String label, FireflyId id) {
+        if (this.id.getCachedId() instanceof byte[])
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
+                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+            );
+        else if (this.id.getCachedId() instanceof String)
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
+                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+            );
+        else
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
+                    ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
+            );
     }
 
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
-        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
-                ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
-        );
+        if (this.id.getCachedId() instanceof byte[])
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
+                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
+            );
+        else if (this.id.getCachedId() instanceof String)
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
+                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
+            );
+        else
+            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
+                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
+            );
     }
 
     /**
@@ -452,7 +470,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        this.addEdgeIdToCache(direction, edgeLabel, edgeId.getUserId());
+        this.addEdgeIdToCache(direction, edgeLabel, edgeId);
         this.addEdgeToJVMCache(direction, edgeId, edgeLabel);
     }
 

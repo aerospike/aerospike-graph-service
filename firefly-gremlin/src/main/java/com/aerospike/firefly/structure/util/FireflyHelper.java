@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure.util;
 
+import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -77,26 +78,6 @@ public final class FireflyHelper {
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
         return getEdgeList(graph, vertex, direction, labels).iterator();
-    }
-
-    public static Iterator<Vertex> getVertices(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
-        final List<Vertex> vertices = new ArrayList<>();
-        final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
-        if (direction.equals(Direction.OUT) || direction.equals(Direction.BOTH)) {
-            final List<FireflyId> vertexIds = new ArrayList<>();
-            for (final Edge edge : getEdgeList(graph, vertex, Direction.OUT, labels)) {
-                vertexIds.add(((FireflyEdge)edge).inVertexId());
-            }
-            vertices.addAll(graph.readVertices(vertexIds));
-        }
-        if (direction.equals(Direction.IN) || direction.equals(Direction.BOTH)) {
-            final List<FireflyId> vertexIds = new ArrayList<>();
-            for (final Edge edge : getEdgeList(graph, vertex, Direction.IN, labels)) {
-                vertexIds.add(((FireflyEdge)edge).outVertexId());
-            }
-            vertices.addAll(graph.readVertices(vertexIds));
-        }
-        return vertices.iterator();
     }
 
     public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {

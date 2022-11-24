@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
@@ -19,6 +20,7 @@ import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
+import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -54,6 +56,7 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -201,6 +204,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 strategies.addStrategies(FireflyGraphDropStrategy.instance());
             } else {
                 strategies.removeStrategies(FireflyGraphDropStrategy.class);
+            }
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
+                strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
+            } else {
+                strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
             }
         }
     }
@@ -404,8 +412,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
+        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && ((String) vertexIdsOrVertices[0]).equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+            return IteratorUtils.of(new FireflyMetadataVertex(this));
+        }
         // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList());
+        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id ->
+                (Long) FireflyIdFactory.createFromUser(FireflyVertex.class, id).getStorageId()).collect(Collectors.toList());
 
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         // TODO: Should this be batch exists? Or removed for performance?

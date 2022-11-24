@@ -82,8 +82,8 @@ public class TestMovielens10M extends AbstractFireflySuite {
         assertEquals(tokens[tokens.length - 1], "1946");
     }
 
-    @Ignore
     @Test
+    @Ignore
     public void testQueryMovieLens10M() {
         Movielens.parse(Path.of(MOVIELENS_BASEPATH), FireflyGraph.open(config), Charset.defaultCharset(), true);
         long vCountStart = System.currentTimeMillis();

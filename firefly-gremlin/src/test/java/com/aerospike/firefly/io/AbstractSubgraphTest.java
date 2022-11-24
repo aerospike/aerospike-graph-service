@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
 import static org.apache.tinkerpop.gremlin.structure.io.IoCore.graphml;
 
 /**
@@ -95,7 +96,7 @@ public class AbstractSubgraphTest {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "true");
         config.setProperty(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE.toLowerCase(), "false");
-
+        config.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), false);
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();

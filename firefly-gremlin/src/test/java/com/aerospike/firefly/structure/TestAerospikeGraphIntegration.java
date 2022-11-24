@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -838,7 +840,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 Assert.assertEquals(1L, IteratorUtils.count(v.properties(new String[0])));
                 assertVertexEdgeCounts(this.graph, 1, 0);
             });
-        }else{
+        } else {
             LOG.info("Skipping shouldHandleListVertexPropertiesWithoutNullPropertyValues because graph does not support multi-properties");
         }
     }
@@ -902,5 +904,30 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         });
     }
 
+    @Test
+    public void shouldReturnConfigurationFromGraphVariable() {
+        Object stuff = graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME);
+        assertEquals(graph.readGraphVariable(FIREFLY_CONFIGURATION_VARIABLE_NAME), config);
+    }
+
+    @Test
+    public void shouldReturnConfigurationFromMetadataVertex() {
+        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
+        List<VertexProperty<Object>> props = IteratorUtils.list(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().properties());
+        config.getKeys().forEachRemaining(key -> {
+            assertEquals(graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next().property(key).value(), config.getString(key));
+        });
+        assertEquals(IteratorUtils.list(graph.configuration().getKeys()).size() + 2, props.size());
+    }
+
+    @Test
+    public void testModelAndVersion() {
+        //This initializes the metadata for version and model, if drop database is called, its cleared
+        graph = GraphFactory.createGraph(db,config);
+
+        Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
+        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(graph.getBaseGraph().DATA_MODEL_NAME).value());
+        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(graph.getBaseGraph().DATA_MODEL_VER).value());
+    }
 }
 

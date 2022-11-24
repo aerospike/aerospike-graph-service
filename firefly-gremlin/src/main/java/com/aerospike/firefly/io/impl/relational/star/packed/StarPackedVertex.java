@@ -292,11 +292,11 @@ public class StarPackedVertex extends PackedVertex {
                 if (!innerEdgeMap.containsKey(label)) {
                     innerEdgeMap.put(label, new ArrayList<>());
                 }
-                innerEdgeMap.get(label).add(edgeId.getStorageId());
+                innerEdgeMap.get(label).add(edgeId.getCachedId());
                 adjacentVertexEdgeLabelToEdgeIds.set(edgeIndex, innerEdgeMap);
                 adjacentEdges.put(edge.label(), adjacentVertexEdgeLabelToEdgeIds);
 
-                LOG.error("Writing bidirection edge for vertex {} on set {}={}", adjacentVertexId, dirDirSet, adjacentEdges);
+                LOG.debug("Writing bidirection edge for vertex {} on set {}={}", adjacentVertexId, dirDirSet, adjacentEdges);
                 final Bin bin = new Bin(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, Value.get(adjacentEdges));
                 FireflyRecord.writeElement(db, dirDirSet, adjacentVertexId, -1, bin);
             }

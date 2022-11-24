@@ -63,11 +63,11 @@ public class Upgrade {
      * @throws Exception
      */
     public static boolean checkNeedsUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
-        ComparableVersion currentVer = db.getModelVersion();
+        ComparableVersion currentVer = db.getDataModelVerion();
         String currentModel = db.getDataModelName();
         if (currentVer == null && currentModel == null) {
             initMetadata(dataModel, db);
-            currentVer = db.getModelVersion();
+            currentVer = db.getDataModelVerion();
             currentModel = db.getDataModelName();
         } else if (currentVer == null || currentModel == null) {
             throw new RuntimeException("currentVer or currentModel null, but not both");
@@ -77,9 +77,9 @@ public class Upgrade {
         ComparableVersion classModelVer = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
         if (currentVer == null)
             db.setModelVersion(classModelVer.toString());
-        if (classModelVer.compareTo(db.getModelVersion()) < 0)
-            throw new RuntimeException(String.format("On disk data model %d is higher then software data model %d", db.getModelVersion(), classModelVer));
-        return db.getModelVersion().compareTo(classModelVer) < 0;
+        if (classModelVer.compareTo(db.getDataModelVerion()) < 0)
+            throw new RuntimeException(String.format("On disk data model %d is higher then software data model %d", db.getDataModelVerion(), classModelVer));
+        return db.getDataModelVerion().compareTo(classModelVer) < 0;
     }
 
     /**
@@ -90,7 +90,7 @@ public class Upgrade {
      * @throws Exception
      */
     public static void performUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
-        ComparableVersion currentVer = db.getModelVersion();
+        ComparableVersion currentVer = db.getDataModelVerion();
         ComparableVersion classVer = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
         if (checkNeedsUpgrade(dataModel, db)) {
             for (Class<? extends UpgradeTask> task : availableUpgrades) {

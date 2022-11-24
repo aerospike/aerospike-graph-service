@@ -53,6 +53,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
     public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
+
+    public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels);
+
     protected abstract Set<String> readVertexPropertyKeys();
 
     /**
@@ -142,18 +145,16 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Get id for edge.
         FireflyId edgeId;
-        final FireflyId inVertexId = ((FireflyVertex)vertex).id;
-        final FireflyId outVertexId = this.id;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
+            edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
 
             // TODO: GRAPH-186.
             while (graph.edgeExists(edgeId)) {
-                edgeId = FireflyIdFactory.createEdgeIdFromManager(graph, inVertexId, outVertexId);
+                edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
             }
         } else {
             try {
-                edgeId = FireflyIdFactory.createEdgeIdFromKeyValues(inVertexId, outVertexId, keyValues);
+                edgeId = FireflyIdFactory.createFromKeyValues(FireflyEdge.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
@@ -180,12 +181,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
-        return FireflyHelper.inComputerMode(this.graph) ? direction.equals(Direction.BOTH) ?
-                IteratorUtils.concat(
-                        IteratorUtils.map(this.edges(Direction.OUT, edgeLabels), Edge::inVertex),
-                        IteratorUtils.map(this.edges(Direction.IN, edgeLabels), Edge::outVertex)) :
-                IteratorUtils.map(this.edges(direction, edgeLabels), edge -> edge.vertices(direction.opposite()).next()) :
-                FireflyHelper.getVertices(graph, this, direction, edgeLabels);
+        return getVerticesFromVertex(direction, edgeLabels).iterator();
     }
 
     @Override

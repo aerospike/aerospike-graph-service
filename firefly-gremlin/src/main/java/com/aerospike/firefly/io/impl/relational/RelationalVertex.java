@@ -8,7 +8,6 @@ import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
-import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.exp.Exp;
@@ -24,7 +23,6 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
-import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -35,7 +33,6 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.util.iterator.EmptyIterator;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +49,6 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET;
 
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
@@ -118,13 +114,13 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     public void addEdgeIdToCache(Direction direction, String label, Object id) {
-        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long)this.id.getStorageId()),
+        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long)this.id.getCachedId()),
                 ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
         );
     }
 
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
-        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getStorageId()),
+        db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
                 ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
         );
     }

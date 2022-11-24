@@ -11,8 +11,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -47,9 +49,9 @@ public class FireflyRecord {
     /**
      * Wrapper for AerospikeRecord
      *
-     * @param ac           AerospikeConnection instance
-     * @param key          Aerospike Key to wrap
-     * @param record       Aerospike Record to wrap
+     * @param ac     AerospikeConnection instance
+     * @param key    Aerospike Key to wrap
+     * @param record Aerospike Record to wrap
      */
     private FireflyRecord(final AerospikeConnection ac,
                           final Key key,
@@ -116,32 +118,50 @@ public class FireflyRecord {
             return new ArrayList<>();
         }
 
+        Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
+
         // Batch reading in Aerospike is capped based on settings in the server.
         final List<FireflyRecord> fireflyRecords = new ArrayList<>();
-        for (int i = 0; i < ids.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, ids.size())) {
-            final List<FireflyId> subList = ids.subList(i, Math.min(ids.size(), i + db.AEROSPIKE_BATCH_READ_SIZE));
-            final List<Key> keys = subList.stream().map(id -> getKey(db.getNamespace(), set, id)).collect(Collectors.toList());
-            final Record[] records = db.read(keys.toArray(new Key[0]));
-            if (records != null) {
-                for (int j = 0; j < records.length; j++) {
-                    final Record record = records[j];
-                    if (record != null) {
-                        fireflyRecords.add(new FireflyRecord(db, keys.get(j), record));
+        final Set<FireflyId> idsToRead = new HashSet<>();
+        for (final FireflyId id : ids) {
+            if (idToRecord.containsKey(id)) {
+                fireflyRecords.add(idToRecord.get(id));
+            } else {
+                idsToRead.add(id);
+                if (idsToRead.size() == db.AEROSPIKE_BATCH_READ_SIZE) {
+                    final Record[] records = db.read(idsToRead.stream().map(idd ->
+                            getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
+                    for (int i = 0; i < records.length; i++) {
+                        if (records[i] != null) {
+                            final FireflyId idd = ids.get(i);
+                            final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
+                            fireflyRecords.add(fireflyRecord);
+                            idToRecord.put(idd, fireflyRecord);
+                        }
                     }
                 }
             }
         }
-
-        if (fireflyRecords.isEmpty()) {
-            return new ArrayList<>();
+        if (idsToRead.size() > 0) {
+            final Record[] records = db.read(idsToRead.stream().map(idd ->
+                    getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
+            for (int i = 0; i < records.length; i++) {
+                if (records[i] != null) {
+                    final FireflyId idd = ids.get(i);
+                    final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
+                    fireflyRecords.add(fireflyRecord);
+                    idToRecord.put(idd, fireflyRecord);
+                }
+            }
         }
-        return fireflyRecords;
+        return ids.stream().map(idToRecord::get).collect(Collectors.toList());
     }
 
     /**
      * Construct a FireflyRecord from an Aerospike Record and Key
-     * @param db AerospikeConnection instance
-     * @param key Aerospike Key
+     *
+     * @param db     AerospikeConnection instance
+     * @param key    Aerospike Key
      * @param record Aerospike Record
      * @return FireflyRecord
      */
@@ -154,9 +174,10 @@ public class FireflyRecord {
 
     /**
      * Write a new FireflyRecord to disk
-     * @param db AerospikeConnection instance
-     * @param set Aerospike Set to write to
-     * @param id the ID to use
+     *
+     * @param db   AerospikeConnection instance
+     * @param set  Aerospike Set to write to
+     * @param id   the ID to use
      * @param bins Aerospike data bins
      */
     protected static void write(final AerospikeConnection db,
@@ -173,9 +194,10 @@ public class FireflyRecord {
 
     /**
      * Write a new FireflyRecord to disk for a TinkerPop Element
-     * @param db AerospikeConnection instance
-     * @param set Aerospike Set to write to
-     * @param id the ID to use
+     *
+     * @param db   AerospikeConnection instance
+     * @param set  Aerospike Set to write to
+     * @param id   the ID to use
      * @param bins Aerospike data bins
      */
     public static void writeElement(final AerospikeConnection db,

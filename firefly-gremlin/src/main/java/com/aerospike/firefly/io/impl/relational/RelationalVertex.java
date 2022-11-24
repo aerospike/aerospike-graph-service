@@ -117,6 +117,12 @@ public abstract class RelationalVertex extends FireflyVertex {
         this.removed = true;
     }
 
+    /**
+     * Add edge id to Vertex edge-id cache
+     * @param direction Edge direction
+     * @param label Edge label
+     * @param id Edge id
+     */
     public void addEdgeIdToCache(Direction direction, String label, FireflyId id) {
         final Operation op = ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED));
         final Key key;
@@ -135,6 +141,12 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
     }
 
+    /**
+     * Remove edge id from Vertex edge-id cache
+     * @param direction Edge direction
+     * @param label Edge label
+     * @param id Edge id
+     */
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
         final Operation op = ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)));
         final Key key;

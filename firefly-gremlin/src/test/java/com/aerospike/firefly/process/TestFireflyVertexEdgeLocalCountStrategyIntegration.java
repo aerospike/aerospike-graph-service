@@ -86,9 +86,9 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
         // Cache disabled
         CONFIG.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            //assertCountStrategyAccuracy(graph);
+            assertCountStrategyAccuracy(graph);
             assertCountStrategyVertexLabelAccuracy(graph);
-            //assertCountStrategyEdgeLabelAccuracy(graph);
+            assertCountStrategyEdgeLabelAccuracy(graph);
         }
     }
 

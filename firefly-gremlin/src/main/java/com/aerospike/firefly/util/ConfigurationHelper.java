@@ -309,9 +309,9 @@ public final class ConfigurationHelper {
     }
 
     public static String dumpDefaults() {
-        Properties props = new Properties();
+        final Properties props = new Properties();
         defaultValues.forEach(props::setProperty);
-        StringWriter sw = new StringWriter();
+        final StringWriter sw = new StringWriter();
         try {
             props.store(sw, "FireflyGraph Configuration Defaults");
         } catch (IOException e) {

@@ -1,8 +1,16 @@
 package com.aerospike.firefly.io.impl.relational;
 
-import com.aerospike.client.*;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
+import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
-import com.aerospike.client.cdt.*;
+import com.aerospike.client.cdt.CTX;
+import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListPolicy;
+import com.aerospike.client.cdt.ListReturnType;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.QueryPolicy;
@@ -110,8 +118,6 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     public void addEdgeIdToCache(Direction direction, String label, Object id) {
-        ListPolicy pol = new ListPolicy();
-
         db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long)this.id.getStorageId()),
                 ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
         );

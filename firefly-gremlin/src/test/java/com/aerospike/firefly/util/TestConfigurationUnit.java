@@ -77,6 +77,7 @@ public class TestConfigurationUnit {
         }
         assertTrue(success);
     }
+
     @Test
     public void testConfigToString() {
         String s = ConfigurationHelper.dumpDefaults();

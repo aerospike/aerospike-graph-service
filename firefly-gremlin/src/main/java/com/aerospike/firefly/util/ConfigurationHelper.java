@@ -307,7 +307,8 @@ public final class ConfigurationHelper {
     public static String aerospikeHost(Configuration c) {
         return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
-    public static String dumpDefaults(){
+
+    public static String dumpDefaults() {
         Properties props = new Properties();
         defaultValues.forEach(props::setProperty);
         StringWriter sw = new StringWriter();

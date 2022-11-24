@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
@@ -117,19 +118,16 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     public void addEdgeIdToCache(Direction direction, String label, FireflyId id) {
+        final Operation op = ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED));
+        final Key key;
+        if (this.id.getCachedId() instanceof byte[])
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId());
+        else if (this.id.getCachedId() instanceof String)
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId());
+        else
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId());
         try {
-            if (this.id.getCachedId() instanceof byte[])
-                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
-                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-                );
-            else if (this.id.getCachedId() instanceof String)
-                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
-                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-                );
-            else
-                db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
-                        ListOperation.append(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id.getCachedId()), CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED))
-                );
+            db.getClient().operate(null, key, op);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG)
                 throw new RuntimeException(RECORD_TOO_BIG_ERROR);
@@ -138,18 +136,15 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
+        final Operation op = ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)));
+        final Key key;
         if (this.id.getCachedId() instanceof byte[])
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId()),
-                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
-            );
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId());
         else if (this.id.getCachedId() instanceof String)
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId()),
-                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
-            );
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId());
         else
-            db.getClient().operate(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId()),
-                    ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)))
-            );
+            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId());
+        db.getClient().operate(null, key, op);
     }
 
     /**

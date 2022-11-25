@@ -53,8 +53,8 @@ public abstract class RelationalVertex extends FireflyVertex {
     protected final AerospikeConnection db;
     private final Map<String, List<FireflyId>> inEdgeIds;
     private final Map<String, List<FireflyId>> outEdgeIds;
-    private final long inEdgeCount;
-    private final long outEdgeCount;
+    public final long inEdgeCount;
+    public final long outEdgeCount;
 
     /**
      * Constructor for RelationalVertex.

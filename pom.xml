@@ -129,6 +129,8 @@
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
+                        -Xmx16384m
+                        -Xms4096m
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>

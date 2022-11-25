@@ -50,23 +50,23 @@ public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
     private final Map<String, List<FireflyId>> inEdgeIds;
     private final Map<String, List<FireflyId>> outEdgeIds;
-    private long inEdgeCount;
-    private long outEdgeCount;
+    protected long inEdgeCount;
+    protected long outEdgeCount;
     protected boolean isEdgeCacheDisabled;
     protected final AerospikeConnection db;
 
     /**
      * Constructor for RelationalVertex.
      *
-     * @param fid                   firefly id.
-     * @param label                 label.
-     * @param graph                 graph.
-     * @param inEdgeIds             incoming edge ids - null if invalid (cache disabled or too many).
-     * @param outEdgeIds            outgoing edge ids - null if invalid (cache disabled or too many).
-     * @param inEdgeCount           incoming edge count.
-     * @param outEdgeCount          outgoing edge count.
-     * @param isEdgeCacheDisabled   is edge cache disabled.
-     * @param db                    Aerospike connection.
+     * @param fid                 firefly id.
+     * @param label               label.
+     * @param graph               graph.
+     * @param inEdgeIds           incoming edge ids - null if invalid (cache disabled or too many).
+     * @param outEdgeIds          outgoing edge ids - null if invalid (cache disabled or too many).
+     * @param inEdgeCount         incoming edge count.
+     * @param outEdgeCount        outgoing edge count.
+     * @param isEdgeCacheDisabled is edge cache disabled.
+     * @param db                  Aerospike connection.
      */
     protected RelationalVertex(final FireflyId fid,
                                final String label,
@@ -356,7 +356,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param edgeId    Id of edge.
      * @param edgeLabel Label of edge.
      */
-    private void addEdgeToJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel ,
+    private void addEdgeToJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel,
                                    final long edgeCounter, final boolean isEdgeCacheDisabled) {
         final Map<String, List<FireflyId>> edgeCache;
         if (direction == Direction.IN) {
@@ -412,7 +412,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin[] bins;
         if (this.isEdgeCacheDisabled) {
             // Only need to update the edge counter.
-            bins = new Bin[]{ edgeCounterBin };
+            bins = new Bin[]{edgeCounterBin};
         } else {
             // Get label to edge map from cache in Aerospike.
             Map<String, List<Object>> labelEdges = (Map<String, List<Object>>) fireflyRecord.record.getMap(directionKey);
@@ -427,7 +427,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             }
 
             final Bin edgeIdsBin = new Bin(directionKey, Value.get(labelEdges));
-            bins = new Bin[]{ edgeCounterBin, edgeIdsBin};
+            bins = new Bin[]{edgeCounterBin, edgeIdsBin};
         }
 
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, bins);
@@ -507,9 +507,9 @@ public abstract class RelationalVertex extends FireflyVertex {
     /**
      * Get property id map and write to vertex property set.
      *
-     * @param graph         Graph to use.
-     * @param properties    Properties.
-     * @param vertexId      Vertex id.
+     * @param graph      Graph to use.
+     * @param properties Properties.
+     * @param vertexId   Vertex id.
      * @return Property id map.
      */
     private static Map<String, List<FireflyId>> getPropertyIdMapAndWrite(final FireflyGraph graph,

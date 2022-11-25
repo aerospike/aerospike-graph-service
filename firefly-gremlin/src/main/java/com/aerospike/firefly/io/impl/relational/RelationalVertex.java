@@ -28,7 +28,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.google.common.collect.Iterators;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -53,21 +52,21 @@ public abstract class RelationalVertex extends FireflyVertex {
     private final Map<String, List<FireflyId>> outEdgeIds;
     private long inEdgeCount;
     private long outEdgeCount;
-    protected boolean isCacheDisabled;
+    protected boolean isEdgeCacheDisabled;
     protected final AerospikeConnection db;
 
     /**
      * Constructor for RelationalVertex.
      *
-     * @param fid               firefly id.
-     * @param label             label.
-     * @param graph             graph.
-     * @param inEdgeIds         incoming edge ids - null if invalid (cache disabled or too many).
-     * @param outEdgeIds        outgoing edge ids - null if invalid (cache disabled or too many).
-     * @param inEdgeCount       incoming edge count.
-     * @param outEdgeCount      outgoing edge count.
-     * @param isCacheDisabled   is cache disabled.
-     * @param db                Aerospike connection.
+     * @param fid                   firefly id.
+     * @param label                 label.
+     * @param graph                 graph.
+     * @param inEdgeIds             incoming edge ids - null if invalid (cache disabled or too many).
+     * @param outEdgeIds            outgoing edge ids - null if invalid (cache disabled or too many).
+     * @param inEdgeCount           incoming edge count.
+     * @param outEdgeCount          outgoing edge count.
+     * @param isEdgeCacheDisabled   is edge cache disabled.
+     * @param db                    Aerospike connection.
      */
     protected RelationalVertex(final FireflyId fid,
                                final String label,
@@ -76,14 +75,14 @@ public abstract class RelationalVertex extends FireflyVertex {
                                final Map<String, List<FireflyId>> outEdgeIds,
                                final long inEdgeCount,
                                final long outEdgeCount,
-                               final boolean isCacheDisabled,
+                               final boolean isEdgeCacheDisabled,
                                final AerospikeConnection db) {
         super(fid, label, graph);
         this.inEdgeIds = inEdgeIds == null ? new HashMap<>() : inEdgeIds;
         this.outEdgeIds = outEdgeIds == null ? new HashMap<>() : outEdgeIds;
         this.inEdgeCount = inEdgeCount;
         this.outEdgeCount = outEdgeCount;
-        this.isCacheDisabled = isCacheDisabled;
+        this.isEdgeCacheDisabled = isEdgeCacheDisabled;
         this.db = db;
     }
 
@@ -170,7 +169,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     public List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels) {
         LOG.trace("Getting vertices from vertex {}.", id);
         final List<Vertex> vertices = new ArrayList<>();
-        if (this.isCacheDisabled) {
+        if (this.isEdgeCacheDisabled) {
             final List<FireflyId> edgeIds = getEdgeIdsFromVertex(direction);
             vertices.addAll(verticesFromEdgeIds(edgeIds, direction, edgeLabels));
         } else {
@@ -194,7 +193,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of all incoming edge ids.
      */
     private Iterator<FireflyId> getInEdgeIdsIter() {
-        if (!this.isCacheDisabled) { // Use cache
+        if (!this.isEdgeCacheDisabled) { // Use cache
             final List<FireflyId> data = new ArrayList<>();
             if (inEdgeIds != null) {
                 inEdgeIds.values().forEach(data::addAll);
@@ -217,7 +216,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of all outgoing edge ids.
      */
     private Iterator<FireflyId> getOutEdgeIdsIter() {
-        if (!this.isCacheDisabled) { // Use cache
+        if (!this.isEdgeCacheDisabled) { // Use cache
             final List<FireflyId> data = new ArrayList<>();
             if (outEdgeIds != null) {
                 outEdgeIds.values().forEach(data::addAll);
@@ -358,7 +357,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param edgeLabel Label of edge.
      */
     private void addEdgeToJVMCache(final Direction direction, final FireflyId edgeId, final String edgeLabel ,
-                                   final long edgeCounter, final boolean isCacheDisabled) {
+                                   final long edgeCounter, final boolean isEdgeCacheDisabled) {
         final Map<String, List<FireflyId>> edgeCache;
         if (direction == Direction.IN) {
             edgeCache = this.inEdgeIds;
@@ -371,7 +370,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             edgeCache.put(edgeLabel, new ArrayList<>());
         }
         edgeCache.get(edgeLabel).add(edgeId);
-        this.isCacheDisabled = isCacheDisabled;
+        this.isEdgeCacheDisabled = isEdgeCacheDisabled;
     }
 
     /**
@@ -411,7 +410,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
 
         final Bin[] bins;
-        if (this.isCacheDisabled) {
+        if (this.isEdgeCacheDisabled) {
             // Only need to update the edge counter.
             bins = new Bin[]{ edgeCounterBin };
         } else {
@@ -461,7 +460,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Initialize edge counter, cache disable flag, edge label map, and generation.
         long edgeCounter = 0;
-        boolean cacheDisabled = false;
+        boolean edgeCacheDisabled = false;
         Map<String, List<Object>> labelEdges = new HashMap<>();
         int generation = -1;
 
@@ -469,7 +468,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (fireflyRecord != null && fireflyRecord.record != null) {
             labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
-            cacheDisabled = fireflyRecord.record().getBoolean(this.db.CACHE_DISABLED);
+            edgeCacheDisabled = fireflyRecord.record().getBoolean(this.db.CACHE_DISABLED);
             generation = fireflyRecord.record().generation;
         }
 
@@ -477,13 +476,13 @@ public abstract class RelationalVertex extends FireflyVertex {
         edgeCounter++;
         final Bin edgeCounterBin = new Bin(counterKey, Value.get(edgeCounter));
         final Bin cacheDisabledBin;
-        if (cacheDisabled) {
+        if (edgeCacheDisabled) {
             // Cache is already disabled.
             bins = new Bin[]{edgeCounterBin};
         } else if (edgeCounter > this.db.ID_CACHE_SIZE) {
             // Cache is now disabled due to growing too big.
-            cacheDisabled = true;
-            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(cacheDisabled));
+            edgeCacheDisabled = true;
+            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(edgeCacheDisabled));
             bins = new Bin[]{edgeCounterBin, cacheDisabledBin};
         } else {
             // Add the edge to the cache in the vertex if the cache has not grown too big.
@@ -495,29 +494,27 @@ public abstract class RelationalVertex extends FireflyVertex {
 
             // Write edge label map back to vertex.
             final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
-            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(cacheDisabled));
+            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(edgeCacheDisabled));
             bins = new Bin[]{edgeDataBin, edgeCounterBin, cacheDisabledBin};
         }
 
         FireflyRecord.writeElement(this.db, this.db.VERTEX_AERO_SET, this.id, generation, bins);
 
         // Add edge to local edge cache.
-        addEdgeToJVMCache(direction, edgeId, edgeLabel, edgeCounter, cacheDisabled);
+        addEdgeToJVMCache(direction, edgeId, edgeLabel, edgeCounter, edgeCacheDisabled);
     }
 
     /**
-     * Get property id map.
+     * Get property id map and write to vertex property set.
      *
-     * @param graph           Graph to use.
-     * @param properties      Properties.
-     * @param vertexId        Vertex id.
-     * @param writeProperties Write properties flag.
+     * @param graph         Graph to use.
+     * @param properties    Properties.
+     * @param vertexId      Vertex id.
      * @return Property id map.
      */
-    public static Map<String, List<FireflyId>> getPropertyIdMap(final FireflyGraph graph,
-                                                                final List<Map.Entry<String, Object>> properties,
-                                                                final FireflyId vertexId,
-                                                                final boolean writeProperties) {
+    private static Map<String, List<FireflyId>> getPropertyIdMapAndWrite(final FireflyGraph graph,
+                                                                         final List<Map.Entry<String, Object>> properties,
+                                                                         final FireflyId vertexId) {
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Loop through properties and populate the vertex property id cache and vertex property label id map.
@@ -539,14 +536,12 @@ public abstract class RelationalVertex extends FireflyVertex {
                     }
                     vertexPropertyLabelIdMap.get(key).add(vertexPropertyId);
 
-                    if (writeProperties) {
-                        // Create a bin for the vertex property name (key) and a bin for the vertex property id.
-                        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-                        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
+                    // Create a bin for the vertex property name (key) and a bin for the vertex property id.
+                    final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
+                    final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
 
-                        // Write vertex property with type hint.
-                        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
-                    }
+                    // Write vertex property with type hint.
+                    db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v, vpkBin, pviBin);
                 }
         ));
         return vertexPropertyLabelIdMap;
@@ -606,14 +601,14 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
-        final boolean isCacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY;
+        final boolean isEdgeCacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY;
         final Map<String, ?> vertexPropertyIds;
         final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;
 
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
-                vertexPropertyIds = getPropertyIdMap(graph, properties, vertexId, true);
+                vertexPropertyIds = getPropertyIdMapAndWrite(graph, properties, vertexId);
                 vertexPropertyIdsWritable = FireflyIdFactory.convertMapListToStorage((Map<String, List<FireflyId>>) vertexPropertyIds);
                 vertexPropertyValueMap = null;
                 break;
@@ -632,10 +627,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         // Create vertex bins for cache state, vertex label, property ids, and property counter.
-        final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(isCacheDisabled));
+        final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(isEdgeCacheDisabled));
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
-        final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(vertexPropertyIdsWritable.size())));
+        final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(Long.valueOf(properties.size())));
         final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
 
         // Write vertex bins to Aerospike.
@@ -644,8 +639,10 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Set generation to -1 (no generation check) because this is the initial write of the vertex.
                 FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, cacheDisabledBin, labelBin,
                         vertexPropertyIdsBin, vertexPropertyCounterBin, typeHint);
+                boolean isVertexPropertyCacheDisabled = properties.size() > db.ID_CACHE_SIZE;
                 return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), 0, 0,
-                        (Map<String, List<FireflyId>>) vertexPropertyIds, isCacheDisabled, db);
+                        (Map<String, List<FireflyId>>) vertexPropertyIds, isVertexPropertyCacheDisabled,
+                        isEdgeCacheDisabled, db);
             case StarPackedVertex.VERTEX_TYPE_HINT:
                 // Star specific
                 // Fall through
@@ -663,7 +660,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                         vertexPropertyValuesTypeHintsBin, typeHint);
                 return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new HashMap<>(), new HashMap<>(),
                         0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
-                        null, vertexPropertyIds.size(), isCacheDisabled, db);
+                        null, vertexPropertyIds.size(), isEdgeCacheDisabled, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -746,7 +743,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final String label = record.getString(AerospikeConnection.LABEL);
 
         // Get cache state
-        final boolean cacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY || record.getBoolean(db.CACHE_DISABLED);
+        final boolean edgeCacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY || record.getBoolean(db.CACHE_DISABLED);
 
         // Get count of VP, IN edges, and OUT edges
         final long vertexPropertyCount = record.getLong(db.VP_COUNTER);
@@ -754,9 +751,9 @@ public abstract class RelationalVertex extends FireflyVertex {
         final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER);
 
         // Get inEdgeIds and outEdgeIds, if the number of either exceeds the cache size, set to null (invalid).
-        final Map<String, List<Object>> inEdgeIds = cacheDisabled ?
+        final Map<String, List<Object>> inEdgeIds = edgeCacheDisabled ?
                 new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.IN_EDGES);
-        final Map<String, List<Object>> outEdgeIds = cacheDisabled ?
+        final Map<String, List<Object>> outEdgeIds = edgeCacheDisabled ?
                 new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.OUT_EDGES);
         final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(inEdgeIds);
         final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(outEdgeIds);
@@ -764,10 +761,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT: {
                 // Get vertex properties and vertex property counter from record.
-                final Map<String, List<Object>> vertexProperties = cacheDisabled ?
+                final Map<String, List<Object>> vertexProperties = edgeCacheDisabled ?
                         new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
                 final Map<String, List<FireflyId>> fireflyVertexProperties = FireflyIdFactory.convertMapListObjectToFireflyIdMap(vertexProperties);
-                return new LinkedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount, outEdgeCount, fireflyVertexProperties, cacheDisabled, db);
+                return new LinkedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount, outEdgeCount, fireflyVertexProperties, false, edgeCacheDisabled, db);
             }
             case StarPackedVertex.VERTEX_TYPE_HINT:
                 // The type hint of StarPackedVertex is currently not used and is stored in DB as Packed - fall through
@@ -782,7 +779,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 final Map<String, FireflyId> fireflyVertexPropertyIds = FireflyIdFactory.convertMapObjectToFireflyIdMap(vertexPropertyIds);
                 return PackedVertex.PackedVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount,
                         outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints,
-                        vertexPropertyCount, cacheDisabled, db);
+                        vertexPropertyCount, edgeCacheDisabled, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -801,7 +798,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         int i = 0;
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         if (direction == Direction.IN || direction == Direction.BOTH) {
-            if (this.isCacheDisabled) {
+            if (this.isEdgeCacheDisabled) {
                 // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
@@ -815,7 +812,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             }
         }
         if (direction == Direction.OUT || direction == Direction.BOTH) {
-            if (this.isCacheDisabled) {
+            if (this.isEdgeCacheDisabled) {
                 // Should not happen, this is checked before function is called.
                 throw new RuntimeException("Error, cannot use appendAdjacentVertexIds unless vertices are cached.");
             }
@@ -829,5 +826,15 @@ public abstract class RelationalVertex extends FireflyVertex {
             }
         }
         return i;
+    }
+
+    /**
+     * Return whether caching is disabled for this vertex.
+     *
+     * @return is the cache disabled.
+     */
+    @Override
+    public boolean isEdgeCacheDisabled() {
+        return this.isEdgeCacheDisabled;
     }
 }

@@ -223,4 +223,5 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, id).record();
     }
 
+    public abstract boolean isEdgeCacheDisabled();
 }

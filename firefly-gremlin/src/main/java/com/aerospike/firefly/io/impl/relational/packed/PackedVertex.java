@@ -43,17 +43,19 @@ public class PackedVertex extends RelationalVertex {
     /**
      * Constructor for PackedVertex.
      *
-     * @param fid                  firefly id.
-     * @param label                label.
-     * @param graph                graph.
-     * @param inEdgeIds            incoming edge ids - null if invalid (cache disabled or too many).
-     * @param outEdgeIds           outgoing edge ids - null if invalid (cache disabled or too many).
-     * @param inEdgeCount          incoming edge count.
-     * @param outEdgeCount         outgoing edge count.
-     * @param vertexPropertyIds    vertex property ids.
-     * @param vertexPropertyValues vertex property values.
-     * @param vertexPropertyCount  vertex property count.
-     * @param db                   Aerospike connection.
+     * @param fid                           firefly id.
+     * @param label                         label.
+     * @param graph                         graph.
+     * @param inEdgeIds                     incoming edge ids - null if invalid (cache disabled or too many).
+     * @param outEdgeIds                    outgoing edge ids - null if invalid (cache disabled or too many).
+     * @param inEdgeCount                   incoming edge count.
+     * @param outEdgeCount                  outgoing edge count.
+     * @param vertexPropertyIds             vertex property ids.
+     * @param vertexPropertyValues          vertex property values.
+     * @param vertexPropertyValuesTypeHints vertex property value type hints.
+     * @param vertexPropertyCount           vertex property count.
+     * @param isEdgeCacheDisabled           is edge cache disabled.
+     * @param db                            Aerospike connection.
      */
     protected PackedVertex(final FireflyId fid,
                            final String label,
@@ -66,9 +68,9 @@ public class PackedVertex extends RelationalVertex {
                            final Map<String, Object> vertexPropertyValues,
                            final Map<String, Long> vertexPropertyValuesTypeHints,
                            final long vertexPropertyCount,
-                           final boolean isCacheDisabled,
+                           final boolean isEdgeCacheDisabled,
                            final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isCacheDisabled, db);
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheDisabled, db);
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
@@ -274,16 +276,16 @@ public class PackedVertex extends RelationalVertex {
                                           final Map<String, Object> vertexPropertyValues,
                                           final Map<String, Long> vertexPropertyValuesTypeHints,
                                           final long vertexPropertyCount,
-                                          final boolean isCacheDisabled,
+                                          final boolean isEdgeCacheDisabled,
                                           final AerospikeConnection db) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
                         vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        isCacheDisabled, db);
+                        isEdgeCacheDisabled, db);
             } else {
                 return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
                         vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        isCacheDisabled, db);
+                        isEdgeCacheDisabled, db);
             }
         }
     }

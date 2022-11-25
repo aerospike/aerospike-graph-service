@@ -8,6 +8,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -15,9 +16,11 @@ import java.util.NoSuchElementException;
 public class FireflyVertexEdgeLocalCountStep extends MapStep<Vertex, Long> {
     private final Direction direction;
 
-    public FireflyVertexEdgeLocalCountStep(final Traversal.Admin traversal, final Direction direction) {
+    public FireflyVertexEdgeLocalCountStep(final Traversal.Admin traversal, final Direction direction,
+                                           final Set<String> labels) {
         super(traversal);
         this.direction = direction;
+        this.labels = labels;
     }
 
     @Override

@@ -52,7 +52,9 @@ public class FireflyVertexEdgeLocalCountStrategy
             }
 
             LOG.debug("Applying FireflyVertexEdgeLocalCountStrategy");
-            TraversalHelper.replaceStep(localStep, new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection()),
+            TraversalHelper.replaceStep(
+                    localStep,
+                    new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection(), localStep.getLabels()),
                     traversal);
         }
     }

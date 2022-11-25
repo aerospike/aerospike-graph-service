@@ -50,9 +50,9 @@ public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
     private final Map<String, List<FireflyId>> inEdgeIds;
     private final Map<String, List<FireflyId>> outEdgeIds;
-    public long inEdgeCount;
-    public long outEdgeCount;
-    protected boolean isEdgeCacheDisabled;
+    protected long inEdgeCount;
+    protected long outEdgeCount;
+    public boolean isEdgeCacheDisabled;
     protected final AerospikeConnection db;
 
     /**

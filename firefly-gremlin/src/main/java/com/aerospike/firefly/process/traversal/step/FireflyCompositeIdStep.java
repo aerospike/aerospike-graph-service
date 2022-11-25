@@ -67,7 +67,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             final int previousSize = fireflyIdList.size();
 
             // If the in edge count or out edge count is -1 (invalid) then we need to use regular interface.
-            if (vertex.inEdgeCount == -1 || vertex.outEdgeCount == -1) {
+            if (vertex.isEdgeCacheDisabled) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
                     final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, firefly, vertex);
                     addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);

@@ -148,9 +148,9 @@ public class FireflyRecord {
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add id/record pair to the map.
-                final FireflyId idd = idsToRead.get(i);
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
-                idToRecord.put(idd, fireflyRecord);
+                final FireflyId id = idsToRead.get(i);
+                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, id), records[i]);
+                idToRecord.put(id, fireflyRecord);
             }
         }
     }

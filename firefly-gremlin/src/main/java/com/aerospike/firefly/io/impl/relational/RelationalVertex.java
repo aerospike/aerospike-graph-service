@@ -52,7 +52,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     private final Map<String, List<FireflyId>> outEdgeIds;
     protected long inEdgeCount;
     protected long outEdgeCount;
-    public boolean isEdgeCacheDisabled;
+    protected boolean isEdgeCacheDisabled;
     protected final AerospikeConnection db;
 
     /**

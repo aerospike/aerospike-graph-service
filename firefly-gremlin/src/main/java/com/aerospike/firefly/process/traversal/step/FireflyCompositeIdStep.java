@@ -66,12 +66,13 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
 
-            // If the in edge count or out edge count is -1 (invalid) then we need to use regular interface.
-            if (vertex.isEdgeCacheDisabled) {
+            // If the in edge cache is disabled then we need to use the regular interface.
+            if (vertex.isEdgeCacheDisabled()) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
                     final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, firefly, vertex);
                     addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
-                } else if (direction == Direction.OUT || direction == Direction.BOTH) {
+                }
+                if (direction == Direction.OUT || direction == Direction.BOTH) {
                     final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, firefly, vertex);
                     addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
                 }
@@ -86,7 +87,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             // Create composite id info with this value and the appropriate traverser to the info list.
             fireflyCompositeIdStepInfos.add(new FireflyCompositeIdStepInfo(traverser, fireflyIdList.size() - previousSize));
 
-            // If we exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
+            // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
@@ -102,7 +103,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         output.clear(); // Force garbage collection.
     }
 
-    List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
+    private List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         return (direction == Direction.IN) ?
             firefly.readEdges(edgeIds).stream().map(FireflyEdge::inVertexId).collect(Collectors.toList()) :

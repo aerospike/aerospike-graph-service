@@ -81,7 +81,6 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                     final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(Direction.OUT);
                     final List<FireflyId> vertexIds = firefly.readEdges(edgeIds).stream().map(FireflyEdge::outVertexId).collect(Collectors.toList());
                     fireflyIdList.addAll(vertexIds);
-                    uniqueIdSet.addAll(vertexIds);
                     for (FireflyId id : vertexIds) {
                         if (!fireflyVertexMap.containsKey(id)) {
                             uniqueIdSet.add(id);
@@ -123,6 +122,10 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
         // Read all vertices in a batch.
         final List<FireflyVertex> vertices = firefly.readVertices(fireflyIdList);
+        final List<FireflyId> uniqueIdList = new ArrayList<>(uniqueIdSet);
+        for (int i = 0; i < uniqueIdList.size(); i++) {
+            fireflyVertexMap.put(uniqueIdList.get(i), vertices.get(i));
+        }
 
         // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
         int i = 0;
@@ -130,7 +133,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the vertex and add it to the output set using the split.
                 // Note, this is invoked info.size times.
-                output.add(info.traverser.split(vertices.get(i++), this));
+                output.add(info.traverser.split(fireflyVertexMap.get(fireflyIdList.get(i++)), this));
             }
         }
 

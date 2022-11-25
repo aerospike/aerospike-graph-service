@@ -272,7 +272,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
   test-firefly-movielens-linked:
     name: Test Movielens Linked
@@ -291,7 +290,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=linked --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
@@ -310,7 +308,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-movielens-packed:
     name: Test Movielens Packed
@@ -329,7 +326,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader

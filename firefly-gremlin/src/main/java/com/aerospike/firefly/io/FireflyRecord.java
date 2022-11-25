@@ -117,29 +117,16 @@ public class FireflyRecord {
         if (ids.size() == 0) {
             return new ArrayList<>();
         }
-        System.out.println("Request for " + ids.size() + " records");
-        Runtime runtime           = Runtime.getRuntime();
-        System.out.println("Total memory: " + runtime.totalMemory());
-        System.out.println("Free memory: " + runtime.freeMemory());
-        System.out.println("Used memory: " + (runtime.totalMemory() - runtime.freeMemory()));
 
         // Batch reading in Aerospike is capped based on settings in the server.
         final Map<FireflyId, FireflyRecord> idToRecord = new HashMap<>();
         final Set<FireflyId> uniqueIds = new HashSet<>(ids);
-        System.out.println("\tReading " + uniqueIds.size() + " unique records");
 
         // Batch reading in Aerospike is capped based on settings in the server.
         for (int i = 0; i < uniqueIds.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, uniqueIds.size())) {
             final List<FireflyId> subList = uniqueIds.stream().skip(i).
                     limit(Math.min(uniqueIds.size(), i + db.AEROSPIKE_BATCH_READ_SIZE)).collect(Collectors.toList());
-            System.out.println("\t\tExecuting read from " + i + " to " + subList.size());
             executeBatchRead(db, set, idToRecord, subList);
-        }
-        if (idToRecord.containsKey(null)) {
-            throw new RuntimeException("Null key found in batch read");
-        }
-        if (idToRecord.containsValue(null)) {
-            throw new RuntimeException("Null record found in batch read");
         }
         return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
     }

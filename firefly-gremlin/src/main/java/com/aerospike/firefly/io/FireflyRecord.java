@@ -114,6 +114,7 @@ public class FireflyRecord {
     }
 
     public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+        // Check if empty and return empty if it is.
         if (ids.size() == 0) {
             return new ArrayList<>();
         }
@@ -124,10 +125,15 @@ public class FireflyRecord {
 
         // Batch reading in Aerospike is capped based on settings in the server.
         for (int i = 0; i < uniqueIds.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, uniqueIds.size())) {
+            // Generate sub list using current index and batch size.
             final List<FireflyId> subList = uniqueIds.stream().skip(i).
                     limit(Math.min(uniqueIds.size(), i + db.AEROSPIKE_BATCH_READ_SIZE)).collect(Collectors.toList());
+
+            // Execute batch read. subList ids are read from the database.
             executeBatchRead(db, set, idToRecord, subList);
         }
+
+        // Return the records in the same order as the ids, removing any null items.
         return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
     }
 
@@ -135,10 +141,13 @@ public class FireflyRecord {
                                          final String set,
                                          final Map<FireflyId, FireflyRecord> idToRecord,
                                          final List<FireflyId> idsToRead) {
+        // Read all records from the database.
+        // Before reading id list must be converted to array of keys.
         final Record[] records = db.read(idsToRead.stream().map(idd ->
                 getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
+                // Add id/record pair to the map.
                 final FireflyId idd = idsToRead.get(i);
                 final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, idd), records[i]);
                 idToRecord.put(idd, fireflyRecord);

@@ -69,51 +69,53 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             // If the in edge count or out edge count is -1 (invalid) then we need to use regular interface.
             if (vertex.inEdgeCount == -1 || vertex.outEdgeCount == -1) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
-                    final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(Direction.IN);
-                    final List<FireflyId> vertexIds = firefly.readEdges(edgeIds).stream().map(FireflyEdge::inVertexId).collect(Collectors.toList());
-                    fireflyIdList.addAll(vertexIds);
-                    for (FireflyId id : vertexIds) {
-                        if (!fireflyVertexMap.containsKey(id)) {
-                            uniqueIdSet.add(id);
-                        }
-                    }
+                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, firefly, vertex);
+                    addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
                 } else if (direction == Direction.OUT || direction == Direction.BOTH) {
-                    final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(Direction.OUT);
-                    final List<FireflyId> vertexIds = firefly.readEdges(edgeIds).stream().map(FireflyEdge::outVertexId).collect(Collectors.toList());
-                    fireflyIdList.addAll(vertexIds);
-                    for (FireflyId id : vertexIds) {
-                        if (!fireflyVertexMap.containsKey(id)) {
-                            uniqueIdSet.add(id);
-                        }
-                    }
+                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, firefly, vertex);
+                    addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
                 }
             } else {
                 // Get the ids of the adjacent vertices and add them to the list.
                 final List<FireflyId> vertexIds = new ArrayList<>();
                 vertex.appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
-                fireflyIdList.addAll(vertexIds);
-                for (FireflyId id : vertexIds) {
-                    if (!fireflyVertexMap.containsKey(id)) {
-                        uniqueIdSet.add(id);
-                    }
-                }
+                addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
             }
 
             // Calculate how many ids were added by the function (size of list - previous size).
             // Create composite id info with this value and the appropriate traverser to the info list.
             fireflyCompositeIdStepInfos.add(new FireflyCompositeIdStepInfo(traverser, fireflyIdList.size() - previousSize));
 
+            // If we exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                // Drain data to output.
                 drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
             }
         }
 
+        // Drain data to output.
         drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
 
         // Note this cannot be added in the above loop since we are looking through it above.
         set.addAll(output);
         output.clear(); // Force garbage collection.
+    }
+
+    List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
+        final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
+        return (direction == Direction.IN) ?
+            firefly.readEdges(edgeIds).stream().map(FireflyEdge::inVertexId).collect(Collectors.toList()) :
+            firefly.readEdges(edgeIds).stream().map(FireflyEdge::outVertexId).collect(Collectors.toList());
+    }
+
+    private void addVerticesToSet(List<FireflyId> fireflyIdList, Set<FireflyId> uniqueIdSet, Map<FireflyId, FireflyVertex> fireflyVertexMap, List<FireflyId> vertexIds) {
+        fireflyIdList.addAll(vertexIds);
+        for (final FireflyId id : vertexIds) {
+            if (!fireflyVertexMap.containsKey(id)) {
+                uniqueIdSet.add(id);
+            }
+        }
     }
 
     private void drainDataToOutput(final FireflyGraph firefly,
@@ -140,6 +142,8 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                 output.add(info.traverser.split(fireflyVertex, this));
             }
         }
+
+        // Clear intermediate buffers.
         fireflyIdList.clear();
         uniqueIdSet.clear();
         fireflyCompositeIdStepInfos.clear();

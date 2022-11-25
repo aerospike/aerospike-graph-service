@@ -35,6 +35,7 @@ public class FireflyTraversalCacheStrategy
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+
         if (!FireflyTraversalCacheStrategy.Util.isCacheableTraversal(traversal))
             return;
         final AerospikeConnection db = ((FireflyGraph) traversal.getGraph().get()).getBaseGraph();

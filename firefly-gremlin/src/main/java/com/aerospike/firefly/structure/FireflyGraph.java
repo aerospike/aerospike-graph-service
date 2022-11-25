@@ -12,6 +12,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -142,6 +143,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
                         .addStrategies(FireflyMergeStepStrategy.instance())
                         .addStrategies(FireflyGraphStepStrategy.instance())
+                        .addStrategies(FireflyVertexEdgeLocalCountStrategy.instance())
                         .addStrategies(OptionsStrategy.build().create()));
     }
 
@@ -245,11 +247,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     protected abstract Iterator<Long> scanAllVertices();
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
-
-    public abstract void bulkWriteVertex(final long vertexId, final String label,
-                                         final List<Map.Entry<String, Object>> properties,
-                                         final Map<String, List<FireflyId>> outEdges, final Map<String, List<FireflyId>> inEdges,
-                                         final boolean cacheDisabled);
 
     public abstract void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
                                                final long edgeId, final String edgeLabel);

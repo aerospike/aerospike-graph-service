@@ -179,6 +179,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                 edgeIterator;
     }
 
+    public abstract long getEdgeCount(final Direction direction);
+
     @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
         return getVerticesFromVertex(direction, edgeLabels).iterator();
@@ -221,4 +223,5 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, id).record();
     }
 
+    public abstract boolean isEdgeCacheDisabled();
 }

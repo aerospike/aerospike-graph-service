@@ -67,7 +67,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             final int previousSize = fireflyIdList.size();
 
             // If the in edge count or out edge count is -1 (invalid) then we need to use regular interface.
-            if (vertex.inEdgeCount  == -1 || vertex.outEdgeCount == -1) {
+            if (vertex.inEdgeCount == -1 || vertex.outEdgeCount == -1) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
                     final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(Direction.IN);
                     final List<FireflyId> vertexIds = firefly.readEdges(edgeIds).stream().map(FireflyEdge::inVertexId).collect(Collectors.toList());
@@ -89,7 +89,14 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                 }
             } else {
                 // Get the ids of the adjacent vertices and add them to the list.
-                vertex.appendAdjacentVertexIds(fireflyIdList, direction, edgeLabels);
+                final List<FireflyId> vertexIds = new ArrayList<>();
+                vertex.appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
+                fireflyIdList.addAll(vertexIds);
+                for (FireflyId id : vertexIds) {
+                    if (!fireflyVertexMap.containsKey(id)) {
+                        uniqueIdSet.add(id);
+                    }
+                }
             }
 
             // Calculate how many ids were added by the function (size of list - previous size).
@@ -97,34 +104,29 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             fireflyCompositeIdStepInfos.add(new FireflyCompositeIdStepInfo(traverser, fireflyIdList.size() - previousSize));
 
             if (uniqueIdSet.size() >= firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                fireflyIdList.size() >= 5 * firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                // Read all vertices in a batch.
-                final List<FireflyId> uniqueIdList = new ArrayList<>(uniqueIdSet);
-                final List<FireflyVertex> vertices = firefly.readVertices(uniqueIdList);
-                for (int i = 0; i < uniqueIdList.size(); i++) {
-                    fireflyVertexMap.put(uniqueIdList.get(i), vertices.get(i));
-                }
-
-                // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
-                int i = 0;
-                for (final FireflyCompositeIdStepInfo info : fireflyCompositeIdStepInfos) {
-                    for (int j = 0; j < info.size; j++) {
-                        // Create a new traverser with the vertex and add it to the output set using the split.
-                        // Note, this is invoked info.size times.
-                        output.add(info.traverser.split(fireflyVertexMap.get(fireflyIdList.get(i++)), this));
-                    }
-                }
-                uniqueIdSet.clear();
-                fireflyIdList.clear();
-                fireflyCompositeIdStepInfos.clear();
+                    fireflyIdList.size() >= 5 * firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
             }
         }
 
+        drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
+
+        // Note this cannot be added in the above loop since we are looking through it above.
+        set.addAll(output);
+        output.clear(); // Force garbage collection.
+    }
+
+    private void drainDataToOutput(final FireflyGraph firefly,
+                       final List<FireflyId> fireflyIdList,
+                       final Set<FireflyId> uniqueIdSet,
+                       final Map<FireflyId, FireflyVertex> fireflyVertexMap,
+                       final List<FireflyCompositeIdStepInfo> fireflyCompositeIdStepInfos,
+                       final TraverserSet<Vertex> output) {
         // Read all vertices in a batch.
-        final List<FireflyVertex> vertices = firefly.readVertices(fireflyIdList);
-        final List<FireflyId> uniqueIdList = new ArrayList<>(uniqueIdSet);
-        for (int i = 0; i < uniqueIdList.size(); i++) {
-            fireflyVertexMap.put(uniqueIdList.get(i), vertices.get(i));
+        final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
+        final List<FireflyVertex> unorderedVertices = firefly.readVertices(unorderedIds);
+        for (int i = 0; i < unorderedIds.size(); i++) {
+            fireflyVertexMap.put(unorderedIds.get(i), unorderedVertices.get(i));
         }
 
         // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
@@ -133,18 +135,13 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the vertex and add it to the output set using the split.
                 // Note, this is invoked info.size times.
-                output.add(info.traverser.split(fireflyVertexMap.get(fireflyIdList.get(i++)), this));
+                FireflyId id = fireflyIdList.get(i++);
+                final FireflyVertex fireflyVertex = fireflyVertexMap.get(id);
+                output.add(info.traverser.split(fireflyVertex, this));
             }
         }
-
-        // This should never happen, but just in case the above logic gets changes and it breaks the code,
-        // an exception is thrown to prevent a silent failure.
-        if (i != vertices.size()) {
-            throw new RuntimeException("Something went wrong " + i + " != " + vertices.size());
-        }
-
-        // Note this cannot be added in the above loop since we are looking through it above.
-        set.addAll(output);
-        output.clear(); // Force garbage collection.
+        fireflyIdList.clear();
+        uniqueIdSet.clear();
+        fireflyCompositeIdStepInfos.clear();
     }
 }

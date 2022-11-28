@@ -38,7 +38,6 @@ public class PackedVertex extends RelationalVertex {
     private Map<String, FireflyId> vertexPropertyIds;
     private Map<String, Object> vertexPropertyValues;
     private Map<String, Long> vertexPropertyValuesTypeHints;
-    private long vertexPropertyCount;
 
     /**
      * Constructor for PackedVertex.
@@ -70,14 +69,14 @@ public class PackedVertex extends RelationalVertex {
                            final long vertexPropertyCount,
                            final boolean isEdgeCacheDisabled,
                            final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheDisabled, db);
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyCount,
+                isEdgeCacheDisabled, db);
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
             throw new RuntimeException("PackedVertex only supports for single cardinality");
         }
 
-        this.vertexPropertyCount = vertexPropertyCount;
         this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
         this.vertexPropertyValues = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValues;
         this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValuesTypeHints;
@@ -155,24 +154,23 @@ public class PackedVertex extends RelationalVertex {
     }
 
     private void protectedRemoveVertexProperty(final String key, final FireflyId vertexPropertyId) {
-        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId, id);
+        LOG.debug("Removing vertex property {} from vertex {}.", vertexPropertyId, this.id);
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
+        final FireflyRecord record = FireflyRecord.read(this.db, db.VERTEX_AERO_SET, this.id);
         if (record == null) {
             return;
         }
 
         // Read this vertex and update in case we have had concurrent updates.
         final PackedVertex packedVertex = (PackedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
-        this.vertexPropertyCount = packedVertex.vertexPropertyCount;
-        this.vertexPropertyIds = packedVertex.vertexPropertyIds;
-        this.vertexPropertyValues = packedVertex.vertexPropertyValues;
-        this.vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
+        final Map<String, FireflyId> vertexPropertyIds = packedVertex.vertexPropertyIds;
+        final Map<String, Object> vertexPropertyValues = packedVertex.vertexPropertyValues;
+        final Map<String, Long> vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                      vertexPropertyId, id, key);
+                      vertexPropertyId, this.id, key);
             return;
         }
 
@@ -187,7 +185,7 @@ public class PackedVertex extends RelationalVertex {
         vertexPropertyIds.remove(key);
         vertexPropertyValues.remove(key);
         vertexPropertyValuesTypeHints.remove(key);
-        vertexPropertyCount--;
+        final long vertexPropertyCount = vertexPropertyIds.size();
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
@@ -198,6 +196,18 @@ public class PackedVertex extends RelationalVertex {
         // Write back to Aerospike.
         final int generation = record.record().generation;
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vertexPropertiesCounterBin);
+
+        // Update this PackedVertex in JVM cache
+        updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);
+    }
+
+    private void updateVertexPropertyJVMCache(final Map<String, FireflyId> vertexPropertyIds,
+                                              final Map<String, Object> vertexPropertyValues,
+                                              final Map<String, Long> vertexPropertyValuesTypeHints) {
+        this.vertexPropertyIds = vertexPropertyIds;
+        this.vertexPropertyValues = vertexPropertyValues;
+        this.vertexPropertyValuesTypeHints = vertexPropertyValuesTypeHints;
+        this.vertexPropertyCount = vertexPropertyIds.size();
     }
 
     /**
@@ -211,26 +221,25 @@ public class PackedVertex extends RelationalVertex {
     }
 
     private void protectedWriteVertexProperty(final FireflyVertexProperty vertexProperty) {
-        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id, id);
+        LOG.debug("Adding vertex property {} to vertex {}.", vertexProperty.id, this.id);
 
         // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, id);
+        final FireflyRecord record = FireflyRecord.read(this.db, db.VERTEX_AERO_SET, this.id);
         if (record == null) {
             return;
         }
 
         // Read this vertex and update in case we have had concurrent updates.
         final PackedVertex packedVertex = (PackedVertex) fromRecord(graph, new KeyRecord(record.key(), record.record()));
-        this.vertexPropertyCount = packedVertex.vertexPropertyCount;
-        this.vertexPropertyIds = packedVertex.vertexPropertyIds;
-        this.vertexPropertyValues = packedVertex.vertexPropertyValues;
-        this.vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
+        final Map<String, FireflyId> vertexPropertyIds = packedVertex.vertexPropertyIds;
+        final Map<String, Object> vertexPropertyValues = packedVertex.vertexPropertyValues;
+        final Map<String, Long> vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
+
 
         // Update maps for vertex properties and ids.
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
         vertexPropertyIds.put(vertexProperty.key(), FireflyIdFactory.createId(vertexProperty.id.getStorageId()));
         vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));
-        vertexPropertyCount++;
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
@@ -242,6 +251,8 @@ public class PackedVertex extends RelationalVertex {
         final int generation = record.record().generation;
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin, vertexPropertiesCounterBin);
 
+        // Update this PackedVertex in JVM cache
+        updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);
     }
 
     /**

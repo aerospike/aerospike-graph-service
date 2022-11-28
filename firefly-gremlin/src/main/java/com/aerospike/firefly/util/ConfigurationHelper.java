@@ -86,6 +86,7 @@ public final class ConfigurationHelper {
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
         public static final String CACHE_DISABLED = "CACHE_DISABLED";
+        public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
 
@@ -172,6 +173,7 @@ public final class ConfigurationHelper {
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
         put(Keys.CACHE_DISABLED, "CACHE_DISABLED");
+        put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
         put(Keys.INDEX_METADATA, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
         put(Keys.NUMERIC_VP_KV_INDEX, "N_VP_KV");

@@ -227,6 +227,7 @@ public class FireflyIdFactory {
         if (fireflyObjectIds == null) {
             return new HashMap<>();
         }
+
         final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();

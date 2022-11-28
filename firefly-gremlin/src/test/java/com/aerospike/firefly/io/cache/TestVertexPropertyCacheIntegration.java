@@ -1,5 +1,12 @@
 package com.aerospike.firefly.io.cache;
 
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
+import com.aerospike.client.async.Monitor;
+import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -9,6 +16,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Iterator;
+import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -36,6 +46,7 @@ public class TestVertexPropertyCacheIntegration {
     public void testCacheEnabled() {
         try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
             assertAddAndDropVertexProperties(graph);
+            assertDropVertexDropsProperties(graph);
         }
     }
 
@@ -43,22 +54,16 @@ public class TestVertexPropertyCacheIntegration {
     public void testEdgeCacheDisabled() {
         // Technically this doesn't do anything since
         try (final FireflyGraph graph = CacheTestsUtils.getEdgeCacheDisabledFirefly(CONFIG)) {
-            if (graph.getDataModel().equals("linked")) {
-                // TODO: Fix vertex property cache in linked
-                return;
-            }
             assertAddAndDropVertexProperties(graph);
+            assertDropVertexDropsProperties(graph);
         }
     }
 
     @Test
     public void testCacheSizeExceeded() {
         try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 2)) {
-            if (graph.getDataModel().equals("linked")) {
-                // TODO: Fix vertex property cache in linked
-                return;
-            }
             assertAddAndDropVertexProperties(graph);
+            assertDropVertexDropsProperties(graph);
         }
     }
 
@@ -94,5 +99,33 @@ public class TestVertexPropertyCacheIntegration {
         Assert.assertFalse(g.V().has("legs", "four").hasNext());
         Assert.assertFalse(g.V().has("tail", "one").hasNext());
         Assert.assertFalse(g.V().has("eyes", "two").hasNext());
+    }
+
+    private void assertDropVertexDropsProperties(final FireflyGraph graph) {
+        graph.getBaseGraph().dropDatabase();
+        final GraphTraversalSource g = graph.traversal();
+
+        g.addV("cat").property("name", "Vincent").iterate();
+        g.V().hasLabel("cat").property("legs", "four").iterate();
+        g.V().hasLabel("cat").property("tail", "one").iterate();
+        g.V().hasLabel("cat").property("eyes", "two").iterate();
+
+        g.V().hasLabel("cat").drop().iterate();
+
+        final AerospikeConnection connection = graph.getBaseGraph();
+        final Iterator<Map.Entry<Key, Record>> properties = scanVPSet(connection);
+        Assert.assertFalse(properties.hasNext());
+    }
+
+    private Iterator<Map.Entry<Key, Record>> scanVPSet(final AerospikeConnection connection) {
+        final Monitor scanMonitor = new Monitor();
+        final ScanPolicy policy = new ScanPolicy();
+        policy.sendKey = true;
+        final AerospikeClient client = connection.getClient();
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
+                scanMonitor,
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)));
+        client.scanAll(connection.getEventLoops().next(), listener, policy, connection.getNamespace(), connection.VERTEX_PROPERTY_AERO_SET);
+        return listener.iterator();
     }
 }

@@ -29,7 +29,6 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();

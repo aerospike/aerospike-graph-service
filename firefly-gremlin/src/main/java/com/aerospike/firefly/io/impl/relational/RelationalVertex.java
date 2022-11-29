@@ -158,14 +158,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param id Edge id
      */
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
-        final Operation op = ListOperation.removeByValue(direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES, Value.get(id), ListReturnType.NONE, CTX.mapKey(Value.get(label)));
-        final Key key;
-        if (this.id.getCachedId() instanceof byte[])
-            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (byte[]) this.id.getCachedId());
-        else if (this.id.getCachedId() instanceof String)
-            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (String) this.id.getCachedId());
-        else
-            key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, (long) this.id.getCachedId());
+        final Operation op = ListOperation.removeByValue(
+                direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES,
+                Value.get(id),
+                ListReturnType.NONE,
+                CTX.mapKey(Value.get(label)));
+        final Key key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(this.id.getCachedId()));
         db.getClient().operate(null, key, op);
     }
 

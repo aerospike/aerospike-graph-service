@@ -486,13 +486,15 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void testEdgeIdScan() {
         GraphTraversalSource g = graph.traversal();
-        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
-        Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
+        g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+        g.addV("lime").property("color", "green").property("type", "plant").next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
+        final Vertex lemon = g.V().hasLabel("lemon").next();
+        final Vertex lime = g.V().hasLabel("lime").next();
         List<FireflyId> i = graph.readVertex(FireflyIdFactory.createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());

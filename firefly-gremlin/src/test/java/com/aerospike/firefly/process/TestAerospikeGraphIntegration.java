@@ -3,6 +3,7 @@ package com.aerospike.firefly.process;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -1286,5 +1287,13 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("marko", vertex.<String>value("name"));
         assertFalse(traversal.hasNext());
         assertEquals(6, IteratorUtils.count(g.V()));
+    }
+    @Test
+    public void g_V_localXoutE_countX() {
+        Graph tg = TinkerFactory.createModern();
+        GraphHelper.cloneElements(tg, graph);
+        Traversal<Vertex, Long> traversal = g.V().local(outE().count());
+        this.printTraversalForm(traversal);
+        checkResults(Arrays.asList(3L, 0L, 0L, 0L, 1L, 2L), traversal);
     }
 }

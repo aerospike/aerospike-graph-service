@@ -54,14 +54,15 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
     private Traversal.Admin<S, Map<Object, Object>> searchCreateTraversal;
     private Traversal.Admin<S, Map<Object, Object>> onCreateTraversal = null;
     private Traversal.Admin<S, Map<String, Object>> onMatchTraversal = null;
-
     protected CallbackRegistry<Event> callbackRegistry;
+
     public FireflyMergeVertexStep(final MergeVertexStep step) {
         this(step.getTraversal(), step.isStart(), step.getSearchCreateTraversal());
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
     }
+
     public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart) {
         this(traversal, isStart, new IdentityTraversal());
     }

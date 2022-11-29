@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.concurrent.atomic.AtomicLong;

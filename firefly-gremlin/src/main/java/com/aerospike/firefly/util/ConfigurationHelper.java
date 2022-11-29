@@ -56,6 +56,7 @@ public final class ConfigurationHelper {
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
+        public static final String AEROSPIKE_TIMEOUT = "AEROSPIKE_TIMEOUT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
         public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
@@ -85,7 +86,8 @@ public final class ConfigurationHelper {
         public static final String GRAPH_ID = "GRAPH_ID";
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
-        public static final String CACHE_DISABLED = "CACHE_DISABLED";
+        public static final String EDGE_CACHE_DISABLED = "EDGE_CACHE_DISABLED";
+        public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
 
@@ -171,7 +173,8 @@ public final class ConfigurationHelper {
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
-        put(Keys.CACHE_DISABLED, "CACHE_DISABLED");
+        put(Keys.EDGE_CACHE_DISABLED, "CACHE_DISABLED");
+        put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
         put(Keys.INDEX_METADATA, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
         put(Keys.NUMERIC_VP_KV_INDEX, "N_VP_KV");
@@ -197,6 +200,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
+        put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");

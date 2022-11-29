@@ -75,10 +75,19 @@ public abstract class RelationalGraph extends FireflyGraph {
                                  final FireflyVertex outVertex) {
         // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
         // Add edge to inVertex and outVertex.
-        if (!this.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //disable RMW pattern and rely on index for edge lookups
-            outVertex.writeEdge(Direction.OUT, FireflyIdFactory.createEdgeId(edgeId, inVertex.id), label);
-            inVertex.writeEdge(Direction.IN, FireflyIdFactory.createEdgeId(edgeId, outVertex.id), label);
-        }
+        //if (!this.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) { //disable RMW pattern and rely on index for edge lookups
+
+
+        // Temporarily force RMW pattern even if cache is disabled because vertices check this internally.
+        // There is a bug when this is set that it skips this and does not increment the edge count which is
+        // used elsewhere. This is a temporary fix until we can fix that, this will at least make sure we
+        // have correct behaviour.
+        // TODO: GRAPH-222.
+        outVertex.writeEdge(Direction.OUT, FireflyIdFactory.createEdgeId(edgeId, inVertex.id), label);
+        inVertex.writeEdge(Direction.IN, FireflyIdFactory.createEdgeId(edgeId, outVertex.id), label);
+
+
+        //}
 
         // Write edge to Aerospike and return FireflyEdge.
         return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
@@ -158,7 +167,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         if (fireflyRecord != null && fireflyRecord.record != null) {
             labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
-            cacheDisabled = fireflyRecord.record().getBoolean(db.CACHE_DISABLED);
+            cacheDisabled = fireflyRecord.record().getBoolean(db.EDGE_CACHE_DISABLED);
             generation = fireflyRecord.record().generation;
         }
 
@@ -170,7 +179,7 @@ public abstract class RelationalGraph extends FireflyGraph {
             bins = new Bin[]{edgeCounterBin};
         } else if (edgeCounter > db.ID_CACHE_SIZE) {
             // Cache is now disabled due to growing too big.
-            final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(true));
+            final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, Value.get(true));
             bins = new Bin[]{edgeCounterBin, cacheDisabledBin};
         } else {
             // Add the edge to the cache in the vertex if the cache has not grown too big.
@@ -182,7 +191,7 @@ public abstract class RelationalGraph extends FireflyGraph {
 
             // Write edge label map back to vertex.
             final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
-            final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(false));
+            final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, Value.get(false));
             bins = new Bin[]{edgeDataBin, edgeCounterBin, cacheDisabledBin};
         }
 

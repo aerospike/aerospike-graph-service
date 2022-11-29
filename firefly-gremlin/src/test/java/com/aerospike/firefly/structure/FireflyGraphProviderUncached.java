@@ -32,7 +32,6 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
     private static final Configuration config;
 
     static {
-        // config = ConfigurationHelper.loadFromResources(INTEGRATION_TEST_CLUSTER_PROPERTIES);
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
         // Adjust here to test transition from caches to scans
@@ -110,7 +109,6 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
         }
         //@todo review this default
         return new NumericIdManager(VERTEX_ID_COUNTER);
-
     }
 
 

@@ -472,7 +472,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (fireflyRecord != null && fireflyRecord.record != null) {
             labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
-            edgeCacheDisabled = fireflyRecord.record().getBoolean(this.db.CACHE_DISABLED);
+            edgeCacheDisabled = fireflyRecord.record().getBoolean(this.db.EDGE_CACHE_DISABLED);
             generation = fireflyRecord.record().generation;
         }
 
@@ -486,7 +486,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         } else if (edgeCounter > this.db.ID_CACHE_SIZE) {
             // Cache is now disabled due to growing too big.
             edgeCacheDisabled = true;
-            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(edgeCacheDisabled));
+            cacheDisabledBin = new Bin(this.db.EDGE_CACHE_DISABLED, Value.get(edgeCacheDisabled));
             bins = new Bin[]{edgeCounterBin, cacheDisabledBin};
         } else {
             // Add the edge to the cache in the vertex if the cache has not grown too big.
@@ -498,7 +498,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
             // Write edge label map back to vertex.
             final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
-            cacheDisabledBin = new Bin(this.db.CACHE_DISABLED, Value.get(edgeCacheDisabled));
+            cacheDisabledBin = new Bin(this.db.EDGE_CACHE_DISABLED, Value.get(edgeCacheDisabled));
             bins = new Bin[]{edgeDataBin, edgeCounterBin, cacheDisabledBin};
         }
 
@@ -631,7 +631,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         // Create vertex bins for cache state, vertex label, property ids, and property counter.
-        final Bin cacheDisabledBin = new Bin(db.CACHE_DISABLED, Value.get(isEdgeCacheDisabled));
+        final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, Value.get(isEdgeCacheDisabled));
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin vertexPropertyIdsBin;
         final long vertexPropertyCount;
@@ -762,7 +762,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final String label = record.getString(AerospikeConnection.LABEL);
 
         // Get cache state
-        final boolean edgeCacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY || record.getBoolean(db.CACHE_DISABLED);
+        final boolean edgeCacheDisabled = db.EDGE_CACHE_DISABLED_GLOBALLY || record.getBoolean(db.EDGE_CACHE_DISABLED);
 
         // Get count of VP, IN edges, and OUT edges
         final long vertexPropertyCount = record.getLong(db.VP_COUNTER);

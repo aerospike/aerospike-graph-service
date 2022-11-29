@@ -56,6 +56,7 @@ public final class ConfigurationHelper {
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
+        public static final String AEROSPIKE_TIMEOUT = "AEROSPIKE_TIMEOUT";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
         public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
@@ -199,6 +200,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
+        put(Keys.AEROSPIKE_TIMEOUT, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");

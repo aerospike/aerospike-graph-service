@@ -35,7 +35,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
@@ -191,7 +191,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-spark-bulk-loader:
@@ -215,7 +215,7 @@ jobs:
           mode: start
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.small # Small for this action - doesn't need much power.
+          ec2-instance-type: t2.xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   # Benchmark is currently disabled, we will look to get a proper lab setup for this before we enable them again.
@@ -272,7 +272,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
   test-firefly-movielens-linked:
     name: Test Movielens Linked
@@ -291,7 +290,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=linked --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
@@ -310,7 +308,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-movielens-packed:
     name: Test Movielens Packed
@@ -329,7 +326,6 @@ jobs:
           distribution: 'temurin'
       - name: Test with Maven
         run: |
-          export MAVEN_OPTS="-Xmx32768m"
           mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader

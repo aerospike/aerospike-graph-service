@@ -73,7 +73,7 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             return;
         }
 
-        LOG.info("Applying FireflyGraphDropStrategy.");
+        LOG.debug("Applying FireflyGraphDropStrategy");
         TraversalHelper.removeAllSteps(traversal);
         traversal.addStep(new FireflyDropStep(traversal));
     }

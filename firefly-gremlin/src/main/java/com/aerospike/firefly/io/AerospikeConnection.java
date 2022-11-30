@@ -98,7 +98,8 @@ public class AerospikeConnection implements AutoCloseable {
 
     public final String IN_EDGES;
     public final String OUT_EDGES;
-    public final String CACHE_DISABLED;
+    public final String EDGE_CACHE_DISABLED;
+    public final String VP_CACHE_DISABLED;
     public final String RELATIONAL_VERTEX_TYPE_HINT;
     private final String INDEX_METADATA;
 
@@ -180,6 +181,7 @@ public class AerospikeConnection implements AutoCloseable {
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
         final Host[] hosts = Host.parseHosts(host, port);
         this.clientPolicy = new ClientPolicy();
+        this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
         this.client = new AerospikeClient(clientPolicy, hosts);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
@@ -235,7 +237,8 @@ public class AerospikeConnection implements AutoCloseable {
         E_OUT_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_OUT_INDEX, conf));
         IN_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGES, conf);
         OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
-        CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CACHE_DISABLED, conf);
+        EDGE_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED, conf);
+        VP_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_CACHE_DISABLED, conf);
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));

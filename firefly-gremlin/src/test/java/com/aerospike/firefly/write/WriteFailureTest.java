@@ -41,8 +41,8 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
-            b.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
+            a.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
+            b.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -73,8 +73,8 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
-            b.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
+            a.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
+            b.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
             RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph, FireflyIdFactory.createId(1), "fail", new ArrayList<>(), a, b);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);

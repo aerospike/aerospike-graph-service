@@ -23,6 +23,9 @@ public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<Tr
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        if(true)
+            return;
+
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();

@@ -106,8 +106,8 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     private List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         return (direction == Direction.IN) ?
-            firefly.readEdges(edgeIds).stream().map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
-            firefly.readEdges(edgeIds).stream().map(FireflyEdge::inVertexId).collect(Collectors.toList());
+            firefly.readEdges(edgeIds).stream().filter(edge -> labels.size() == 0 || labels.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
+            firefly.readEdges(edgeIds).stream().filter(edge -> labels.size() == 0 || labels.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
     }
 
     private void addVerticesToSet(List<FireflyId> fireflyIdList, Set<FireflyId> uniqueIdSet, Map<FireflyId, FireflyVertex> fireflyVertexMap, List<FireflyId> vertexIds) {

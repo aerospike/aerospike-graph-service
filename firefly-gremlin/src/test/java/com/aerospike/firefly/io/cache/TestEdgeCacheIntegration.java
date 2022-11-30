@@ -96,14 +96,14 @@ public class TestEdgeCacheIntegration {
             final FireflyTestVertexes vertexes = setupTest(graph, false);
             assertGremlinTraversalAccuracy(graph);
 
-            // The cache will only be disabled for threeOutTwoIn, since it has 3 OUT edges which exceeds cache size of 2
+            // The cache will not be disabled for zeroOutOneIn, since it has a total edge count of < 2
             Assert.assertTrue(vertexes.threeOutTwoIn.isEdgeCacheDisabled());
             assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.OUT), 3);
             assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.IN), 2);
-            Assert.assertFalse(vertexes.oneOutTwoIn.isEdgeCacheDisabled());
+            Assert.assertTrue(vertexes.oneOutTwoIn.isEdgeCacheDisabled());
             assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.OUT), 1);
             assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.IN), 2);
-            Assert.assertFalse(vertexes.twoOutOneIn.isEdgeCacheDisabled());
+            Assert.assertTrue(vertexes.twoOutOneIn.isEdgeCacheDisabled());
             assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.OUT), 2);
             assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.IN), 1);
             Assert.assertFalse(vertexes.zeroOutOneIn.isEdgeCacheDisabled());

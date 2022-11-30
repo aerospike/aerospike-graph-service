@@ -135,7 +135,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (isEdgeCacheDisabled) {
             return;
         }
-        if (inEdgeCount + outEdgeCount + 1 > db.ID_CACHE_SIZE) {
+        if (inEdgeCount + outEdgeCount > db.ID_CACHE_SIZE) {
             isEdgeCacheDisabled = true;
 
             //@todo - remove this when Graph-222 is implemented, should not update count if not using cache
@@ -234,9 +234,10 @@ public abstract class RelationalVertex extends FireflyVertex {
             edges.add(RelationalEdge.fromRecord(graph, new KeyRecord(ffr.key(), ffr.record)));
         }
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
-        return edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
+        final List<FireflyVertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
                 map(edge -> (FireflyVertex) edge.vertices(direction).next()).
                 collect(Collectors.toList());
+        return listOfEdges;
     }
 
     /**
@@ -303,10 +304,9 @@ public abstract class RelationalVertex extends FireflyVertex {
                 outEdgeIds.values().forEach(data::addAll);
             }
             return data.iterator();
+        } else if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) { // Use index if available and cache is blown
+            return getEdgeIdsFromVertexByIndex(Direction.OUT);
         } else {
-            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) { // Use index if available and cache is blown
-                return getEdgeIdsFromVertexByIndex(Direction.OUT);
-            }
             return getEdgeIdsFromVertexByScan(Direction.OUT); // Fall back to scan if no index and cache is blown
         }
     }
@@ -361,7 +361,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = false;
-
         Iterator<KeyRecord> iterator;
         if (direction == Direction.OUT) {
             iterator = db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(direction.name(), IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy);

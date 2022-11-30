@@ -10,7 +10,10 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -41,6 +44,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -392,6 +396,77 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
+    public void basic_edge_cache_nocache() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+
+        Configuration cacheConfig = ConfigurationUtils.cloneConfiguration(config);
+        cacheConfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "false");
+        cacheConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "cg");
+        cacheConfig.setProperty(Graph.GRAPH, "cachegraph");
+
+        FireflyGraph cacheGraph = FireflyGraph.open(cacheConfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+        cacheGraph.getBaseGraph().dropDatabase();
+
+        Vertex ncgVa = noCacheGraph.traversal().addV().next();
+        Vertex ncgVb = noCacheGraph.traversal().addV().next();
+        noCacheGraph.traversal().addE("knows").from(ncgVa).to(ncgVb).next();
+
+        Vertex cgVa = cacheGraph.traversal().addV().next();
+        Vertex cgVb = cacheGraph.traversal().addV().next();
+        cacheGraph.traversal().addE("knows").from(cgVa).to(cgVb).next();
+
+        Edge ncoe = noCacheGraph.traversal().V(ncgVa).outE().next();
+        Edge coe = cacheGraph.traversal().V(cgVa).outE().next();
+        LOG.info("noCacheGraph edge: {}", ncoe);
+        LOG.info("cacheGraph edge: {}", coe);
+
+        Edge ncie = noCacheGraph.traversal().V(ncgVb).inE().next();
+        Edge cie = cacheGraph.traversal().V(cgVb).inE().next();
+        LOG.info("noCacheGraph edge: {}", ncie);
+        LOG.info("cacheGraph edge: {}", cie);
+    }
+
+    @Test
+    public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name_nocache() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        GraphTraversalSource g = noCacheGraph.traversal();
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+
+        TinkerGraph tg = TinkerFactory.createModern();
+        GraphTraversalSource tgs = tg.traversal();
+        assertEquals(tgs.V().hasLabel("person").count().next(), g.V().hasLabel("person").count().next());
+        List<Edge> tg2e = tgs.V().hasLabel("person").outE("created").toList();
+        List<Edge> g2e = g.V().hasLabel("person").outE("created").toList();
+        tg2e.forEach(e -> LOG.info("tg2: {} {}", e, e.label()));
+        g2e.forEach(e -> LOG.info("g2: {} {}", e, e.label()));
+        assertEquals(tg2e.size(), g2e.size());
+
+
+
+        List<Vertex> tg2 = tgs.V().hasLabel("person").out("created").toList();
+        List<Vertex> g2 = g.V().hasLabel("person").out("created").toList();
+        tg2.forEach(v -> LOG.info("tg2: {} {}", v, v.property("name").value()));
+        g2.forEach(v -> LOG.info("g2: {} {}", v, v.property("name").value()));
+
+        assertEquals(tg2.size(), g2.size());
+
+        List<Vertex> tgthing = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
+        List<Vertex> thing = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
+        GraphTraversal<Vertex, Object> tgtraversal = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
+        GraphTraversal<Vertex, Object> traversal = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
+        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), tgtraversal);
+        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
+    }
+
+    @Test
     public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
         GraphTraversalSource g = graph.traversal();
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
@@ -671,7 +746,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             } else if (t instanceof List) {
                 assertThat("Checking list result existence: " + t, expectedResults.stream().filter(e -> e instanceof List).anyMatch(e -> internalCheckList((List) e, (List) t)), is(true));
             } else {
-                assertThat("Checking result existence: " + t, expectedResults.contains(t), is(true));
+                try {
+                    assertThat("Checking result existence: " + t, expectedResults.contains(t), is(true));
+                } catch (Exception e) {
+                    throw e;
+                }
             }
         }
         final Map<T, Long> expectedResultsCount = new HashMap<>();

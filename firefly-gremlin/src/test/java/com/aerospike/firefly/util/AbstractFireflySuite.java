@@ -39,7 +39,6 @@ public abstract class AbstractFireflySuite {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
     }
 
     @BeforeClass

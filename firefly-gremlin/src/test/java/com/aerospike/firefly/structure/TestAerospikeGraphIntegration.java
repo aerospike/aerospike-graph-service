@@ -944,5 +944,41 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Edge> e2e = graph.traversal().V(b).bothE().toList();
         assertEquals((Long) 1L, (Long) graph.traversal().V(a).inE().count().next());
     }
+
+    @Test
+    public void shouldRemoveEdges() {
+        final int vertexCount = 100;
+        final int edgeCount = 200;
+        final List<Vertex> vertices = new ArrayList<>();
+        final List<Edge> edges = new ArrayList<>();
+        final Random random = new Random();
+
+        IntStream.range(0, vertexCount).forEach(i -> vertices.add(graph.addVertex()));
+        tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, 0));
+
+        IntStream.range(0, edgeCount).forEach(i -> {
+            boolean created = false;
+            while (!created) {
+                final Vertex a = vertices.get(random.nextInt(vertices.size()));
+                final Vertex b = vertices.get(random.nextInt(vertices.size()));
+                if (a != b) {
+                    edges.add(a.addEdge("a" + UUID.randomUUID(), b));
+                    created = true;
+                }
+            }
+        });
+
+        tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount));
+
+        int counter = 0;
+        for (Edge e : edges) {
+            counter = counter + 1;
+            e.remove();
+
+            final int currentCounter = counter;
+            tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount - currentCounter));
+        }
+    }
+
 }
 

@@ -126,9 +126,10 @@ public abstract class RelationalVertex extends FireflyVertex {
 
     /**
      * Add edge id to Vertex edge-id cache
+     *
      * @param direction Edge direction
-     * @param label Edge label
-     * @param id Edge id
+     * @param label     Edge label
+     * @param id        Edge id
      */
     public void addEdgeIdToCache(Direction direction, String label, FireflyId id) {
         if (isEdgeCacheDisabled) {
@@ -136,8 +137,18 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
         if (inEdgeCount + outEdgeCount + 1 > db.ID_CACHE_SIZE) {
             isEdgeCacheDisabled = true;
-            Bin cacheDisabledBin = new Bin(this.db.EDGE_CACHE_DISABLED, Value.get(true));
-            FireflyRecord.writeElement(this.db, this.db.VERTEX_AERO_SET, this.id, -1, cacheDisabledBin);
+
+            //@todo - remove this when Graph-222 is implemented, should not update count if not using cache
+            final String ctrBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
+            final Bin edgeCtr = new Bin(ctrBinName, 1);
+            final Bin cacheDisabledBin = new Bin(this.db.EDGE_CACHE_DISABLED, Value.get(true));
+
+            final Key key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(this.id.getCachedId()));
+            final Operation incrementOp = Operation.add(edgeCtr);
+            final Operation getOp = Operation.get(ctrBinName);
+            final Operation disableOp = Operation.put(cacheDisabledBin);
+            final Record results = db.getClient().operate(null, key, incrementOp, getOp, disableOp);
+
             return;
         }
         final Operation appendOp = ListOperation.append(
@@ -145,9 +156,19 @@ public abstract class RelationalVertex extends FireflyVertex {
                 Value.get(id.getCachedId()),
                 CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED)
         );
+        final String ctrBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
+        final Bin edgeCtr = new Bin(ctrBinName, 1);
+        final Operation incrementOp = Operation.add(edgeCtr);
+        final Operation getOp = Operation.get(ctrBinName);
+
         final Key key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(this.id.getCachedId()));
         try {
-            db.getClient().operate(null, key, appendOp);
+            Record result = db.getClient().operate(null, key, appendOp, incrementOp, getOp);
+            if (direction == Direction.IN) {
+                inEdgeCount = result.getLong(ctrBinName);
+            } else {
+                outEdgeCount = result.getLong(ctrBinName);
+            }
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG)
                 throw new RuntimeException(RECORD_TOO_BIG_ERROR);
@@ -157,9 +178,10 @@ public abstract class RelationalVertex extends FireflyVertex {
 
     /**
      * Remove edge id from Vertex edge-id cache
+     *
      * @param direction Edge direction
-     * @param label Edge label
-     * @param id Edge id
+     * @param label     Edge label
+     * @param id        Edge id
      */
     public void removeEdgeIdFromCache(Direction direction, String label, Object id) {
         final Operation op = ListOperation.removeByValue(
@@ -445,7 +467,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        this.removeEdgeIdFromCache(direction, edgeLabel, edgeId.getUserId());
+        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, this.graph.configuration())))
+            this.removeEdgeIdFromCache(direction, edgeLabel, edgeId.getUserId());
         this.removeEdgeFromJVMCache(direction, edgeId, edgeLabel);
     }
 
@@ -459,8 +482,9 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        this.addEdgeIdToCache(direction, edgeLabel, edgeId);
-        this.addEdgeToJVMCache(direction, edgeId, edgeLabel,inEdgeCount+outEdgeCount+1,isEdgeCacheDisabled);
+        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, this.graph.configuration())))
+            this.addEdgeIdToCache(direction, edgeLabel, edgeId);
+        this.addEdgeToJVMCache(direction, edgeId, edgeLabel, inEdgeCount + outEdgeCount + 1, isEdgeCacheDisabled);
     }
 
     /**

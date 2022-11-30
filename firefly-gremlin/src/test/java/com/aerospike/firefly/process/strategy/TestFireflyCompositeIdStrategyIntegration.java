@@ -8,6 +8,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -70,7 +71,17 @@ public class TestFireflyCompositeIdStrategyIntegration {
     }
 
     @Test
-    public void testCompositeIdStrategyCorrectness() {
+    public void testCompositeIdStrategyCorrectness() throws IOException {
+
+        final Set<Path> refrence_paths;
+        final List<Vertex> refrence_vertices;
+        try (final TinkerGraph referenceGraph = TinkerGraph.open()) {
+            referenceGraph.io(graphml()).readGraph(tempFile.getAbsolutePath());
+            final GraphTraversalSource g_refrence = referenceGraph.traversal();
+            refrence_paths = g_refrence.V().has("code", "SFO").out().out().path().toSet();
+            refrence_vertices = g_refrence.V().has("code", "SFO").out().out().toList();
+        }
+
         CONFIG.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), true);
         final Set<Path> composite_paths;
         final List<Vertex> composite_vertices;
@@ -89,10 +100,18 @@ public class TestFireflyCompositeIdStrategyIntegration {
             standard_vertices = g_standard.V().has("code", "SFO").out().out().toList();
         }
 
-        Assert.assertEquals(composite_paths, standard_paths);
+
+        Assert.assertEquals(refrence_paths.size(), standard_paths.size());
+        Assert.assertEquals(refrence_paths.size(), composite_paths.size());
+
+        Assert.assertEquals(refrence_paths, standard_paths);
+        Assert.assertEquals(refrence_paths, composite_paths);
+
+        refrence_vertices.sort(Comparator.comparing(v -> v.id().toString()));
         composite_vertices.sort(Comparator.comparing(v -> v.id().toString()));
         standard_vertices.sort(Comparator.comparing(v -> v.id().toString()));
-        Assert.assertEquals(composite_vertices, standard_vertices);
+        Assert.assertEquals(refrence_vertices, standard_vertices);
+        Assert.assertEquals(refrence_vertices, composite_vertices);
     }
 
     @Test

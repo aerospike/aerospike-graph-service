@@ -81,7 +81,6 @@ public class TestConfigurationUnit {
     @Test
     public void testConfigToString() {
         String s = ConfigurationHelper.dumpDefaults();
-        System.out.println(s);
         assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_HOST));
         assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_PORT));
         assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));

@@ -1,6 +1,10 @@
 package com.aerospike.firefly.process;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.tinkerpop.gremlin.FeatureRequirementSet;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
@@ -41,6 +45,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY;
+import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData.MODERN;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onCreate;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onMatch;
 import static org.apache.tinkerpop.gremlin.process.traversal.Order.desc;
@@ -634,7 +642,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     public Vertex convertToVertex(final Graph graph, final String vertexName) {
         // all test graphs have "name" as a unique id which makes it easy to hardcode this...works for now
-        return g.V().has("name", vertexName).toList().get(0);
+        return graph.traversal().V().has("name", vertexName).toList().get(0);
     }
 
     public Object convertToVertexId(final Graph graph, final String vertexName) {
@@ -1288,6 +1296,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(traversal.hasNext());
         assertEquals(6, IteratorUtils.count(g.V()));
     }
+
     @Test
     public void g_V_localXoutE_countX() {
         Graph tg = TinkerFactory.createModern();
@@ -1295,5 +1304,94 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Traversal<Vertex, Long> traversal = g.V().local(outE().count());
         this.printTraversalForm(traversal);
         checkResults(Arrays.asList(3L, 0L, 0L, 0L, 1L, 2L), traversal);
+    }
+
+    @Test
+    public void g_V_localXoutE_countX_uncached() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+//        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+        Traversal<Vertex, Long> traversal = noCacheGraph.traversal().V().local(outE().count());
+        this.printTraversalForm(traversal);
+
+        System.out.println(noCacheGraph.traversal().V().local(outE()).toList());
+        System.out.println(noCacheGraph.traversal().V().local(outE().count()).toList());
+        System.out.println(noCacheGraph.traversal().V().outE().count().next());
+        noCacheGraph.traversal().V().forEachRemaining(v -> {
+            System.out.println(v.id());
+            System.out.println(noCacheGraph.traversal().V(v).outE().count().next());
+        });
+
+        checkResults(Arrays.asList(3L, 0L, 0L, 0L, 1L, 2L), traversal);
+    }
+
+    @Test
+    @LoadGraphWith(MODERN)
+    public void g_VX2X_optionalXinXknowsXX() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+//        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+
+
+        Vertex fv = noCacheGraph.traversal().V().has("name","vadas").next();
+        Vertex rv = TinkerFactory.createModern().traversal().V().has("name","vadas").next();
+        assertEquals(rv,fv);
+        var fvOutList = noCacheGraph.traversal().V().has("name","vadas").out().toList();
+        var rvOutList = TinkerFactory.createModern().traversal().V().has("name","vadas").out().toList();
+
+        var fvInVList = noCacheGraph.traversal().V().has("name","vadas").in().toList();
+        var rvInVList = TinkerFactory.createModern().traversal().V().has("name","vadas").in().toList();
+
+        var fvInEList = noCacheGraph.traversal().V().has("name","vadas").inE().toList();
+        var rvInEList = TinkerFactory.createModern().traversal().V().has("name","vadas").inE().toList();
+
+        final Traversal<Vertex, Vertex> traversal = noCacheGraph.traversal().V(convertToVertexId(noCacheGraph, "vadas")).optional(in("knows"));
+        Set<Vertex> nocacheResult = noCacheGraph.traversal().V(convertToVertexId(noCacheGraph, "vadas")).in("knows").toSet();
+        Set<Vertex> refrence = TinkerFactory.createModern().traversal().V(convertToVertexId(noCacheGraph, "vadas")).in("knows").toSet();
+        assertEquals(refrence,nocacheResult);
+
+        printTraversalForm(traversal);
+        assertTrue(traversal.hasNext());
+        assertEquals(convertToVertex(noCacheGraph, "marko"), traversal.next());
+    }
+
+    @Test
+    public void g_V_both_both_dedup_byXlabelX() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+//        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+
+
+        var resList = noCacheGraph.traversal().V().both().both().dedup().by(T.label).toList();
+        var refList = TinkerFactory.createModern().traversal().V().both().both().dedup().by(T.label).toList();
+
+        Traversal<Vertex, Vertex> traversal = noCacheGraph.traversal().V().both().both().dedup().by(T.label);
+        this.printTraversalForm(traversal);
+        List<Vertex> vertices = traversal.toList();
+        Assert.assertEquals(2L, (long)vertices.size());
     }
 }

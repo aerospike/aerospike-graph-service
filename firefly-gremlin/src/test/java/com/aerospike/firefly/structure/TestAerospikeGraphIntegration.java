@@ -21,6 +21,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.Tree;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
@@ -29,8 +30,11 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.apache.tinkerpop.shaded.jackson.core.type.TypeReference;
+import org.apache.tinkerpop.shaded.jackson.databind.ObjectMapper;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -45,6 +49,7 @@ import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -394,7 +399,69 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, (long) g.V().has("color", "yellow").outE().count().next());
     }
+    public Vertex convertToVertex(final Graph graph, final String vertexName) {
+        // all test graphs have "name" as a unique id which makes it easy to hardcode this...works for now
+        return graph.traversal().V().has("name", vertexName).toList().get(0);
+    }
+    public Object convertToVertexId(final Graph graph, final String vertexName) {
+        return convertToVertex(graph, vertexName).id();
+    }
+    private final TypeReference<HashMap<String, Object>> mapTypeReference = new TypeReference<HashMap<String, Object>>() {
+    };
 
+    @Test
+    @Ignore //@todo
+    public void shouldSerializeTreeUncached() throws Exception {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+//        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+        
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+
+        ObjectMapper mapper = ((GraphSONIo)noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0))).mapper().version(GraphSONVersion.V1_0).create().createMapper();
+        Tree t = (Tree)noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph,"marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
+        String json = mapper.writeValueAsString(t);
+        HashMap<String, Object> m = (HashMap)mapper.readValue(json, this.mapTypeReference);
+        Assert.assertEquals(1L, (long)m.size());
+        Assert.assertTrue(m.containsKey(this.convertToVertex(noCacheGraph,"marko").id().toString()));
+        HashMap<String, Object> branch = (HashMap)m.get(this.convertToVertexId(noCacheGraph,"marko").toString());
+        Assert.assertEquals(2L, (long)branch.size());
+        Assert.assertTrue(branch.containsKey("key"));
+        Assert.assertTrue(branch.containsKey("value"));
+        HashMap<String, Object> branchKey = (HashMap)branch.get("key");
+        Assert.assertTrue(branchKey.containsKey("id"));
+        Assert.assertTrue(branchKey.containsKey("label"));
+        Assert.assertTrue(branchKey.containsKey("type"));
+        Assert.assertTrue(branchKey.containsKey("properties"));
+        Assert.assertEquals(this.convertToVertexId(noCacheGraph,"marko").toString(), branchKey.get("id").toString());
+        Assert.assertEquals("person", branchKey.get("label"));
+        Assert.assertEquals("vertex", branchKey.get("type"));
+        HashMap<String, List<HashMap<String, Object>>> branchKeyProps = (HashMap)branchKey.get("properties");
+        Assert.assertEquals("marko", ((HashMap)((List)branchKeyProps.get("name")).get(0)).get("value"));
+        Assert.assertEquals(29, ((HashMap)((List)branchKeyProps.get("age")).get(0)).get("value"));
+        HashMap<String, Object> branchValue = (HashMap)branch.get("value");
+        Assert.assertEquals(3L, (long)branchValue.size());
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"vadas").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"lop").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"josh").toString()));
+        HashMap<String, HashMap<String, Object>> branch2 = (HashMap)branchValue.get(this.convertToVertexId(noCacheGraph,"vadas").toString());
+        Assert.assertTrue(branch2.containsKey("key"));
+        Assert.assertTrue(branch2.containsKey("value"));
+        Map.Entry entry = (Map.Entry)((HashMap)branch2.get("value")).entrySet().iterator().next();
+        HashMap<String, HashMap<String, Object>> branch2Prop = (HashMap)entry.getValue();
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("id"));
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("value"));
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("label"));
+        Assert.assertEquals("name", ((HashMap)branch2Prop.get("key")).get("label"));
+        Assert.assertEquals("vadas", ((HashMap)branch2Prop.get("key")).get("value"));
+        Assert.assertEquals(entry.getKey().toString(), ((HashMap)branch2Prop.get("key")).get("id").toString());
+    }
     @Test
     public void basic_edge_cache_nocache() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
@@ -432,39 +499,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         LOG.info("cacheGraph edge: {}", cie);
     }
 
-    @Test
-    public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name_nocache() {
-        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
-        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        GraphTraversalSource g = noCacheGraph.traversal();
-        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
-
-        TinkerGraph tg = TinkerFactory.createModern();
-        GraphTraversalSource tgs = tg.traversal();
-        assertEquals(tgs.V().hasLabel("person").count().next(), g.V().hasLabel("person").count().next());
-        List<Edge> tg2e = tgs.V().hasLabel("person").outE("created").toList();
-        List<Edge> g2e = g.V().hasLabel("person").outE("created").toList();
-        tg2e.forEach(e -> LOG.info("tg2: {} {}", e, e.label()));
-        g2e.forEach(e -> LOG.info("g2: {} {}", e, e.label()));
-        assertEquals(tg2e.size(), g2e.size());
-
-
-
-        List<Vertex> tg2 = tgs.V().hasLabel("person").out("created").toList();
-        List<Vertex> g2 = g.V().hasLabel("person").out("created").toList();
-        tg2.forEach(v -> LOG.info("tg2: {} {}", v, v.property("name").value()));
-        g2.forEach(v -> LOG.info("g2: {} {}", v, v.property("name").value()));
-
-        assertEquals(tg2.size(), g2.size());
-
-        List<Vertex> tgthing = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
-        List<Vertex> thing = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).toList();
-        GraphTraversal<Vertex, Object> tgtraversal = tgs.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
-        GraphTraversal<Vertex, Object> traversal = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
-        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), tgtraversal);
-        checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
-    }
 
     @Test
     public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {

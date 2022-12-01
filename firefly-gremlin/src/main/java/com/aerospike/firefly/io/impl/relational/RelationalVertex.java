@@ -235,7 +235,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         final List<FireflyVertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
-                map(edge -> (FireflyVertex) edge.vertices(direction).next()).
+                map(edge -> (FireflyVertex) edge.vertices(direction.opposite()).next()).
                 collect(Collectors.toList());
         return listOfEdges;
     }
@@ -254,6 +254,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (this.isEdgeCacheDisabled) {
             final List<FireflyId> edgeIds = getEdgeIdsFromVertex(direction);
             vertices.addAll(verticesFromEdgeIds(edgeIds, direction, edgeLabels));
+            System.out.println(edgeIds);
+            System.out.println(vertices);
         } else {
             final List<FireflyId> vertexIds = new ArrayList<>();
             appendAdjacentVertexIds(vertexIds, direction, edgeLabels);

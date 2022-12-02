@@ -1326,7 +1326,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         LOG.info(noCacheGraph.traversal().V().local(outE().count()).toList().toString());
         LOG.info(String.valueOf(noCacheGraph.traversal().V().outE().count().next()));
         noCacheGraph.traversal().V().forEachRemaining(v -> {
-            LOG.info((String) v.id());
+            LOG.info(v.id().toString());
             LOG.info(String.valueOf(noCacheGraph.traversal().V(v).outE().count().next()));
         });
 
@@ -1433,7 +1433,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    @LoadGraphWith(LoadGraphWith.GraphData.SINK)
     public void g_V_hasLabelXloopsX_bothXselfX() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
         nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
@@ -1452,5 +1451,62 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Vertex> vertices = traversal.toList();
         Assert.assertEquals(2L, (long)vertices.size());
         Assert.assertEquals(vertices.get(0), vertices.get(1));
+    }
+
+    @Test
+    @LoadGraphWith(MODERN)
+    public void g_VX1X_outXcreatedX_valueMap() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+
+        Configuration nostrategyconfig = ConfigurationUtils.cloneConfiguration(config);
+//        nostrategyconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+        nostrategyconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nostrategyconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "nsg");
+        nostrategyconfig.setProperty(Graph.GRAPH, "nsg");
+
+        FireflyGraph noStrategyGraph = FireflyGraph.open(nostrategyconfig);
+        noStrategyGraph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noStrategyGraph);
+
+
+
+
+        final Traversal<Vertex, Map<Object, List<String>>> traversal = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph,"marko")).out("created").valueMap();
+        printTraversalForm(traversal);
+        assertTrue(traversal.hasNext());
+        List<Map<Object, Object>> totalResults = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph, "marko")).out("created").valueMap().toList();
+
+
+        final Map<Object, List<String>> values = traversal.next();
+//        assertFalse(traversal.hasNext());
+        Map<Object, List<String>> extraValues;
+        if(traversal.hasNext()) {
+            extraValues = traversal.next();
+            LOG.info(extraValues.toString());
+        }
+        assertEquals("lop", values.get("name").get(0));
+        assertEquals("java", values.get("lang").get(0));
+        assertEquals(2, values.size());
+
+        final Traversal<Vertex, Map<Object, List<String>>> nctraversal = noCacheGraph.traversal().V(convertToVertexId(noCacheGraph,"marko")).out("created").valueMap();
+        printTraversalForm(nctraversal);
+        assertTrue(nctraversal.hasNext());
+        final Map<Object, List<String>> ncvalues = nctraversal.next();
+        assertFalse(nctraversal.hasNext());
+        assertEquals("lop", ncvalues.get("name").get(0));
+        assertEquals("java", ncvalues.get("lang").get(0));
+        assertEquals(2, ncvalues.size());
+
+
+
     }
 }

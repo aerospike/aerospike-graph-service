@@ -62,7 +62,7 @@ public class SparkBulkLoader {
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
     private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static Configuration CONFIG;
-    private static String ENV;
+    private static String ENV = "prod";
     private static AmazonS3 S3_CLIENT;
 
     public static void main(final String[] args) {
@@ -71,7 +71,7 @@ public class SparkBulkLoader {
         final Set<String> vertexDirectories = new HashSet<>();
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
-        ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "prod";
+        ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         if (ENV.equals("local")) {
             final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
             configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
@@ -142,19 +142,20 @@ public class SparkBulkLoader {
         // Vertices
         for (final Dataset<Row> vertexData : vertexDatasets) {
             final String finalS3BucketName = s3BucketName;
+            final String finalConfigPath = configPath;
             vertexData.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
                 LOGGER.warn("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
                 final ArrayList<Long> list = new ArrayList<>();
-                Configuration config = CONFIG;
+                Configuration localConfig = CONFIG;
                 if (!ENV.equals("local")) {
                     S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                    config = loadConfigFromS3(finalS3BucketName, configPath);
+                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
                 }
-                try (final FireflyGraph graph = FireflyGraph.open(config)) {
+                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
                     final boolean ignoreFailedProperties =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config));
+                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                     final boolean ignoreElementCreationFailed =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
+                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
 
                     while (rowIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -179,23 +180,24 @@ public class SparkBulkLoader {
         // Edges
         for (final Dataset<Row> edgeData : edgeDatasets) {
             final String finalS3BucketName = s3BucketName;
+            final String finalConfigPath = configPath;
             edgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
                 LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Bumerical value
-                Configuration config = CONFIG;
+                Configuration localConfig = CONFIG;
                 if (!ENV.equals("local")) {
                     S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                    config = loadConfigFromS3(finalS3BucketName, configPath);
+                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
                 }
-                try (final FireflyGraph graph = FireflyGraph.open(config)) {
+                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
                     final boolean ignoreFailedProperties =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, config));
+                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                     final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID,
-                            config));
+                            localConfig));
                     final boolean keepProvidedId = Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
-                            config));
-                    final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, config);
+                            localConfig));
+                    final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
                     final boolean ignoreElementCreationFailed =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, config));
+                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
                     while (rowIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                         try {

@@ -235,10 +235,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             edges.add(RelationalEdge.fromRecord(graph, new KeyRecord(ffr.key(), ffr.record)));
         }
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
-        final List<Vertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
-                flatMap(edge -> IteratorUtils.stream(
-                        IteratorUtils.filter(edge.vertices(direction.opposite()), vertex -> !vertex.id().equals(id())))).
-                collect(Collectors.toList());
+        final List<Vertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label()))
+                .flatMap(edge -> {
+                    if (id().equals(edge.outVertex().id()) && id().equals(edge.inVertex().id())) {
+                        return Stream.of(this);
+                    }
+                    return IteratorUtils.stream(IteratorUtils.filter(edge.vertices(direction.opposite()), vertex -> !vertex.id().equals(id())));
+                }).collect(Collectors.toList());
         return listOfEdges;
     }
 

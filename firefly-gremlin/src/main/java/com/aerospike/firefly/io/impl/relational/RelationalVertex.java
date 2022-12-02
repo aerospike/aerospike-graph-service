@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
@@ -220,7 +221,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param edgeLabels Edge labels.
      * @return List of vertices.
      */
-    private List<FireflyVertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction,
+    private List<Vertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction,
                                                     final String... edgeLabels) {
         final List<FireflyRecord> edgeRecords = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
         if (edgeRecords == null) {
@@ -234,8 +235,8 @@ public abstract class RelationalVertex extends FireflyVertex {
             edges.add(RelationalEdge.fromRecord(graph, new KeyRecord(ffr.key(), ffr.record)));
         }
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
-        final List<FireflyVertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
-                map(edge -> (FireflyVertex) edge.vertices(direction.opposite()).next()).
+        final List<Vertex> listOfEdges = edges.stream().filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label())).
+                flatMap(edge ->  IteratorUtils.stream(edge.vertices(direction.opposite()))).
                 collect(Collectors.toList());
         return listOfEdges;
     }
@@ -445,6 +446,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                                    final long edgeCounter,
                                    final boolean isEdgeCacheDisabled) {
         final Map<String, List<FireflyId>> edgeCache;
+
         if (direction == Direction.IN) {
             edgeCache = this.inEdgeIds;
             this.inEdgeCount = edgeCounter;

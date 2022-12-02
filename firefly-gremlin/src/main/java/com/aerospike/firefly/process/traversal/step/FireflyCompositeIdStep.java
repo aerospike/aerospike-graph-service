@@ -13,6 +13,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -105,9 +106,12 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
     private List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
-        return (direction == Direction.IN) ?
-            firefly.readEdges(edgeIds).stream().filter(edge -> labels.size() == 0 || labels.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
-            firefly.readEdges(edgeIds).stream().filter(edge -> labels.size() == 0 || labels.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
+
+        List<FireflyId> results = (direction == Direction.IN) ?
+                firefly.readEdges(edgeIds).stream().filter(edge -> edgeLabels.length == 0 || Arrays.asList(edgeLabels).contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
+                firefly.readEdges(edgeIds).stream().filter(edge -> edgeLabels.length == 0 || Arrays.asList(edgeLabels).contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
+
+        return results;
     }
 
     private void addVerticesToSet(List<FireflyId> fireflyIdList, Set<FireflyId> uniqueIdSet, Map<FireflyId, FireflyVertex> fireflyVertexMap, List<FireflyId> vertexIds) {

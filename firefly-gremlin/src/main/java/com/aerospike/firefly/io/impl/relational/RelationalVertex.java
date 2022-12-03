@@ -144,7 +144,8 @@ public abstract class RelationalVertex extends FireflyVertex {
             final Bin edgeCtr = new Bin(ctrBinName, 1);
             final Bin cacheDisabledBin = new Bin(this.db.EDGE_CACHE_DISABLED, Value.get(true));
 
-            final Key key = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(this.id.getCachedId()));
+
+            final Key key = FireflyRecord.getKey(db.getNamespace(), db.VERTEX_AERO_SET, this.id);
             final Operation incrementOp = Operation.add(edgeCtr);
             final Operation getOp = Operation.get(ctrBinName);
             final Operation disableOp = Operation.put(cacheDisabledBin);

@@ -266,8 +266,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testListIndexes() {
-        List<String> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
-        assertTrue(x.contains(db.E_LABEL_INDEX));
+
+        List<Map.Entry<String, String>> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        assertFalse(x.stream().filter(entry -> entry.getKey().equals(db.E_LABEL_INDEX)).collect(Collectors.toList()).isEmpty());
     }
 
     @Test
@@ -577,6 +578,31 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testListEmptySets() {
         Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        System.out.println(res);
+    }
+
+    @Test
+    public void testClearNamespace() throws InterruptedException {
+        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        System.out.println(res);
+        db.clearNamespace();
+        final int max = 30;
+        int retry = 0;
+        while (true) {
+            Set<String> res2 = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+            try {
+                assertTrue(res2.isEmpty());
+            } catch (AssertionError e) {
+                System.out.println(res2);
+                retry = retry + 1;
+                if(retry > max) {
+                    throw e;
+                }
+                sleep(1000);
+                continue;
+            }
+            break;
+        }
     }
 
     @Test
@@ -665,7 +691,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         record = db.getClient().get(null, vertexAeroKey);
         labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
-        assertEquals(additionalEdgeRawId,labelEdgesRetrieved.get(edgeLabel).get(0).longValue());
+        assertEquals(additionalEdgeRawId, labelEdgesRetrieved.get(edgeLabel).get(0).longValue());
     }
 
     @Test
@@ -689,7 +715,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         );
         Record record = db.getClient().get(null, vertexAeroKey);
         Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
-        assertEquals(  1, labelEdgesRetrieved.get(edgeLabel).size());
+        assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
 
         Record operateResultRecord2 = db.getClient().operate(null, vertexAeroKey,
                 ListOperation.removeByValue(edgeDirection, Value.get(additionalEdgeRawId), ListReturnType.NONE, CTX.mapKey(Value.get(edgeLabel))),
@@ -700,7 +726,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
         assertEquals(0, labelEdgesRetrieved.get(edgeLabel).size());
     }
-
 
 
 }

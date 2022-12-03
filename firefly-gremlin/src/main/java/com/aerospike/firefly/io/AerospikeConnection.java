@@ -59,6 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.aerospike.client.util.Util.sleep;
 import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy.Util.isCachedTraversal;
 import static com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy.Util.idFromTraversal;
 
@@ -506,12 +507,14 @@ public class AerospikeConnection implements AutoCloseable {
             return results;
         }
 
-        public static List<String> listExistingIndexes(final AerospikeClient client, final String namespace) {
+        public static List<Map.Entry<String,String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             List<Map<String, String>> res = parseRaw(infoResponse);
             return res.stream()
                     .filter(m -> m.get(Keys.NS).equals(namespace))
-                    .map(m -> m.get(Keys.INDEXNAME)).collect(Collectors.toList());
+                    .map(m -> {
+                        return (Map.Entry<String,String>)new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME),m.get(Keys.SET));
+                    }).collect(Collectors.toList());
         }
 
         /**
@@ -648,7 +651,9 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void createGraphIndexes() {
         LOG.info("Creating graph indices.");
-        List<String> existingIndexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
+        List<String> existingIndexes =
+                InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
+                .map(entry -> entry.getKey()).collect(Collectors.toList());
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
@@ -860,8 +865,9 @@ public class AerospikeConnection implements AutoCloseable {
 
 
     public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter) {
-        return queryIndex(setName,indexName,filter,new QueryPolicy());
+        return queryIndex(setName, indexName, filter, new QueryPolicy());
     }
+
     /**
      * Issue a query on an index providing a custom filter
      *
@@ -1299,6 +1305,20 @@ public class AerospikeConnection implements AutoCloseable {
             // knows - just be amazed that they did it with 1ms precision and handle it anyway.
             LOG.warn("InterruptedException caught during database truncate: ", e);
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Delete all data from the namespace
+     */
+    public void clearNamespace() {
+        Set<String> sets = InfoOps.getNonEmptySetList(getNamespace(), getClient());
+        for (String set : sets) {
+            client.truncate(null, namespace, set, null);
+        }
+        List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
+        for ( Map.Entry<String,String> entry : indexes) {
+            dropIndex(entry.getKey(), entry.getValue());
         }
     }
 

@@ -45,6 +45,7 @@ public abstract class AbstractFireflySuite {
     public static void openGraph() {
         LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
         db = AerospikeConnection.connect(config);
+        db.clearNamespace();
         graph = FireflyGraph.open(config);
         graph.getBaseGraph().dropDatabase();
     }
@@ -74,7 +75,9 @@ public abstract class AbstractFireflySuite {
     @AfterClass
     public static void closeGraphClearData() {
         Util.cleanAndVerifyGraph(graph);
+        db.clearNamespace();
         graph.close();
         db.close();
     }
+
 }

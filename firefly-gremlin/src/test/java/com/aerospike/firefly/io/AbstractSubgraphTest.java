@@ -64,6 +64,7 @@ public class AbstractSubgraphTest {
         graph = FireflyGraph.open(config);
         Util.cleanAndVerifyGraph(graph);
         graph.close();
+        db.clearNamespace();
         db.close();
     }
 

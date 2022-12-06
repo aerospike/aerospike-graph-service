@@ -262,7 +262,7 @@ jobs:
     runs-on: ${{ needs.start-runner-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v1
+      - uses: cinterloper/github-action-aerospike@v2
         with:
           server-version: 6.1.0.3
           config-file: '.github/aerospike/aerospike.conf'
@@ -282,7 +282,7 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v1
+      - uses: cinterloper/github-action-aerospike@v2
         with:
           server-version: 6.1.0.3
           config-file: '.github/aerospike/aerospike.conf'
@@ -302,7 +302,7 @@ jobs:
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v1
+      - uses: cinterloper/github-action-aerospike@v2
         with:
           config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
@@ -321,7 +321,7 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v1
+      - uses: cinterloper/github-action-aerospike@v2
         with:
           config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
@@ -340,7 +340,7 @@ jobs:
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v1
+      - uses: cinterloper/github-action-aerospike@v2
         with:
           config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
@@ -360,7 +360,7 @@ jobs:
   #  runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
   #  steps:
   #    - uses: actions/checkout@v3
-  #    - uses: cinterloper/github-action-aerospike@v1
+  #    - uses: cinterloper/github-action-aerospike@v2
   #      with:
   #        server-version: 6.1.0.3
   #    - name: Set up JDK 11

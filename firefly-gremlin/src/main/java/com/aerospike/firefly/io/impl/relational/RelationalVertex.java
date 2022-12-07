@@ -258,8 +258,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (this.isEdgeCacheDisabled) {
             final List<FireflyId> edgeIds = getEdgeIdsFromVertex(direction);
             vertices.addAll(verticesFromEdgeIds(edgeIds, direction, edgeLabels));
-            System.out.println(edgeIds);
-            System.out.println(vertices);
         } else {
             final List<FireflyId> vertexIds = new ArrayList<>();
             appendAdjacentVertexIds(vertexIds, direction, edgeLabels);

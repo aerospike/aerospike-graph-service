@@ -262,10 +262,9 @@ jobs:
     runs-on: ${{ needs.start-runner-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v2
+      - uses: cinterloper/github-action-aerospike@v3
         with:
           server-version: 6.1.0.3
-          config-file: '.github/aerospike/aerospike.conf'
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -282,10 +281,9 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-linked.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v2
+      - uses: cinterloper/github-action-aerospike@v3
         with:
           server-version: 6.1.0.3
-          config-file: '.github/aerospike/aerospike.conf'
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -302,9 +300,8 @@ jobs:
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v2
+      - uses: cinterloper/github-action-aerospike@v3
         with:
-          config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -321,9 +318,8 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v2
+      - uses: cinterloper/github-action-aerospike@v3
         with:
-          config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -340,9 +336,8 @@ jobs:
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v2
+      - uses: cinterloper/github-action-aerospike@v3
         with:
-          config-file: '.github/aerospike/aerospike.conf'
           server-version: 6.1.0.3
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -360,7 +355,7 @@ jobs:
   #  runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
   #  steps:
   #    - uses: actions/checkout@v3
-  #    - uses: cinterloper/github-action-aerospike@v2
+  #    - uses: cinterloper/github-action-aerospike@v3
   #      with:
   #        server-version: 6.1.0.3
   #    - name: Set up JDK 11

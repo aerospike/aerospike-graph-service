@@ -12,10 +12,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 /**
@@ -130,6 +136,8 @@ public final class ConfigurationHelper {
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
+        put(Keys.AEROSPIKE_HOST, "localhost");
+        put(Keys.AEROSPIKE_NAMESPACE, "test");
         put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
@@ -304,4 +312,15 @@ public final class ConfigurationHelper {
         return c.get(String.class, Keys.AEROSPIKE_HOST.toLowerCase());
     }
 
+    public static String dumpDefaults() {
+        final Properties props = new Properties();
+        defaultValues.forEach(props::setProperty);
+        final StringWriter sw = new StringWriter();
+        try {
+            props.store(sw, "FireflyGraph Configuration Defaults");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return sw.toString();
+    }
 }

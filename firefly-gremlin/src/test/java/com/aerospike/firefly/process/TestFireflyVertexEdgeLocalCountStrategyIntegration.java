@@ -108,7 +108,8 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
         long totalOutCount = 0;
         var outCount = g.V().local(__.out().count());
         while (outCount.hasNext()) {
-            totalOutCount += outCount.next();
+            var a = outCount.next();
+            totalOutCount += a;
         }
         Assert.assertEquals(7, totalOutCount);
 

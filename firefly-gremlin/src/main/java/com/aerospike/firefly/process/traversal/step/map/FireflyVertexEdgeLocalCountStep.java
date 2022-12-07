@@ -1,6 +1,8 @@
 package com.aerospike.firefly.process.traversal.step.map;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MapStep;
@@ -27,6 +29,12 @@ public class FireflyVertexEdgeLocalCountStep extends MapStep<Vertex, Long> {
     protected Traverser.Admin<Long> processNextStart() throws NoSuchElementException {
         final Traverser.Admin<Vertex> traverser = this.starts.next();
         final FireflyVertex vertex = (FireflyVertex) traverser.get();
-        return traverser.split(vertex.getEdgeCount(direction), this);
+        final long result;
+        if (vertex.isEdgeCacheDisabled() || Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, ((FireflyGraph) traversal.getGraph().get()).configuration()))) {
+            result = vertex.getEdgeIdsFromVertex(direction).size();
+        } else {
+            result = vertex.getEdgeCount(direction);
+        }
+        return traverser.split(result, this);
     }
 }

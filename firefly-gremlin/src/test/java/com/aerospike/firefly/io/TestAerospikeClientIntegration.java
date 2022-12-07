@@ -1,10 +1,7 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
-import com.aerospike.client.Info;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
+import com.aerospike.client.*;
+import com.aerospike.client.cdt.*;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
@@ -18,6 +15,7 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
+import com.aerospike.firefly.structure.id.FireflyIdNumeric;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -50,6 +48,7 @@ import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -267,8 +266,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testListIndexes() {
-        List<String> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
-        assertTrue(x.contains(db.E_LABEL_INDEX));
+
+        List<Map.Entry<String, String>> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        assertFalse(x.stream().filter(entry -> entry.getKey().equals(db.E_LABEL_INDEX)).collect(Collectors.toList()).isEmpty());
     }
 
     @Test
@@ -578,6 +578,31 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testListEmptySets() {
         Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        System.out.println(res);
+    }
+
+    @Test
+    public void testClearNamespace() throws InterruptedException {
+        Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+        System.out.println(res);
+        db.clearNamespace();
+        final int max = 30;
+        int retry = 0;
+        while (true) {
+            Set<String> res2 = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
+            try {
+                assertTrue(res2.isEmpty());
+            } catch (AssertionError e) {
+                System.out.println(res2);
+                retry = retry + 1;
+                if(retry > max) {
+                    throw e;
+                }
+                sleep(1000);
+                continue;
+            }
+            break;
+        }
     }
 
     @Test
@@ -632,4 +657,75 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Record[] data = db.read(new Key[]{aKey, bKey, cKey});
         assertEquals(3, data.length);
     }
+
+    @Test
+    public void updateListByOperation() {
+        db.dropDatabase();
+        final String edgeLabel = "testLabel";
+        final String edgeDirection = "OUT";
+        final long edgeRawId = 3L;
+        final long additionalEdgeRawId = 4L;
+        final long vertexRawId = 1L;
+        final FireflyId vertexFid = FireflyIdFactory.createId(vertexRawId);
+        final Map<String, List<Long>> labelEdges = new HashMap<>();
+        labelEdges.put(edgeLabel, new ArrayList<>() {{
+            add(edgeRawId);
+        }});
+        final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
+        final Bin[] bins = new Bin[]{edgeDataBin};
+        FireflyRecord.write(db, TEST_SET, vertexFid, -1, bins);
+        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());
+        Record operateResultRecord = db.getClient().operate(null, vertexAeroKey,
+                ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKey(Value.get(edgeLabel))),
+                Operation.get(edgeDirection)
+        );
+        Record record = db.getClient().get(null, vertexAeroKey);
+        Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
+        assertEquals(2, labelEdgesRetrieved.get(edgeLabel).size());
+
+        Record operateResultRecord2 = db.getClient().operate(null, vertexAeroKey,
+                ListOperation.removeByValue(edgeDirection, Value.get(edgeRawId), ListReturnType.NONE, CTX.mapKey(Value.get(edgeLabel))),
+                Operation.get(edgeDirection)
+        );
+
+        record = db.getClient().get(null, vertexAeroKey);
+        labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
+        assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
+        assertEquals(additionalEdgeRawId, labelEdgesRetrieved.get(edgeLabel).get(0).longValue());
+    }
+
+    @Test
+    public void createListByOperation() {
+        db.dropDatabase();
+        final String edgeLabel = "testLabel";
+        final String edgeDirection = "OUT";
+        final long edgeRawId = 3L;
+        final long additionalEdgeRawId = 4L;
+        final long vertexRawId = 1L;
+        final FireflyId vertexFid = FireflyIdFactory.createId(vertexRawId);
+        final Map<String, List<Long>> labelEdges = new HashMap<>();
+
+        final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
+        final Bin[] bins = new Bin[]{edgeDataBin};
+        FireflyRecord.write(db, TEST_SET, vertexFid, -1, bins);
+        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());
+        Record operateResultRecord = db.getClient().operate(null, vertexAeroKey,
+                ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.UNORDERED)),
+                Operation.get(edgeDirection)
+        );
+        Record record = db.getClient().get(null, vertexAeroKey);
+        Map<String, List<Long>> labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
+        assertEquals(1, labelEdgesRetrieved.get(edgeLabel).size());
+
+        Record operateResultRecord2 = db.getClient().operate(null, vertexAeroKey,
+                ListOperation.removeByValue(edgeDirection, Value.get(additionalEdgeRawId), ListReturnType.NONE, CTX.mapKey(Value.get(edgeLabel))),
+                Operation.get(edgeDirection)
+        );
+
+        record = db.getClient().get(null, vertexAeroKey);
+        labelEdgesRetrieved = (Map<String, List<Long>>) record.getMap(edgeDirection);
+        assertEquals(0, labelEdgesRetrieved.get(edgeLabel).size());
+    }
+
+
 }

@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -44,6 +45,7 @@ public abstract class AbstractFireflySuite {
     public static void openGraph() {
         LOG = LoggerFactory.getLogger(AbstractFireflySuite.class);
         db = AerospikeConnection.connect(config);
+        db.clearNamespace();
         graph = FireflyGraph.open(config);
         graph.getBaseGraph().dropDatabase();
     }
@@ -73,7 +75,9 @@ public abstract class AbstractFireflySuite {
     @AfterClass
     public static void closeGraphClearData() {
         Util.cleanAndVerifyGraph(graph);
+        db.clearNamespace();
         graph.close();
         db.close();
     }
+
 }

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.io.impl.GraphFactory;
+import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
@@ -9,14 +10,19 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.Tree;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoCore;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONIo;
@@ -25,8 +31,11 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.apache.tinkerpop.shaded.jackson.core.type.TypeReference;
+import org.apache.tinkerpop.shaded.jackson.databind.ObjectMapper;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +49,8 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
 import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -389,6 +400,106 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, (long) g.V().has("color", "yellow").outE().count().next());
     }
+    public Vertex convertToVertex(final Graph graph, final String vertexName) {
+        // all test graphs have "name" as a unique id which makes it easy to hardcode this...works for now
+        return graph.traversal().V().has("name", vertexName).toList().get(0);
+    }
+    public Object convertToVertexId(final Graph graph, final String vertexName) {
+        return convertToVertex(graph, vertexName).id();
+    }
+    private final TypeReference<HashMap<String, Object>> mapTypeReference = new TypeReference<HashMap<String, Object>>() {
+    };
+
+    @Test
+    @Ignore //@todo
+    public void shouldSerializeTreeUncached() throws Exception {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+//        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+        
+        GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
+
+        ObjectMapper mapper = ((GraphSONIo)noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0))).mapper().version(GraphSONVersion.V1_0).create().createMapper();
+        Tree t = (Tree)noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph,"marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
+        String json = mapper.writeValueAsString(t);
+        HashMap<String, Object> m = (HashMap)mapper.readValue(json, this.mapTypeReference);
+        Assert.assertEquals(1L, (long)m.size());
+        Assert.assertTrue(m.containsKey(this.convertToVertex(noCacheGraph,"marko").id().toString()));
+        HashMap<String, Object> branch = (HashMap)m.get(this.convertToVertexId(noCacheGraph,"marko").toString());
+        Assert.assertEquals(2L, (long)branch.size());
+        Assert.assertTrue(branch.containsKey("key"));
+        Assert.assertTrue(branch.containsKey("value"));
+        HashMap<String, Object> branchKey = (HashMap)branch.get("key");
+        Assert.assertTrue(branchKey.containsKey("id"));
+        Assert.assertTrue(branchKey.containsKey("label"));
+        Assert.assertTrue(branchKey.containsKey("type"));
+        Assert.assertTrue(branchKey.containsKey("properties"));
+        Assert.assertEquals(this.convertToVertexId(noCacheGraph,"marko").toString(), branchKey.get("id").toString());
+        Assert.assertEquals("person", branchKey.get("label"));
+        Assert.assertEquals("vertex", branchKey.get("type"));
+        HashMap<String, List<HashMap<String, Object>>> branchKeyProps = (HashMap)branchKey.get("properties");
+        Assert.assertEquals("marko", ((HashMap)((List)branchKeyProps.get("name")).get(0)).get("value"));
+        Assert.assertEquals(29, ((HashMap)((List)branchKeyProps.get("age")).get(0)).get("value"));
+        HashMap<String, Object> branchValue = (HashMap)branch.get("value");
+        Assert.assertEquals(3L, (long)branchValue.size());
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"vadas").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"lop").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"josh").toString()));
+        HashMap<String, HashMap<String, Object>> branch2 = (HashMap)branchValue.get(this.convertToVertexId(noCacheGraph,"vadas").toString());
+        Assert.assertTrue(branch2.containsKey("key"));
+        Assert.assertTrue(branch2.containsKey("value"));
+        Map.Entry entry = (Map.Entry)((HashMap)branch2.get("value")).entrySet().iterator().next();
+        HashMap<String, HashMap<String, Object>> branch2Prop = (HashMap)entry.getValue();
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("id"));
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("value"));
+        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("label"));
+        Assert.assertEquals("name", ((HashMap)branch2Prop.get("key")).get("label"));
+        Assert.assertEquals("vadas", ((HashMap)branch2Prop.get("key")).get("value"));
+        Assert.assertEquals(entry.getKey().toString(), ((HashMap)branch2Prop.get("key")).get("id").toString());
+    }
+    @Test
+    public void basic_edge_cache_nocache() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
+
+        FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
+
+        Configuration cacheConfig = ConfigurationUtils.cloneConfiguration(config);
+        cacheConfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "false");
+        cacheConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "cg");
+        cacheConfig.setProperty(Graph.GRAPH, "cachegraph");
+
+        FireflyGraph cacheGraph = FireflyGraph.open(cacheConfig);
+        noCacheGraph.getBaseGraph().dropDatabase();
+        cacheGraph.getBaseGraph().dropDatabase();
+
+        Vertex ncgVa = noCacheGraph.traversal().addV().next();
+        Vertex ncgVb = noCacheGraph.traversal().addV().next();
+        noCacheGraph.traversal().addE("knows").from(ncgVa).to(ncgVb).next();
+
+        Vertex cgVa = cacheGraph.traversal().addV().next();
+        Vertex cgVb = cacheGraph.traversal().addV().next();
+        cacheGraph.traversal().addE("knows").from(cgVa).to(cgVb).next();
+
+        Edge ncoe = noCacheGraph.traversal().V(ncgVa).outE().next();
+        Edge coe = cacheGraph.traversal().V(cgVa).outE().next();
+        LOG.info("noCacheGraph edge: {}", ncoe);
+        LOG.info("cacheGraph edge: {}", coe);
+
+        Edge ncie = noCacheGraph.traversal().V(ncgVb).inE().next();
+        Edge cie = cacheGraph.traversal().V(cgVb).inE().next();
+        LOG.info("noCacheGraph edge: {}", ncie);
+        LOG.info("cacheGraph edge: {}", cie);
+    }
+
 
     @Test
     public void g_V_chooseXhasLabelXpersonX_and_outXcreatedX__outXknowsX__identityX_name() {
@@ -670,7 +781,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             } else if (t instanceof List) {
                 assertThat("Checking list result existence: " + t, expectedResults.stream().filter(e -> e instanceof List).anyMatch(e -> internalCheckList((List) e, (List) t)), is(true));
             } else {
-                assertThat("Checking result existence: " + t, expectedResults.contains(t), is(true));
+                try {
+                    assertThat("Checking result existence: " + t, expectedResults.contains(t), is(true));
+                } catch (Exception e) {
+                    throw e;
+                }
             }
         }
         final Map<T, Long> expectedResultsCount = new HashMap<>();
@@ -925,11 +1040,60 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void testModelAndVersion() {
         //This initializes the metadata for version and model, if drop database is called, its cleared
-        graph = GraphFactory.createGraph(db,config);
+        graph = GraphFactory.createGraph(db, config);
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
         assertEquals(graph.getBaseGraph().getDataModelName(), it.property(graph.getBaseGraph().DATA_MODEL_NAME).value());
         assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(graph.getBaseGraph().DATA_MODEL_VER).value());
     }
+
+    @Test
+    public void testOperateCache() {
+        RelationalVertex a = (RelationalVertex) graph.addVertex(T.label, "a");
+        RelationalVertex b = (RelationalVertex) graph.addVertex(T.label, "b");
+        Edge e1 = graph.traversal().addE("oneLabel").from(a).to(b).next();
+        Edge e2 = graph.traversal().addE("twoLabel").from(b).to(a).next();
+        List<Edge> allEdges = graph.traversal().E().toList();
+        List<Edge> e1e = graph.traversal().V(a).bothE().toList();
+        List<Edge> e2e = graph.traversal().V(b).bothE().toList();
+        assertEquals((Long) 1L, (Long) graph.traversal().V(a).inE().count().next());
+    }
+
+    @Test
+    public void shouldRemoveEdges() {
+        final int vertexCount = 100;
+        final int edgeCount = 200;
+        final List<Vertex> vertices = new ArrayList<>();
+        final List<Edge> edges = new ArrayList<>();
+        final Random random = new Random();
+
+        IntStream.range(0, vertexCount).forEach(i -> vertices.add(graph.addVertex()));
+        tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, 0));
+
+        IntStream.range(0, edgeCount).forEach(i -> {
+            boolean created = false;
+            while (!created) {
+                final Vertex a = vertices.get(random.nextInt(vertices.size()));
+                final Vertex b = vertices.get(random.nextInt(vertices.size()));
+                if (a != b) {
+                    edges.add(a.addEdge("a" + UUID.randomUUID(), b));
+                    created = true;
+                }
+            }
+        });
+
+        tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount));
+
+        int counter = 0;
+        for (Edge e : edges) {
+            counter = counter + 1;
+            e.remove();
+
+            final int currentCounter = counter;
+            tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount - currentCounter));
+        }
+    }
+
+
 }
 

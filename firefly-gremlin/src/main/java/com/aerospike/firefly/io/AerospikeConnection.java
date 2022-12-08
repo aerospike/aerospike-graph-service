@@ -507,6 +507,14 @@ public class AerospikeConnection implements AutoCloseable {
             return results;
         }
 
+        /**
+         * Return list of existing indices in a list of map entries.
+         * @param client client.
+         * @param namespace Namespace.
+         * @return List of existing indices in a list of map entries.
+         *         First item of map entry is index
+         *         Second item of map entry is set the index belongs to
+         */
         public static List<Map.Entry<String,String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             List<Map<String, String>> res = parseRaw(infoResponse);
@@ -1312,13 +1320,13 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete all data from the namespace
      */
     public void clearNamespace() {
-        Set<String> sets = InfoOps.getNonEmptySetList(getNamespace(), getClient());
-        for (String set : sets) {
+        final Set<String> sets = InfoOps.getNonEmptySetList(getNamespace(), getClient());
+        for (final String set : sets) {
             client.truncate(null, namespace, set, null);
         }
-        List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
-        for ( Map.Entry<String,String> entry : indexes) {
-            dropIndex(entry.getKey(), entry.getValue());
+        final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
+        for (final Map.Entry<String,String> entry : indexes) {
+            dropIndex(entry.getValue(), entry.getKey());
         }
     }
 

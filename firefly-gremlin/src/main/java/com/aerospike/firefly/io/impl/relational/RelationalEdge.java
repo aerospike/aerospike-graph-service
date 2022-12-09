@@ -3,6 +3,7 @@ package com.aerospike.firefly.io.impl.relational;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -19,9 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -71,8 +72,8 @@ public class RelationalEdge extends FireflyEdge {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
-        final Map<String, Object> data = new HashMap<>();
-        final Map<String, Object> typeHints = new HashMap<>();
+        final Map<String, Object> data = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -98,10 +99,11 @@ public class RelationalEdge extends FireflyEdge {
 
         });
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
+
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id.getStorageId()));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id.getStorageId()));
-        final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data));
-        final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints));
+        final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data, MapOrder.KEY_ORDERED));
+        final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
         // First instance of this edge, generation -1.
         FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, -1, labelBin, inVbin, outVBin, valueBin, typeHintBin);

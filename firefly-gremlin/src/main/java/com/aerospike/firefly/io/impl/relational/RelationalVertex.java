@@ -41,12 +41,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -89,8 +88,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                                final boolean isEdgeCacheDisabled,
                                final AerospikeConnection db) {
         super(fid, label, graph);
-        this.inEdgeIds = inEdgeIds == null ? new HashMap<>() : inEdgeIds;
-        this.outEdgeIds = outEdgeIds == null ? new HashMap<>() : outEdgeIds;
+        this.inEdgeIds = inEdgeIds == null ? new TreeMap<>() : inEdgeIds;
+        this.outEdgeIds = outEdgeIds == null ? new TreeMap<>() : outEdgeIds;
         this.inEdgeCount = inEdgeCount;
         this.outEdgeCount = outEdgeCount;
         this.vertexPropertyCount = vertexPropertyCount;
@@ -505,8 +504,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Loop through properties and populate the vertex property id cache and vertex property label id map.
-        final Map<String, List<FireflyId>> vertexPropertyLabelIdMap = new HashMap<>();
-        final Map<String, List<Object>> vertexPropertyValueMap = new HashMap<>();
+        final Map<String, List<FireflyId>> vertexPropertyLabelIdMap = new TreeMap<>();
+        final Map<String, List<Object>> vertexPropertyValueMap = new TreeMap<>();
         properties.forEach(vp -> {
             if (!vertexPropertyValueMap.containsKey(vp.getKey())) {
                 vertexPropertyValueMap.put(vp.getKey(), new ArrayList<>());
@@ -554,8 +553,8 @@ public abstract class RelationalVertex extends FireflyVertex {
     public static PropertyValueIdMaps getPropertyValueIdMaps(final FireflyGraph graph,
                                                              final List<Map.Entry<String, Object>> properties) {
         // Loop through properties nad populate the vertex properties value map.
-        final Map<String, Object> vertexPropertyValueMap = new HashMap<>();
-        final Map<String, FireflyId> vertexPropertyIdMap = new HashMap<>();
+        final Map<String, Object> vertexPropertyValueMap = new TreeMap<>();
+        final Map<String, FireflyId> vertexPropertyIdMap = new TreeMap<>();
         properties.forEach(vp -> {
             // Get id for vertex property.
             final FireflyId vertexPropertyId = FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
@@ -621,10 +620,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         final long vertexPropertyCount;
         final Bin vertexPropertyCounterBin;
         final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
-        final Map<String, List<Long>> uninitalizedEdgeCacheIn = new HashMap<>();
-        final Bin edgeCacheInBin = new Bin(Direction.IN.name(), uninitalizedEdgeCacheIn);
-        final Map<String, List<Long>> uninitalizedEdgeCacheOut = new HashMap<>();
-        final Bin edgeCacheOutBin = new Bin(Direction.OUT.name(), uninitalizedEdgeCacheOut);
+        final Map<String, List<Long>> uninitalizedEdgeCacheIn = new TreeMap<>();
+        final Bin edgeCacheInBin = new Bin(Direction.IN.name(), Value.get(uninitalizedEdgeCacheIn, MapOrder.KEY_ORDERED));
+        final Map<String, List<Long>> uninitalizedEdgeCacheOut = new TreeMap<>();
+        final Bin edgeCacheOutBin = new Bin(Direction.OUT.name(), Value.get(uninitalizedEdgeCacheOut, MapOrder.KEY_ORDERED));
         final Map<String, Long> vertexPropertyTypeHintMap;
 
         switch (vertexTypeHint) {
@@ -638,27 +637,27 @@ public abstract class RelationalVertex extends FireflyVertex {
 
                 // If the VP cache is disabled, don't store VPs.
                 vertexPropertyIdsBin = isVertexPropertyCacheDisabled ?
-                        new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(new HashMap<>())) :
-                        new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
+                        new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED)) :
+                        new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
 
                 FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, cacheDisabledBin, labelBin,
                         vertexPropertyIdsBin, vertexPropertyCounterBin, vertexPropertyCacheDisabledBin, typeHint);
-                return new LinkedVertex(vertexId, label, graph, new HashMap<>(), new HashMap<>(), 0, 0,
+                return new LinkedVertex(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(), 0, 0,
                         (Map<String, List<FireflyId>>) vertexPropertyIds, vertexPropertyCount,
                         isVertexPropertyCacheDisabled, isEdgeCacheDisabled, db);
             case StarPackedVertex.VERTEX_TYPE_HINT:
                 // Star specific
                 // Fall through
             case PackedVertex.VERTEX_TYPE_HINT:
-                vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable));
+                vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
                 vertexPropertyCount = vertexPropertyIds.size();
                 vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
-                final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap));
-                vertexPropertyTypeHintMap = new HashMap<>();
+                final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValueMap, MapOrder.KEY_ORDERED));
+                vertexPropertyTypeHintMap = new TreeMap<>();
                 for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
                     vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
                 }
-                final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap));
+                final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));
 
                 // Set generation to -1 (no generation check) because this is the initial write of the vertex.
                 FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1,
@@ -671,7 +670,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                         vertexPropertyCounterBin,
                         vertexPropertyValuesTypeHintsBin,
                         typeHint);
-                return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new HashMap<>(), new HashMap<>(),
+                return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
                         0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
                         null, vertexPropertyCount, isEdgeCacheDisabled, db);
             default:
@@ -765,9 +764,9 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Get inEdgeIds and outEdgeIds, if the number of either exceeds the cache size, set to null (invalid).
         final Map<String, List<Object>> inEdgeIds = edgeCacheDisabled ?
-                new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.IN_EDGES);
+                new TreeMap<>() : (Map<String, List<Object>>) record.getMap(db.IN_EDGES);
         final Map<String, List<Object>> outEdgeIds = edgeCacheDisabled ?
-                new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.OUT_EDGES);
+                new TreeMap<>() : (Map<String, List<Object>>) record.getMap(db.OUT_EDGES);
         final Map<String, List<FireflyId>> fireflyInEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(inEdgeIds);
         final Map<String, List<FireflyId>> fireflyOutEdgeIds = FireflyIdFactory.convertMapListObjectToFireflyIdMap(outEdgeIds);
         // Create vertex based on type hint.
@@ -776,7 +775,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Get vertex properties and vertex property counter from record.
                 final boolean isVertexPropertyCacheDisabled = record.getBoolean(db.VP_CACHE_DISABLED);
                 final Map<String, List<Object>> vertexProperties = isVertexPropertyCacheDisabled ?
-                        new HashMap<>() : (Map<String, List<Object>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+                        new TreeMap<>() : (Map<String, List<Object>>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
                 final Map<String, List<FireflyId>> fireflyVertexProperties =
                         FireflyIdFactory.convertMapListObjectToFireflyIdMap(vertexProperties);
                 return new LinkedVertex(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds, inEdgeCount,

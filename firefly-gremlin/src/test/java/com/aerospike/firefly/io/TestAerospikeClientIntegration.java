@@ -671,7 +671,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         labelEdges.put(edgeLabel, new ArrayList<>() {{
             add(edgeRawId);
         }});
-        final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
+        final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges, MapOrder.KEY_ORDERED));
         final Bin[] bins = new Bin[]{edgeDataBin};
         FireflyRecord.write(db, TEST_SET, vertexFid, -1, bins);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());

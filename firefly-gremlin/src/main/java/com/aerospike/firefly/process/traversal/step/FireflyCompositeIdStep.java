@@ -13,12 +13,11 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -58,7 +57,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         final List<FireflyCompositeIdStepInfo> fireflyCompositeIdStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyVertex> fireflyVertexMap = new HashMap<>();
+        final Map<FireflyId, FireflyVertex> fireflyVertexMap = new TreeMap<>();
         while (!set.isEmpty()) {
             // Get next input traverser and get the RelationalVertex form of it.
             final Traverser.Admin<Vertex> traverser = set.remove();

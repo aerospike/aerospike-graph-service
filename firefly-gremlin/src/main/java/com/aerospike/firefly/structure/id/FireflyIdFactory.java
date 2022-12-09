@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -190,9 +191,9 @@ public class FireflyIdFactory {
 
     public static Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
-        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
+        final Map<String, List<FireflyId>> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final Object edge : fireflyObjectIds.get(label)) {
@@ -209,10 +210,10 @@ public class FireflyIdFactory {
 
     public static Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
 
-        final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
+        final Map<String, List<Object>> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();
             for (final FireflyId id : fireflyObjectIds.get(label)) {
@@ -225,10 +226,10 @@ public class FireflyIdFactory {
 
     public static Map<String, List<Object>> convertMapListToCache(final Map<String, List<FireflyId>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
 
-        final Map<String, List<Object>> labelEdgeIds = new HashMap<>();
+        final Map<String, List<Object>> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<Object> ids = new ArrayList<>();
             for (final FireflyId id : fireflyObjectIds.get(label)) {
@@ -241,9 +242,9 @@ public class FireflyIdFactory {
 
     public static Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
-        final Map<String, Object> labelEdgeIds = new HashMap<>();
+        final Map<String, Object> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final Object id = fireflyObjectIds.get(label).getStorageId();
             labelEdgeIds.put(label, id);
@@ -253,9 +254,9 @@ public class FireflyIdFactory {
 
     public static Map<String, Object> convertMapToCache(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
-        final Map<String, Object> labelEdgeIds = new HashMap<>();
+        final Map<String, Object> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final Object id = fireflyObjectIds.get(label).getCachedId();
             labelEdgeIds.put(label, id);
@@ -265,9 +266,9 @@ public class FireflyIdFactory {
 
     public static Map<String, FireflyId> convertMapObjectToFireflyIdMap(final Map<String, Object> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new HashMap<>();
+            return new TreeMap<>();
         }
-        final Map<String, FireflyId> edgeIdMap = new HashMap<>();
+        final Map<String, FireflyId> edgeIdMap = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             edgeIdMap.put(label, FireflyIdFactory.createId(fireflyObjectIds.get(label)));
         }

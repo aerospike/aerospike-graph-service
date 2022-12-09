@@ -4,6 +4,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypeValues;
 import static com.aerospike.firefly.structure.id.FireflyIdFactory.convertMapListObjectToFireflyIdMap;
@@ -77,7 +79,7 @@ public class LinkedVertex extends RelationalVertex {
                         final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyCount,
                 isEdgeCacheDisabled, db);
-        this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
+        this.vertexPropertyIds = vertexPropertyIds == null ? new TreeMap<>() : vertexPropertyIds;
         this.isVertexPropertyCacheDisabled = isVertexPropertyCacheDisabled;
     }
 
@@ -130,7 +132,7 @@ public class LinkedVertex extends RelationalVertex {
         // Scan vertex property set.
         final Iterator<Map.Entry<Key, Record>> records = scanAllRecordsInSet(db.VERTEX_PROPERTY_AERO_SET, exp, policy);
 
-        final Map<String, FireflyVertexProperty<?>> results = new HashMap<>();
+        final Map<String, FireflyVertexProperty<?>> results = new TreeMap<>();
         records.forEachRemaining(entry -> {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
             final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
@@ -246,7 +248,7 @@ public class LinkedVertex extends RelationalVertex {
 
             // Write back.
             final Bin vertexProperties = new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID,
-                    Value.get(FireflyIdFactory.convertMapListToCache(vertexPropertyIds)));
+                    Value.get(FireflyIdFactory.convertMapListToCache(vertexPropertyIds), MapOrder.KEY_ORDERED));
             final Bin vertexPropertiesCounter = new Bin(this.db.VP_COUNTER, Value.get(vertexPropertyCount));
 
             FireflyRecord.writeElement(this.db, this.db.VERTEX_AERO_SET, this.id, generation, vertexProperties,
@@ -347,13 +349,13 @@ public class LinkedVertex extends RelationalVertex {
 
         long vpCounter = 0;
         boolean isVPCacheDisabled = false;
-        Map<String, List<Object>> vertexPropertyIdsStorable = new HashMap<>();
+        Map<String, List<Object>> vertexPropertyIdsStorable = new TreeMap<>();
         int generation = -1;
         if (fireflyRecord != null && fireflyRecord.record() != null) {
             vpCounter = fireflyRecord.record().getLong(this.db.VP_COUNTER);
             isVPCacheDisabled = fireflyRecord.record().getBoolean(this.db.VP_CACHE_DISABLED);
             vertexPropertyIdsStorable = (Map<String, List<Object>>) Optional.ofNullable(
-                    fireflyRecord.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID)).orElse(new HashMap<>());
+                    fireflyRecord.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID)).orElse(new TreeMap<>());
             generation = fireflyRecord.record.generation;
         }
         vpCounter++;
@@ -361,7 +363,7 @@ public class LinkedVertex extends RelationalVertex {
         if (isVPCacheDisabled || vpCounter > this.db.ID_CACHE_SIZE) {
             // The cache is now, or was already, blown
             isVPCacheDisabled = true;
-            vertexPropertyIdsStorable = new HashMap<>();
+            vertexPropertyIdsStorable = new TreeMap<>();
         } else {
             // Add new VP ID to cache which is not disabled
             if (vertexPropertyIdsStorable.containsKey(vertexProperty.key())) {
@@ -372,7 +374,7 @@ public class LinkedVertex extends RelationalVertex {
                 }});
             }
         }
-        final Bin vertexPropertyIdBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsStorable));
+        final Bin vertexPropertyIdBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIdsStorable, MapOrder.KEY_ORDERED));
         final Bin vertexPropertyCountBin = new Bin(db.VP_COUNTER, Value.get(vpCounter));
         final Bin vertexPropertyCacheDisabledBin = new Bin(db.VP_CACHE_DISABLED, Value.get(isVPCacheDisabled));
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertyIdBin, vertexPropertyCountBin,

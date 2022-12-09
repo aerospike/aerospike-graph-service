@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.impl.relational.linked;
 
 import com.aerospike.client.Bin;
+import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -126,8 +127,8 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
             final V value) {
         // Write the vertex property to the database
         final AerospikeConnection db = graph.getBaseGraph();
-        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertex.id.getStorageId());
+        final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, Value.get(key));
+        final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, Value.get(vertex.id.getStorageId()));
         db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
         // Return the vertex property.
         return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);

@@ -116,6 +116,9 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     public <V> Iterator<Property<V>> properties(final String... propertyKeys) {
         Map<String, Property<V>> properties = graph.readProperties(this);
         if (propertyKeys.length == 1) {
+            if (propertyKeys[0] == null) {
+                return Collections.emptyIterator();
+            }
             final Property<V> property = properties.get(propertyKeys[0]);
             return null == property ? Collections.emptyIterator() : IteratorUtils.of(property);
         } else {

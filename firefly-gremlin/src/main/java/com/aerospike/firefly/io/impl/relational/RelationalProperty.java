@@ -5,12 +5,11 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Property;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -89,9 +88,9 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.getElementPropertySet(element.getClass()), element.id);
         if (fireflyRecord == null)
-            return new HashMap<>();
+            return new TreeMap<>();
 
-        final Map<String, Property<V>> result = new HashMap<>();
+        final Map<String, Property<V>> result = new TreeMap<>();
         final Map<String, Object> data = (Map<String, Object>) fireflyRecord.record.getMap(db.getElementPropertySet(element.getClass()));
         if (data == null)
             return result;

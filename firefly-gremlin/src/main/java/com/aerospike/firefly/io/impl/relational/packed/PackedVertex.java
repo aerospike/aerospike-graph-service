@@ -2,6 +2,7 @@ package com.aerospike.firefly.io.impl.relational.packed;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
@@ -21,11 +22,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -77,16 +78,16 @@ public class PackedVertex extends RelationalVertex {
             throw new RuntimeException("PackedVertex only supports for single cardinality");
         }
 
-        this.vertexPropertyIds = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyIds;
-        this.vertexPropertyValues = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValues;
-        this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new HashMap<>() : vertexPropertyValuesTypeHints;
+        this.vertexPropertyIds = vertexPropertyIds == null ? new TreeMap<>() : vertexPropertyIds;
+        this.vertexPropertyValues = vertexPropertyIds == null ? new TreeMap<>() : vertexPropertyValues;
+        this.vertexPropertyValuesTypeHints = vertexPropertyIds == null ? new TreeMap<>() : vertexPropertyValuesTypeHints;
     }
 
     @Override
     protected void removeVertexProperties() {
-        vertexPropertyIds = new HashMap<>();
-        vertexPropertyValues = new HashMap<>();
-        vertexPropertyValuesTypeHints = new HashMap<>();
+        vertexPropertyIds = new TreeMap<>();
+        vertexPropertyValues = new TreeMap<>();
+        vertexPropertyValuesTypeHints = new TreeMap<>();
     }
 
     /**
@@ -188,9 +189,9 @@ public class PackedVertex extends RelationalVertex {
         final long vertexPropertyCount = vertexPropertyIds.size();
 
         // Create vertex property related bins.
-        final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
-        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds)));
-        final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints));
+        final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
@@ -242,9 +243,9 @@ public class PackedVertex extends RelationalVertex {
         vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));
 
         // Create vertex property related bins.
-        final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues));
-        final Bin vertexPropertiesValuesTypeHintBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, vertexPropertyValuesTypeHints);
-        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds)));
+        final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesValuesTypeHintBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.

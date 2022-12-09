@@ -4,6 +4,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
@@ -27,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
@@ -98,8 +99,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                               final long inVertexId, final long outVertexId) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
-        final Map<String, Object> data = new HashMap<>();
-        final Map<String, Object> typeHints = new HashMap<>();
+        final Map<String, Object> data = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -127,8 +128,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertexId));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertexId));
-        final Bin valueBin = new Bin(this.db.EDGE_AERO_SET, Value.get(data));
-        final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints));
+        final Bin valueBin = new Bin(this.db.EDGE_AERO_SET, Value.get(data, MapOrder.KEY_ORDERED));
+        final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
         FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, FireflyIdFactory.createId(edgeId), -1, labelBin,
                 inVbin, outVBin, valueBin, typeHintBin);
     }
@@ -160,12 +161,12 @@ public abstract class RelationalGraph extends FireflyGraph {
         // Initialize edge counter, cache disable flag, edge label map, and generation.
         long edgeCounter = 0;
         boolean cacheDisabled = false;
-        Map<String, List<Object>> labelEdges = new HashMap<>();
+        Map<String, List<Object>> labelEdges = new TreeMap<>();
         int generation = -1;
 
         // If the Firefly record is not null, grab existing edge data from it.
         if (fireflyRecord != null && fireflyRecord.record != null) {
-            labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new HashMap<>());
+            labelEdges = (Map<String, List<Object>>) Optional.ofNullable(fireflyRecord.record().getMap(directionKey)).orElse(new TreeMap<>());
             edgeCounter = fireflyRecord.record().getLong(counterKey);
             cacheDisabled = fireflyRecord.record().getBoolean(db.EDGE_CACHE_DISABLED);
             generation = fireflyRecord.record().generation;
@@ -190,7 +191,7 @@ public abstract class RelationalGraph extends FireflyGraph {
             labelEdges.put(edgeLabel, edges);
 
             // Write edge label map back to vertex.
-            final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges));
+            final Bin edgeDataBin = new Bin(directionKey, Value.get(labelEdges, MapOrder.KEY_ORDERED));
             final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, Value.get(false));
             bins = new Bin[]{edgeDataBin, edgeCounterBin, cacheDisabledBin};
         }

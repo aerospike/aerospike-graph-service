@@ -16,6 +16,7 @@ import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.async.Throttles;
+import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -476,7 +477,7 @@ public class AerospikeConnection implements AutoCloseable {
             Arrays.stream(infoResponse.split(";"))
                     .map(str -> str.split(":"))
                     .forEach(strAry -> {
-                        Map<String, String> data = new HashMap<>();
+                        Map<String, String> data = new TreeMap<>();
                         Arrays.stream(strAry).forEach(entryStr -> {
                             if (entryStr.isEmpty())
                                 return;
@@ -493,12 +494,12 @@ public class AerospikeConnection implements AutoCloseable {
 
         //
         private static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
-            Map<String, Map<String, String>> results = new HashMap<>();
+            Map<String, Map<String, String>> results = new TreeMap<>();
             Arrays.stream(infoResponse.split(";"))
                     .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
                     .map(str -> str.split(":"))
                     .forEach(strAry -> {
-                        Map<String, String> data = new HashMap<>();
+                        Map<String, String> data = new TreeMap<>();
                         Arrays.stream(strAry).forEach(kvStr -> {
                             data.put(kvStr.split("=")[0], kvStr.split("=")[1]);
                         });
@@ -1037,8 +1038,8 @@ public class AerospikeConnection implements AutoCloseable {
             return;
         final Record r = fireflyRecord.record;
         final int generation = r.generation;
-        final Map<String, Object> data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new HashMap<>());
-        final Map<String, Object> typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new HashMap<>());
+        final Map<String, Object> data = (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new TreeMap<>());
+        final Map<String, Object> typeHints = (Map<String, Object>) Optional.ofNullable(r.getMap(TYPE_HINTS)).orElse(new TreeMap<>());
 
         if (!data.containsKey(mapKey)) {
             return;
@@ -1046,8 +1047,8 @@ public class AerospikeConnection implements AutoCloseable {
             data.remove(mapKey);
             typeHints.remove(mapKey);
         }
-        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
-        final Bin valueBin = new Bin(mapName, Value.get(data));
+        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
+        final Bin valueBin = new Bin(mapName, Value.get(data, MapOrder.KEY_ORDERED));
         FireflyRecord.write(this, aeroSet, fid, generation, valueBin, typeHintBin);
     }
 
@@ -1105,20 +1106,20 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
         if (fireflyRecord == null) {
             generation = -1;
-            data = new HashMap<>();
-            typeHints = new HashMap<>();
+            data = new TreeMap<>();
+            typeHints = new TreeMap<>();
         } else {
             generation = fireflyRecord.record.generation;
-            data = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(mapName)).orElse(new HashMap<>());
-            typeHints = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(TYPE_HINTS)).orElse(new HashMap<>());
+            data = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(mapName)).orElse(new TreeMap<>());
+            typeHints = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(TYPE_HINTS)).orElse(new TreeMap<>());
         }
         if (value != null)
             typeHints.put(mapKey, getSupportedType(value.getClass()));
         else
             typeHints.put(mapKey, null);
         data.put(mapKey, value);
-        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints));
-        final Bin valueBin = new Bin(mapName, Value.get(data));
+        final Bin typeHintBin = new Bin(TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
+        final Bin valueBin = new Bin(mapName, Value.get(data, MapOrder.KEY_ORDERED));
         if (additionalBins == null) {
             if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {
                 FireflyRecord.writeElement(this, aeroSet, fid, generation, valueBin, typeHintBin);

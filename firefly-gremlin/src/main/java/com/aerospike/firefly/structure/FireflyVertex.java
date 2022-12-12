@@ -46,8 +46,6 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     public abstract void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId);
 
-    public abstract long getVertexPropertyCount();
-
     protected abstract void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
     public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);

@@ -53,7 +53,6 @@ public class PackedVertex extends RelationalVertex {
      * @param vertexPropertyIds             vertex property ids.
      * @param vertexPropertyValues          vertex property values.
      * @param vertexPropertyValuesTypeHints vertex property value type hints.
-     * @param vertexPropertyCount           vertex property count.
      * @param isEdgeCacheDisabled           is edge cache disabled.
      * @param db                            Aerospike connection.
      */
@@ -67,11 +66,9 @@ public class PackedVertex extends RelationalVertex {
                            final Map<String, FireflyId> vertexPropertyIds,
                            final Map<String, Object> vertexPropertyValues,
                            final Map<String, Long> vertexPropertyValuesTypeHints,
-                           final long vertexPropertyCount,
                            final boolean isEdgeCacheDisabled,
                            final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyCount,
-                isEdgeCacheDisabled, db);
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheDisabled, db);
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
@@ -186,17 +183,16 @@ public class PackedVertex extends RelationalVertex {
         vertexPropertyIds.remove(key);
         vertexPropertyValues.remove(key);
         vertexPropertyValuesTypeHints.remove(key);
-        final long vertexPropertyCount = vertexPropertyIds.size();
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vertexPropertiesCounterBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin,
+                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin);
 
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);
@@ -208,7 +204,6 @@ public class PackedVertex extends RelationalVertex {
         this.vertexPropertyIds = vertexPropertyIds;
         this.vertexPropertyValues = vertexPropertyValues;
         this.vertexPropertyValuesTypeHints = vertexPropertyValuesTypeHints;
-        this.vertexPropertyCount = vertexPropertyIds.size();
     }
 
     /**
@@ -246,24 +241,14 @@ public class PackedVertex extends RelationalVertex {
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesValuesTypeHintBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
-        final Bin vertexPropertiesCounterBin = new Bin(db.VP_COUNTER, Value.get(vertexPropertyCount));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin, vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin, vertexPropertiesCounterBin);
+        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin,
+                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintBin);
 
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);
-    }
-
-    /**
-     * Get vertex property count.
-     *
-     * @return Vertex property count.
-     */
-    @Override
-    public long getVertexPropertyCount() {
-        return vertexPropertyCount;
     }
 
     /**
@@ -287,17 +272,16 @@ public class PackedVertex extends RelationalVertex {
                                           final Map<String, FireflyId> vertexPropertyIds,
                                           final Map<String, Object> vertexPropertyValues,
                                           final Map<String, Long> vertexPropertyValuesTypeHints,
-                                          final long vertexPropertyCount,
                                           final boolean isEdgeCacheDisabled,
                                           final AerospikeConnection db) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        isEdgeCacheDisabled, db);
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheDisabled,
+                        db);
             } else {
                 return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyCount,
-                        isEdgeCacheDisabled, db);
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheDisabled,
+                        db);
             }
         }
     }

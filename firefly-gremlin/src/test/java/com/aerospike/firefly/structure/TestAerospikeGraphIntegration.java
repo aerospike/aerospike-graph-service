@@ -965,8 +965,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
         if (graph.features().vertex().supportsMultiProperties()) {
-            Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
-            Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
+            final Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
+            final Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
             this.tryCommit(this.graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 2, 0);
                 Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
@@ -997,12 +997,22 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
                 return ((String) a).startsWith((String) b);
             }, "Remove-")).forEachRemaining(Property::remove);
+
+            final Vertex alsoMarko;
+            if (graph.getDataModel().equals("linked")) {
+                // If using linked model, vertex properties are cached so must get a new instance of the vertex since
+                // the updating traversal did not utilize the existing cached vertex used for test assertions
+                alsoMarko = graph.traversal().V().has("name", "marko").next();
+            } else {
+                alsoMarko = marko;
+            }
+
             this.tryCommit(this.graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 1, 0);
-                List<VertexProperty<Object>> l = IteratorUtils.list(marko.properties(new String[]{"name"}));
-                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, IteratorUtils.count(marko.properties(new String[0])));
-                Assert.assertEquals(0L, IteratorUtils.count(marko.properties(new String[]{"blah"})));
+                List<VertexProperty<Object>> l = IteratorUtils.list(alsoMarko.properties(new String[]{"name"}));
+                Assert.assertEquals(2L, IteratorUtils.count(alsoMarko.properties(new String[]{"name"})));
+                Assert.assertEquals(2L, IteratorUtils.count(alsoMarko.properties(new String[0])));
+                Assert.assertEquals(0L, IteratorUtils.count(alsoMarko.properties(new String[]{"blah"})));
             });
             marko.remove();
             this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));

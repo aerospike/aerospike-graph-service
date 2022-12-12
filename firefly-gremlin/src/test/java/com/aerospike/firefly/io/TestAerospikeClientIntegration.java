@@ -212,7 +212,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.getClient().put(null, key, new Bin(binName, choices.next()));
+            db.checkedPut(null, key, new Bin(binName, choices.next()));
         });
         final Statement stringQuery = new Statement();
         stringQuery.setNamespace(db.getNamespace());
@@ -245,7 +245,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.getClient().put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+            db.checkedPut(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         Statement stmt = new Statement();
@@ -293,7 +293,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         int NUMBER_OF_RECORDS = 100;
         IntStream.range(0, NUMBER_OF_RECORDS).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.getClient().put(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
+            db.checkedPut(null, key, bin1, new Bin("weight", 2000 + i), new Bin("age", 32 + i), bin3);
         });
 
         String infoQuery = "sets/" + db.getNamespace() + "/" + db.TEST_SET;
@@ -397,7 +397,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin3 = new Bin("greeting", "Hello World!");
         IntStream.range(0, 100).forEach(i -> {
             final Key key = new Key(db.getNamespace(), db.TEST_SET, i);
-            db.getClient().put(null, key, bin1, bin2, bin3);
+            db.checkedPut(null, key, bin1, bin2, bin3);
         });
 
         PerfUtil.Results results = PerfUtil.runTestBatch(100, () -> {
@@ -406,7 +406,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             final Record data = db.getClient().get(null, key);
             assert data.getLong("age") == 32;
         });
-        System.out.println(results);
+        LOG.info(results.toString());
     }
 
     @Test

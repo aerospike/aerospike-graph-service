@@ -71,7 +71,7 @@ public class TraversalCache implements FireflyCache {
     @Override
     public void write(WritePolicy writePolicy, Key key, Bin... bins) {
         cache.invalidate(key);
-        db.getClient().put(writePolicy, key, bins);
+        db.checkedPut(writePolicy, key, bins);
     }
 
     /**

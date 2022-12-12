@@ -10,6 +10,7 @@ import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
+import com.aerospike.client.async.EventLoop;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.EventPolicy;
 import com.aerospike.client.async.Monitor;
@@ -21,6 +22,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
@@ -40,6 +42,7 @@ import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.Tokens;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
@@ -280,6 +283,41 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Aerospike put with exception handling
+     * @param eventLoop				event loop that will process the command. If NULL, the event
+     * 								loop will be chosen by round-robin.
+     * @param listener				where to send results, pass in null for fire and forget
+     * @param policy				write configuration parameters, pass in null for defaults
+     * @param key					unique record identifier
+     * @param bins					array of bin name/value pairs
+     */
+    public void checkedPut(EventLoop eventLoop, WriteListener listener, WritePolicy policy, Key key, Bin... bins) {
+        try {
+            client.put(eventLoop, listener, policy, key, bins);
+        } catch (AerospikeException e) {
+            if (e.getResultCode() == ResultCode.SERVER_MEM_ERROR)
+                LOG.error(Tokens.MEMORY_ERROR_MESSAGE);
+            throw e;
+        }
+    }
+
+    /**
+     * Aerospike put with exception handling
+     * @param policy				write configuration parameters, pass in null for defaults
+     * @param key					unique record identifier
+     * @param bins					array of bin name/value pairs
+     */
+    public void checkedPut(WritePolicy policy, Key key, Bin... bins) {
+        try {
+            client.put(policy, key, bins);
+        } catch (AerospikeException e) {
+            if (e.getResultCode() == ResultCode.SERVER_MEM_ERROR)
+                LOG.error(Tokens.MEMORY_ERROR_MESSAGE);
+            throw e;
+        }
+    }
+
+    /**
      * Run a traversal prefetch task
      *
      * @param cacheId
@@ -510,19 +548,20 @@ public class AerospikeConnection implements AutoCloseable {
 
         /**
          * Return list of existing indices in a list of map entries.
-         * @param client client.
+         *
+         * @param client    client.
          * @param namespace Namespace.
          * @return List of existing indices in a list of map entries.
-         *         First item of map entry is index
-         *         Second item of map entry is set the index belongs to
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
          */
-        public static List<Map.Entry<String,String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             List<Map<String, String>> res = parseRaw(infoResponse);
             return res.stream()
                     .filter(m -> m.get(Keys.NS).equals(namespace))
                     .map(m -> {
-                        return (Map.Entry<String,String>)new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME),m.get(Keys.SET));
+                        return (Map.Entry<String, String>) new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET));
                     }).collect(Collectors.toList());
         }
 
@@ -662,7 +701,7 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
-                .map(entry -> entry.getKey()).collect(Collectors.toList());
+                        .map(entry -> entry.getKey()).collect(Collectors.toList());
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
@@ -836,10 +875,10 @@ public class AerospikeConnection implements AutoCloseable {
                 traversalCacheSet.get(idFromTraversal(currentTraversal.get()).get()).write(writePolicy, key, bins);
             } catch (Exception e) {
                 LOG.debug(e.getMessage());
-                client.put(writePolicy, key, bins);
+                checkedPut(writePolicy, key, bins);
             }
         } else {
-            client.put(writePolicy, key, bins);
+            checkedPut(writePolicy, key, bins);
         }
     }
 
@@ -1326,7 +1365,7 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, set, null);
         }
         final List<Map.Entry<String, String>> indexes = InfoOps.listExistingIndexes(getClient(), getNamespace());
-        for (final Map.Entry<String,String> entry : indexes) {
+        for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }
     }
@@ -1415,7 +1454,7 @@ public class AerospikeConnection implements AutoCloseable {
         List<String> keys = rec == null ? new ArrayList<String>() : (List<String>) rec.getList(INDEXED_BINS);
         keys.add(binName);
         Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
-        client.put(null, mKey, keysBin);
+        checkedPut(null, mKey, keysBin);
         createIndex(new ArrayList<>(), getElementPropertySet(indexClass), binName, binName, idxType, idxColType);
     }
 
@@ -1430,7 +1469,7 @@ public class AerospikeConnection implements AutoCloseable {
         List<String> keys = (List<String>) rec.getList(INDEXED_BINS);
         keys.remove(key);
         Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
-        client.put(null, mKey, keysBin);
+        checkedPut(null, mKey, keysBin);
         dropIndex(getElementPropertySet(indexClass), key);
     }
 

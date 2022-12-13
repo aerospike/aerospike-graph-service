@@ -15,7 +15,6 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyIdNumeric;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -41,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -667,7 +667,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
         final FireflyId vertexFid = FireflyIdFactory.createId(vertexRawId);
-        final Map<String, List<Long>> labelEdges = new HashMap<>();
+        final Map<String, List<Long>> labelEdges = new TreeMap<>();
         labelEdges.put(edgeLabel, new ArrayList<>() {{
             add(edgeRawId);
         }});
@@ -703,14 +703,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
         final FireflyId vertexFid = FireflyIdFactory.createId(vertexRawId);
-        final Map<String, List<Long>> labelEdges = new HashMap<>();
+        final Map<String, List<Long>> labelEdges = new TreeMap<>();
 
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
         final Bin[] bins = new Bin[]{edgeDataBin};
         FireflyRecord.write(db, TEST_SET, vertexFid, -1, bins);
         final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());
         Record operateResultRecord = db.getClient().operate(null, vertexAeroKey,
-                ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.UNORDERED)),
+                ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),
                 Operation.get(edgeDirection)
         );
         Record record = db.getClient().get(null, vertexAeroKey);

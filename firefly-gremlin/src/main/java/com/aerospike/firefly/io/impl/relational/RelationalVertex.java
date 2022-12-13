@@ -151,7 +151,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Operation appendOp = ListOperation.append(
                 direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES,
                 Value.get(id.getCachedId()),
-                CTX.mapKeyCreate(Value.get(label), MapOrder.UNORDERED)
+                CTX.mapKeyCreate(Value.get(label), MapOrder.KEY_ORDERED)
         );
         final String ctrBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
         final Bin edgeCtr = new Bin(ctrBinName, 1);

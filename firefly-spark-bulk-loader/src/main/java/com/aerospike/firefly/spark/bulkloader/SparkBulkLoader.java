@@ -1,9 +1,12 @@
 package com.aerospike.firefly.spark.bulkloader;
 
+import com.aerospike.client.Value;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -26,6 +29,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -198,15 +203,44 @@ public class SparkBulkLoader {
                     final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
                     final boolean ignoreElementCreationFailed =
                             Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+
+                    // TODO: Finalize these numbers.
+                    // Defaults to 1000 since the current default ID_CACHE_SIZE is 100000. Batch write edge IDs to
+                    // vertex cache when this amount can be written at once.
+                    final long writeEdgeLabelListTriggerSize = Math.max(graph.getBaseGraph().ID_CACHE_SIZE / 100, 100);
+                    // Flush the edge ID map when this amount of edges lives in it to prevent running out of memory.
+                    final int writeEdgeAmountTriggerSize = 1000000;
+
+                    final AtomicInteger outEdgeCount = new AtomicInteger(0);
+                    final AtomicInteger inEdgeCount = new AtomicInteger(0);
+                    final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
+                    final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new HashMap<>();
+                    final Set<Long> supernodes = new HashSet<>();
+
                     while (rowIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                         try {
                             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
                                     useProvidedId, keepProvidedId, providedIdPropertyName, graph);
-                            graph.bulkWriteEdgeToVertices(sparkEdge.getInVertexId(), sparkEdge.getOutVertexId(),
-                                    sparkEdge.getId(), sparkEdge.getLabel());
-                            graph.bulkWriteEdge(sparkEdge.getId(), sparkEdge.getLabel(), sparkEdge.getProperties(),
-                                    sparkEdge.getInVertexId(), sparkEdge.getOutVertexId());
+                            final FireflyId edgeId = sparkEdge.getFireflyId();
+                            final long inVertexId = sparkEdge.getInVertexId();
+                            final long outVertexId = sparkEdge.getOutVertexId();
+                            final String edgeLabel = sparkEdge.getLabel();
+                                graph.bulkWriteEdge(sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(), inVertexId,
+                                        outVertexId);
+
+                            if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
+                                loadEdgeMap(graph, supernodes, outVertexId,
+                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(inVertexId)),
+                                        edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
+                                        writeEdgeLabelListTriggerSize, writeEdgeAmountTriggerSize,
+                                        ignoreElementCreationFailed);
+                                loadEdgeMap(graph, supernodes, inVertexId,
+                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(outVertexId)),
+                                        edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
+                                        writeEdgeLabelListTriggerSize, writeEdgeAmountTriggerSize,
+                                        ignoreElementCreationFailed);
+                            }
                         } catch (final RuntimeException e) {
                             LOGGER.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
@@ -214,12 +248,80 @@ public class SparkBulkLoader {
                             }
                         }
                     }
+                    flushEdgeMap(graph, supernodes, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
+                    flushEdgeMap(graph, supernodes, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
                 }
                 return Collections.singletonList(1).iterator();
             }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         }
 
         spark.stop();
+    }
+
+    static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
+                                    final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
+                                    final AtomicInteger edgeCount, final Map<Long, Map<String, List<Value>>> edgeMap,
+                                    final long writeEdgeLabelListTriggerSize, final long writeEdgeAmountTriggerSize,
+                                    final boolean ignoreElementCreationFailed) {
+        if (!supernodes.contains(vertexId)) {
+            if (!edgeMap.containsKey(vertexId)) {
+                edgeMap.put(vertexId, new HashMap<>());
+            }
+            final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
+            if (!labelEdgeIds.containsKey(edgeLabel)) {
+                labelEdgeIds.put(edgeLabel, new ArrayList<>());
+            }
+            final List<Value> edgeIds = labelEdgeIds.get(edgeLabel);
+            edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
+            final int count = edgeCount.incrementAndGet();
+            if (edgeIds.size() > writeEdgeLabelListTriggerSize) {
+                writeEdgesToFireflyVertex(graph, supernodes, vertexId, direction, edgeLabel, edgeIds,
+                        ignoreElementCreationFailed);
+                labelEdgeIds.remove(edgeLabel);
+                if (labelEdgeIds.isEmpty()) {
+                    edgeMap.remove(vertexId);
+                }
+                edgeCount.addAndGet(-edgeIds.size());
+            } else if (count > writeEdgeAmountTriggerSize) {
+                flushEdgeMap(graph, supernodes, direction, edgeMap, ignoreElementCreationFailed);
+                edgeCount.set(0);
+            }
+        }
+    }
+
+    static private void writeEdgesToFireflyVertex(final FireflyGraph graph, final Set<Long> supernodes,
+                                                  final long vertexId, final Direction direction, final String label,
+                                                  final List<Value> edgeIds,
+                                                  final boolean ignoreElementCreationFailed) {
+        try {
+            if (!graph.bulkWriteEdgesToVertexCache(FireflyIdFactory.createId(vertexId), direction, edgeIds, label)) {
+                supernodes.add(vertexId);
+            }
+        } catch (final RuntimeException e) {
+            LOGGER.warn("Failed to load edges with label " + label + " into " + direction + " edge cache for vertex ID "
+                    + vertexId, e);
+            if (!ignoreElementCreationFailed) {
+                throw e;
+            }
+        }
+    }
+
+    static private void flushEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final Direction direction,
+                                     final Map<Long, Map<String, List<Value>>> edgeMap,
+                                     final boolean ignoreElementCreationFailed) {
+        for (Map.Entry<Long, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+            final long vertexId = vertexIdToLabelMaps.getKey();
+            final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
+            for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
+                // Writing edge IDs under a different label could have triggered supernode detection.
+                if (supernodes.contains(vertexId)) {
+                    break;
+                }
+                writeEdgesToFireflyVertex(graph, supernodes, vertexId, direction, labelToEdgeIds.getKey(),
+                        labelToEdgeIds.getValue(), ignoreElementCreationFailed);
+            }
+        }
+        edgeMap.clear();
     }
 
     /**

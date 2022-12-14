@@ -136,24 +136,17 @@ public abstract class RelationalGraph extends FireflyGraph {
                 inVbin, outVBin, valueBin, typeHintBin);
     }
 
-    public void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
-                                        final long edgeId, final String edgeLabel) {
-        if (this.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-            // Save IO cycles to database.
-            return;
-        }
-        final FireflyId fireflyEdgeId = FireflyIdFactory.createId(edgeId);
-        final FireflyId fireflyInVertexId = FireflyIdFactory.createId(inVertexId);
-        final FireflyId fireflyOutVertexId = FireflyIdFactory.createId(outVertexId);
-        final FireflyId fireflyInVertexEdgeId = FireflyIdFactory.createEdgeId(fireflyEdgeId, fireflyOutVertexId);
-        final FireflyId fireflyOutVertexEdgeId = FireflyIdFactory.createEdgeId(fireflyEdgeId, fireflyInVertexId);
-
-        writeEdgeToVertexCache(fireflyInVertexId, Direction.IN, fireflyInVertexEdgeId, edgeLabel);
-        writeEdgeToVertexCache(fireflyOutVertexId, Direction.OUT, fireflyOutVertexEdgeId, edgeLabel);
-    }
-
-    private void writeEdgeToVertexCache(final FireflyId vertexId, final Direction direction,
-                                        final FireflyId edgeId, final String edgeLabel) {
+    /**
+     * Function to bulk write edges to a vertex's edge cache
+     *
+     * @param vertexId   Vertex label.
+     * @param direction  Direction of the edges.
+     * @param edgeIds    List of edge IDs.
+     * @param edgeLabel  Label of all edges in edge ID list.
+     * @return False if the edge cache of the vertex is disabled.
+     */
+    public boolean bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
+                                               final List<Value> edgeIds, final String edgeLabel) {
         // Get the key.
         final Key key = FireflyRecord.getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, vertexId);
 
@@ -162,15 +155,15 @@ public abstract class RelationalGraph extends FireflyGraph {
         final String counterBinName = direction == Direction.IN ? this.db.IN_EDGE_COUNTER : this.db.OUT_EDGE_COUNTER;
 
         // Simple bin to increment the edge cache counter.
-        final Bin incrementEdgeCountBin = new Bin(counterBinName, 1L);
+        final Bin incrementEdgeCountBin = new Bin(counterBinName, edgeIds.size());
 
         // Create the operations.
         final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
         final Operation getEdgeCount = Operation.get(counterBinName);
         final Operation getCacheState = Operation.get(this.db.EDGE_CACHE_DISABLED);
-        final Operation appendEdgeId = ListOperation.append(
+        final Operation appendEdgeId = ListOperation.appendItems(
                 directionBinName,
-                Value.get(edgeId.getCachedId()),
+                edgeIds,
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
         );
 
@@ -184,6 +177,7 @@ public abstract class RelationalGraph extends FireflyGraph {
             final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
             final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
             this.db.getClient().operate(null, key, wipeCache);
+            return false;
         } else if (edgeCount > this.db.ID_CACHE_SIZE) {
             // Disable the edge cache for this vertex and clear the cache.
             final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
@@ -191,6 +185,9 @@ public abstract class RelationalGraph extends FireflyGraph {
             final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
             final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
             this.db.getClient().operate(null, key, disableCache, wipeCache);
+            return false;
+        } else {
+            return true;
         }
     }
 

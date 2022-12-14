@@ -25,11 +25,6 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
-    protected String getDataModel() {
-        return DATA_MODEL;
-    }
-
-    @Override
     protected String getDefaultConfig() {
         return DEFAULT_CONFIG;
     }

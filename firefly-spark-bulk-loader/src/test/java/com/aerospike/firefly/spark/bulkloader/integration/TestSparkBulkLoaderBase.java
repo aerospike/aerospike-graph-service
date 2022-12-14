@@ -35,8 +35,6 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract Configuration getTestConfig();
 
-    protected abstract String getDataModel();
-
     protected abstract String getDefaultConfig();
 
     protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfig();

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Value;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
@@ -29,6 +30,7 @@ import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -248,8 +250,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
-    public abstract void bulkWriteEdgeToVertices(final long inVertexId, final long outVertexId,
-                                               final long edgeId, final String edgeLabel);
+    public abstract boolean bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
+                                                        final List<Value> edgeIds, final String edgeLabel);
 
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
+import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -43,12 +44,12 @@ public class SparkFireflyVertex extends SparkFireflyElement {
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
                 if (!ignoreParseFailedProperties) {
-                    throw e;
+                    throw new FireflyBulkLoaderException(e);
                 }
             }
         }
         if (id == null) {
-            throw new RuntimeException("Could not generate vertex due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate vertex due to a required value being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;

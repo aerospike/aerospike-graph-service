@@ -1,5 +1,6 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
+import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -65,12 +66,12 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
                 if (!ignoreParseFailedProperties) {
-                    throw e;
+                    throw new FireflyBulkLoaderException(e);
                 }
             }
         }
         if ((id == null && useProvidedId) || fromVertexId == null || toVertexId == null) {
-            throw new RuntimeException("Could not generate edge due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate edge due to a required value being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;

@@ -177,8 +177,7 @@ public class LinkedVertex extends RelationalVertex {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
             final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
             final Long typeHint = (Long) entry.getValue().getMap(db.TYPE_HINTS).get(key);
-            final Class valueClass = SupportedTypeValues.get(typeHint);
-            final Object value = valueClass.cast(entry.getValue().getMap(db.KEY_VALUE).get(key));
+            final Object value = db.convertValuetoTypeUsingHint(entry.getValue().getMap(db.KEY_VALUE).get(key), typeHint);
             results.add(new LinkedVertexProperty<>(graph, fid, this, key, value));
         });
         return IteratorUtils.asIterator(results);

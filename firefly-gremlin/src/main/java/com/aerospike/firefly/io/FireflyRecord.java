@@ -124,10 +124,9 @@ public class FireflyRecord {
         final Set<FireflyId> uniqueIds = new HashSet<>(ids);
 
         // Batch reading in Aerospike is capped based on settings in the server.
-        for (int i = 0; i < uniqueIds.size(); i = Math.min(i + db.AEROSPIKE_BATCH_READ_SIZE, uniqueIds.size())) {
+        for (int i = 0; i < uniqueIds.size(); i += db.AEROSPIKE_BATCH_READ_SIZE) {
             // Generate sub list using current index and batch size.
-            final List<FireflyId> subList = uniqueIds.stream().skip(i).
-                    limit(Math.min(uniqueIds.size(), i + db.AEROSPIKE_BATCH_READ_SIZE)).collect(Collectors.toList());
+            final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
             executeBatchRead(db, set, idToRecord, subList);

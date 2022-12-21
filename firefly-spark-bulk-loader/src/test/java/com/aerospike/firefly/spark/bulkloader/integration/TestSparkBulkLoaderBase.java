@@ -2,6 +2,7 @@ package com.aerospike.firefly.spark.bulkloader.integration;
 
 import com.aerospike.firefly.spark.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -41,6 +42,12 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig();
 
+    protected abstract String getDefaultConfigArtificialSupernode();
+
+    protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode();
+
+    protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode();
+
     @Test
     public void testDataAccuracy() {
         SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfig()});
@@ -79,6 +86,65 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(providedId.isPresent());
         providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertEquals("11", providedId.value());
+    }
+
+    @Test
+    public void testDataAccuracyArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+        testSupernodes();
+    }
+
+    @Test
+    public void testUseProvidedEdgeIdTrueArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertFalse(providedId.isPresent());
+        testSupernodes();
+    }
+
+    @Test
+    public void testUseProvidedEdgeIdFalseArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertFalse(providedId.isPresent());
+        testSupernodes();
+    }
+
+    @Test
+    public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        Property providedId = e.property("~providedId");
+        Assert.assertFalse(providedId.isPresent());
+        providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertEquals("11", providedId.value());
+        testSupernodes();
+    }
+
+    private void testSupernodes() {
+        final GraphTraversalSource g = graph.traversal();
+        final List<Vertex> vertices = g.V().toList();
+        for (final Vertex vertex: vertices) {
+            final FireflyVertex fireflyVertex = (FireflyVertex) vertex;
+
+            // Car models and vertex have <=1 edge in either direction and therefore are not supernodes, all other vertices are.
+            if ("model".equals(vertex.label()) || "vertex".equals(vertex.label())) {
+                Assert.assertFalse(fireflyVertex.isEdgeCacheDisabled());
+            } else {
+                Assert.assertTrue(fireflyVertex.isEdgeCacheDisabled());
+            }
+        }
     }
 
     private void testEdges() {

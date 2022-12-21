@@ -10,8 +10,11 @@ import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper
 
 public class TestSparkBulkLoaderLinked extends TestSparkBulkLoaderBase {
     static private final String DEFAULT_CONFIG = "src/test/resources/conf/linked/config.properties";
-    static private final String USE_PROVIDED_ID_FALSE_CONFIG = "src/test/resources/conf/linked/useProvidedIdFalse.properties";
-    static private final String KEEP_ID_AS_PROPERTY_CONFIG = "src/test/resources/conf/linked/keepProvidedIdAsProperty.properties";
+    static private final String USE_PROVIDED_ID_FALSE_CONFIG = "src/test/resources/conf/linked/use-provided-id-false.properties";
+    static private final String KEEP_ID_AS_PROPERTY_CONFIG = "src/test/resources/conf/linked/keep-provided-id-as-property.properties";
+    static private final String DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/linked/config-artificial-supernode.properties";
+    static private final String USE_PROVIDED_ID_FALSE_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/linked/use-provided-id-false-artificial-supernode.properties";
+    static private final String KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/linked/keep-provided-id-as-property-artificial-supernode.properties";
     static private final String DATA_MODEL = "linked";
 
     @Test
@@ -37,5 +40,20 @@ public class TestSparkBulkLoaderLinked extends TestSparkBulkLoaderBase {
     @Override
     protected String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig() {
         return KEEP_ID_AS_PROPERTY_CONFIG;
+    }
+
+    @Override
+    protected String getDefaultConfigArtificialSupernode() {
+        return DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE;
+    }
+
+    @Override
+    protected String getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode() {
+        return USE_PROVIDED_ID_FALSE_CONFIG_ARTIFICIAL_SUPERNODE;
+    }
+
+    @Override
+    protected String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode() {
+        return KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE;
     }
 }

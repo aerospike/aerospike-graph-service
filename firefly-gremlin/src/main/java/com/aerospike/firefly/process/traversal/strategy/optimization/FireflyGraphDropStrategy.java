@@ -24,33 +24,37 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
     private static final FireflyGraphDropStrategy INSTANCE = new FireflyGraphDropStrategy();
 
     private FireflyGraphDropStrategy() {
-
     }
 
-    @Override
-    public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
-            return;
-        final List<Step> steps = traversal.getSteps();
-
-        // Ensure traversal matches: V().drop().iterate()
-        if (steps.size() != 3) {
-            return;
+    /**
+     * Check for match of g.V().drop().iterate(), g.V().drop().toList() or g.V().drop().next().
+     *
+     * @param steps steps.
+     * @return true if matches, else false.
+     */
+    private static boolean matchesToListNextIterate(final List<Step> steps) {
+        // Ensure traversal matches g.V().drop().[next|toList]()
+        // Note - toList / next are not steps and therefore there is only V().drop() in the steps list.
+        if (steps.size() != 2 && steps.size() != 3) {
+            return false;
         }
+
         // V()
         final Step vStep = steps.get(0);
         if (!(vStep instanceof GraphStep)) {
-            return;
+            return false;
         } else {
             final GraphStep vGraphStep = (GraphStep) vStep;
             // Ensure step is for vertices: V()
             if (!vGraphStep.returnsVertex()) {
-                return;
+                return false;
             }
+
             // Ensure step has no ID filter on the vertices: V() should have no parameters
-            if (vGraphStep.getIds().length != 0) {
-                return;
+            if (vGraphStep.getIds() != null && vGraphStep.getIds().length != 0) {
+                return false;
             }
+
             // If FireflyGraphStepStrategy has applied to this traversal already, any HasStep will have been removed
             // from the traversal and internalized within the FireflyGraphStep that replaced the original GraphStep.
             // We need to check the FireFlyGraphStep in this case since steps.size() can now equal 3 despite the
@@ -58,24 +62,39 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             // original traversal step V() does not have any HasStep chained after it, e.g. .hasLabel(...)
             if (vGraphStep instanceof FireflyGraphStep) {
                 if (((FireflyGraphStep) vGraphStep).getHasContainers().size() != 0) {
-                    return;
+                    return false;
                 }
             }
         }
+
         // drop()
         final Step dropStep = steps.get(1);
         if (!(dropStep instanceof DropStep)) {
-            return;
-        }
-        // iterate()
-        final Step iterateStep = steps.get(2);
-        if (!(iterateStep instanceof NoneStep)) {
-            return;
+            return false;
         }
 
-        LOG.debug("Applying FireflyGraphDropStrategy");
-        TraversalHelper.removeAllSteps(traversal);
-        traversal.addStep(new FireflyDropStep(traversal));
+        // Only true for iterate.
+        if (steps.size() == 3) {
+            // iterate()
+            final Step iterateStep = steps.get(2);
+            if (!(iterateStep instanceof NoneStep)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public void apply(final Traversal.Admin<?, ?> traversal) {
+        if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
+            return;
+        final List<Step> steps = traversal.getSteps();
+        if (matchesToListNextIterate(steps)) {
+            LOG.debug("Applying FireflyGraphDropStrategy");
+            TraversalHelper.removeAllSteps(traversal);
+            traversal.addStep(new FireflyDropStep(traversal));
+        }
     }
 
     public static FireflyGraphDropStrategy instance() {

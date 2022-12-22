@@ -1,8 +1,6 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.io.impl.TraversalCache;
-import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.commons.lang3.ObjectUtils;
+import com.aerospike.firefly.io.FireflyCache;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
@@ -10,75 +8,40 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyCacheGCStep extends AbstractStep {
-    private static final List<BiFunction<UUID, TraversalCache, Void>> gcHooks = new ArrayList<>();
-    public final UUID cacheId;
     private final Logger LOG = LoggerFactory.getLogger(FireflyCacheGCStep.class);
+    private FireflyCache cache;
 
-    public FireflyCacheGCStep(Traversal.Admin traversal, UUID cacheId) {
+    public FireflyCacheGCStep(final Traversal.Admin traversal, final FireflyCache cache, final Set<String> labels) {
         super(traversal);
-        this.cacheId = cacheId;
-    }
-
-    public static void registerGCHook(BiFunction<UUID, TraversalCache, Void> gcCallback) {
-        gcHooks.add(gcCallback);
-    }
-
-    public static void clearGCHooks() {
-        gcHooks.clear();
+        this.cache = cache;
+        this.labels = labels;
     }
 
     @Override
     protected Traverser.Admin processNextStart() throws NoSuchElementException {
-        try {
-            Traverser.Admin next = this.starts.next();
-            if (!this.starts.hasNext()) {
-                //This is the end of the traversal, remove the traversal cache
-                TraversalCache traversalCache = ((FireflyGraph) traversal.getGraph().get())
-                        .getBaseGraph()
-                        .traversalCacheSet
-                        .remove(cacheId);
-
-                ((FireflyGraph) traversal.getGraph().get())
-                        .getBaseGraph()
-                        .cacheTasks
-                        .stream()
-                        .filter(it -> it.getKey() == cacheId)
-                        .forEach(entry -> {
-                            if (!entry.getValue().isDone())
-                                entry.getValue().cancel(true);
-                        });
-
-
-                LOG.debug("GC traversal cache {} with {} hits {} misses and {} entries",
-                        cacheId,
-                        traversalCache.getHitCount(),
-                        traversalCache.getMissCount(),
-                        traversalCache.size());
-                gcHooks.forEach(cb -> {
-                    cb.apply(cacheId, traversalCache);
-                });
-
-            }
-            return next;
-        } catch (NoSuchElementException e) {
-            ((FireflyGraph) traversal.getGraph().get()).getBaseGraph().traversalCacheSet.remove(cacheId);
-            throw e;
+        if (cache != null) {
+            LOG.debug("Removing cache " + cache);
+            LOG.trace("Cache hits: " + cache.getHitCount());
+            LOG.trace("Cache misses: " + cache.getMissCount());
+            cache.invalidateAll();
+            cache = null;
         }
-
+        if (this.starts.hasNext()) {
+            return this.starts.next();
+        } else {
+            throw FastNoSuchElementException.instance();
+        }
     }
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + ":" + cacheId.toString();
+        return this.getClass().getSimpleName() + ":" + cache;
     }
 }

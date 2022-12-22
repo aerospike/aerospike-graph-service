@@ -24,6 +24,7 @@ import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
+import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
@@ -43,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -99,13 +101,13 @@ public abstract class RelationalVertex extends FireflyVertex {
     protected abstract void removeVertexProperties();
 
     /**
-     * Remove vertex. Any edges attached to a vertex must be removed
-     * when the edge is removed.
+     * Remove vertex. Any edges attached to adjacent vertices must be removed
+     * from the adjacent vertices when the edge is removed.
      */
     @Override
     public void remove() {
         // Collect edges in both directions and remove them all.
-        final List<FireflyId> edgeIds = getEdgeIdsFromVertex(Direction.BOTH);
+        final Set<FireflyId> edgeIds = new HashSet<>(getEdgeIdsFromVertex(Direction.BOTH));
         edgeIds.forEach(edgeId -> {
             final FireflyEdge edge = graph.readEdge(FireflyIdFactory.createId(edgeId));
             if (edge != null) {
@@ -399,6 +401,10 @@ public abstract class RelationalVertex extends FireflyVertex {
                 Value.get(new ArrayList<>()), MapReturnType.COUNT);
 
         // Operate on database.
+        final FireflyCache cache = db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         final Record results = this.db.getClient().operate(null, key, getCacheDisabled, decrementEdgeCounter,
                 getEdgeCounter, removeEdgeId, removeEmptyEdgeCacheKeys);
 
@@ -482,6 +488,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Operate on database.
         final Record results;
         try {
+            final FireflyCache cache = db.transactionCache.get();
+            if (cache != null) {
+                cache.invalidate(key);
+            }
             results = this.db.getClient().operate(null, key, getCacheDisabled, incrementEdgeCounter,
                     getEdgeCounter, appendToEdgeCache);
         } catch (AerospikeException ae) {
@@ -509,6 +519,10 @@ public abstract class RelationalVertex extends FireflyVertex {
             final Operation wipeInCache = Operation.put(emptyInCache);
             final Operation wipeOutCache = Operation.put(emptyOutCache);
 
+            final FireflyCache cache = db.transactionCache.get();
+            if (cache != null) {
+                cache.invalidate(key);
+            }
             this.db.getClient().operate(null, key, disableEdgeCache, wipeInCache, wipeOutCache);
 
             // Update cache disabled flag for this vertex.

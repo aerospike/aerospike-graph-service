@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -42,7 +41,8 @@ public class TestDataModelVersioning {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY.toLowerCase(), "false");
     }
 
     @After

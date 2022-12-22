@@ -12,7 +12,8 @@ import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGrap
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyPrefetchStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
@@ -198,10 +199,20 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 strategies.removeStrategies(FireflyGraphCountStrategy.class);
             }
 
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE, configuration))) {
+                strategies.addStrategies(FireflyReadThroughCacheStrategy.instance());
             } else {
-                strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
+                strategies.removeStrategies(FireflyReadThroughCacheStrategy.class);
+            }
+
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY, configuration))) {
+                if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE, configuration))) {
+                    throw new IllegalArgumentException("Error, prefetch strategy is enabled (ENABLE_PREFETCH_STRATEGY) but read through cache is not " +
+                            "enabled (ENABLE_READ_THROUGH_CACHE). Prefetch strategy requires read through cache.");
+                }
+                strategies.addStrategies(FireflyPrefetchStrategy.instance());
+            } else {
+                strategies.removeStrategies(FireflyPrefetchStrategy.class);
             }
 
             if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
@@ -453,7 +464,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
         TraversalStrategies.GlobalCache
                 .getStrategies(FireflyGraph.class)
-                .removeStrategies(FireflyTraversalCacheStrategy.class);
+                .removeStrategies(FireflyReadThroughCacheStrategy.class);
         this.db.close();
     }
 

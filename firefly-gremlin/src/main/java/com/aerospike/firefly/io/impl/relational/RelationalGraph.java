@@ -12,6 +12,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -156,6 +157,10 @@ public abstract class RelationalGraph extends FireflyGraph {
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
         );
 
+        final FireflyCache cache = db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         final Record results = this.db.getClient().operate(null, key, incrementEdgeCount, getEdgeCount,
                 getCacheState, appendEdgeId);
         final boolean isCacheDisabled = results.getBoolean(this.db.EDGE_CACHE_DISABLED);

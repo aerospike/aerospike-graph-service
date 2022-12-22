@@ -17,6 +17,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -218,6 +219,10 @@ public class LinkedVertex extends RelationalVertex {
                 Value.get(new ArrayList<>()), MapReturnType.NONE);
 
         // Operate on database.
+        final FireflyCache cache = db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(vertexKey);
+        }
         final Record results = this.db.getClient().operate(null, vertexKey, getCacheDisabled, decrementVpCount,
                 removeVpId, removeEmptyVpKeys);
 
@@ -345,6 +350,12 @@ public class LinkedVertex extends RelationalVertex {
                 Value.get(vertexProperty.id.getStorageId()),
                 CTX.mapKeyCreate(Value.get(vertexProperty.key()), MapOrder.KEY_ORDERED)
         );
+
+        // Operate on database.
+        final FireflyCache cache = db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
 
         // Operate on database.
         final Record results;

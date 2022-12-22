@@ -118,7 +118,8 @@ public final class ConfigurationHelper {
         public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
-        public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
+        public static final String ENABLE_READ_THROUGH_CACHE = "ENABLE_READ_THROUGH_CACHE";
+        public static final String ENABLE_PREFETCH_STRATEGY = "ENABLE_PREFETCH_STRATEGY";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
@@ -133,6 +134,7 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
+        public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -203,7 +205,8 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
-        put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
+        put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
+        put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
@@ -219,6 +222,7 @@ public final class ConfigurationHelper {
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
+        put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

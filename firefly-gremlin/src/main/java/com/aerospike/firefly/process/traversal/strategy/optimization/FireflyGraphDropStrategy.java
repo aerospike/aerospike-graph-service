@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyDropStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -35,8 +36,14 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
     private static boolean matchesToListNextIterate(final List<Step> steps) {
         // Ensure traversal matches g.V().drop().[next|toList]()
         // Note - toList / next are not steps and therefore there is only V().drop() in the steps list.
-        if (steps.size() != 2 && steps.size() != 3) {
-            return false;
+        if (steps.get(steps.size() -1) instanceof FireflyCacheGCStep) {
+            if (steps.size() != 3 && steps.size() != 4) {
+                return false;
+            }
+        } else {
+            if (steps.size() != 2 && steps.size() != 3) {
+                return false;
+            }
         }
 
         // V()
@@ -73,8 +80,8 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             return false;
         }
 
-        // Only true for iterate.
-        if (steps.size() == 3) {
+        if ((steps.get(steps.size() -1) instanceof FireflyCacheGCStep && steps.size() == 4)
+        || (!(steps.get(steps.size() -1) instanceof FireflyCacheGCStep) && steps.size() == 3)) {
             // iterate()
             final Step iterateStep = steps.get(2);
             if (!(iterateStep instanceof NoneStep)) {

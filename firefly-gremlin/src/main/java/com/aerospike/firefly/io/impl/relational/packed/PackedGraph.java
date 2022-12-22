@@ -6,7 +6,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -188,6 +188,6 @@ public class PackedGraph extends RelationalGraph {
         super.close();
         TraversalStrategies.GlobalCache
                 .getStrategies(PackedGraph.class)
-                .removeStrategies(FireflyTraversalCacheStrategy.class);
+                .removeStrategies(FireflyReadThroughCacheStrategy.class);
     }
 }

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.relational.linked;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
@@ -153,15 +154,16 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public void remove() {
         try {
             // Remove vertex property from vertex first so if we fail it will null out.
-            LOG.info("Removing vertex property {}", id);
-            removeVertexProperty(graph, id);
-            if (vertex == null) {
-                graph.readVertex(vertexId).removeVertexProperty(label, id);
+            LOG.info("Removing vertex property {}", this.id);
+            removeVertexProperty(this.graph, this.id);
+            if (this.vertex == null) {
+                this.graph.readVertex(this.vertexId).removeVertexProperty(this.label, this.id);
             } else {
-                vertex.removeVertexProperty(label, id);
+                this.vertex.removeVertexProperty(this.label, this.id);
             }
-        } catch (Exception ignored) {
+        } catch (final AerospikeException e) {
             // Removing a vertex property that is already removed SHOULD NOT yield an error.
+            LOG.debug("Ignoring caught exception when removing vertex property " + this.id, e);
         }
     }
 }

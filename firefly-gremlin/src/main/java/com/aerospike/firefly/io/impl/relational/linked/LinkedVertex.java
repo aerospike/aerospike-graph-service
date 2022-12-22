@@ -1,14 +1,18 @@
 package com.aerospike.firefly.io.impl.relational.linked;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
+import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.ScanPolicy;
@@ -28,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -39,6 +42,7 @@ import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypeValues;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -200,22 +204,22 @@ public class LinkedVertex extends RelationalVertex {
         // Get key for this vertex in database.
         final Key vertexKey = getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
 
-        // Create operations for writing a vertex property.
-        final Bin vpCounter = new Bin(this.db.VP_COUNTER, -1);
+        // Create operations for removing a vertex property.
+        final Bin vpCounter = new Bin(this.db.VP_COUNTER, -1L);
         final Operation getCacheDisabled = Operation.get(this.db.VP_CACHE_DISABLED);
         final Operation decrementVpCount = Operation.add(vpCounter);
         final Operation removeVpId = ListOperation.removeByValue(
                 this.db.VERTEX_PROPERTY_NAME_TO_ID,
                 Value.get(vertexPropertyId.getStorageId()),
                 ListReturnType.NONE,
-                CTX.mapKey(Value.get(key))
+                CTX.mapKeyCreate(Value.get(key), MapOrder.KEY_ORDERED)
         );
-        // TODO GRAPH-259: Remove potential RMW and map serialization.
-        final Operation getVpIds = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_ID);
+        final Operation removeEmptyVpKeys = MapOperation.removeByValue(this.db.VERTEX_PROPERTY_NAME_TO_ID,
+                Value.get(new ArrayList<>()), MapReturnType.NONE);
 
         // Operate on database.
         final Record results = this.db.getClient().operate(null, vertexKey, getCacheDisabled, decrementVpCount,
-                removeVpId, getVpIds);
+                removeVpId, removeEmptyVpKeys);
 
         final boolean cacheDisabled = results.getBoolean(this.db.VP_CACHE_DISABLED);
 
@@ -225,17 +229,6 @@ public class LinkedVertex extends RelationalVertex {
             // Don't need to do anything more - just update the cache disabled flag of this.
             this.isVertexPropertyCacheDisabled = true;
         } else {
-            // TODO GRAPH-259
-            final Map<String, List<Object>> vertexPropertyIdsStorable = (Map<String, List<Object>>) Optional.ofNullable(
-                    results.getMap(this.db.VERTEX_PROPERTY_NAME_TO_ID)).orElse(new TreeMap<>());
-            if (vertexPropertyIdsStorable.containsKey(key) && vertexPropertyIdsStorable.get(key).isEmpty()) {
-                vertexPropertyIdsStorable.remove(key);
-                final Bin vertexPropertyIdBin = new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID,
-                        Value.get(vertexPropertyIdsStorable, MapOrder.KEY_ORDERED));
-                FireflyRecord.writeElement(this.db, this.db.VERTEX_AERO_SET, this.id, results.generation,
-                        vertexPropertyIdBin);
-            }
-
             // The cache is still enabled so just update the cache of this.
             if (!this.vertexPropertyIds.containsKey(key)) {
                 LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
@@ -354,8 +347,15 @@ public class LinkedVertex extends RelationalVertex {
         );
 
         // Operate on database.
-        final Record results = this.db.getClient().operate(null, key, getCacheDisabled, incrementVpCount,
-                getVpCount, appendVpId);
+        final Record results;
+        try {
+            results = this.db.getClient().operate(null, key, getCacheDisabled, incrementVpCount,
+                    getVpCount, appendVpId);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG)
+                throw new RuntimeException(RECORD_TOO_BIG_ERROR);
+            throw ae;
+        }
 
         final boolean cacheDisabled = results.getBoolean(this.db.VP_CACHE_DISABLED);
         final long vpCount = results.getLong(this.db.VP_COUNTER);
@@ -369,18 +369,18 @@ public class LinkedVertex extends RelationalVertex {
             // The incremented vertex property count triggers the threshold for disabling the cache.
 
             // Disable the cache for this vertex in database.
-            final Bin vertexPropertyCacheDisabledBin = new Bin(this.db.VP_CACHE_DISABLED, Value.get(true));
-            // Clear vertex property cache for this vertex in database.
+            final Bin vertexPropertyCacheDisabledBin = new Bin(this.db.VP_CACHE_DISABLED, true);
+            final Operation disableCache = Operation.put(vertexPropertyCacheDisabledBin);
+            // Wipe vertex property cache for this vertex in database.
             final Bin vertexPropertyIdBin =
-                    new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(new HashMap<String, List<Object>>()));
-            FireflyRecord.writeElement(this.db, this.db.VERTEX_AERO_SET, this.id, results.generation,
-                    vertexPropertyIdBin, vertexPropertyCacheDisabledBin);
+                    new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(new TreeMap<String, List<Object>>()));
+            final Operation wipeCache = Operation.put(vertexPropertyIdBin);
+            this.db.getClient().operate(null, key, disableCache, wipeCache);
 
             // Update cache disabled flag of this.
             this.isVertexPropertyCacheDisabled = true;
         } else {
             // The cache is still enabled so just update the cache of this.
-
             if (!this.vertexPropertyIds.containsKey(vertexProperty.key())) {
                 this.vertexPropertyIds.put(vertexProperty.key(), new ArrayList<>());
             }

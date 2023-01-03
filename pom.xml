@@ -22,11 +22,16 @@
         <developer>
             <name>Grant Haywood</name>
             <email>grant@iowntheinter.net</email>
-            <organization>PhaseShift Studio</organization>
+            <organization>Aerospike</organization>
         </developer>
         <developer>
             <name>Lyndon Bauto</name>
             <email>lyndonb@apache.org</email>
+            <organization>Aerospike</organization>
+        </developer>
+        <developer>
+            <name>Simon Zhao</name>
+            <email>szhao@aerospike.com</email>
             <organization>Aerospike</organization>
         </developer>
     </developers>
@@ -42,7 +47,7 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <tinkerpop.version>3.6.0</tinkerpop.version>
+        <tinkerpop.version>3.6.1</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
         <logback.version>1.2.11</logback.version>

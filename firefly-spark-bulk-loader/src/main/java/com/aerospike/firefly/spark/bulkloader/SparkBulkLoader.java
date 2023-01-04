@@ -228,11 +228,17 @@ public class SparkBulkLoader {
         }
 
         // Edges
+        // Get the first element of the list to use it for union in the loop
+        Dataset<Row> tempDS = edgeDatasets.get(0);
         for (final Dataset<Row> edgeData : edgeDatasets) {
             final String finalS3BucketName = s3BucketName;
             final String finalConfigPath = configPath;
 
-            final Dataset<Row> persistentEdgeData = edgeData.persist(StorageLevel.DISK_ONLY());
+            // union the tempDS with the next element
+            Dataset<Row> unionDS = tempDS.union(edgeData).distinct();
+
+            // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
+            final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
 
             final Set<Long> supernodes = new HashSet<>();
             // If the edge cache is disabled globally we do not need to search for supernodes.
@@ -315,6 +321,8 @@ public class SparkBulkLoader {
                         }
                     }
                 }
+                // unpersist the dataframe to free up the memory
+                persistentEdgeData.unpersist();
             }
 
             // Write to edge caches for non-supernodes.

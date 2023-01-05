@@ -229,13 +229,13 @@ public class SparkBulkLoader {
 
         // Edges
         // Get the first element of the list to use it for union in the loop
-        Dataset<Row> tempDS = edgeDatasets.get(0);
+        Dataset<Row> unionDS = edgeDatasets.get(0);
         for (final Dataset<Row> edgeData : edgeDatasets) {
             final String finalS3BucketName = s3BucketName;
             final String finalConfigPath = configPath;
 
             // union the tempDS with the next element
-            Dataset<Row> unionDS = tempDS.union(edgeData).distinct();
+            unionDS = unionDS.union(edgeData).distinct();
 
             // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
             final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());

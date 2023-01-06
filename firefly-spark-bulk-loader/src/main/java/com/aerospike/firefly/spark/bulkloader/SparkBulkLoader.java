@@ -332,7 +332,10 @@ public class SparkBulkLoader {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
                 localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
             }
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+            final FireflyGraph graph;
+            synchronized (FireflyGraph.class) {
+                graph = FireflyGraph.open(localConfig);
+            } {
                 final boolean ignoreFailedProperties =
                         Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                 final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));

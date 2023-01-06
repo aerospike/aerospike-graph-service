@@ -5,6 +5,8 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -13,6 +15,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 import static org.apache.tinkerpop.gremlin.process.traversal.Operator.sum;
@@ -76,7 +81,37 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         System.out.println("Air routes 50k Query Latency:");
         System.out.println(results);
     }
-    
+
+    /**
+     * Call this function in a separate thread and monitor execution.
+     */
+    public void runTraversal() {
+        // This traversal will take days to run if the barrier does not release early.
+        g.V().has("code", "SFO").
+                repeat(__.out("route").
+                        simplePath().repeat(__.in("route")).
+                        times(3)).
+                times(2).path().by("code").limit(3).toList();
+    }
+
+    @Test
+    public void testCollectingBarrierExits() throws InterruptedException {
+        // Create thread to run traversal separately so it doesn't block test execution if it hangs.
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(this::runTraversal);
+
+        // Submit traversal and get boolean for whether it completed or not.
+        executorService.shutdown();
+        final boolean traversalCompleted = executorService.awaitTermination(10, TimeUnit.SECONDS);
+        if (!traversalCompleted) {
+            // Did not complete, force it to shut down manually.
+            executorService.shutdownNow();
+        }
+
+        // Fail if it did not shut down.
+        Assert.assertTrue(traversalCompleted);
+    }
+
     @Override
     protected boolean clearData() {
         return false;

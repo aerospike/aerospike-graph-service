@@ -231,182 +231,184 @@ public class SparkBulkLoader {
         // Get the first element of the list to use it for union in the loop
         Dataset<Row> unionDS = edgeDatasets.get(0);
         for (final Dataset<Row> edgeData : edgeDatasets) {
-            final String finalS3BucketName = s3BucketName;
-            final String finalConfigPath = configPath;
+            // union the temp DS with the next element
+            unionDS = unionDS.unionByName(edgeData, true).distinct();
+        }
 
-            // union the tempDS with the next element
-            unionDS = unionDS.union(edgeData).distinct();
+        unionDS.show();
+        final String finalS3BucketName = s3BucketName;
+        final String finalConfigPath = configPath;
+        // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
+        final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
 
-            // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
-            final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
+        final Set<Long> supernodes = new HashSet<>();
+        // If the edge cache is disabled globally we do not need to search for supernodes.
+        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
+            // Csv format is: ~id, ~from, ~to, ...
+            final JavaRDD<Row> edgeRDD = persistentEdgeData.javaRDD();
 
-            final Set<Long> supernodes = new HashSet<>();
-            // If the edge cache is disabled globally we do not need to search for supernodes.
-            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
-                // Csv format is: ~id, ~from, ~to, ...
-                final JavaRDD<Row> edgeRDD = persistentEdgeData.javaRDD();
+            // Values in csv for ~from and ~to will return as strings but are longs.
+            final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
+                    new Tuple2<>(Long.parseLong(row.getAs("~from")), 1L));
+            final JavaPairRDD<Long, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
+                    new Tuple2<>(Long.parseLong(row.getAs("~to")), 1L));
 
-                // Values in csv for ~from and ~to will return as strings but are longs.
-                final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
-                        new Tuple2<>(Long.parseLong(row.getAs("~from")), 1L));
-                final JavaPairRDD<Long, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
-                        new Tuple2<>(Long.parseLong(row.getAs("~to")), 1L));
+            // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
+            final JavaPairRDD<Long, Long> fromCountPairRDD =
+                    fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+            final JavaPairRDD<Long, Long> toCountPairRDD =
+                    toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
-                // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
-                final JavaPairRDD<Long, Long> fromCountPairRDD =
-                        fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-                final JavaPairRDD<Long, Long> toCountPairRDD =
-                        toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
+            // Get the supernode threshold from Firefly config.
+            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ID_CACHE_SIZE, CONFIG));
+            LOGGER.info("supernodeThreshold: " + supernodeThreshold);
 
-                // Get the supernode threshold from Firefly config.
-                final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ID_CACHE_SIZE, CONFIG));
-                LOGGER.info("supernodeThreshold: " + supernodeThreshold);
-
-                // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
-                final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
-                        (Function<Tuple2<Long, Long>, Boolean>)
-                        longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+            // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
+            final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
+                    (Function<Tuple2<Long, Long>, Boolean>)
+                    longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
                 LOGGER.info("filteredFromCountPairRDD sample of 10: ");
                 filteredFromCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
-                final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
-                        (Function<Tuple2<Long, Long>, Boolean>)
-                        longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+            final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
+                    (Function<Tuple2<Long, Long>, Boolean>)
+                    longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
                 LOGGER.info("filteredToCountPairRDD sample of 10: ");
                 filteredToCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
 
-                final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
+            final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
                 LOGGER.info("fromSupernodes sample of 10: ");
                 fromSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
-                final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
+            final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
                 LOGGER.info("toSupernodes sample of 10: ");
                 toSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
 
-                final List<Long> fromSuperNodeList = fromSupernodes.collect();
-                LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);
-                final List<Long> toSuperNodeList = toSupernodes.collect();
-                LOGGER.info("Identified ~to supernodes: " + toSuperNodeList);
+            final List<Long> fromSuperNodeList = fromSupernodes.collect();
+            LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);
+            final List<Long> toSuperNodeList = toSupernodes.collect();
+            LOGGER.info("Identified ~to supernodes: " + toSuperNodeList);
 
-                // Combine into a tracking set.
-                supernodes.addAll(fromSuperNodeList);
-                supernodes.addAll(toSuperNodeList);
-                LOGGER.info("Final supernodes set: " + supernodes);
+            // Combine into a tracking set.
+            supernodes.addAll(fromSuperNodeList);
+            supernodes.addAll(toSuperNodeList);
+            LOGGER.info("Final supernodes set: " + supernodes);
 
-                // Disable edge caches for supernodes.
-                try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-                    for (final Long supernodeId : supernodes) {
-                        final AerospikeConnection db = graph.getBaseGraph();
-                        final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
+            // Disable edge caches for supernodes.
+            try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+                for (final Long supernodeId : supernodes) {
+                    final AerospikeConnection db = graph.getBaseGraph();
+                    final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
+                    int tryCount = 0;
+                    boolean succeeded = false;
+                    while (!succeeded) {
+                        try {
+                            db.getClient().put(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, supernodeId),
+                                    cacheDisabledBin);
+                            succeeded = true;
+                        } catch (final AerospikeException e) {
+                            if (++tryCount > RETRY_LIMIT) {
+                                LOGGER.error("Failed to disable edge cache for vertex with ID " + supernodeId +
+                                        " after " + tryCount + " attempts.", e);
+                                if (!Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, CONFIG))) {
+                                    throw e;
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                LOGGER.warn("Failed to disable edge cache for vertex with ID: " + supernodeId +
+                                        ". Attempting to disable cache again. Attempt count: " + tryCount + ".", e);
+                                exponentialBackoff(tryCount);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Write to edge caches for non-supernodes.
+        persistentEdgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+            LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
+            Configuration localConfig = CONFIG;
+            if (!ENV.equals("local")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+            }
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+                final boolean ignoreFailedProperties =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+                final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+                final boolean keepProvidedId =
+                        Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
+                final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+                final boolean ignoreElementCreationFailed =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+
+                final AtomicInteger outEdgeCount = new AtomicInteger(0);
+                final AtomicInteger inEdgeCount = new AtomicInteger(0);
+                final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
+                final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new HashMap<>();
+
+                while (rowIterator.hasNext()) {
+                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    try {
+                        final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
+                                useProvidedId, keepProvidedId, providedIdPropertyName, graph);
+                        final FireflyId edgeId = sparkEdge.getFireflyId();
+                        final long inVertexId = sparkEdge.getInVertexId();
+                        final long outVertexId = sparkEdge.getOutVertexId();
+                        final String edgeLabel = sparkEdge.getLabel();
                         int tryCount = 0;
                         boolean succeeded = false;
                         while (!succeeded) {
                             try {
-                                db.getClient().put(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, supernodeId),
-                                        cacheDisabledBin);
+                                graph.bulkWriteEdge(sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                                        inVertexId, outVertexId);
                                 succeeded = true;
                             } catch (final AerospikeException e) {
                                 if (++tryCount > RETRY_LIMIT) {
-                                    LOGGER.error("Failed to disable edge cache for vertex with ID " + supernodeId +
-                                            " after " + tryCount + " attempts.", e);
-                                    if (!Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, CONFIG))) {
+                                    LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
+                                            inVertexId + " after " + tryCount + " attempts.", e);
+                                    if (!ignoreElementCreationFailed) {
                                         throw e;
                                     } else {
                                         break;
                                     }
                                 } else {
-                                    LOGGER.warn("Failed to disable edge cache for vertex with ID: " + supernodeId +
-                                            ". Attempting to disable cache again. Attempt count: " + tryCount + ".", e);
+                                    LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
+                                            inVertexId + ". Attempting to write edge again. Attempt count: "
+                                            + tryCount + ".", e);
                                     exponentialBackoff(tryCount);
+                                    continue;
                                 }
                             }
+
+                            // Write edge to vertices' edge caches.
+                            if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
+                                loadEdgeMap(graph, supernodes, outVertexId,
+                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(inVertexId)),
+                                        edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
+                                        ignoreElementCreationFailed);
+                                loadEdgeMap(graph, supernodes, inVertexId,
+                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(outVertexId)),
+                                        edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
+                                        ignoreElementCreationFailed);
+                            }
+                        }
+                    } catch (final FireflyBulkLoaderException e) {
+                        LOGGER.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
+                        if (!ignoreElementCreationFailed) {
+                            throw e;
                         }
                     }
                 }
-                // unpersist the dataframe to free up the memory
-                persistentEdgeData.unpersist();
+                flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
+                flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
             }
+            return Collections.singletonList(1).iterator();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
-            // Write to edge caches for non-supernodes.
-            persistentEdgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-                LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
-                Configuration localConfig = CONFIG;
-                if (!ENV.equals("local")) {
-                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
-                }
-                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
-                    final boolean ignoreFailedProperties =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-                    final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
-                    final boolean keepProvidedId =
-                            Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-                    final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
-                    final boolean ignoreElementCreationFailed =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+        // unpersist the dataframe to free up the memory
+         persistentEdgeData.unpersist();
 
-                    final AtomicInteger outEdgeCount = new AtomicInteger(0);
-                    final AtomicInteger inEdgeCount = new AtomicInteger(0);
-                    final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
-                    final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new HashMap<>();
-
-                    while (rowIterator.hasNext()) {
-                        final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                        try {
-                            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
-                                    useProvidedId, keepProvidedId, providedIdPropertyName, graph);
-                            final FireflyId edgeId = sparkEdge.getFireflyId();
-                            final long inVertexId = sparkEdge.getInVertexId();
-                            final long outVertexId = sparkEdge.getOutVertexId();
-                            final String edgeLabel = sparkEdge.getLabel();
-                            int tryCount = 0;
-                            boolean succeeded = false;
-                            while (!succeeded) {
-                                try {
-                                    graph.bulkWriteEdge(sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                                            inVertexId, outVertexId);
-                                    succeeded = true;
-                                } catch (final AerospikeException e) {
-                                    if (++tryCount > RETRY_LIMIT) {
-                                        LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                                inVertexId + " after " + tryCount + " attempts.", e);
-                                        if (!ignoreElementCreationFailed) {
-                                            throw e;
-                                        } else {
-                                            break;
-                                        }
-                                    } else {
-                                        LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                                inVertexId + ". Attempting to write edge again. Attempt count: "
-                                                + tryCount + ".", e);
-                                        exponentialBackoff(tryCount);
-                                        continue;
-                                    }
-                                }
-
-                                // Write edge to vertices' edge caches.
-                                if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                                    loadEdgeMap(graph, supernodes, outVertexId,
-                                            FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(inVertexId)),
-                                            edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
-                                            ignoreElementCreationFailed);
-                                    loadEdgeMap(graph, supernodes, inVertexId,
-                                            FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(outVertexId)),
-                                            edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
-                                            ignoreElementCreationFailed);
-                                }
-                            }
-                        } catch (final FireflyBulkLoaderException e) {
-                            LOGGER.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
-                            if (!ignoreElementCreationFailed) {
-                                throw e;
-                            }
-                        }
-                    }
-                    flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
-                    flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
-                }
-                return Collections.singletonList(1).iterator();
-            }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
-        }
 
         spark.stop();
     }

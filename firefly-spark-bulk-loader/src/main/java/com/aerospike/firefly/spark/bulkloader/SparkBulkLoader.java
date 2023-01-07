@@ -206,11 +206,11 @@ public class SparkBulkLoader {
         }
 
         // Edges
-        // Get the first element of the list to use it for union in the loop
+        // Get the first DS in the list to use it for union in the loop
         Dataset<Row> unionDS = edgeDatasets.get(0);
         Dataset<Row> sampledUnionDS = spark.emptyDataFrame();
         for (final Dataset<Row> edgeData : edgeDatasets) {
-            // union the temp DS with the next element
+            // union the temp DS with the next DS
             unionDS = unionDS.unionByName(edgeData, true).distinct();
             if (sampledUnionDS.isEmpty())
                 sampledUnionDS = edgeData.sample(0.001);
@@ -218,7 +218,6 @@ public class SparkBulkLoader {
                 sampledUnionDS = sampledUnionDS.unionByName(edgeData.sample(0.001), true).distinct();
         }
 
-        unionDS.show();
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
         // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again

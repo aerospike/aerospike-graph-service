@@ -192,8 +192,7 @@ public class SparkBulkLoader {
                                     }
                                 }
                             }
-                            // print the row. if succeeded is true, then take the row and apply filter operation on the sampled dataset to get a valid response.
-                            // if not empty, then return success else return ERROR
+
                         } catch (final FireflyBulkLoaderException e) {
                             LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {

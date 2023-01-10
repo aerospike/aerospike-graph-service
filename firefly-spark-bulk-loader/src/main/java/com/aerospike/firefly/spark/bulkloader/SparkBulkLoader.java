@@ -91,7 +91,7 @@ public class SparkBulkLoader {
             vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
             edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
         }
-
+        final double sampleFraction = Double.parseDouble(getOrDefault(SAMPLING_PERCENT, CONFIG)) / 100;
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
@@ -108,8 +108,6 @@ public class SparkBulkLoader {
         final List<Dataset<Row>> edgeDatasets = new ArrayList<>();
 
         final List<Dataset<Row>> sampledVertexDatasets = new ArrayList<>();
-        final List<Dataset<Row>> sampledEdgeDatasets = new ArrayList<>();
-
         for (final String vertexDirectory : vertexDirectories) {
             final Map<String, String> options = new HashMap<>();
             options.put("header", "true");
@@ -125,7 +123,7 @@ public class SparkBulkLoader {
                 }
             }
             vertexDatasets.add(vertexData);
-            sampledVertexDatasets.add(vertexData.sample(0.001));
+            sampledVertexDatasets.add(vertexData.sample(true, sampleFraction).distinct());
         }
 
         for (final String edgeDirectory : edgeDirectories) {
@@ -149,6 +147,7 @@ public class SparkBulkLoader {
         for (final Dataset<Row> vertexData : vertexDatasets) {
             final String finalS3BucketName = s3BucketName;
             final String finalConfigPath = configPath;
+
             vertexData.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
                 LOGGER.warn("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
                 final ArrayList<Long> list = new ArrayList<>();
@@ -193,6 +192,8 @@ public class SparkBulkLoader {
                                     }
                                 }
                             }
+                            // print the row. if succeeded is true, then take the row and apply filter operation on the sampled dataset to get a valid response.
+                            // if not empty, then return success else return ERROR
                         } catch (final FireflyBulkLoaderException e) {
                             LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
@@ -208,14 +209,14 @@ public class SparkBulkLoader {
         // Edges
         // Get the first DS in the list to use it for union in the loop
         Dataset<Row> unionDS = edgeDatasets.get(0);
-        Dataset<Row> sampledUnionDS = spark.emptyDataFrame();
+        Dataset<Row> sampledEdgeDatasets = spark.emptyDataFrame();
         for (final Dataset<Row> edgeData : edgeDatasets) {
             // union the temp DS with the next DS
             unionDS = unionDS.unionByName(edgeData, true).distinct();
-            if (sampledUnionDS.isEmpty())
-                sampledUnionDS = edgeData.sample(0.001);
+            if (sampledEdgeDatasets.isEmpty())
+                sampledEdgeDatasets = edgeData.sample(sampleFraction);
             else
-                sampledUnionDS = sampledUnionDS.unionByName(edgeData.sample(0.001), true).distinct();
+                sampledEdgeDatasets = sampledEdgeDatasets.unionByName(edgeData.sample(sampleFraction), true).distinct();
         }
 
         final String finalS3BucketName = s3BucketName;

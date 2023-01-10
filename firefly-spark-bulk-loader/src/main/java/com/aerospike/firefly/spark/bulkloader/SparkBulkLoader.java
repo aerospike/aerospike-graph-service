@@ -52,7 +52,10 @@ import scala.Tuple2;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -105,8 +108,14 @@ public class SparkBulkLoader {
             configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
             final Path path = Path.of(configPath);
             CONFIG = getConfig(path);
-            vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
-            edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+            try {
+                vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
+                edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+            }
+            catch (IOException ie) {
+                LOGGER.error(ie.getMessage(), ie);
+                return;
+            }
         } else {
             S3_CLIENT = AmazonS3ClientBuilder.standard().build();
             s3BucketName = cmd.getOptionValue("b");
@@ -409,9 +418,7 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // unpersist the dataframe to free up the memory
-         persistentEdgeData.unpersist();
-
-
+        persistentEdgeData.unpersist();
         spark.stop();
     }
 
@@ -537,13 +544,23 @@ public class SparkBulkLoader {
      *
      * @return  The set of valid sub-directories.
      */
-    static private Set<String> getElementDirectories(final String directory) {
+    static private Set<String> getElementDirectories(final String directory) throws IOException {
         final File file = new File(directory);
+        checkIfDirectoryEmpty(file);
         final File[] directories = file.listFiles(File::isDirectory);
 
-        if (directories.length != 0)
+        if (directories.length != 0) {
+            for (File dir : directories)
+                checkIfDirectoryEmpty(dir);
             return Arrays.stream(directories).map(File::getAbsolutePath).collect(Collectors.toSet());
+        }
         return Collections.singleton(directory);
+    }
+
+    static private void checkIfDirectoryEmpty(File directory) throws IOException {
+        if(Files.list(Paths.get(directory.getPath())).findAny().isEmpty()){
+            throw new IOException("Empty directory found for path " + directory);
+        }
     }
 
     /**

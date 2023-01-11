@@ -237,7 +237,7 @@ public class SparkBulkLoader {
         }
 
         // Edges
-        // Get the first DS in the list to use it for union in the loop
+        // Get the first DS in the list to use it for union in the loop.
         Dataset<Row> unionDS = edgeDatasets.get(0);
         for (final Dataset<Row> edgeData : edgeDatasets) {
             // union the temp DS with the next DS

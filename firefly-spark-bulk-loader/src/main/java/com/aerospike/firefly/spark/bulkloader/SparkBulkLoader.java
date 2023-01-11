@@ -417,7 +417,7 @@ public class SparkBulkLoader {
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
-        // unpersist the dataframe to free up the memory
+        // Unpersist the dataframe to free up the memory.
         persistentEdgeData.unpersist();
         spark.stop();
     }

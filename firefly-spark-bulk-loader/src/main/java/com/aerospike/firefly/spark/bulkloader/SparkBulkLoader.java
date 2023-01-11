@@ -246,7 +246,7 @@ public class SparkBulkLoader {
 
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
-        // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
+        // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
         final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
 
         final Set<Long> supernodes = new HashSet<>();

@@ -26,10 +26,8 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -73,7 +71,16 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.*;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
 
@@ -236,14 +243,14 @@ public class SparkBulkLoader {
         // Edges
         // Get the first DS in the list to use it for union in the loop
         Dataset<Row> unionDS = edgeDatasets.get(0);
-        Dataset<Row> sampledEdgeDatasets = spark.emptyDataFrame();
+        Dataset<Row> edgeDatasetsSample = spark.emptyDataFrame();
         for (final Dataset<Row> edgeData : edgeDatasets) {
             // union the temp DS with the next DS
             unionDS = unionDS.unionByName(edgeData, true).distinct();
-            if (sampledEdgeDatasets.isEmpty())
-                sampledEdgeDatasets = edgeData.sample(sampleFraction);
+            if (edgeDatasetsSample.isEmpty())
+                edgeDatasetsSample = edgeData.sample(sampleFraction);
             else
-                sampledEdgeDatasets = sampledEdgeDatasets.unionByName(edgeData.sample(sampleFraction), true).distinct();
+                edgeDatasetsSample = edgeDatasetsSample.unionByName(edgeData.sample(sampleFraction), true).distinct();
         }
 
         final String finalS3BucketName = s3BucketName;

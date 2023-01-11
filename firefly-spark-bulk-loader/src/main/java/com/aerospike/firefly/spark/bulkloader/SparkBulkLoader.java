@@ -241,11 +241,11 @@ public class SparkBulkLoader {
         }
 
         // Edges
-        // Get the first DS in the list to use it for union in the loop
+        // Get the first DS in the list to use it for union in the loop.
         Dataset<Row> unionDS = edgeDatasets.get(0);
         Dataset<Row> edgeDatasetsSample = spark.emptyDataFrame();
         for (final Dataset<Row> edgeData : edgeDatasets) {
-            // union the temp DS with the next DS
+            // Invoke union to combine the edge DS.
             unionDS = unionDS.unionByName(edgeData, true).distinct();
             if (edgeDatasetsSample.isEmpty())
                 edgeDatasetsSample = edgeData.sample(sampleFraction);
@@ -255,7 +255,7 @@ public class SparkBulkLoader {
 
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
-        // persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again
+        // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
         final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
 
         final Set<Long> supernodes = new HashSet<>();
@@ -567,8 +567,8 @@ public class SparkBulkLoader {
     }
 
     static private void checkIfDirectoryEmpty(File directory) throws IOException {
-        if(Files.list(Paths.get(directory.getPath())).findAny().isEmpty()){
-            throw new IOException("Empty directory found for path " + directory);
+        if (Files.list(Paths.get(directory.getPath())).findAny().isEmpty()) {
+            throw new IOException("Empty directory found for path: " + directory);
         }
     }
 

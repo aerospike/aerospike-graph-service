@@ -558,7 +558,7 @@ public class SparkBulkLoader {
     }
 
     static private void checkIfDirectoryEmpty(File directory) throws IOException {
-        if(Files.list(Paths.get(directory.getPath())).findAny().isEmpty()){
+        if (Files.list(Paths.get(directory.getPath())).findAny().isEmpty()) {
             throw new IOException("Empty directory found for path: " + directory);
         }
     }

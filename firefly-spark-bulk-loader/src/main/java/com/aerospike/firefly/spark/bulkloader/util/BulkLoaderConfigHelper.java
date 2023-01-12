@@ -16,6 +16,7 @@ public class BulkLoaderConfigHelper {
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "provided_edge_id_property_name";
     public static final String IGNORE_ELEMENT_CREATION_FAILED = "ignore_element_creation_failed";
     public static final String IGNORE_PARSE_FAILED_PROPERTIES = "ignore_parse_failed_properties";
+    public static final String SAMPLING_PERCENTAGE = "sampling_percentage";
 
     private static final Map<String, String> DEFAULT_VALUES = new HashMap<>() {{
         put(USE_PROVIDED_EDGE_ID, "true");
@@ -23,6 +24,7 @@ public class BulkLoaderConfigHelper {
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
         put(IGNORE_ELEMENT_CREATION_FAILED, "false");
         put(IGNORE_PARSE_FAILED_PROPERTIES, "true");
+        put(SAMPLING_PERCENTAGE, "0.1");
     }};
 
     private BulkLoaderConfigHelper() {

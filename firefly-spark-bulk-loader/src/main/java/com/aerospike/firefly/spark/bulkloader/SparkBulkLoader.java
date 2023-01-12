@@ -52,7 +52,6 @@ import scala.Tuple2;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -77,6 +76,7 @@ import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
@@ -126,7 +126,7 @@ public class SparkBulkLoader {
             vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
             edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
         }
-
+        final double sampleFraction = Double.parseDouble(getOrDefault(SAMPLING_PERCENTAGE, CONFIG)) / 100;
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
@@ -142,6 +142,7 @@ public class SparkBulkLoader {
         final List<Dataset<Row>> vertexDatasets = new ArrayList<>();
         final List<Dataset<Row>> edgeDatasets = new ArrayList<>();
 
+        final List<Dataset<Row>> sampledVertexDatasets = new ArrayList<>();
         for (final String vertexDirectory : vertexDirectories) {
             final Map<String, String> options = new HashMap<>();
             options.put("header", "true");
@@ -157,6 +158,7 @@ public class SparkBulkLoader {
                 }
             }
             vertexDatasets.add(vertexData);
+            sampledVertexDatasets.add(vertexData.sample(true, sampleFraction).distinct());
         }
 
         for (final String edgeDirectory : edgeDirectories) {
@@ -180,6 +182,7 @@ public class SparkBulkLoader {
         for (final Dataset<Row> vertexData : vertexDatasets) {
             final String finalS3BucketName = s3BucketName;
             final String finalConfigPath = configPath;
+
             vertexData.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
                 LOGGER.warn("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
                 final ArrayList<Long> list = new ArrayList<>();
@@ -224,6 +227,7 @@ public class SparkBulkLoader {
                                     }
                                 }
                             }
+
                         } catch (final FireflyBulkLoaderException e) {
                             LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                             if (!ignoreElementCreationFailed) {
@@ -239,9 +243,14 @@ public class SparkBulkLoader {
         // Edges
         // Get the first DS in the list to use it for union in the loop.
         Dataset<Row> unionDS = edgeDatasets.get(0);
+        Dataset<Row> edgeDatasetsSample = spark.emptyDataFrame();
         for (final Dataset<Row> edgeData : edgeDatasets) {
             // Invoke union to combine the edge DS.
             unionDS = unionDS.unionByName(edgeData, true).distinct();
+            if (edgeDatasetsSample.isEmpty())
+                edgeDatasetsSample = edgeData.sample(sampleFraction);
+            else
+                edgeDatasetsSample = edgeDatasetsSample.unionByName(edgeData.sample(sampleFraction), true).distinct();
         }
 
         final String finalS3BucketName = s3BucketName;

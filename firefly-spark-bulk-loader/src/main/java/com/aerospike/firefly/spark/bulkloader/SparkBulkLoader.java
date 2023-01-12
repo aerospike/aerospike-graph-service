@@ -114,7 +114,7 @@ public class SparkBulkLoader {
             }
             catch (IOException ie) {
                 LOGGER.error(ie.getMessage(), ie);
-                return;
+                System.exit(1);
             }
         } else {
             S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -239,15 +239,7 @@ public class SparkBulkLoader {
                 return list.iterator();
             }, Encoders.LONG()).write().format("noop").mode(SaveMode.Append).save();
         }
-        // validate the integrity of the data loaded through bulk loader
-        // 1. for each sampled dataset, create a FireflyGraph connection
-        // 2. create a traversal
-        // 3. validate by getting the vertex id and then obtaining the properties for the vertex
-        // 4. if the properties for the id is returned, then move to next or return failure and exit the job
 
-        for ( Dataset<Row> sampledVertexDataset : sampledVertexDatasets) {
-
-        }
         // Edges
         // Get the first DS in the list to use it for union in the loop.
         Dataset<Row> unionDS = edgeDatasets.get(0);
@@ -434,7 +426,7 @@ public class SparkBulkLoader {
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
-        // unpersist the dataframe to free up the memory
+        // Unpersist the dataframe to free up the memory.
         persistentEdgeData.unpersist();
         spark.stop();
     }

@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.AndP;
+import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -55,17 +56,17 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         if (null == this.ids)
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
-            iterator = this.iteratorList(graph.edges(this.ids));
+            iterator = this.hasContainerCheckedIterator(graph.edges(this.ids));
         else if (indexedContainer == null || indexedContainer.getKey() == null)
-            iterator = this.iteratorList(graph.edges());
+            iterator = this.hasContainerCheckedIterator(graph.edges());
         else if (indexedContainer.getKey().startsWith("~label"))
-            iterator = this.iteratorList(FireflyHelper.queryEdgeByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
         else if (indexedContainer.getKey().startsWith("~"))
-            iterator = this.iteratorList(graph.edges());
+            iterator = this.hasContainerCheckedIterator(graph.edges());
         else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
-            iterator = this.iteratorList(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
-            iterator = this.iteratorList(FireflyHelper.queryEdgeNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
         else
             iterator = Collections.emptyIterator();
 
@@ -85,18 +86,18 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         if (null == this.ids)
             iterator = Collections.emptyIterator();
         else if (this.ids.length > 0)
-            iterator = this.iteratorList(graph.vertices(this.ids));
+            iterator = this.hasContainerCheckedIterator(graph.vertices(this.ids));
         else if (indexedContainer == null || indexedContainer.getKey() == null)
-            iterator = this.iteratorList(graph.vertices());
+            iterator = this.hasContainerCheckedIterator(graph.vertices());
         else if (indexedContainer.getKey().equals("~label"))
-            iterator = this.iteratorList(FireflyHelper.queryVertexByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryVertexByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
         else if (indexedContainer.getKey().startsWith("~"))
-            iterator = this.iteratorList(graph.vertices());
+            iterator = this.hasContainerCheckedIterator(graph.vertices());
         else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class) || indexedContainer.getKey().equals("~label"))
-            iterator = this.iteratorList(FireflyHelper.
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.
                     queryVertexByVertexPropertyStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
         else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
-            iterator = this.iteratorList(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
         else
             iterator = Collections.emptyIterator();
 
@@ -140,20 +141,64 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                     StringFactory.stepString(this, this.returnClass.getSimpleName().toLowerCase(), Arrays.toString(this.ids), this.hasContainers);
     }
 
-    private <E extends Element> Iterator<E> iteratorList(final Iterator<E> iterator) {
-        final List<E> list = new ArrayList<>();
+    static class HasContainerIterator <E extends Element> implements Iterator<E>, AutoCloseable {
 
-        try {
-            while (iterator.hasNext()) {
-                final E e = iterator.next();
-                if (HasContainer.testAll(e, this.hasContainers))
-                    list.add(e);
-            }
-        } finally {
-            CloseableIterator.closeIterator(iterator);
+        private final Iterator<E> i;
+        private final List<HasContainer> hasContainers;
+        private E e;
+        private boolean valid;
+
+        public HasContainerIterator(final Iterator<E> iterator, final List<HasContainer> hasContainers) {
+            this.i = iterator;
+            this.hasContainers = hasContainers;
+            this.e = null;
+            this.valid = false;
         }
 
-        return list.iterator();
+        @Override
+        public boolean hasNext() {
+            // Element found and is waiting to be grabbed.
+            if (valid) {
+                return true;
+            }
+
+            // Find next element that matches HasContainer.
+            while (i.hasNext()) {
+                e = i.next();
+                if (HasContainer.testAll(e, this.hasContainers)) {
+                    valid = true;
+                    return true;
+                }
+            }
+            valid = false;
+            return false;
+        }
+
+        @Override
+        public E next() {
+            // If they checked hasNext() prior to the next() call and there was an element available, valid will be true.
+            if (valid) {
+                valid = false;
+                return e;
+            }
+
+            if (hasNext()) {
+                valid = false;
+                return e;
+            }
+
+            // No more elements available.
+            throw FastNoSuchElementException.instance();
+        }
+
+        @Override
+        public void close() {
+            CloseableIterator.closeIterator(i);
+        }
+    }
+
+    private <E extends Element> Iterator<E> hasContainerCheckedIterator(final Iterator<E> iterator) {
+        return new HasContainerIterator<>(iterator, this.hasContainers);
     }
 
     @Override

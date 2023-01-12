@@ -27,6 +27,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.KEY_VALUE;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 final public class LinkedGraph extends RelationalGraph {
     public static final String DATA_MODEL = "linked";
@@ -107,7 +108,7 @@ final public class LinkedGraph extends RelationalGraph {
     public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value) {
         final Iterator<KeyRecord> rsi =
                 db.queryIndex(
-                        db.getElementPropertySet(FireflyVertexProperty.class),
+                        db.VERTEX_PROPERTY_AERO_SET,
                         db.STRING_VP_KV_INDEX,
                         Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->

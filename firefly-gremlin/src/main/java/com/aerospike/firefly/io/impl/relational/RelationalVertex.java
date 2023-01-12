@@ -58,6 +58,11 @@ import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERRO
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
+ */
 public abstract class RelationalVertex extends FireflyVertex {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalVertex.class);
     private final Map<String, List<FireflyId>> inEdgeIds;
@@ -584,7 +589,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
                     // Write vertex property with type hint.
                     db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v,
-                            vpkBin, pviBin);
+                            db.VP_TYPE_HINTS, vpkBin, pviBin);
                 }
         ));
         return vertexPropertyLabelIdMap;

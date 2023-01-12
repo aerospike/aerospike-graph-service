@@ -25,12 +25,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class PackedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(PackedVertex.class);
@@ -166,6 +168,12 @@ public class PackedVertex extends RelationalVertex {
         final Map<String, Object> vertexPropertyValues = packedVertex.vertexPropertyValues;
         final Map<String, Long> vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
 
+        // Vertex properties' Properties
+        final Map<Object, Map<String, Object>> properties = (Map<Object, Map<String, Object>>) Optional.ofNullable(record.record.getMap(db.PROPERTIES)).orElse(new TreeMap<>());
+        final Map<Object, Map<String, Object>> typeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(record.record.getMap(db.TYPE_HINTS)).orElse(new TreeMap<>());
+        properties.remove(vertexPropertyId.getStorageId());
+        typeHints.remove(vertexPropertyId.getStorageId());
+
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
                       vertexPropertyId, this.id, key);
@@ -188,6 +196,10 @@ public class PackedVertex extends RelationalVertex {
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
+
+        // Create vertex property's property bins.
+        final Bin vpPropertiesValuesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));
+        final Bin vpPropertiesValuesTypeHintsBin = new Bin(db.PROPERTIES, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;

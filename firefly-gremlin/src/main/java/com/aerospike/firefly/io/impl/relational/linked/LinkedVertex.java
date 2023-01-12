@@ -41,13 +41,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypeValues;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class LinkedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertex.class);
@@ -142,7 +142,7 @@ public class LinkedVertex extends RelationalVertex {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
             final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
-                    db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
+                    db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE, db.VP_TYPE_HINTS));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
                     null :
                     new LinkedVertexProperty(graph, fid, this, kv.get().getKey(), kv.get().getValue());
@@ -181,7 +181,7 @@ public class LinkedVertex extends RelationalVertex {
         records.forEachRemaining(entry -> {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
             final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
-            final Long typeHint = (Long) entry.getValue().getMap(db.TYPE_HINTS).get(key);
+            final Long typeHint = (Long) entry.getValue().getMap(db.VP_TYPE_HINTS).get(key);
             final Object value = db.convertValuetoTypeUsingHint(entry.getValue().getMap(db.KEY_VALUE).get(key), typeHint);
             results.add(new LinkedVertexProperty<>(graph, fid, this, key, value));
         });
@@ -314,7 +314,8 @@ public class LinkedVertex extends RelationalVertex {
         final List<FireflyVertexProperty<?>> vertexProperties = new ArrayList<>();
         vertexPropertyIdList.forEach(vertexPropertyId -> {
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
-                    db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE));
+                    db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE,
+                            db.VP_TYPE_HINTS));
             final FireflyVertexProperty<?> vertexProperty = (kv.isEmpty()) ?
                     null :
                     new LinkedVertexProperty<V>(graph, vertexPropertyId, this, kv.get().getKey(), kv.get().getValue());

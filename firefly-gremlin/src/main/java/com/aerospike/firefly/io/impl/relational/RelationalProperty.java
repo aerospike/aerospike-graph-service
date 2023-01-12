@@ -14,6 +14,7 @@ import java.util.TreeMap;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class RelationalProperty<V> extends FireflyProperty<V> {
     private final FireflyGraph graph;
@@ -39,13 +40,6 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
     @Override
     public void remove() {
         try {
-            final AerospikeConnection db = graph.getBaseGraph();
-            db.removeTypeHintedValueFromMap(
-                    db.getElementPropertySet(fireflyElement.getClass()),
-                    fireflyElement.id,
-                    db.getElementPropertySet(fireflyElement.getClass()),
-                    key());
-
             graph.removeProperty(fireflyElement, key());
         } catch (Exception ignored) {
             // Removing a property that is already removed SHOULD NOT yield an error.
@@ -70,9 +64,10 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
         db.writeTypeHintedValueToMap(
                 db.getElementPropertySet(element.getClass()),
                 element.id,
-                db.getElementPropertySet(element.getClass()),
+                db.PROPERTIES,
                 key,
-                value);
+                value,
+                db.TYPE_HINTS);
         return new RelationalProperty<>(graph, element, key, value);
     }
 
@@ -91,7 +86,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
             return new TreeMap<>();
 
         final Map<String, Property<V>> result = new TreeMap<>();
-        final Map<String, Object> data = (Map<String, Object>) fireflyRecord.record.getMap(db.getElementPropertySet(element.getClass()));
+        final Map<String, Object> data = (Map<String, Object>) fireflyRecord.record.getMap(db.PROPERTIES);
         if (data == null)
             return result;
         data.forEach((key1, value) -> {
@@ -116,7 +111,8 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
                 db.readTypeHintedValueFromMap(
                         db.getElementPropertySet(element.getClass()),
                         element.id,
-                        db.getElementPropertySet(element.getClass()),
-                        key));
+                        db.PROPERTIES,
+                        key,
+                        db.TYPE_HINTS));
     }
 }

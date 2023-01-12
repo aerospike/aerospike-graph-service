@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class RelationalEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
@@ -102,7 +103,7 @@ public class RelationalEdge extends FireflyEdge {
 
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id.getStorageId()));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id.getStorageId()));
-        final Bin valueBin = new Bin(db.EDGE_AERO_SET, Value.get(data, MapOrder.KEY_ORDERED));
+        final Bin valueBin = new Bin(db.PROPERTIES, Value.get(data, MapOrder.KEY_ORDERED));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
         // First instance of this edge, generation -1.

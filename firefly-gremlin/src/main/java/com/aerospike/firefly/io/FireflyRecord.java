@@ -177,7 +177,7 @@ public class FireflyRecord {
      * @param id   the ID to use
      * @param bins Aerospike data bins
      */
-    protected static void write(final AerospikeConnection db,
+    public static void write(final AerospikeConnection db,
                                 final String set,
                                 final FireflyId id,
                                 final int generation,

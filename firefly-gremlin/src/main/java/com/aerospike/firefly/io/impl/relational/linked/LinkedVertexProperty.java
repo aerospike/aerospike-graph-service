@@ -19,6 +19,7 @@ import java.util.Optional;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
@@ -82,7 +83,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
 
         // Read vertex property from record.
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
-                db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, id, db.KEY_VALUE));
+                db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, id, db.KEY_VALUE, db.VP_TYPE_HINTS));
 
         // Return the vertex property.
         return (kv.isEmpty()) ?
@@ -102,7 +103,8 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
         final FireflyId fid = FireflyIdFactory.createId(fireflyRecord.id());
-        final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE));
+        final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
+                db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE, db.VP_TYPE_HINTS));
         if (kv.isEmpty()) {
             return null;
         }
@@ -130,7 +132,8 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, Value.get(key));
         final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, Value.get(vertex.id.getStorageId()));
-        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, vpkBin, pviBin);
+        db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vpid, db.KEY_VALUE, key, value, db.VP_TYPE_HINTS,
+                vpkBin, pviBin);
         // Return the vertex property.
         return new LinkedVertexProperty<>(graph, vpid, (LinkedVertex) vertex, key, value);
     }

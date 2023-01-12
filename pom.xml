@@ -134,13 +134,14 @@
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx16384m
-                        -Xms4096m
+                        -Xmx@{maxheap}
+                        -Xms@{minheap}
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>
                        <exclude>**/BenchmarkTest.java</exclude>-
                        <exclude>**/TestMovielens1M.java</exclude>-
+                       <exclude>**/TestFireflyExceedHeap.java</exclude>-
                    </excludes>
                 </configuration>
             </plugin>
@@ -165,5 +166,31 @@
         </plugins>
     </build>
     <profiles>
+        <profile>
+            <id>low_memory</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>jvmheapsize</name>
+                    <value>small</value>
+                </property>
+            </activation>
+            <properties>
+                <!-- Java heap parameters -->
+                <maxheap>200m</maxheap>
+                <minheap>100m</minheap>
+            </properties>
+        </profile>
+        <profile>
+            <id>normal</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <!-- Java heap parameters -->
+                <maxheap>16384m</maxheap>
+                <minheap>4096m</minheap>
+            </properties>
+        </profile>
     </profiles>
 </project>

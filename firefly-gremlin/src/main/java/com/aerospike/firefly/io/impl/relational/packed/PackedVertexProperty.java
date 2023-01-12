@@ -122,7 +122,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     @Override
     public void remove() {
         try {
-            LOG.info("Removing vertex property {}", id);
+            LOG.debug("Removing vertex property {}", id);
             if (vertex == null) {
                 graph.readVertex(vertexId).removeVertexProperty(label, id);
             } else {

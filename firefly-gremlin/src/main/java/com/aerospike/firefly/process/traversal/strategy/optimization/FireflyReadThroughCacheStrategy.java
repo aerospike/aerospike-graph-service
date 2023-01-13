@@ -5,20 +5,13 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.impl.ReadThroughCache;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NoneStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.ProfileSideEffectStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectCapStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.RequirementsStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,12 +20,16 @@ import java.util.UUID;
  * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyReadThroughCacheStrategy
-        extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
-        implements TraversalStrategy.ProviderOptimizationStrategy {
-    private static final FireflyReadThroughCacheStrategy INSTANCE = new FireflyReadThroughCacheStrategy();
+public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
+    /**
+     * Default constructor for FireflyReadThroughCacheStrategy.
+     */
+    public FireflyReadThroughCacheStrategy() {
+    }
 
-    private FireflyReadThroughCacheStrategy() {
+    @Override
+    protected String getStrategyEnabledKey() {
+        return ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE;
     }
 
     @Override
@@ -47,7 +44,7 @@ public class FireflyReadThroughCacheStrategy
         if (!(traversal.getStartStep() instanceof GraphStep)) {
             return;
         }
-        final AerospikeConnection db = ((FireflyGraph)(graphOptional.get())).getBaseGraph();
+        final AerospikeConnection db = ((FireflyGraph) (graphOptional.get())).getBaseGraph();
         final UUID uuid = UUID.randomUUID();
 
         // Now that we know this is a supported traversal.
@@ -66,9 +63,5 @@ public class FireflyReadThroughCacheStrategy
             // No profile step, add to end.
             traversal.addStep(gcStep);
         }
-    }
-
-    public static FireflyReadThroughCacheStrategy instance() {
-        return INSTANCE;
     }
 }

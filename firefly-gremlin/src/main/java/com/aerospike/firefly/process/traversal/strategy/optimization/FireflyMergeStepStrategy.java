@@ -1,21 +1,19 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.FireflyMergeVertexStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyMergeStepStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
-        implements TraversalStrategy.ProviderOptimizationStrategy {
-
-    private static final FireflyMergeStepStrategy INSTANCE = new FireflyMergeStepStrategy();
-
-    private FireflyMergeStepStrategy() {
+public class FireflyMergeStepStrategy extends FireflyStrategyBase {
+    /**
+     * Default constructor for FireflyMergeStepStrategy.
+     */
+    public FireflyMergeStepStrategy() {
     }
 
     @Override
@@ -28,9 +26,5 @@ public class FireflyMergeStepStrategy extends AbstractTraversalStrategy<Traversa
             TraversalHelper.replaceStep(originalMergeVertexStep, fireflyMergeVertexStep, traversal);
         }
 
-    }
-
-    public static FireflyMergeStepStrategy instance() {
-        return INSTANCE;
     }
 }

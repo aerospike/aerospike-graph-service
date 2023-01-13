@@ -3,13 +3,13 @@ package com.aerospike.firefly.process.traversal.strategy.optimization;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyDropStep;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.DropStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NoneStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,12 +19,18 @@ import java.util.List;
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
-        implements TraversalStrategy.ProviderOptimizationStrategy {
+public class FireflyGraphDropStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphDropStrategy.class);
-    private static final FireflyGraphDropStrategy INSTANCE = new FireflyGraphDropStrategy();
 
-    private FireflyGraphDropStrategy() {
+    /**
+     * Default constructor for FireflyGraphDropStrategy.
+     */
+    public FireflyGraphDropStrategy() {
+    }
+
+    @Override
+    protected String getStrategyEnabledKey() {
+        return ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
     }
 
     /**
@@ -102,9 +108,5 @@ public class FireflyGraphDropStrategy extends AbstractTraversalStrategy<Traversa
             TraversalHelper.removeAllSteps(traversal);
             traversal.addStep(new FireflyDropStep(traversal));
         }
-    }
-
-    public static FireflyGraphDropStrategy instance() {
-        return INSTANCE;
     }
 }

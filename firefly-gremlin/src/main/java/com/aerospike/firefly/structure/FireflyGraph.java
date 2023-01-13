@@ -7,17 +7,11 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyPrefetchStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
@@ -128,8 +122,8 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
     public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
-    private AtomicBoolean closed = new AtomicBoolean(false);
-    private Timer fireflyCardinalityMetadataTask = new Timer(true);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
     private final Configuration configuration;
     private final FireflyGraphVariables variables;
@@ -141,13 +135,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
 
     static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyMergeStepStrategy.instance())
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(FireflyVertexEdgeLocalCountStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create()));
+        synchronized (TraversalStrategies.GlobalCache.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .addStrategies(new FireflyContentionHandlingStrategy())
+                            .addStrategies(OptionsStrategy.build().create()));
+        }
     }
 
     protected FireflyGraph(final Configuration conf) {
@@ -182,49 +175,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             final TimerTask timerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
             fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.METADATA_UPDATE_FREQUENCY);
 
-        }
-
-        synchronized (FireflyGraph.class) {
-            final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
-                //@todo
-                // this can be supported by querying all nodes and dividing by replication factor,
-                // but since there is another known issue with Info lagging, and querying all nodes would produce results
-                // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-                if (db.getClient().getNodes().length > 1)
-                    throw new RuntimeException("fast count not supported for multi node");
-                strategies.addStrategies(FireflyGraphCountStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyGraphCountStrategy.class);
-            }
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE, configuration))) {
-                strategies.addStrategies(FireflyReadThroughCacheStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyReadThroughCacheStrategy.class);
-            }
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY, configuration))) {
-                if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE, configuration))) {
-                    throw new IllegalArgumentException("Error, prefetch strategy is enabled (ENABLE_PREFETCH_STRATEGY) but read through cache is not " +
-                            "enabled (ENABLE_READ_THROUGH_CACHE). Prefetch strategy requires read through cache.");
-                }
-                strategies.addStrategies(FireflyPrefetchStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyPrefetchStrategy.class);
-            }
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyGraphDropStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyGraphDropStrategy.class);
-            }
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
-            }
         }
     }
 
@@ -422,7 +372,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
-        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && ((String) vertexIdsOrVertices[0]).equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
             return IteratorUtils.of(new FireflyMetadataVertex(this));
         }
         // Convert vertexIds to longs

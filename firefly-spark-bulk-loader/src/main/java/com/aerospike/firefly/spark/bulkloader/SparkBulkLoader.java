@@ -75,6 +75,7 @@ import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID;
@@ -196,12 +197,13 @@ public class SparkBulkLoader {
                             Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                     final boolean ignoreElementCreationFailed =
                             Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+                    final String nullValue = getOrDefault(NULL_VALUE, localConfig);
 
                     while (rowIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                         try {
                             final SparkFireflyVertex sparkVertex =
-                                    SparkFireflyVertex.createVertex(row, ignoreFailedProperties);
+                                    SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
                             int tryCount = 0;
                             boolean succeeded = false;
                             while (!succeeded) {
@@ -361,6 +363,7 @@ public class SparkBulkLoader {
                 final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
                 final boolean ignoreElementCreationFailed =
                         Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
 
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
@@ -371,7 +374,7 @@ public class SparkBulkLoader {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     try {
                         final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
-                                useProvidedId, keepProvidedId, providedIdPropertyName, graph);
+                                useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
                         final FireflyId edgeId = sparkEdge.getFireflyId();
                         final long inVertexId = sparkEdge.getInVertexId();
                         final long outVertexId = sparkEdge.getOutVertexId();

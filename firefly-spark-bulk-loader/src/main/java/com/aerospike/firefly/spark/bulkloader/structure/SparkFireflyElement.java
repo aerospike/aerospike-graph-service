@@ -1,5 +1,6 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
+import com.aerospike.firefly.spark.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
@@ -38,11 +39,14 @@ public abstract class SparkFireflyElement implements Serializable {
         return this.properties;
     }
 
-    protected static Map.Entry<String, Object> generateProperty(final String header, final String value) {
+    protected static Map.Entry<String, Object> generateProperty(final String header,
+                                                                final String value,
+                                                                final String nullValue) {
         // TODO: Cardinality support?
+        final PropertyValueParser parser = new PropertyValueParser(nullValue);
         final int typeSpecifierIndex = header.lastIndexOf(":");
         if (typeSpecifierIndex == -1) {
-            return new AbstractMap.SimpleEntry<>(header, value);
+            return new AbstractMap.SimpleEntry<>(header, parser.parseString(value));
         } else {
             String propertyName = header.substring(0, typeSpecifierIndex);
             String type = header.substring(typeSpecifierIndex + 1);
@@ -56,48 +60,48 @@ public abstract class SparkFireflyElement implements Serializable {
                 case "long":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(Long::parseLong).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseLong).collect(Collectors.toList());
                     } else {
-                        propertyValue = Long.parseLong(value);
+                        propertyValue = parser.parseLong(value);
                     }
                     break;
                 case "int":
                 case "integer":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(Integer::parseInt).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseInt).collect(Collectors.toList());
                     } else {
-                        propertyValue = Integer.parseInt(value);
+                        propertyValue = parser.parseInt(value);
                     }
                     break;
                 case "double":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(Double::parseDouble).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseDouble).collect(Collectors.toList());
                     } else {
-                        propertyValue = Double.parseDouble(value);
+                        propertyValue = parser.parseDouble(value);
                     }
                     break;
                 case "bool":
                 case "boolean":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).map(Boolean::parseBoolean).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseBoolean).collect(Collectors.toList());
                     } else {
-                        propertyValue = Boolean.parseBoolean(value);
+                        propertyValue = parser.parseBoolean(value);
                     }
                     break;
                 case "string":
                     if (isList) {
                         final String[] values = value.split(";");
-                        propertyValue = Arrays.stream(values).collect(Collectors.toList());
+                        propertyValue = Arrays.stream(values).map(parser::parseString).collect(Collectors.toList());
                     } else {
-                        propertyValue = value;
+                        propertyValue = parser.parseString(value);
                     }
                     break;
                 default:
                     propertyName = header;
-                    propertyValue = value;
+                    propertyValue = parser.parseString(value);
             }
             return new AbstractMap.SimpleEntry<>(propertyName, propertyValue);
         }

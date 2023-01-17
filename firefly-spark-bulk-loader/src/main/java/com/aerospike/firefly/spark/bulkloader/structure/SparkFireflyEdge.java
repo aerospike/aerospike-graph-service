@@ -33,6 +33,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                                               final boolean useProvidedId,
                                               final boolean keepProvidedId,
                                               final String providedIdPropertyName,
+                                              final String nullValue,
                                               final FireflyGraph graph) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
@@ -61,7 +62,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header));
+                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
@@ -82,7 +83,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         } else {
             edgeId = graph.edgeIdManager.getNextId(graph);
             if (keepProvidedId && id != null) {
-                properties.add(generateProperty(providedIdPropertyName, id));
+                properties.add(generateProperty(providedIdPropertyName, id, nullValue));
             }
         }
         return new SparkFireflyEdge(edgeId, label, Long.parseLong(fromVertexId), Long.parseLong(toVertexId),

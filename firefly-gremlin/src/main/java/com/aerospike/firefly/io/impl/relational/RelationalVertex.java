@@ -719,7 +719,13 @@ public abstract class RelationalVertex extends FireflyVertex {
                         Value.get(vertexPropertyValueMap, MapOrder.KEY_ORDERED));
                 vertexPropertyTypeHintMap = new TreeMap<>();
                 for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
-                    vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
+                    final Long supportedType;
+                    if (entry.getValue() == null) {
+                        supportedType = null;
+                    } else {
+                        supportedType = db.getSupportedType(entry.getValue().getClass());
+                    }
+                    vertexPropertyTypeHintMap.put(entry.getKey(), supportedType);
                 }
                 final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT,
                         Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));

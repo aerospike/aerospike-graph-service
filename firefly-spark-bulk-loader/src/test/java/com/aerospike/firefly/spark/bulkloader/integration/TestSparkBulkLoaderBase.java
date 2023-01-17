@@ -168,8 +168,13 @@ public abstract class TestSparkBulkLoaderBase {
         // Data set has a single edge without a label - check that it correctly inserted with default edge label value
         final List<Edge> edges = g.E().hasLabel("edge").toList();
         Assert.assertEquals(1, edges.size());
+        final Edge e = edges.get(0);
         // Check that properties on edges are loaded properly
-        Assert.assertEquals("hello world", edges.get(0).value("testProperty"));
+        Assert.assertEquals("hello world", e.value("defaultText"));
+        Assert.assertEquals("17", e.value("defaultNumber"));
+        Assert.assertEquals("true", e.value("defaultBoolean"));
+        // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
+        Assert.assertEquals("42", e.value("invalidType:invalid[]"));
     }
 
     private void testVertices() {

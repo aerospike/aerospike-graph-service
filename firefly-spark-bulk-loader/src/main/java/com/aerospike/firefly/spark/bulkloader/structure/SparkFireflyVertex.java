@@ -21,7 +21,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     }
 
     public static SparkFireflyVertex createVertex(final GenericRowWithSchema row,
-                                                  final boolean ignoreParseFailedProperties) {
+                                                  final boolean ignoreParseFailedProperties,
+                                                  final String nullValue) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
         String label = null;
@@ -39,7 +40,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header));
+                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);

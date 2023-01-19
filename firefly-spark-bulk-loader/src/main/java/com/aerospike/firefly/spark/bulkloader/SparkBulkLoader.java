@@ -43,8 +43,13 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.storage.StorageLevel;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -179,25 +184,26 @@ public class SparkBulkLoader {
             edgeDatasets.add(edgeData);
         }
 
+        final String finalS3BucketName = s3BucketName;
+        final String finalConfigPath = configPath;
+
         // Vertices
         for (final Dataset<Row> vertexData : vertexDatasets) {
-            final String finalS3BucketName = s3BucketName;
-            final String finalConfigPath = configPath;
-
-            vertexData.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
-                LOGGER.warn("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
+            vertexData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+                LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
                 final ArrayList<Long> list = new ArrayList<>();
                 Configuration localConfig = CONFIG;
                 if (!ENV.equals("local")) {
                     S3_CLIENT = AmazonS3ClientBuilder.standard().build();
                     localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
                 }
+                final boolean ignoreFailedProperties =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+                final boolean ignoreElementCreationFailed =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+
                 try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
-                    final boolean ignoreFailedProperties =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-                    final boolean ignoreElementCreationFailed =
-                            Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-                    final String nullValue = getOrDefault(NULL_VALUE, localConfig);
 
                     while (rowIterator.hasNext()) {
                         final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -238,8 +244,81 @@ public class SparkBulkLoader {
                         }
                     }
                 }
-                return list.iterator();
-            }, Encoders.LONG()).write().format("noop").mode(SaveMode.Append).save();
+                return Collections.singletonList(1).iterator();
+            }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+        }
+
+        // Verify vertices.
+        for (final Dataset<Row> vertexDataSample : sampledVertexDatasets) {
+            vertexDataSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+                Configuration localConfig = CONFIG;
+                if (!ENV.equals("local")) {
+                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                }
+                final boolean ignoreFailedProperties =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+                final boolean ignoreElementCreationFailed =
+                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+
+                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+                    final GraphTraversalSource g = graph.traversal();
+                    while (rowIterator.hasNext()) {
+                        final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                        final SparkFireflyVertex sparkVertex =
+                                SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
+
+                        final long id = sparkVertex.getId();
+                        final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
+                        Vertex v = vertexById.next();
+                        if (vertexById.hasNext()) {
+                            throw new AssertionError("Validation failed: More than one vertex with ID " + id
+                                    + " exists");
+                        }
+                        if (!v.label().equals(sparkVertex.getLabel())) {
+                            throw new AssertionError("Validation failed: Label did not match for vertex with ID " + id);
+                        }
+                        final List<Map.Entry<String, Object>> sparkVertexProperties = sparkVertex.getProperties();
+                        for (final Map.Entry<String, Object> property : sparkVertexProperties) {
+                            try {
+                                // TODO: Handle null (when supported in Firefly) and cardinality.
+                                boolean isList = false;
+                                if (property.getValue() instanceof List<?>) {
+                                    isList = true;
+                                }
+                                if (isList) {
+                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
+                                    propertyValues.remove(null);
+                                    for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
+                                        propertyValues.remove(vertexPropertyValue);
+                                    }
+                                    if (!propertyValues.isEmpty()) {
+                                        throw new AssertionError("Validation failed: Property key "
+                                                + property.getKey() + " on vertex with ID " + id
+                                                + " did not match value " + property.getValue());
+                                    }
+                                } else {
+                                    if (property.getValue() != null) {
+                                        final Object vertexPropertyValue = v.value(property.getKey());
+                                        if (!property.getValue().equals(vertexPropertyValue)) {
+                                            throw new AssertionError("Validation failed: Property key "
+                                                    + property.getKey() + " on vertex with ID " + id
+                                                    + " did not match value " + property.getValue());
+                                        }
+                                    }
+                                }
+                            } catch (final AssertionError ae) {
+                                throw ae;
+                            } catch (final Exception e) {
+                                throw new AssertionError("Validation failed: Property key " + property.getKey() +
+                                        " on vertex with ID " + id + " did not match value " + property.getValue(), e);
+                            }
+                        }
+                    }
+                }
+                return Collections.singletonList(1).iterator();
+            }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         }
 
         // Edges
@@ -255,8 +334,6 @@ public class SparkBulkLoader {
                 edgeDatasetsSample = edgeDatasetsSample.unionByName(edgeData.sample(sampleFraction), true).distinct();
         }
 
-        final String finalS3BucketName = s3BucketName;
-        final String finalConfigPath = configPath;
         // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
         final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
 
@@ -351,20 +428,17 @@ public class SparkBulkLoader {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
                 localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
             }
-            final FireflyGraph graph;
-            synchronized (FireflyGraph.class) {
-                graph = FireflyGraph.open(localConfig);
-            } {
-                final boolean ignoreFailedProperties =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-                final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
-                final boolean keepProvidedId =
-                        Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-                final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
-                final boolean ignoreElementCreationFailed =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+            final boolean ignoreFailedProperties =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+            final boolean keepProvidedId =
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+            final boolean ignoreElementCreationFailed =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
 
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
@@ -431,6 +505,81 @@ public class SparkBulkLoader {
 
         // Unpersist the dataframe to free up the memory.
         persistentEdgeData.unpersist();
+
+        // Verify edges.
+        edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+            Configuration localConfig = CONFIG;
+            if (!ENV.equals("local")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+            }
+            final boolean ignoreFailedProperties =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+            final boolean keepProvidedId =
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+            final boolean ignoreElementCreationFailed =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+                final GraphTraversalSource g = graph.traversal();
+                while (rowIterator.hasNext()) {
+                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
+                            useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
+
+                    final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
+                            .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
+                    final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
+
+                    // Multiple edges can exist that match the label between the FROM and TO vertices.
+                    // Assume if one is found with all the properties we've succeeded.
+                    boolean isEdgeFound = false;
+
+                    edgeCheck:
+                    while (edgeTraversal.hasNext() && !isEdgeFound) {
+                        final Edge edge = edgeTraversal.next();
+
+                        for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
+                            try {
+                                // TODO: Handle null (when supported in Firefly) and cardinality.
+                                boolean isList = property.getValue() instanceof List<?>;
+                                if (isList) {
+                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
+                                    propertyValues.remove(null);
+                                    for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
+                                        propertyValues.remove(propertyValue);
+                                    }
+                                    if (!propertyValues.isEmpty()) {
+                                        continue edgeCheck;
+                                    }
+                                } else {
+                                    if (property.getValue() != null) {
+                                        final Object propertyValue = edge.value(property.getKey());
+                                        if (!property.getValue().equals(propertyValue)) {
+                                            continue edgeCheck;
+                                        }
+                                    }
+                                }
+                            } catch (final Exception e) {
+                                continue edgeCheck;
+                            }
+                        }
+
+                        isEdgeFound = true;
+                    }
+
+                    if (!isEdgeFound) {
+                        throw new AssertionError("Validation failed: Could not find edge with label "
+                                + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
+                                + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
+                    }
+                }
+            }
+            return Collections.singletonList(1).iterator();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+
         spark.stop();
     }
 

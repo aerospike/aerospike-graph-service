@@ -29,6 +29,12 @@
             <artifactId>opencsv</artifactId>
             <version>5.7.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.aerospike</groupId>
+            <artifactId>firefly-gremlin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>

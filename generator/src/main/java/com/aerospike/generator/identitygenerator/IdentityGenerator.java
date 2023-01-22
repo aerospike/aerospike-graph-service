@@ -1,15 +1,33 @@
 package com.aerospike.generator.identitygenerator;
 
-import org.apache.tinkerpop.gremlin.structure.*;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import com.opencsv.CSVWriter;
+import com.opencsv.bean.StatefulBeanToCsv;
+import com.opencsv.bean.StatefulBeanToCsvBuilder;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.io.*;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * IdentityGenerator is Runnable and multiple independent threads/workers can be spawned each executing their own IdentityGenerator instance.
@@ -31,7 +49,7 @@ import java.io.*;
  * </code></pre>
  *
  */
-class IdentityGenerator implements Runnable {
+public class IdentityGenerator implements Runnable {
 
     // IDENTITY GRAPH SCHEMA //
     //////// PERSON VERTEX ////////
@@ -75,142 +93,246 @@ class IdentityGenerator implements Runnable {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    private List<String> verticesHeaders = Arrays.asList("~id", "~label");
+    private HashSet<String> edgesHeaders = new HashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
+    private long NO_OF_ROWS = 5;
+    private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Graph graph;
     private final Builder builder;
-
-    private final CsvWriter csvWriter;
     private final Random random = new Random();
-    private final Logger LOG;
+    private Logger LOG;
+    private final IdentityGenerator.CsvWriter csvWriter;
 
-    private final PrintWriter personVertexWriter;
-    private final PrintWriter accountVertexWriter;
-    private final PrintWriter householdVertexWriter;
-    private final PrintWriter deviceVertexWriter;
+    private final StatefulBeanToCsv personVertexWriter;
+    private final StatefulBeanToCsv accountVertexWriter;
+    private final StatefulBeanToCsv householdVertexWriter;
+    private final StatefulBeanToCsv deviceVertexWriter;
 
-    private final PrintWriter holdsEgdeWriter;
-    private final PrintWriter partOfEdgeWriter;
-    private final PrintWriter ownsEdgeWriter;
-    private final PrintWriter subaccountEdgeWriter;
+    private final StatefulBeanToCsv holdsEgdeWriter;
+    private final StatefulBeanToCsv partOfEdgeWriter;
+    private final StatefulBeanToCsv ownsEdgeWriter;
+    private final StatefulBeanToCsv subaccountEdgeWriter;
 
-    IdentityGenerator(final Builder builder) {
+    private Future future;
+
+    private IdentityGenerator(final Builder builder) {
         this.builder = builder;
         this.graph = builder.graph;
-        this.csvWriter = new CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
         this.LOG = builder.logger;
-
         try {
-            personVertexWriter = this.csvWriter.getPrintWriter("vertex/Person", "person.csv");
-            accountVertexWriter = this.csvWriter.getPrintWriter("vertex/Account", "account.csv");
-            householdVertexWriter = this.csvWriter.getPrintWriter("vertex/Household", "household.csv");
-            deviceVertexWriter = this.csvWriter.getPrintWriter("vertex/Device", "device.csv");
+            personVertexWriter = this.csvWriter.getBeanWriter("vertex/Person", "person.csv");
+            accountVertexWriter = this.csvWriter.getBeanWriter("vertex/Account", "account.csv");
+            householdVertexWriter = this.csvWriter.getBeanWriter("vertex/Household", "household.csv");
+            deviceVertexWriter = this.csvWriter.getBeanWriter("vertex/Device", "device.csv");
 
-            holdsEgdeWriter = this.csvWriter.getPrintWriter("edges/Holds", "holds.csv");
-            partOfEdgeWriter = this.csvWriter.getPrintWriter("edges/PartOf", "partof.csv");
-            ownsEdgeWriter = this.csvWriter.getPrintWriter("edges/Owns", "owns.csv");
-            subaccountEdgeWriter = this.csvWriter.getPrintWriter("edges/SubAccount", "subaccount.csv");
-        } catch (java.io.FileNotFoundException e) {
+            holdsEgdeWriter = this.csvWriter.getBeanWriter("edges/Holds", "holds.csv");
+            partOfEdgeWriter = this.csvWriter.getBeanWriter("edges/PartOf", "partof.csv");
+            ownsEdgeWriter = this.csvWriter.getBeanWriter("edges/Owns", "owns.csv");
+            subaccountEdgeWriter = this.csvWriter.getBeanWriter("edges/SubAccount", "subaccount.csv");
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+
+    /**
+     * The method evaluated by the thread.
+     */
     @Override
     public void run() {
-        LOG.info("Generating subgraph for worker %s: %s", this.builder.id, this.builder);
-        for (int i = 0; i < builder.numberOfHouseholds; i++) {
-            final Vertex household = this.createHousehold();
-            final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, 2); // +/- 2 from the mean
-            final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, 1);
-            final List<Vertex> accounts = new ArrayList<>();
-            for (int j = 0; j < numberOfAccounts; j++) {
-                final Vertex account = this.createAccount();
-                if (accounts.size() > 0) {
-                    final Vertex rootAccount = accounts.get(this.random.nextInt(accounts.size() - 1));
-                    this.createSubAccount(rootAccount, account);
+        LOG.info("Generating subgraph for worker " + this.builder.id + " " + this.builder);
+        try {
+            for (int i = 0; i < builder.numberOfHouseholds; i++) {
+                final Vertex household;
+                household = this.createHousehold("vertex/Household", "household");
+                final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, 2); // +/- 2 from the mean
+                final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, 1);
+                final List<Vertex> accounts = new ArrayList<>();
+                for (int j = 0; j < numberOfAccounts; j++) {
+                    final Vertex account = this.createAccount("vertex/Account", "account");
+                    if (accounts.size() > 1) {
+                        final Vertex rootAccount = accounts.get(this.random.nextInt(accounts.size() - 1));
+                        this.createSubAccount(rootAccount, account, "edges/SubAccount", "subaccount");
+                    }
+                    accounts.add(account);
                 }
-                accounts.add(account);
-            }
-            for (int j = 0; j < numberOfPeople; j++) {
-                final Vertex person = this.createPerson();
-                if (accounts.size() > 0) this.createHolds(person, accounts.remove(0));
-                this.createPartOf(person, household);
-                final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, 2);
-                for (int k = 0; k < numberOfDevices; k++) {
-                    final Vertex device = this.createDevice();
-                    this.createOwns(person, device);
+                for (int j = 0; j < numberOfPeople; j++) {
+                    final Vertex person = this.createPerson("vertex/Person", "person");
+                    if (accounts.size() > 0) this.createHolds(person, accounts.remove(0), "edges/Holds", "holds");
+                    this.createPartOf(person, household, "edges/PartOf", "partof");
+                    final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, 2);
+                    for (int k = 0; k < numberOfDevices; k++) {
+                        final Vertex device = this.createDevice("vertex/Device", "device");
+                        this.createOwns(person, device, "edges/Owns", "owns");
+                    }
                 }
             }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
+    }
+
+    public void setFuture(Future future) {
+        this.future = future;
+    }
+
+    public Future getFuture() {
+        return future;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static String vertexString(final Vertex vertex) {
-        return vertex.label() + IteratorUtils.list(vertex.properties());
-    }
-
-    public Edge createSubAccount(final Vertex account, final Vertex subAccount) {
-        final Edge edge = this.csvWriter.write_csv(account.addEdge(SUB_ACCOUNT, subAccount), subaccountEdgeWriter);  // properties on edges?
+    public Edge createSubAccount(final Vertex account, final Vertex subAccount, String dir, String fileName) {
+        final Edge edge = account.addEdge(SUB_ACCOUNT, subAccount);  // properties on edges?
+        generateAndWriteEdgeData(account, subAccount, edge, dir, fileName);
         LOG.debug("Created %s", edge);
         return edge;
     }
 
-    public Edge createHolds(final Vertex person, final Vertex account) {
-        final Edge edge = this.csvWriter.write_csv(person.addEdge(HOLDS, account), holdsEgdeWriter);  // properties on edges?
+    public Edge createHolds(final Vertex person, final Vertex account, String dir, String fileName) {
+        final Edge edge = person.addEdge(HOLDS, account);  // properties on edges?
+        generateAndWriteEdgeData(person, account, edge, dir, fileName);
         LOG.debug("Created %s", edge);
         return edge;
     }
 
-    public Edge createOwns(final Vertex person, final Vertex device) {
-        final Edge edge = this.csvWriter.write_csv(person.addEdge(OWNS, device), ownsEdgeWriter);  // properties on edges?
+    public Edge createOwns(final Vertex person, final Vertex device, String dir, String fileName) {
+        final Edge edge = person.addEdge(OWNS, device);  // properties on edges?
+        generateAndWriteEdgeData(person, device, edge, dir, fileName);
         LOG.debug("Created %s", edge);
         return edge;
     }
 
-    public Edge createPartOf(final Vertex person, final Vertex household) {
-        final Edge edge = this.csvWriter.write_csv(person.addEdge(PART_OF, household), partOfEdgeWriter);  // properties on edges?
-        LOG.debug("Created %s", edge);
-        return edge;
+    public Edge createPartOf(final Vertex person, final Vertex household, String dir, String fileName) throws IOException {
+        final Edge partOf = person.addEdge(PART_OF, household);
+        generateAndWriteEdgeData(person, household, partOf, dir, fileName);
+        return partOf;
     }
 
-    public Vertex createHousehold() {
-        final Vertex household = this.csvWriter.write_csv(this.graph.addVertex(
+    public Vertex createHousehold(String dir, String fileName) throws IOException {
+        final Vertex household = this.graph.addVertex(
                 T.label, HOUSEHOLD,
                 STREET, this.createStreet(),
                 CITY, this.createName(5),
                 STATE, this.createName(2, 0),
-                ZIPCODE, this.createNumber(5)), householdVertexWriter);
-        LOG.debug("Created %s", vertexString(household));
+                ZIPCODE, this.createNumber(5));
+        generateAndWriteVertexData(household, dir, fileName);
         return household;
     }
 
-    public Vertex createAccount() {
-        final Vertex account = this.csvWriter.write_csv(this.graph.addVertex(
+    public Vertex createAccount(String dir, String fileName) throws IOException {
+        final Vertex account = this.graph.addVertex(
                 T.label, ACCOUNT,
-                NUMBER, UUID.randomUUID().toString()), accountVertexWriter);
-        LOG.debug("Created %s", vertexString(account));
+                NUMBER, UUID.randomUUID().toString());
+        generateAndWriteVertexData(account, dir,fileName);
         return account;
     }
 
-    public Vertex createPerson() {
-        final Vertex person = this.csvWriter.write_csv(this.graph.addVertex(
+    public synchronized void generateAndWriteVertexData(Vertex vertex, String dir, String fileName){
+        final MutablePair<String[], String[]> pair = generateVertexData(vertex);
+        generateAndWriteData(pair, dir, fileName);
+    }
+
+    public synchronized void generateAndWriteEdgeData(Vertex from, Vertex to, Edge edge, String dir, String fileName){
+        final MutablePair<String[], String[]> pair = generateEdgeData(from, to, edge);
+        generateAndWriteData(pair, dir, fileName);
+    }
+
+    public synchronized void generateAndWriteData(MutablePair<String[], String[]> pair, String dir, String fileName) {
+        int fileCount = 0;
+        if (graphMap.containsKey(fileName))
+            fileCount = (int)graphMap.get(fileName).get("fileCount");
+        Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
+        if ( countOfRecords == NO_OF_ROWS) {
+            this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
+            graphMap.clear();
+            populateGraphMap(fileName, pair, fileCount + 1);
+        }
+    }
+
+    public Vertex createPerson(String dir, String fileName) throws IOException {
+        final Vertex person = this.graph.addVertex(
                 T.label, PERSON,
                 FIRST_NAME, this.createName(1, 0).toUpperCase() + this.createName(5),
                 LAST_NAME, this.createName(1, 0).toUpperCase() + this.createName(10),
                 SSN, createNumber(9),
                 EMAIL, createEmail(10),
-                PHONE, createNumber(10)), personVertexWriter);
-        LOG.debug("Created %s", vertexString(person));
+                PHONE, createNumber(10));
+        generateAndWriteVertexData(person, dir, fileName);
         return person;
     }
 
-    public Vertex createDevice() {
-        final Vertex device = this.csvWriter.write_csv(this.graph.addVertex(
+    public Vertex createDevice(String dir, String fileName) {
+        final Vertex device = this.graph.addVertex(
                 T.label, DEVICE,
                 MAC_ADDRESS, UUID.randomUUID().toString(),
                 MAKE, MAKES.get(this.random.nextInt(MAKES.size() - 1)),
-                MODEL, createName(10)), deviceVertexWriter);
-        LOG.debug("Created %s", vertexString(device));
+                MODEL, createName(10));
+        generateAndWriteVertexData(device, dir, fileName);
         return device;
+    }
+
+    public synchronized Integer populateGraphMap(String fileName, MutablePair<String[], String[]> pair, int fileCount) {
+        HashMap<String, Object> objectPropertyMap;
+        if (!graphMap.containsKey(fileName)) {
+            objectPropertyMap = new HashMap<>();
+            //update file fileCount to be appended to the output file
+            objectPropertyMap.put("fileCount", fileCount);
+            HashSet<String[]> schemaSet = new HashSet<>();
+            schemaSet.add(pair.left);
+            objectPropertyMap.put("schema", schemaSet);
+            objectPropertyMap.put("data", new ArrayList<>());
+            graphMap.put(fileName, objectPropertyMap);
+        }
+        else objectPropertyMap = graphMap.get(fileName);
+
+        ArrayList<String[]> dataList = (ArrayList<String[]>)objectPropertyMap.get("data");
+        dataList.add(pair.right);
+        objectPropertyMap.put("data", dataList);
+        graphMap.put(fileName, objectPropertyMap);
+        return dataList.size();
+    }
+    public synchronized MutablePair<String[], String[]> generateVertexData(Vertex vertex) {
+        ArrayList<String> vertexheaders = (ArrayList<String>) verticesHeaders.stream().collect(Collectors.toList());
+        vertexheaders.addAll(vertex.keys());
+        ArrayList<String> data =new ArrayList<>();
+        data.add(vertex.id().toString());
+        data.add(vertex.label());
+
+        for (String key : vertex.keys())
+            data.add(vertex.value(key).toString());
+
+        return new MutablePair<>(Arrays.copyOf(vertexheaders.toArray(), vertexheaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
+    }
+
+    public synchronized MutablePair<String[], String[]> generateEdgeData(Vertex from, Vertex to, Edge edge) {
+        edgesHeaders.addAll(edge.keys());
+        ArrayList<String> data =new ArrayList<>();
+        data.add(edge.id().toString());
+        data.add(edge.label());
+        data.add(from.id().toString());
+        data.add(to.id().toString());
+
+        for (String key : edge.keys())
+            data.add(edge.value(key).toString());
+
+        return new MutablePair<>(Arrays.copyOf(edgesHeaders.toArray(), edgesHeaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
+    }
+
+    /**
+     * For future use when needing to add arbitrary data to 'bulk up' the data set artificially
+     */
+    public <T extends Element> T createRandomProperty(final T element, final String key, final Class type) {
+        if (type.equals(Long.class))
+            element.property(key, Math.abs(this.random.nextLong()));
+        else if (type.equals(String.class))
+            element.property(key, this.createName(10));
+        else if (type.equals(Boolean.class))
+            element.property(key, this.random.nextBoolean());
+        else
+            throw new IllegalArgumentException("The only types supported are String, Long, and Boolean: " + type.getSimpleName());
+        return element;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -251,43 +373,38 @@ class IdentityGenerator implements Runnable {
         return Math.round(mean + this.random.nextGaussian() * variance);
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static class CsvWriter {
         private String path;
-        private int maxOps;
-        private int counter = 0;
 
-        public CsvWriter(String path, final Builder builder) {
+        public CsvWriter(String path, final IdentityGenerator.Builder builder) {
             this.path = path;
-            this.maxOps = builder.ops;
         }
 
-        public java.io.PrintWriter getPrintWriter(String dir, String fileName) throws java.io.FileNotFoundException {
+        public StatefulBeanToCsv getBeanWriter(String dir, String fileName) throws IOException {
             java.io.File file = new java.io.File(path + "/" + dir + "/" + fileName);
             file.getParentFile().mkdirs();
-            java.io.PrintWriter writer1 = new java.io.PrintWriter(file);
-            PrintWriter writer = new PrintWriter(writer1);
-            return writer;
+            try (
+
+                    Writer writer = Files.newBufferedWriter(Paths.get(path + "/" + dir + "/" + fileName), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            ) {
+                return new StatefulBeanToCsvBuilder(writer).withSeparator(CSVWriter.DEFAULT_SEPARATOR)
+                        .withQuotechar(CSVWriter.NO_QUOTE_CHARACTER)
+                        .build();
+            }
         }
 
-        public <T> T write_csv(final T element, final PrintWriter writer) {
-//            java.io.File pathFile = new java.io.File(path);
-//            pathFile.mkdirs();
-//            java.io.File returnFile = new java.io.File(path + fileName);
-//            try {
-//
-//                com.opencsv.CSVWriter writer = new com.opencsv.CSVWriter(new java.io.FileWriter(returnFile));
-//                Object t = (Object)element;
-//                String s = t.toString();
-//                ArrayList<String[]> list = new java.util.ArrayList<>();
-//                list.add(new String[]{s});
-//                writer.writeAll(list);
-//                writer.flush();
-//                writer.close();
-            writer.println(element.toString());
-            return element;
+        public void writeDataMapToCSV(HashMap<String, HashMap<String,Object>> map, String dir, String fileName, int count) {
+            try (CSVWriter writer1 = new CSVWriter(new FileWriter(path + "/" + dir + "/" + fileName + "_" + count + ".csv"),',', CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END)) {
+                writer1.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
+                writer1.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -300,7 +417,7 @@ class IdentityGenerator implements Runnable {
         protected int devicesPerPerson;
         protected int accountsPerHousehold;
         protected String id = UUID.randomUUID().toString();
-        protected int ops = 10;
+        protected int ops = 1000;
 
         public static Builder create() {
             return new Builder();

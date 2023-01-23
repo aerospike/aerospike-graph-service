@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -87,7 +88,7 @@ public class IdentityGenerator implements Runnable {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
-    private HashSet<String> edgesHeaders = new HashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
+    private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
     private long NO_OF_ROWS = 500;
     private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Graph graph;
@@ -100,10 +101,9 @@ public class IdentityGenerator implements Runnable {
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
         this.graph = builder.graph;
-        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator1", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("./datageneratoroutput/identitygenerator", builder);
         this.LOG = builder.logger;
     }
-
 
     /**
      * The method evaluated by the thread.

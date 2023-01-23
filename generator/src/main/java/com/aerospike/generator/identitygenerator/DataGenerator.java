@@ -1,6 +1,5 @@
 package com.aerospike.generator.identitygenerator;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.generator.identitygenerator.IdentityGenerator.Builder;
 import org.apache.commons.configuration2.Configuration;
@@ -23,7 +22,7 @@ public class DataGenerator {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             ExecutorService service = Executors.newFixedThreadPool(10);
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(10).accountsPerHousehold(10).peoplePerHousehold(4).devicesPerPerson(3).households(10);
+            builder = builder.opsPerTransaction(20).accountsPerHousehold(20).peoplePerHousehold(20).devicesPerPerson(20).households(20);
             IdentityGenerator ig1 = builder.generate(graph);
             Future future = service.submit(ig1);
             ig1.setFuture(future);

@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.luaj.vm2.ast.Str;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,17 +103,6 @@ public class IdentityGenerator implements Runnable {
     private final Random random = new Random();
     private Logger LOG;
     private final IdentityGenerator.CsvWriter csvWriter;
-
-    private final StatefulBeanToCsv personVertexWriter;
-    private final StatefulBeanToCsv accountVertexWriter;
-    private final StatefulBeanToCsv householdVertexWriter;
-    private final StatefulBeanToCsv deviceVertexWriter;
-
-    private final StatefulBeanToCsv holdsEgdeWriter;
-    private final StatefulBeanToCsv partOfEdgeWriter;
-    private final StatefulBeanToCsv ownsEdgeWriter;
-    private final StatefulBeanToCsv subaccountEdgeWriter;
-
     private Future future;
 
     private IdentityGenerator(final Builder builder) {
@@ -120,19 +110,6 @@ public class IdentityGenerator implements Runnable {
         this.graph = builder.graph;
         this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
         this.LOG = builder.logger;
-        try {
-            personVertexWriter = this.csvWriter.getBeanWriter("vertex/Person", "person.csv");
-            accountVertexWriter = this.csvWriter.getBeanWriter("vertex/Account", "account.csv");
-            householdVertexWriter = this.csvWriter.getBeanWriter("vertex/Household", "household.csv");
-            deviceVertexWriter = this.csvWriter.getBeanWriter("vertex/Device", "device.csv");
-
-            holdsEgdeWriter = this.csvWriter.getBeanWriter("edges/Holds", "holds.csv");
-            partOfEdgeWriter = this.csvWriter.getBeanWriter("edges/PartOf", "partof.csv");
-            ownsEdgeWriter = this.csvWriter.getBeanWriter("edges/Owns", "owns.csv");
-            subaccountEdgeWriter = this.csvWriter.getBeanWriter("edges/SubAccount", "subaccount.csv");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
 
@@ -246,8 +223,14 @@ public class IdentityGenerator implements Runnable {
         Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
         if ( countOfRecords == NO_OF_ROWS) {
             this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
-            graphMap.clear();
-            populateGraphMap(fileName, pair, fileCount + 1);
+            HashMap<String, Object> objectPropertyMap = new HashMap<>();
+            objectPropertyMap.put("fileCount", fileCount);
+            HashSet<String[]> schemaSet = new HashSet<>();
+            schemaSet.add(pair.left);
+            objectPropertyMap.put("schema", schemaSet);
+            objectPropertyMap.put("data", new ArrayList<>());
+            graphMap.put(fileName, objectPropertyMap);
+//            populateGraphMap(fileName, pair, fileCount + 1);
         }
     }
 
@@ -383,20 +366,9 @@ public class IdentityGenerator implements Runnable {
             this.path = path;
         }
 
-        public StatefulBeanToCsv getBeanWriter(String dir, String fileName) throws IOException {
+        public void writeDataMapToCSV(HashMap<String, HashMap<String,Object>> map, String dir, String fileName, int count) {
             java.io.File file = new java.io.File(path + "/" + dir + "/" + fileName);
             file.getParentFile().mkdirs();
-            try (
-
-                    Writer writer = Files.newBufferedWriter(Paths.get(path + "/" + dir + "/" + fileName), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            ) {
-                return new StatefulBeanToCsvBuilder(writer).withSeparator(CSVWriter.DEFAULT_SEPARATOR)
-                        .withQuotechar(CSVWriter.NO_QUOTE_CHARACTER)
-                        .build();
-            }
-        }
-
-        public void writeDataMapToCSV(HashMap<String, HashMap<String,Object>> map, String dir, String fileName, int count) {
             try (CSVWriter writer1 = new CSVWriter(new FileWriter(path + "/" + dir + "/" + fileName + "_" + count + ".csv"),',', CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END)) {
                 writer1.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
                 writer1.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));

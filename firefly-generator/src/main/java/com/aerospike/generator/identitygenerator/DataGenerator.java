@@ -14,8 +14,8 @@ public class DataGenerator {
         try (final Graph graph = TinkerGraph.open()) {
             ExecutorService service = Executors.newFixedThreadPool(200);
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(1000)
-                    .households(200)
+            builder = builder.opsPerTransaction(10000)
+                    .households(50000)
                     .accountsPerHousehold(100)
                     .peoplePerHousehold(10)
                     .devicesPerPerson(5);

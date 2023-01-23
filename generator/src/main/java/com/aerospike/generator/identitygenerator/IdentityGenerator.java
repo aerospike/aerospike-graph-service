@@ -88,7 +88,7 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private HashSet<String> edgesHeaders = new HashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 1000;
+    private long NO_OF_ROWS = 500;
     private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Graph graph;
     private final Builder builder;
@@ -100,7 +100,7 @@ public class IdentityGenerator implements Runnable {
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
         this.graph = builder.graph;
-        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator1", builder);
         this.LOG = builder.logger;
     }
 
@@ -144,10 +144,6 @@ public class IdentityGenerator implements Runnable {
 
     public void setFuture(Future future) {
         this.future = future;
-    }
-
-    public Future getFuture() {
-        return future;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

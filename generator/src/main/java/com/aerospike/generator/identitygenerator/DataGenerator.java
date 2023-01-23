@@ -1,31 +1,23 @@
 package com.aerospike.generator.identitygenerator;
 
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.generator.identitygenerator.IdentityGenerator.Builder;
-import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static com.aerospike.generator.util.BulkLoaderConfigHelper.getConfig;
-
 public class DataGenerator {
-    private static Configuration CONFIG;
     public static void main(String[] args) {
         System.out.println("Main thread is - " + Thread.currentThread().getName());
-        final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
-        final Path path = Path.of(defaultConfigPath);
-        CONFIG = getConfig(path);
-        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            ExecutorService service = Executors.newFixedThreadPool(100);
+        try (final Graph graph = TinkerGraph.open()) {
+            ExecutorService service = Executors.newFixedThreadPool(200);
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(20000)
-                    .households(50000)
-                    .accountsPerHousehold(15)
-                    .peoplePerHousehold(20)
+            builder = builder.opsPerTransaction(1000)
+                    .households(200)
+                    .accountsPerHousehold(100)
+                    .peoplePerHousehold(10)
                     .devicesPerPerson(5);
             IdentityGenerator identityGenerator = builder.generate(graph);
             Future future = service.submit(identityGenerator);
@@ -33,9 +25,7 @@ public class DataGenerator {
             future.get();
             if ( future.isDone() )
                 service.shutdown();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

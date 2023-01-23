@@ -1,25 +1,17 @@
 package com.aerospike.generator.identitygenerator;
 
 import com.opencsv.CSVWriter;
-import com.opencsv.bean.StatefulBeanToCsv;
-import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.luaj.vm2.ast.Str;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -96,7 +88,7 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private HashSet<String> edgesHeaders = new HashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 5;
+    private long NO_OF_ROWS = 1000;
     private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Graph graph;
     private final Builder builder;
@@ -206,17 +198,17 @@ public class IdentityGenerator implements Runnable {
         return account;
     }
 
-    public synchronized void generateAndWriteVertexData(Vertex vertex, String dir, String fileName){
+    public void generateAndWriteVertexData(Vertex vertex, String dir, String fileName){
         final MutablePair<String[], String[]> pair = generateVertexData(vertex);
         generateAndWriteData(pair, dir, fileName);
     }
 
-    public synchronized void generateAndWriteEdgeData(Vertex from, Vertex to, Edge edge, String dir, String fileName){
+    public void generateAndWriteEdgeData(Vertex from, Vertex to, Edge edge, String dir, String fileName){
         final MutablePair<String[], String[]> pair = generateEdgeData(from, to, edge);
         generateAndWriteData(pair, dir, fileName);
     }
 
-    public synchronized void generateAndWriteData(MutablePair<String[], String[]> pair, String dir, String fileName) {
+    public void generateAndWriteData(MutablePair<String[], String[]> pair, String dir, String fileName) {
         int fileCount = 0;
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
@@ -224,13 +216,12 @@ public class IdentityGenerator implements Runnable {
         if ( countOfRecords == NO_OF_ROWS) {
             this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
             HashMap<String, Object> objectPropertyMap = new HashMap<>();
-            objectPropertyMap.put("fileCount", fileCount);
+            objectPropertyMap.put("fileCount", fileCount + 1);
             HashSet<String[]> schemaSet = new HashSet<>();
             schemaSet.add(pair.left);
             objectPropertyMap.put("schema", schemaSet);
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
-//            populateGraphMap(fileName, pair, fileCount + 1);
         }
     }
 
@@ -369,8 +360,12 @@ public class IdentityGenerator implements Runnable {
         public void writeDataMapToCSV(HashMap<String, HashMap<String,Object>> map, String dir, String fileName, int count) {
             java.io.File file = new java.io.File(path + "/" + dir + "/" + fileName);
             file.getParentFile().mkdirs();
-            try (CSVWriter writer1 = new CSVWriter(new FileWriter(path + "/" + dir + "/" + fileName + "_" + count + ".csv"),',', CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END)) {
+            try (CSVWriter writer1 = new CSVWriter(
+                    new FileWriter(path + "/" + dir + "/" + fileName + "_" + count + ".csv"),
+                    ',', CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END)) {
+                // write the schema at the top of file
                 writer1.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
+                // write the data
                 writer1.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));
             } catch (IOException e) {
                 throw new RuntimeException(e);

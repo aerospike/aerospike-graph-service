@@ -20,21 +20,23 @@ public class DataGenerator {
         final Path path = Path.of(defaultConfigPath);
         CONFIG = getConfig(path);
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            ExecutorService service = Executors.newFixedThreadPool(10);
+            ExecutorService service = Executors.newFixedThreadPool(100);
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(20).accountsPerHousehold(20).peoplePerHousehold(20).devicesPerPerson(20).households(20);
-            IdentityGenerator ig1 = builder.generate(graph);
-            Future future = service.submit(ig1);
-            ig1.setFuture(future);
+            builder = builder.opsPerTransaction(20000)
+                    .households(50000)
+                    .accountsPerHousehold(15)
+                    .peoplePerHousehold(20)
+                    .devicesPerPerson(5);
+            IdentityGenerator identityGenerator = builder.generate(graph);
+            Future future = service.submit(identityGenerator);
+            identityGenerator.setFuture(future);
             future.get();
-
-//            Thread t1 = new Thread(ig1);
-//            t1.start();
+            if ( future.isDone() )
+                service.shutdown();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
-
 }

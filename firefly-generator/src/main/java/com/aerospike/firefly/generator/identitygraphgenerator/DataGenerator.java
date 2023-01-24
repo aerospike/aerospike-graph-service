@@ -13,7 +13,7 @@ public class DataGenerator {
             ExecutorService service = Executors.newFixedThreadPool(400);
             Builder builder = Builder.create();
             builder = builder.opsPerTransaction(5000)
-                    .households(500)
+                    .households(10000)
                     .accountsPerHousehold(100)
                     .peoplePerHousehold(10)
                     .devicesPerPerson(5);

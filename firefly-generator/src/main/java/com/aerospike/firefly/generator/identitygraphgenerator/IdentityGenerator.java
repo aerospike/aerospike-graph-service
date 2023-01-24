@@ -1,12 +1,12 @@
 package com.aerospike.firefly.generator.identitygraphgenerator;
 
 
-import com.aerospike.firefly.generator.beans.vertices.Account;
-import com.aerospike.firefly.generator.beans.vertices.Device;
-import com.aerospike.firefly.generator.beans.vertices.Person;
 import com.aerospike.firefly.generator.beans.Vertex;
 import com.aerospike.firefly.generator.beans.edges.Edge;
+import com.aerospike.firefly.generator.beans.vertices.Account;
+import com.aerospike.firefly.generator.beans.vertices.Device;
 import com.aerospike.firefly.generator.beans.vertices.Household;
+import com.aerospike.firefly.generator.beans.vertices.Person;
 import com.opencsv.CSVWriter;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -94,9 +94,8 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 1000;
+    private long NO_OF_ROWS = 100000;
     private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
-    private final Graph graph;
     private final Builder builder;
     private final Random random = new Random();
     private Logger LOG;
@@ -107,8 +106,7 @@ public class IdentityGenerator implements Runnable {
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
-        this.graph = builder.graph;
-        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator2", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
         this.LOG = builder.logger;
     }
 
@@ -124,12 +122,12 @@ public class IdentityGenerator implements Runnable {
         Vertex newPerson = new Person();
         try {
             for (int i = 0; i < builder.numberOfHouseholds; i++) {
-                final Vertex household = this.createHousehold(newHouseHold, "vertex/Household", "household");
+                final Vertex household = this.createHousehold(newHouseHold, "vertices/Household", "household");
                 final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, 2); // +/- 2 from the mean
                 final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, 1);
                 final List<Vertex> accounts = new ArrayList<>();
                 for (int j = 0; j < numberOfAccounts; j++) {
-                    final Vertex account = this.createAccount(newAccount, "vertex/Account", "account");
+                    final Vertex account = this.createAccount(newAccount, "vertices/Account", "account");
                     if (accounts.size() > 1) {
                         final Vertex rootAccount = accounts.get(this.random.nextInt(accounts.size() - 1));
                         this.createSubAccountNew(rootAccount, account, "edges/SubAccount", "subaccount");
@@ -137,12 +135,12 @@ public class IdentityGenerator implements Runnable {
                     accounts.add(account);
                 }
                 for (int j = 0; j < numberOfPeople; j++) {
-                    final Vertex person = this.createPerson(newPerson, "vertex/Person", "person");
+                    final Vertex person = this.createPerson(newPerson, "vertices/Person", "person");
                     if (accounts.size() > 0) this.createHoldsNew(person, accounts.remove(0), "edges/Holds", "holds");
                     this.createPartOfNew(person, household, "edges/PartOf", "partof");
                     final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, 2);
                     for (int k = 0; k < numberOfDevices; k++) {
-                        final Vertex device = this.createDevice(newDevice, "vertex/Device", "device");
+                        final Vertex device = this.createDevice(newDevice, "vertices/Device", "device");
                         this.createOwnsNew(person, device, "edges/Owns", "owns");
                     }
                 }

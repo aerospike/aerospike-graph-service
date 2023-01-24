@@ -106,7 +106,7 @@ public class IdentityGenerator implements Runnable {
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
-        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("./datageneratoroutput/identitygraph", builder);
         this.LOG = builder.logger;
     }
 

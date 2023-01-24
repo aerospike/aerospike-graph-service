@@ -1,12 +1,16 @@
-package com.aerospike.generator.identitygenerator;
+package com.aerospike.firefly.generator.identitygraphgenerator;
 
+
+import com.aerospike.firefly.generator.beans.vertices.Account;
+import com.aerospike.firefly.generator.beans.vertices.Device;
+import com.aerospike.firefly.generator.beans.vertices.Person;
+import com.aerospike.firefly.generator.beans.Vertex;
+import com.aerospike.firefly.generator.beans.edges.Edge;
+import com.aerospike.firefly.generator.beans.vertices.Household;
 import com.opencsv.CSVWriter;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +25,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -89,7 +94,7 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 10000;
+    private long NO_OF_ROWS = 1000;
     private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Graph graph;
     private final Builder builder;
@@ -98,10 +103,12 @@ public class IdentityGenerator implements Runnable {
     private final IdentityGenerator.CsvWriter csvWriter;
     private Future future;
 
+    private static final AtomicLong i = new AtomicLong(0);
+
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
         this.graph = builder.graph;
-        this.csvWriter = new IdentityGenerator.CsvWriter("./datageneratoroutput/identitygenerator", builder);
+        this.csvWriter = new IdentityGenerator.CsvWriter("/Users/mbelsare/Downloads/datagenerator2", builder);
         this.LOG = builder.logger;
     }
 
@@ -111,35 +118,39 @@ public class IdentityGenerator implements Runnable {
     @Override
     public void run() {
         LOG.info("Generating subgraph for worker " + this.builder.id + " " + this.builder);
+        Vertex newAccount = new Account();
+        Vertex newDevice = new Device();
+        Vertex newHouseHold = new Household();
+        Vertex newPerson = new Person();
         try {
             for (int i = 0; i < builder.numberOfHouseholds; i++) {
-                final Vertex household;
-                household = this.createHousehold("vertex/Household", "household");
+                final Vertex household = this.createHousehold(newHouseHold, "vertex/Household", "household");
                 final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, 2); // +/- 2 from the mean
                 final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, 1);
                 final List<Vertex> accounts = new ArrayList<>();
                 for (int j = 0; j < numberOfAccounts; j++) {
-                    final Vertex account = this.createAccount("vertex/Account", "account");
+                    final Vertex account = this.createAccount(newAccount, "vertex/Account", "account");
                     if (accounts.size() > 1) {
                         final Vertex rootAccount = accounts.get(this.random.nextInt(accounts.size() - 1));
-                        this.createSubAccount(rootAccount, account, "edges/SubAccount", "subaccount");
+                        this.createSubAccountNew(rootAccount, account, "edges/SubAccount", "subaccount");
                     }
                     accounts.add(account);
                 }
                 for (int j = 0; j < numberOfPeople; j++) {
-                    final Vertex person = this.createPerson("vertex/Person", "person");
-                    if (accounts.size() > 0) this.createHolds(person, accounts.remove(0), "edges/Holds", "holds");
-                    this.createPartOf(person, household, "edges/PartOf", "partof");
+                    final Vertex person = this.createPerson(newPerson, "vertex/Person", "person");
+                    if (accounts.size() > 0) this.createHoldsNew(person, accounts.remove(0), "edges/Holds", "holds");
+                    this.createPartOfNew(person, household, "edges/PartOf", "partof");
                     final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, 2);
                     for (int k = 0; k < numberOfDevices; k++) {
-                        final Vertex device = this.createDevice("vertex/Device", "device");
-                        this.createOwns(person, device, "edges/Owns", "owns");
+                        final Vertex device = this.createDevice(newDevice, "vertex/Device", "device");
+                        this.createOwnsNew(person, device, "edges/Owns", "owns");
                     }
                 }
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        LOG.info("Generating data for firefly graph done");
     }
 
     public void setFuture(Future future) {
@@ -148,63 +159,129 @@ public class IdentityGenerator implements Runnable {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public Edge createSubAccount(final Vertex account, final Vertex subAccount, String dir, String fileName) {
-        final Edge edge = account.addEdge(SUB_ACCOUNT, subAccount);  // properties on edges?
+    public Edge createSubAccountNew(final Vertex account,
+                                    final Vertex subAccount,
+                                    String dir,
+                                    String fileName) {
+        final Edge edge = new Edge();
+        edge.setId(i.getAndIncrement());
+        edge.setLabel(SUB_ACCOUNT);
+        edge.setFrom(account.getId());
+        edge.setTo(subAccount.getId());
         generateAndWriteEdgeData(account, subAccount, edge, dir, fileName);
-        LOG.debug("Created %s", edge);
         return edge;
     }
-
-    public Edge createHolds(final Vertex person, final Vertex account, String dir, String fileName) {
-        final Edge edge = person.addEdge(HOLDS, account);  // properties on edges?
+    
+    public Edge createHoldsNew(final Vertex person,
+                               final Vertex account,
+                               String dir,
+                               String fileName) {
+        final Edge edge = new Edge();
+        edge.setId(i.getAndIncrement());
+        edge.setLabel(HOLDS);
+        edge.setFrom(person.getId());
+        edge.setTo(account.getId());
         generateAndWriteEdgeData(person, account, edge, dir, fileName);
-        LOG.debug("Created %s", edge);
         return edge;
     }
-
-    public Edge createOwns(final Vertex person, final Vertex device, String dir, String fileName) {
-        final Edge edge = person.addEdge(OWNS, device);  // properties on edges?
+    
+    public Edge createOwnsNew(final Vertex person,
+                              final Vertex device,
+                              String dir,
+                              String fileName) {
+        final Edge edge = new Edge();
+        edge.setId(i.getAndIncrement());
+        edge.setLabel(OWNS);
+        edge.setFrom(person.getId());
+        edge.setTo(device.getId());
         generateAndWriteEdgeData(person, device, edge, dir, fileName);
-        LOG.debug("Created %s", edge);
+        return edge;
+    }
+    
+    public Edge createPartOfNew(final Vertex person,
+                                final Vertex household,
+                                String dir,
+                                String fileName) throws IOException {
+        final Edge edge = new Edge();
+        edge.setId(i.getAndIncrement());
+        edge.setLabel(PART_OF);
+        edge.setFrom(person.getId());
+        edge.setTo(household.getId());
+        generateAndWriteEdgeData(person, household, edge, dir, fileName);
         return edge;
     }
 
-    public Edge createPartOf(final Vertex person, final Vertex household, String dir, String fileName) throws IOException {
-        final Edge partOf = person.addEdge(PART_OF, household);
-        generateAndWriteEdgeData(person, household, partOf, dir, fileName);
-        return partOf;
-    }
-
-    public Vertex createHousehold(String dir, String fileName) throws IOException {
-        final Vertex household = this.graph.addVertex(
-                T.label, HOUSEHOLD,
-                STREET, this.createStreet(),
-                CITY, this.createName(5),
-                STATE, this.createName(2, 0),
-                ZIPCODE, this.createNumber(5));
-        generateAndWriteVertexData(household, dir, fileName);
+    public Vertex createHousehold(Vertex household,
+                                  String dir,
+                                  String fileName) throws IOException {
+        Household h = (Household)household;
+        h.setId(i.getAndIncrement());
+        h.setLabel(HOUSEHOLD);
+        h.setStreet(this.createStreet());
+        h.setCity(this.createName(5));
+        h.setState(this.createName(2, 0));
+        h.setZipcode(this.createNumber(5));
+        generateAndWriteVertexData(h, dir, fileName);
         return household;
     }
 
-    public Vertex createAccount(String dir, String fileName) throws IOException {
-        final Vertex account = this.graph.addVertex(
-                T.label, ACCOUNT,
-                NUMBER, UUID.randomUUID().toString());
-        generateAndWriteVertexData(account, dir,fileName);
+    public Vertex createAccount(Vertex account,
+                                String dir,
+                                String fileName) throws IOException {
+        Account a = (Account) account;
+        a.setId(i.getAndIncrement());
+        a.setLabel(ACCOUNT);
+        a.setNumber(UUID.randomUUID().toString());
+        generateAndWriteVertexData(a, dir,fileName);
         return account;
     }
 
-    public void generateAndWriteVertexData(Vertex vertex, String dir, String fileName){
-        final MutablePair<String[], String[]> pair = generateVertexData(vertex);
+    public Vertex createPerson(Vertex person,
+                               String dir,
+                               String fileName) throws IOException {
+        Person p = (Person) person;
+        p.setId(i.getAndIncrement());
+        p.setLabel(PERSON);
+        p.setFirstName(this.createName(1, 0).toUpperCase() + this.createName(5));
+        p.setLastName(this.createName(1, 0).toUpperCase() + this.createName(10));
+        p.setSsn(createNumber(9));
+        p.setEmail(createEmail(10));
+        p.setPhone(createNumber(10));
+        generateAndWriteVertexData(p, dir, fileName);
+        return person;
+    }
+
+    public Vertex createDevice(Vertex device,
+                               String dir,
+                               String fileName) {
+        final Device d = (Device)device;
+        d.setId(i.getAndIncrement());
+        d.setLabel(DEVICE);
+        d.setMacAddress(UUID.randomUUID().toString());
+        d.setMake(MAKES.get(this.random.nextInt(MAKES.size() - 1)));
+        d.setModel(createName(10));
+        generateAndWriteVertexData(d, dir, fileName);
+        return device;
+    }
+    
+    public void generateAndWriteVertexData(Vertex vertex,
+                                           String dir,
+                                           String fileName){
+        final MutablePair<String[], String[]> pair = generateVertexData1(vertex);
         generateAndWriteData(pair, dir, fileName);
     }
 
-    public void generateAndWriteEdgeData(Vertex from, Vertex to, Edge edge, String dir, String fileName){
-        final MutablePair<String[], String[]> pair = generateEdgeData(from, to, edge);
+    public void generateAndWriteEdgeData(Vertex from,
+                                         Vertex to,
+                                         Edge edge,
+                                         String dir,
+                                         String fileName){
+        final MutablePair<String[], String[]> pair = generateEdgeData1(from, to, edge);
         generateAndWriteData(pair, dir, fileName);
     }
 
-    public void generateAndWriteData(MutablePair<String[], String[]> pair, String dir, String fileName) {
+    public void generateAndWriteData(MutablePair<String[], String[]> pair,
+                                     String dir, String fileName) {
         int fileCount = 0;
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
@@ -219,28 +296,6 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
         }
-    }
-
-    public Vertex createPerson(String dir, String fileName) throws IOException {
-        final Vertex person = this.graph.addVertex(
-                T.label, PERSON,
-                FIRST_NAME, this.createName(1, 0).toUpperCase() + this.createName(5),
-                LAST_NAME, this.createName(1, 0).toUpperCase() + this.createName(10),
-                SSN, createNumber(9),
-                EMAIL, createEmail(10),
-                PHONE, createNumber(10));
-        generateAndWriteVertexData(person, dir, fileName);
-        return person;
-    }
-
-    public Vertex createDevice(String dir, String fileName) {
-        final Vertex device = this.graph.addVertex(
-                T.label, DEVICE,
-                MAC_ADDRESS, UUID.randomUUID().toString(),
-                MAKE, MAKES.get(this.random.nextInt(MAKES.size() - 1)),
-                MODEL, createName(10));
-        generateAndWriteVertexData(device, dir, fileName);
-        return device;
     }
 
     public synchronized Integer populateGraphMap(String fileName, MutablePair<String[], String[]> pair, int fileCount) {
@@ -263,29 +318,28 @@ public class IdentityGenerator implements Runnable {
         graphMap.put(fileName, objectPropertyMap);
         return dataList.size();
     }
-    public synchronized MutablePair<String[], String[]> generateVertexData(Vertex vertex) {
+
+    public synchronized MutablePair<String[], String[]> generateVertexData1(Vertex vertex) {
         ArrayList<String> vertexheaders = (ArrayList<String>) verticesHeaders.stream().collect(Collectors.toList());
         vertexheaders.addAll(vertex.keys());
         ArrayList<String> data =new ArrayList<>();
-        data.add(vertex.id().toString());
-        data.add(vertex.label());
+        data.add(vertex.getId().toString());
+        data.add(vertex.getLabel());
 
         for (String key : vertex.keys())
-            data.add(vertex.value(key).toString());
+            data.add(vertex.getValueMap().get(key).toString());
 
         return new MutablePair<>(Arrays.copyOf(vertexheaders.toArray(), vertexheaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
     }
 
-    public synchronized MutablePair<String[], String[]> generateEdgeData(Vertex from, Vertex to, Edge edge) {
-        edgesHeaders.addAll(edge.keys());
+    public synchronized MutablePair<String[], String[]> generateEdgeData1(Vertex from,
+                                                                          Vertex to,
+                                                                          Edge edge) {
         ArrayList<String> data =new ArrayList<>();
-        data.add(edge.id().toString());
-        data.add(edge.label());
-        data.add(from.id().toString());
-        data.add(to.id().toString());
-
-        for (String key : edge.keys())
-            data.add(edge.value(key).toString());
+        data.add(edge.getId().toString());
+        data.add(edge.getLabel());
+        data.add(from.getId().toString());
+        data.add(to.getId().toString());
 
         return new MutablePair<>(Arrays.copyOf(edgesHeaders.toArray(), edgesHeaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
     }
@@ -344,7 +398,6 @@ public class IdentityGenerator implements Runnable {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class CsvWriter {
         private String path;
@@ -372,7 +425,6 @@ public class IdentityGenerator implements Runnable {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class Builder {
-
         protected Graph graph;
         protected Logger logger = LoggerFactory.getLogger(IdentityGenerator.class);
         protected int numberOfHouseholds;
@@ -421,8 +473,7 @@ public class IdentityGenerator implements Runnable {
             return this;
         }
 
-        public IdentityGenerator generate(final Graph graph) {
-            this.graph = graph;
+        public IdentityGenerator generate() {
             return new IdentityGenerator(this);
         }
 

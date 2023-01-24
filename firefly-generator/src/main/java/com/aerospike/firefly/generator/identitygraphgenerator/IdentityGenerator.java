@@ -106,6 +106,7 @@ public class IdentityGenerator implements Runnable {
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
+        // update this path to your local directory if you would like to avoid storing data in class path
         this.csvWriter = new IdentityGenerator.CsvWriter("./datageneratoroutput/identitygraph", builder);
         this.LOG = builder.logger;
     }

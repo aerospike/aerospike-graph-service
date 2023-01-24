@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -288,8 +289,7 @@ public class SparkBulkLoader {
                                     isList = true;
                                 }
                                 if (isList) {
-                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
-                                    propertyValues.remove(null);
+                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
                                     for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
                                         propertyValues.remove(vertexPropertyValue);
                                     }
@@ -546,8 +546,7 @@ public class SparkBulkLoader {
                                 // TODO: Handle null (when supported in Firefly) and cardinality.
                                 boolean isList = property.getValue() instanceof List<?>;
                                 if (isList) {
-                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
-                                    propertyValues.remove(null);
+                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
                                     for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
                                         propertyValues.remove(propertyValue);
                                     }

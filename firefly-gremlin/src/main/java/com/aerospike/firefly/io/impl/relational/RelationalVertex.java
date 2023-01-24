@@ -36,6 +36,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
+import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -44,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -655,9 +657,34 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;
 
+        // TODO GRAPH-301: This works fine for now since Linked is being deprecated so multi-properties isn't a concern.
+        //                 The idea is that a null property value is supposed to remove the key if one exists so we
+        //                 search for them in one pass to find the last invalid index, and then do a second pass to get
+        //                 the valid properties.
+        final Map<String, Integer> lastNullIndexes = new HashMap<>();
+        final List<Map.Entry<String, Object>> validProperties = new ArrayList<>();
+        for (int i = 0; i < properties.size(); i++) {
+            final Map.Entry<String, Object> property = properties.get(i);
+            if (property.getValue() == null) {
+                lastNullIndexes.put(property.getKey(), i);
+            }
+        }
+        for (int i = 0; i < properties.size(); i++) {
+            final Map.Entry<String, Object> property = properties.get(i);
+            // If the property is null, obviously don't need it to the list of valid properties.
+            if (property.getValue() == null) {
+                continue;
+            }
+            // If there is no instance of a null value with this key we can add it safely.
+            // If there is an instance of a null valid, it is safe to add as long as it exists past the last found index.
+            if (!lastNullIndexes.containsKey(property.getKey()) || i > lastNullIndexes.get(property.getKey())) {
+                validProperties.add(property);
+            }
+        }
+
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
-                vertexPropertyIds = getPropertyIdMapAndWrite(graph, properties, vertexId);
+                vertexPropertyIds = getPropertyIdMapAndWrite(graph, validProperties, vertexId);
                 vertexPropertyIdsWritable =
                         FireflyIdFactory.convertMapListToStorage((Map<String, List<FireflyId>>) vertexPropertyIds);
                 vertexPropertyValueMap = null;
@@ -666,7 +693,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Star specific
                 // Fall through
             case PackedVertex.VERTEX_TYPE_HINT:
-                final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, properties);
+                final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, validProperties);
                 vertexPropertyIds = propertyValueIdMaps.idMap;
                 vertexPropertyIdsWritable = FireflyIdFactory.convertMapToStorage(propertyValueIdMaps.idMap);
                 vertexPropertyValueMap = propertyValueIdMaps.valueMap;
@@ -691,9 +718,9 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         switch (vertexTypeHint) {
             case LinkedVertex.VERTEX_TYPE_HINT:
-                final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(properties.size()));
+                final Bin vertexPropertyCounterBin = new Bin(db.VP_COUNTER, Value.get(validProperties.size()));
 
-                final boolean isVertexPropertyCacheDisabled = properties.size() > db.ID_CACHE_SIZE;
+                final boolean isVertexPropertyCacheDisabled = validProperties.size() > db.ID_CACHE_SIZE;
                 final Bin vertexPropertyCacheDisabledBin =
                         new Bin(db.VP_CACHE_DISABLED, Value.get(isVertexPropertyCacheDisabled));
 
@@ -719,13 +746,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                         Value.get(vertexPropertyValueMap, MapOrder.KEY_ORDERED));
                 vertexPropertyTypeHintMap = new TreeMap<>();
                 for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
-                    final Long supportedType;
-                    if (entry.getValue() == null) {
-                        supportedType = null;
-                    } else {
-                        supportedType = db.getSupportedType(entry.getValue().getClass());
-                    }
-                    vertexPropertyTypeHintMap.put(entry.getKey(), supportedType);
+                    vertexPropertyTypeHintMap.put(entry.getKey(), db.getSupportedType(entry.getValue().getClass()));
                 }
                 final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT,
                         Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));

@@ -175,6 +175,16 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("true", e.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
         Assert.assertEquals("42", e.value("invalidType:invalid[]"));
+        // Check null properties dont exist
+        Assert.assertFalse(g.E().hasLabel("edge").has("nullValue").hasNext());
+        Assert.assertFalse(g.E().hasLabel("edge").has("nullInt").hasNext());
+        // Check null properties in a list do exist
+        final List<String> nullInList = e.value("nullInList");
+        Assert.assertEquals(2, nullInList.size());
+        Assert.assertNull(nullInList.get(0));
+        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check that null properties are not somehow saved as a valid property
+        Assert.assertEquals(5, (long) g.E().hasLabel("edge").properties().count().next());
     }
 
     private void testVertices() {
@@ -219,6 +229,16 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("true", v.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
         Assert.assertEquals("42", v.value("invalidType:invalid[]"));
+        // Check null properties dont exist
+        Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
+        Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());
+        // Check null properties in a list do exist
+        final List<String> nullInList = v.value("nullInList");
+        Assert.assertEquals(2, nullInList.size());
+        Assert.assertNull(nullInList.get(0));
+        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check that null properties are not somehow saved as a valid property
+        Assert.assertEquals(5, (long) g.V().hasLabel("vertex").properties().count().next());
     }
 
     private void testVertexEdgeConnections() {

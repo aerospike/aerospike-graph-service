@@ -977,15 +977,10 @@ public class AerospikeConnection implements AutoCloseable {
                 fireflyRecord.record.getMap(mapName) == null ||
                 !fireflyRecord.record.getMap(mapName).containsKey(mapKey))
             return null;
-        final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
-        if (!map.isPresent())
-            return null;
-        final Object val = map.get().get(mapKey);
+        final Object value = fireflyRecord.record.getMap(mapName).get(mapKey);
         final Long typeHint = (Long) fireflyRecord.record.getMap(typeHintBin).get(mapKey);
-        if (val == null)
-            return null;
-        final Class clazz = SupportedTypeValues.get(typeHint);
-        return (V) typeCast(clazz, val);
+        final Class valueClass = SupportedTypeValues.get(typeHint);
+        return (V) typeCast(valueClass, value);
     }
 
     /**
@@ -1134,11 +1129,17 @@ public class AerospikeConnection implements AutoCloseable {
             data = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(mapName)).orElse(new TreeMap<>());
             typeHints = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(typeHintBinName)).orElse(new TreeMap<>());
         }
-        if (value != null)
+
+        // Null value properties are not currently supported.
+        // Expected behavior is to remove the existing property key if it exists when null value is written.
+        if (value != null) {
             typeHints.put(mapKey, getSupportedType(value.getClass()));
-        else
-            typeHints.put(mapKey, null);
-        data.put(mapKey, value);
+            data.put(mapKey, value);
+        } else {
+            typeHints.remove(mapKey);
+            data.remove(mapKey);
+        }
+
         final Bin typeHintBin = new Bin(typeHintBinName, Value.get(typeHints, MapOrder.KEY_ORDERED));
         final Bin valueBin = new Bin(mapName, Value.get(data, MapOrder.KEY_ORDERED));
         if (additionalBins == null) {

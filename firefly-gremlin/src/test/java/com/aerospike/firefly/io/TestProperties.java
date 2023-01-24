@@ -1,12 +1,15 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -14,7 +17,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -260,5 +267,154 @@ public class TestProperties {
         // Assert that vertex property properties did not leak into a different record.
         g.V().hasLabel("person").drop().iterate();
         Assert.assertEquals(1, (long) g.V().count().next());
+    }
+
+    @Test
+    public void testNullEdgeProperties() {
+        final GraphTraversalSource g = FIREFLY.traversal();
+
+        // "bought" edge
+        GraphTraversal traversal = g.V().outE("bought").properties().count();
+        long propertiesCount = (long) traversal.next();
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().outE("bought").has("year");
+        Edge edge = (Edge) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Property property = edge.property("year");
+        Assert.assertEquals("2022", property.value());
+
+        // Write null value
+        g.V().outE("bought").property("year", null).iterate();
+        traversal = g.V().outE("bought").properties().count();
+        propertiesCount = (long) traversal.next();
+        Assert.assertEquals(1, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertFalse(g.V().outE("bought").has("year").hasNext());
+        Assert.assertFalse(g.V().outE("bought").has("year", (Object) null).hasNext());
+
+        // Test null in a list
+        final List<Long> ownedYears = new ArrayList<>();
+        ownedYears.add(2022L);
+        ownedYears.add(null);
+        ownedYears.add(2023L);
+        g.V().outE("bought").property("year", ownedYears).iterate();
+        traversal = g.V().outE("bought").properties().count();
+        propertiesCount = (long) traversal.next();;
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().outE("bought").has("year", new LinkedList<>(ownedYears));
+        edge = (Edge) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        property = edge.property("year");
+        assertCollectionEquals(new ArrayList<>(ownedYears), (List<Object>) property.value());
+    }
+
+    @Test
+    public void testNullVertexProperties() {
+        final GraphTraversalSource g = FIREFLY.traversal();
+
+        // "person" vertex
+        g.V().hasLabel("person").property("name", "Simon").property("age", 12).iterate();
+        GraphTraversal traversal = g.V().hasLabel("person").properties().count();
+        long propertiesCount = (long) traversal.next();
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().hasLabel("person").has("age");
+        Vertex vertex = (Vertex) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Property property = vertex.property("age");
+        Assert.assertEquals(12, property.value());
+
+        // Write null value
+        g.V().hasLabel("person").property("age", null).iterate();
+        traversal = g.V().hasLabel("person").properties().count();
+        propertiesCount = (long) traversal.next();
+        // TODO GRAPH-301: Null does not remove the property in Linked model since cardinality is not Single.
+        //                 GRAPH-301 introduces support for multi-properties in Packed so revisit this.
+        if (((FireflyGraph) g.getGraph()).getDataModel().equals(LinkedGraph.DATA_MODEL)) {
+            Assert.assertEquals(2, propertiesCount);
+            Assert.assertFalse(traversal.hasNext());
+            Assert.assertTrue(g.V().hasLabel("person").has("age").hasNext());
+            Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
+        } else {
+            Assert.assertEquals(1, propertiesCount);
+            Assert.assertFalse(traversal.hasNext());
+            Assert.assertFalse(g.V().hasLabel("person").has("age").hasNext());
+            Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
+        }
+
+        // Test null in a list
+        final List<String> names = new ArrayList<>();
+        names.add("simon");
+        names.add(null);
+        names.add("bauto");
+        g.V().hasLabel("person").properties().drop().iterate();
+        g.V().hasLabel("person").property("age", 12).property("name", names).iterate();
+        traversal = g.V().hasLabel("person").properties().count();
+        propertiesCount = (long) traversal.next();;
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().hasLabel("person").has("name", new LinkedList<>(names));
+        vertex = (Vertex) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        property = vertex.property("name");
+        assertCollectionEquals(new ArrayList<>(names), (List<Object>) property.value());
+    }
+
+    @Test
+    public void testNullVertexPropertyProperties() {
+        final GraphTraversalSource g = FIREFLY.traversal();
+
+        // "name" vertex property
+        g.V().hasLabel("person").property("name", "Simon").properties("name").property("language", "english").property("addedYear", 2000).iterate();
+        GraphTraversal traversal = g.V().hasLabel("person").properties("name").properties().count();
+        long propertiesCount = (long) traversal.next();
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().hasLabel("person").properties("name").has("language");
+        VertexProperty vp = (VertexProperty) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Property property = vp.property("language");
+        Assert.assertEquals("english", property.value());
+
+        // Write null value
+        g.V().hasLabel("person").properties("name").property("language", null).iterate();
+        traversal = g.V().hasLabel("person").properties("name").properties().count();
+        propertiesCount = (long) traversal.next();
+        Assert.assertEquals(1, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertFalse(g.V().hasLabel("person").properties("name").has("language").hasNext());
+        Assert.assertFalse(g.V().hasLabel("person").properties("name").has("language", (Object) null).hasNext());
+
+        // Test null in a list
+        final List<String> languages = new ArrayList<>();
+        languages.add("english");
+        languages.add(null);
+        languages.add("french");
+        g.V().hasLabel("person").properties("name").property("language", languages).iterate();
+        traversal = g.V().hasLabel("person").properties("name").properties().count();
+        propertiesCount = (long) traversal.next();;
+        Assert.assertEquals(2, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        traversal = g.V().hasLabel("person").properties("name").has("language", new LinkedList<>(languages));
+        vp = (VertexProperty) traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        property = vp.property("language");
+        assertCollectionEquals(new ArrayList<>(languages), (List<Object>) property.value());
+    }
+
+    private static void assertCollectionEquals(final Collection<Object> expected, final Collection<Object> actual) {
+        final List<Object> expectedClone = new LinkedList<>(expected);
+        for (final Object item : actual) {
+            if (!expectedClone.contains(item)) {
+                Assert.fail("Expected list did not contain value from actual list.");
+            } else {
+                expectedClone.remove(item);
+            }
+        }
+        if (!expectedClone.isEmpty()) {
+            Assert.fail("Expected list has additional values compared to actual list.");
+        }
     }
 }

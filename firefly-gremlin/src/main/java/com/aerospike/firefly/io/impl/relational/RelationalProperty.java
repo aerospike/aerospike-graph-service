@@ -86,12 +86,17 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
             return new TreeMap<>();
 
         final Map<String, Property<V>> result = new TreeMap<>();
-        final Map<String, Object> data = (Map<String, Object>) fireflyRecord.record.getMap(db.PROPERTIES);
-        if (data == null)
+        final Map<String, Object> properties = (Map<String, Object>) fireflyRecord.record.getMap(db.PROPERTIES);
+        final Map<String, Long> typeHint = (Map<String, Long>) fireflyRecord.record.getMap(db.TYPE_HINTS);
+        if (properties == null)
             return result;
-        data.forEach((key1, value) -> {
-            Property<V> prop = readProperty(graph, element, key1);
-            result.put(key1, prop);
+        properties.forEach((key, value) -> {
+            Property<V> property = new RelationalProperty<>(
+                    graph,
+                    element,
+                    key,
+                    (V) db.convertValuetoTypeUsingHint(value, typeHint.get(key)));
+            result.put(key, property);
         });
         return result;
     }

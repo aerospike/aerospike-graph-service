@@ -39,6 +39,7 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
+
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -56,7 +57,7 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
-
+        public static final String LOG_LEVEL = "LOG_LEVEL";
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
@@ -225,6 +226,7 @@ public final class ConfigurationHelper {
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.LOG_LEVEL, "INFO");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

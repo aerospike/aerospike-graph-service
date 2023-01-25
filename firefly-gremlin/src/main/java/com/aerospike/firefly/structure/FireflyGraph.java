@@ -19,6 +19,7 @@ import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.LoggerUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -52,6 +53,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+import ch.qos.logback.classic.Level;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
@@ -179,6 +181,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
+        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+        LoggerUtil.setLogLevel(logLevel);
         try {
             LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);

@@ -49,6 +49,7 @@ import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERRO
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
+@Deprecated
 public class LinkedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertex.class);
     public static final int VERTEX_TYPE_HINT = 0;

@@ -1,5 +1,7 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
@@ -63,17 +65,6 @@ public class PackedGraph extends RelationalGraph {
     }
 
     /**
-     * Function to create vertex from a record.
-     *
-     * @param keyRecord Record to use.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
-        return PackedVertex.fromRecord(this, keyRecord);
-    }
-
-    /**
      * Write vertex property to Aerospike.
      *
      * @param idValue FireflyId of vertex property to write.
@@ -109,84 +100,6 @@ public class PackedGraph extends RelationalGraph {
      */
     private <V> FireflyVertexProperty<V> vertexPropertyFromRecord(final FireflyRecord fireflyRecord, final String key, final FireflyId id) {
         return PackedVertexProperty.fromRecord(this, key, fireflyRecord, id);
-    }
-
-    /**
-     * Lookup VertexProperty with a particular Value by index
-     *
-     * @param key   Property Key
-     * @param value Property Value being searched for
-     * @return Iterator of VertexProperty results
-     */
-    @Override
-    public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value) {
-        final Iterator<KeyRecord> rsi =
-                db.queryIndex(
-                        db.getElementPropertySet(FireflyVertex.class),
-                        db.STRING_V_VP_KV_INDEX,
-                        Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (String) value));
-        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
-        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
-    }
-
-    /**
-     * Lookup VertexProperty by numeric range match on property value
-     *
-     * @param key       Key to match
-     * @param predicate Match Predicate with value embedded
-     * @return Iterator of FireflyVertexProperty results
-     */
-    @Override
-    public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate) {
-        final Object value = predicate.getValue();
-        Filter filter;
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            if (Integer.class.isAssignableFrom(value.getClass()))
-                filter = Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (Long.valueOf((Integer) value)));
-            else if (Long.class.isAssignableFrom(value.getClass()))
-                filter = Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (Long) value);
-            else
-                throw new RuntimeException(String.format("%s not a supported numeric match type", value.getClass()));
-        } else {
-            throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
-        }
-        final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
-
-        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
-        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
-    }
-
-    /**
-     * Lookup VertexProperty by numeric range match on property value
-     *
-     * @param key       Key to match
-     * @param predicate type of match (lt or gt) with value embedded
-     * @return Iterator of FireflyVertexProperty results
-     */
-    @Override
-    public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate) {
-        Filter filter;
-        if (Number.class.isAssignableFrom(predicate.getValue().getClass())) {
-            final long val = Long.class.isAssignableFrom(predicate.getValue().getClass()) ?
-                    (long) predicate.getValue() : Long.valueOf((Integer) predicate.getValue());
-            if (predicate.getBiPredicate().equals(Compare.lt))
-                filter = Filter.range(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, Long.MIN_VALUE, val);
-            else if (predicate.getBiPredicate().equals(Compare.gt))
-                filter = Filter.range(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, val, Long.MAX_VALUE);
-            else throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-        } else {
-            throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-        }
-
-        final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
-        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
-        return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
     /**
@@ -245,9 +158,6 @@ public class PackedGraph extends RelationalGraph {
     @Override
     public void close() {
         super.close();
-        TraversalStrategies.GlobalCache
-                .getStrategies(PackedGraph.class)
-                .removeStrategies(FireflyReadThroughCacheStrategy.class);
     }
 
     /**

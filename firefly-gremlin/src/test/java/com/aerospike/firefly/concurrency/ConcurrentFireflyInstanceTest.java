@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -45,10 +46,10 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
-            final FireflyVertex b = fireflyGraph.writeVertex(FireflyIdFactory.createId(2), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
+            final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeEdge(FireflyIdFactory.createId(i), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.writeEdge(fireflyGraph.getIdFactory().createId(i, FireflyEdge.class), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -58,7 +59,7 @@ public class ConcurrentFireflyInstanceTest {
             }
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
-                final FireflyEdge edge = fireflyGraph.writeEdge(FireflyIdFactory.createId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT), "bar", new ArrayList<>(), a, b);
+                final FireflyEdge edge = fireflyGraph.writeEdge(fireflyGraph.getIdFactory().createId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT, FireflyEdge.class), "bar", new ArrayList<>(), a, b);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -82,10 +83,10 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
-            final FireflyVertex b = fireflyGraph.writeVertex(FireflyIdFactory.createId(2), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
+            final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeEdge(FireflyIdFactory.createId(i), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.writeEdge(fireflyGraph.getIdFactory().createId(i, FireflyEdge.class), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -95,7 +96,7 @@ public class ConcurrentFireflyInstanceTest {
             }
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
-                g.E(FireflyIdFactory.createId(i + THREAD_COUNT * ADD_REMOVE_COUNT)).drop().iterate();
+                g.E(fireflyGraph.getIdFactory().createId(i + THREAD_COUNT * ADD_REMOVE_COUNT, FireflyEdge.class)).drop().iterate();
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -119,10 +120,10 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
-            final FireflyVertex b = fireflyGraph.writeVertex(FireflyIdFactory.createId(2), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
+            final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeEdge(FireflyIdFactory.createId(i), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.writeEdge(fireflyGraph.getIdFactory().createId(i, FireflyEdge.class), "bar", new ArrayList<>(), a, b);
             }
             final CyclicBarrier gate = new CyclicBarrier((2 * THREAD_COUNT) + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
@@ -133,7 +134,7 @@ public class ConcurrentFireflyInstanceTest {
             }
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
-                fireflyGraph.writeEdge(FireflyIdFactory.createId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT), "bar", new ArrayList<>(), a, b);
+                fireflyGraph.writeEdge(fireflyGraph.getIdFactory().createId(INITIAL_COUNT + i + 100 * ADD_REMOVE_COUNT, FireflyEdge.class), "bar", new ArrayList<>(), a, b);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -161,13 +162,13 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = (FireflyVertex) g.V().next();
             final FireflyVertex c = (FireflyVertex) g.V().next();
             final FireflyVertex d = (FireflyVertex) g.V().next();
             final FireflyVertex e = (FireflyVertex) g.V().next();
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(FireflyIdFactory.createId(i), a, String.format("%d", i), i);
+                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createId(i, FireflyVertexProperty.class), a, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -186,7 +187,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
                 final int actualIdx = INITIAL_COUNT + i + THREAD_COUNT * ADD_REMOVE_COUNT;
-                fireflyGraph.writeVertexProperty(FireflyIdFactory.createId(actualIdx), e, String.format("%d", actualIdx), actualIdx);
+                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createId(actualIdx, FireflyVertexProperty.class), e, String.format("%d", actualIdx), actualIdx);
             }
             executorService.shutdown();
             executorService.awaitTermination(30, TimeUnit.SECONDS);
@@ -210,9 +211,9 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1,FireflyVertex.class), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(FireflyIdFactory.createId(i), a, String.format("%d", i), i);
+                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createId(i, FireflyVertexProperty.class), a, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier(THREAD_COUNT + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -244,13 +245,13 @@ public class ConcurrentFireflyInstanceTest {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             fireflyGraph.getBaseGraph().dropDatabase();
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final FireflyVertex a = fireflyGraph.writeVertex(FireflyIdFactory.createId(1), "foo", new ArrayList<>());
+            final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1,FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = (FireflyVertex) g.V().next();
             final FireflyVertex c = (FireflyVertex) g.V().next();
             final FireflyVertex d = (FireflyVertex) g.V().next();
             final FireflyVertex e = (FireflyVertex) g.V().next();
             for (int i = 0; i < INITIAL_COUNT; i++) {
-                fireflyGraph.writeVertexProperty(FireflyIdFactory.createId(i), a, String.format("%d", i), i);
+                fireflyGraph.writeVertexProperty(fireflyGraph.getIdFactory().createId(i, FireflyVertexProperty.class), a, String.format("%d", i), i);
             }
             final CyclicBarrier gate = new CyclicBarrier((2 * THREAD_COUNT) + 1);
             final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT * 2);
@@ -299,7 +300,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             final GraphTraversalSource g = fireflyGraph.traversal();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
-                g.E(FireflyIdFactory.createId(i + threadIdx * ADD_REMOVE_COUNT)).drop().iterate();
+                g.E(fireflyGraph.getIdFactory().createId(i + threadIdx * ADD_REMOVE_COUNT, FireflyEdge.class)).drop().iterate();
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -310,7 +311,7 @@ public class ConcurrentFireflyInstanceTest {
         try {
             gate.await();
             for (int i = 0; i < ADD_REMOVE_COUNT; i++) {
-                graph.writeEdge(FireflyIdFactory.createId(INITIAL_COUNT + i + threadId * ADD_REMOVE_COUNT), "bar", new ArrayList<>(), vertexA, vertexB);
+                graph.writeEdge(graph.getIdFactory().createId(INITIAL_COUNT + i + threadId * ADD_REMOVE_COUNT,FireflyEdge.class), "bar", new ArrayList<>(), vertexA, vertexB);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -323,7 +324,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (; i < ADD_REMOVE_COUNT; i++) {
                 final int actualIdx = INITIAL_COUNT + i + threadId * ADD_REMOVE_COUNT;
-                final FireflyId id = FireflyIdFactory.createId(actualIdx);
+                final FireflyId id = graph.getIdFactory().createId(actualIdx,FireflyVertexProperty.class);
                 graph.writeVertexProperty(id, vertex, String.format("%d", actualIdx), actualIdx);
             }
         } catch (Exception e) {
@@ -337,7 +338,7 @@ public class ConcurrentFireflyInstanceTest {
             gate.await();
             for (; i < ADD_REMOVE_COUNT; i++) {
                 final int actualIdx = i + threadId * ADD_REMOVE_COUNT;
-                final FireflyId id = FireflyIdFactory.createId(actualIdx);
+                final FireflyId id = graph.getIdFactory().createId(actualIdx,FireflyVertexProperty.class);
                 graph.traversal().V().limit(1).properties(String.format("%d", actualIdx)).drop().iterate();
             }
         } catch (Exception e) {

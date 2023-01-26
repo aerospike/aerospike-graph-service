@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
@@ -111,9 +112,10 @@ final public class LinkedGraph extends RelationalGraph {
                         db.VERTEX_PROPERTY_AERO_SET,
                         db.STRING_VP_KV_INDEX,
                         Filter.contains(KEY_VALUE, IndexCollectionType.MAPVALUES, (String) value));
-        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
-                vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+        final String PARENT_VERTEX_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf);
+        final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, vpKeyRecord ->
+                vertexPropertyFromRecord(FireflyRecord.fromRecord(db, vpKeyRecord.key, vpKeyRecord.record),
+                        FireflyIdPoly.fromObject(vpKeyRecord.record.getValue(PARENT_VERTEX_ID_BIN), db.getElementPropertySet(FireflyVertexProperty.class))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
@@ -139,12 +141,11 @@ final public class LinkedGraph extends RelationalGraph {
             throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_PROPERTY_AERO_SET, db.NUMERIC_VP_KV_INDEX, filter);
+        final String PARENT_VERTEX_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf);
 
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyIdFactory.createId(kr.record.getLong(
-                                ConfigurationHelper.getOrDefault(
-                                        ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdPoly.fromObject(kr.record.getValue(PARENT_VERTEX_ID_BIN), db.getElementPropertySet(FireflyVertexProperty.class))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 
@@ -173,7 +174,7 @@ final public class LinkedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_PROPERTY_AERO_SET, db.NUMERIC_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record),
-                        FireflyIdFactory.createId(kr.record.getLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, db.conf)))));
+                        FireflyIdPoly.fromObject(kr.record.getValue(db.PARENT_VERTEX_ID), db.getElementPropertySet(FireflyVertexProperty.class))));
         return IteratorUtils.filter(vps, vp -> vp != null && vp.key().equals(key));
     }
 

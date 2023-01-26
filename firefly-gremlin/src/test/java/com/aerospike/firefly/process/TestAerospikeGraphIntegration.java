@@ -1487,7 +1487,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
 
         final Map<Object, List<String>> values = traversal.next();
-//        assertFalse(traversal.hasNext());
         Map<Object, List<String>> extraValues;
         if(traversal.hasNext()) {
             extraValues = traversal.next();
@@ -1505,8 +1504,34 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("lop", ncvalues.get("name").get(0));
         assertEquals("java", ncvalues.get("lang").get(0));
         assertEquals(2, ncvalues.size());
+    }
+
+    @Test
+    public void g_V_hasLabelXloopsX_bothEXselfX() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        graph = FireflyGraph.open(nocacheconfig);
+        graph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createKitchenSink(), graph);
+        this.g = graph.traversal();
+        Traversal<Vertex, Edge> traversal = this.g.V(new Object[0]).hasLabel("loops", new String[0]).bothE(new String[]{"self"});
+        Traversal<Vertex, Edge> traversalIn = this.g.V(new Object[0]).hasLabel("loops", new String[0]).inE(new String[]{"self"});
+        Traversal<Vertex, Edge> traversalOut = this.g.V(new Object[0]).hasLabel("loops", new String[0]).outE(new String[]{"self"});
+
+        this.printTraversalForm(traversal);
+        List<Vertex> allV = this.g.V().toList();
+        List<Edge> allE = this.g.E().toList();
+        List<Edge> bothEdges = traversal.toList();
+        List<Edge> inEdges = traversalIn.toList();
+        List<Edge> outEdges = traversalOut.toList();
 
 
-
+        Assert.assertEquals(2L, (long)bothEdges.size());
+        Assert.assertEquals(bothEdges.get(0), bothEdges.get(1));
     }
 }

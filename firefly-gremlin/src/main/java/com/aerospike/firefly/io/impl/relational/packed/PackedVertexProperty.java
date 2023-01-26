@@ -94,7 +94,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             // Cannot get id.
             return new PackedVertexProperty<>(graph, null, parentId, null, null);
         }
-        return new PackedVertexProperty<>(graph, FireflyIdFactory.createId(propertyIdMap.get(key)), parentId, key, propertyValueMap.get(key));
+        return new PackedVertexProperty<>(graph, graph.getIdFactory().createId(propertyIdMap.get(key), FireflyVertexProperty.class), parentId, key, propertyValueMap.get(key));
     }
 
     /**

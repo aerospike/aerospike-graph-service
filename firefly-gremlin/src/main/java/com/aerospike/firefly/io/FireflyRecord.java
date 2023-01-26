@@ -6,14 +6,18 @@ import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -99,14 +103,25 @@ public class FireflyRecord {
         return record;
     }
 
+    //@TODO User key may be null in sendKey when record re-read
+
     // Construct an Aerospike key from a Firefly ID
-    public static Key getKey(final String namespace, final String set, final FireflyId id) {
-        return new Key(namespace, set, Value.get(id.getStorageId()));
+    public static Key getKeyByUserId(final String setName, final String set, final FireflyId id) {
+        return new Key(setName, set, Value.get(id.getStorageId()));
+    }
+
+    public static Key getKeyByHashId(final String setName, final String set, final FireflyId id) {
+        return new Key(setName, id.getKeyHash(), set, Value.NULL);
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
-        final Key key = getKey(db.getNamespace(), set, id);
-        final Record record = db.read(key);
+        final Key key;
+        if (id.getStorageId() != null)
+            key = getKeyByUserId(db.getNamespace(), set, id);
+        else
+            key = getKeyByHashId(db.getNamespace(), set, id);
+
+        final Record record = db.read(key, AerospikeConnection.sendKeyReadPolicy);
         if (record == null)
             return null;
 
@@ -133,7 +148,14 @@ public class FireflyRecord {
         }
 
         // Return the records in the same order as the ids, removing any null items.
-        return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
+        idToRecord.values().removeIf(Objects::isNull);
+        return ids.stream().map(id -> {
+            Iterator<Map.Entry<FireflyId, FireflyRecord>> i = idToRecord.entrySet().stream().filter(e ->
+                    Arrays.equals(e.getKey().getKeyHash(), id.getKeyHash())
+            ).iterator();
+            if(i.hasNext()) return i.next().getValue();
+            return null;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     private static void executeBatchRead(final AerospikeConnection db,
@@ -142,13 +164,24 @@ public class FireflyRecord {
                                          final List<FireflyId> idsToRead) {
         // Read all records from the database.
         // Before reading id list must be converted to array of keys.
-        final Record[] records = db.read(idsToRead.stream().map(idd ->
-                getKey(db.getNamespace(), set, idd)).distinct().toArray(Key[]::new));
+        List<Key> keyList = idsToRead.stream().map(id -> {
+            Key key;
+            if (id.getClass().equals(FireflyIdComposite.class)) {
+                key = new Key(db.getNamespace(), (byte[]) ((FireflyIdComposite) id).getEdgeId().getKeyHash(), set, Value.NULL);
+            } else if (((FireflyIdPoly) id).source == FireflyId.Source.HASH) {
+                key = getKeyByHashId(db.getNamespace(), set, id);
+            } else {
+                key = getKeyByUserId(db.getNamespace(), set, id);
+            }
+            return key;
+        }).collect(Collectors.toList());
+        Record[] records = db.read(keyList.toArray(Key[]::new));
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add id/record pair to the map.
                 final FireflyId id = idsToRead.get(i);
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db.getNamespace(), set, id), records[i]);
+
+                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKeyByHashId(db.getNamespace(), set, id), records[i]);
                 idToRecord.put(id, fireflyRecord);
             }
         }
@@ -178,11 +211,11 @@ public class FireflyRecord {
      * @param bins Aerospike data bins
      */
     public static void write(final AerospikeConnection db,
-                                final String set,
-                                final FireflyId id,
-                                final int generation,
-                                final Bin... bins) {
-        final Key key = getKey(db.getNamespace(), set, id);
+                             final String set,
+                             final FireflyId id,
+                             final int generation,
+                             final Bin... bins) {
+        final Key key = getKeyByUserId(db.getNamespace(), set, id);
         final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
@@ -202,7 +235,7 @@ public class FireflyRecord {
                                     final FireflyId id,
                                     final int generation,
                                     final Bin... bins) {
-        final Key key = getKey(db.getNamespace(), set, id);
+        final Key key = getKeyByUserId(db.getNamespace(), set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         if (generation == -1) {
             final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
@@ -226,5 +259,9 @@ public class FireflyRecord {
     @Override
     public String toString() {
         return key.toString();
+    }
+
+    public Object getUserKey() {
+        return record.getValue(AerospikeConnection.USER_KEY) == null ? key.userKey.getObject() : record.getValue(AerospikeConnection.USER_KEY);
     }
 }

@@ -127,7 +127,7 @@ public class PackedGraph extends RelationalGraph {
                         Filter.contains(db.VERTEX_PROPERTY_NAME_TO_VALUE, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
+                        getIdFactory().createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record), FireflyVertexProperty.class)));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -154,9 +154,10 @@ public class PackedGraph extends RelationalGraph {
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
 
+        //@todo is fromRecord the correct pattern for PackedGraph?
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
+                        getIdFactory().createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record), FireflyVertexProperty.class)));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
@@ -185,18 +186,18 @@ public class PackedGraph extends RelationalGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.VERTEX_AERO_SET, db.NUMERIC_V_VP_KV_INDEX, filter);
         final Iterator<FireflyVertexProperty> vps = IteratorUtils.map(rsi, kr ->
                 vertexPropertyFromRecord(FireflyRecord.fromRecord(db, kr.key, kr.record), key,
-                        FireflyIdFactory.createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record))));
+                        getIdFactory().createFromRecord(db, FireflyRecord.fromRecord(db, kr.key, kr.record), FireflyVertexProperty.class)));
         return IteratorUtils.filter(vps, vp -> key.equals(vp.key()));
     }
 
     /**
      * Write a property to an element in this graph. Contains specific logic to handle packed vertex properties.
      *
-     * @param element   The element that the property is applied to.
-     * @param key       The property key.
-     * @param value     The property value.
-     * @return          The newly written property.
-     * @param <V>       Value type of the property.
+     * @param element The element that the property is applied to.
+     * @param key     The property key.
+     * @param value   The property value.
+     * @param <V>     Value type of the property.
+     * @return The newly written property.
      */
     @Override
     public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
@@ -212,9 +213,9 @@ public class PackedGraph extends RelationalGraph {
     /**
      * Read the properties on an element.
      *
-     * @param element   The element to read the properties of.
-     * @return          The properties on the element.
-     * @param <V>       Value type of the property.
+     * @param element The element to read the properties of.
+     * @param <V>     Value type of the property.
+     * @return The properties on the element.
      */
     @Override
     public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
@@ -228,10 +229,10 @@ public class PackedGraph extends RelationalGraph {
     /**
      * Read a property on an element.
      *
-     * @param element   The element to read the properties of.
-     * @param key       The key of the property to read.
-     * @return          The property on the element with the specified key.
-     * @param <V>       Value type of the property.
+     * @param element The element to read the properties of.
+     * @param key     The key of the property to read.
+     * @param <V>     Value type of the property.
+     * @return The property on the element with the specified key.
      */
     @Override
     public <V> Property<V> readProperty(final FireflyElement element, final String key) {

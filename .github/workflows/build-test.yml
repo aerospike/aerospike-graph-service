@@ -218,6 +218,54 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  start-runner-small-memory-packed:
+    name: Start Small Memory Packed Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-small-memory-linked:
+    name: Start Small Memory Linked Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-09d4741104f30e958
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
     name: Start Docker Build Runner
     runs-on: ubuntu-latest

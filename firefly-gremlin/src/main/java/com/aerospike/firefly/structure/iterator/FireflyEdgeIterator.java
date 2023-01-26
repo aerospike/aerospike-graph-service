@@ -10,10 +10,10 @@ import java.util.Iterator;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class FireflyEdgeIterator<T> extends FireflyElementIterator<Edge> {
-    public FireflyEdgeIterator(FireflyGraph graph, Iterator<T> idIterator) {
+public class FireflyEdgeIterator extends FireflyElementIterator<Edge> {
+    public FireflyEdgeIterator(FireflyGraph graph, Iterator<FireflyId> idIterator) {
         super(graph.getBaseGraph(), idIterator,
-                id -> graph.edgeExists(FireflyIdFactory.createId(id)),
-                id -> graph.readEdge(FireflyIdFactory.createId(id)));
+                id -> graph.edgeExists(id),
+                id -> graph.readEdge(id));
     }
 }

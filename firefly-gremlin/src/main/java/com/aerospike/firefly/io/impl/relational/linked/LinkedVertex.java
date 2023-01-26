@@ -22,7 +22,6 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -41,7 +40,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.FireflyRecord.getKeyByUserId;
 import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 
 /**
@@ -107,7 +106,7 @@ public class LinkedVertex extends RelationalVertex {
             // Note, use LinkedVertexProperty.removeVertexProperty() function because it negates trying to remove
             // the vertex property from the vertex.
             final List<FireflyId> vertexPropertyIdList = entry.getValue();
-            vertexPropertyIdList.forEach(id -> LinkedVertexProperty.removeVertexProperty(graph, FireflyIdFactory.createId(id)));
+            vertexPropertyIdList.forEach(id -> LinkedVertexProperty.removeVertexProperty(graph, graph.getIdFactory().createId(id,FireflyVertexProperty.class)));
         });
 
         // This isn't exactly necessary since this Vertex is going to be removed.
@@ -140,7 +139,7 @@ public class LinkedVertex extends RelationalVertex {
         final Map<String, FireflyVertexProperty<?>> results = new TreeMap<>();
         records.forEachRemaining(entry -> {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
-            final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
+            final FireflyId fid = graph.getIdFactory().createFromRecord(db, fireflyRecord, FireflyVertexProperty.class);
             final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                     db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE, db.VP_TYPE_HINTS));
             final FireflyVertexProperty<?> vp = (kv.isEmpty()) ?
@@ -180,7 +179,7 @@ public class LinkedVertex extends RelationalVertex {
         final List<VertexProperty<?>> results = new ArrayList<>();
         records.forEachRemaining(entry -> {
             final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(db, entry.getKey(), entry.getValue());
-            final FireflyId fid = FireflyIdFactory.createFromRecord(db, fireflyRecord);
+            final FireflyId fid = graph.getIdFactory().createFromRecord(db, fireflyRecord, FireflyVertexProperty.class);
             final Long typeHint = (Long) entry.getValue().getMap(db.VP_TYPE_HINTS).get(key);
             final Object value = db.convertValuetoTypeUsingHint(entry.getValue().getMap(db.KEY_VALUE).get(key), typeHint);
             results.add(new LinkedVertexProperty<>(graph, fid, this, key, value));
@@ -203,7 +202,7 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         // Get key for this vertex in database.
-        final Key vertexKey = getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key vertexKey = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for removing a vertex property.
         final Bin vpCounter = new Bin(this.db.VP_COUNTER, -1L);
@@ -307,7 +306,7 @@ public class LinkedVertex extends RelationalVertex {
         final List<FireflyId> vertexPropertyIdList;
         if (record != null) {
             final List<Object> ids = (List<Object>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID).get(key);
-            vertexPropertyIdList = FireflyIdFactory.convertObjectListToFireflyIdList(ids);
+            vertexPropertyIdList = graph.getIdFactory().convertObjectListToFireflyIdList(ids);
         } else {
             vertexPropertyIdList = vertexPropertyIds.get(key);
         }
@@ -339,7 +338,7 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         // Get key for this vertex in database.
-        final Key key = getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key key = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for writing a vertex property.
         final Bin vpCounter = new Bin(this.db.VP_COUNTER, 1);

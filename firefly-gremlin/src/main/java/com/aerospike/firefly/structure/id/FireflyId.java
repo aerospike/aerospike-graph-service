@@ -1,32 +1,55 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.Value;
+import com.aerospike.client.util.Crypto;
+
+import java.util.Arrays;
+
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyId implements Comparable {
+    public enum Source {
+        NUMBER, STRING, HASH, COMPOSITE
+    }
+
     public abstract Object getUserId();
+
     public abstract Object getStorageId();
+
     public abstract Long getStorageTypeIdx();
+
     public abstract boolean equals(Object o);
+
     public abstract Object getCachedId();
+
+    public abstract byte[] getKeyHash();
 
     @Override
     public int hashCode() {
-        return getStorageId().hashCode();
+        return this.getStorageId() == null ? Arrays.hashCode(this.getKeyHash()) : this.getStorageId().hashCode();
     }
 
     @Override
     public int compareTo(final Object o) {
         if (o instanceof FireflyId) {
-            final Object thisStorageId = getStorageId();
-            final Object otherStorageId = ((FireflyId) o).getStorageId();
-            if (thisStorageId instanceof Comparable && otherStorageId instanceof Comparable) {
-                return ((Comparable) thisStorageId).compareTo(otherStorageId);
-            } else {
-                throw new IllegalArgumentException("Storage IDs must be comparable of comparable types.");
-            }
+            final byte[] thisStorageId = getKeyHash();
+            final byte[] otherStorageId = ((FireflyId) o).getKeyHash();
+            return Arrays.compare(thisStorageId, otherStorageId);
         } else {
             throw new IllegalArgumentException("Cannot compare FireflyId to " + o.getClass().getName());
         }
+    }
+
+    /**
+     * Uses the Aerospike Client Crypto routines to produce a RIPEMD160 hash of the string capable of retrieving the record by digest.
+     *
+     * @param id      the user provided string id
+     * @param setName the Aerospike namespace
+     * @return the digest of the string
+     */
+    public static byte[] getIdHash(Object id, String setName) {
+        final Value keyValue = Value.get(id);
+        return Crypto.computeDigest(setName, keyValue);
     }
 }

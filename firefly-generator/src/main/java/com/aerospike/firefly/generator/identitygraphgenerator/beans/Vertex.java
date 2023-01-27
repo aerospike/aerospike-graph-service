@@ -1,12 +1,12 @@
-package com.aerospike.firefly.generator.beans;
+package com.aerospike.firefly.generator.identitygraphgenerator.beans;
 
 import java.util.HashMap;
 import java.util.Set;
 
 public interface Vertex {
-    public Long getId();
+    public Object getId();
 
-    public void setId(Long id);
+    public void setId(Object id);
 
     public String getLabel();
 

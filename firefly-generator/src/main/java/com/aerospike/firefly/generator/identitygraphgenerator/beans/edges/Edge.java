@@ -1,16 +1,16 @@
-package com.aerospike.firefly.generator.beans.edges;
+package com.aerospike.firefly.generator.identitygraphgenerator.beans.edges;
 
 public class Edge {
-    Long id;
+    Object id;
     String label;
-    Long from;
-    Long to;
+    Object from;
+    Object to;
 
-    public Long getId() {
+    public Object getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Object id) {
         this.id = id;
     }
     public String getLabel() {
@@ -21,11 +21,11 @@ public class Edge {
         this.label = label;
     }
 
-    public void setFrom(Long from) {
+    public void setFrom(Object from) {
         this.from = from;
     }
 
-    public void setTo(Long to) {
+    public void setTo(Object to) {
         this.to = to;
     }
 }

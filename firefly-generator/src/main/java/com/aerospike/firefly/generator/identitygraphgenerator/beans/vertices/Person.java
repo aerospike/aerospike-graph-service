@@ -1,13 +1,13 @@
-package com.aerospike.firefly.generator.beans.vertices;
+package com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices;
 
-import com.aerospike.firefly.generator.beans.Vertex;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.Vertex;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class Person implements Vertex {
-    Long id;
+    Object id;
     String label;
     String firstName;
     String lastName;
@@ -16,11 +16,11 @@ public class Person implements Vertex {
     Long phone;
     HashMap<String, Object> valueMap = new HashMap<>();
 
-    public Long getId() {
+    public Object getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Object id) {
         this.id = id;
     }
 

@@ -1,12 +1,12 @@
 package com.aerospike.firefly.generator.identitygraphgenerator;
 
 
-import com.aerospike.firefly.generator.beans.Vertex;
-import com.aerospike.firefly.generator.beans.edges.Edge;
-import com.aerospike.firefly.generator.beans.vertices.Account;
-import com.aerospike.firefly.generator.beans.vertices.Device;
-import com.aerospike.firefly.generator.beans.vertices.Household;
-import com.aerospike.firefly.generator.beans.vertices.Person;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.Vertex;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.edges.Edge;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Account;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Device;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Household;
+import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Person;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSCredentials;

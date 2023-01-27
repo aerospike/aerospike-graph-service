@@ -103,21 +103,6 @@ public final class FireflyHelper {
         return graph.queryEdgeLabelStringIndex(value);
     }
 
-    public static Iterator<? extends Vertex> queryVertexByVertexPropertyStringIndex(FireflyGraph graph, String key, Object value) {
-        return IteratorUtils.map(graph.queryVertexPropertyStringIndex(key, value), FireflyVertexProperty::element);
-    }
-
-    public static Iterator<? extends Vertex> queryVertexByVertexPropertyNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
-        if (predicate.getBiPredicate().equals(Compare.eq))
-            return IteratorUtils.map(graph.queryVertexPropertyNumberMatchIndex(key, predicate), FireflyVertexProperty::element);
-        else if (predicate.getBiPredicate().equals(Compare.lt))
-            return IteratorUtils.map(graph.queryVertexPropertyNumberRangeIndex(key, predicate), FireflyVertexProperty::element);
-        else if (predicate.getBiPredicate().equals(Compare.gt))
-            return IteratorUtils.map(graph.queryVertexPropertyNumberRangeIndex(key, predicate), FireflyVertexProperty::element);
-        else
-            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
-    }
-
     public static long countVertices(FireflyGraph graph) {
         return graph.getVertexCount();
     }

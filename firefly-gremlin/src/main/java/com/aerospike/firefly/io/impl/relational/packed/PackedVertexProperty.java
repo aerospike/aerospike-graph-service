@@ -183,21 +183,22 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             typeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(fireflyRecord.record.getMap(db.TYPE_HINTS)).orElse(new TreeMap<>());
         }
 
-        if (!typeHints.containsKey(id.getStorageId())) {
-            typeHints.put(id.getStorageId(), new TreeMap<>());
+        if (!typeHints.containsKey(this.id.getStorageId())) {
+            typeHints.put(this.id.getStorageId(), new TreeMap<>());
         }
-        final Map<String, Object> typeHintsForVp = typeHints.get(id.getStorageId());
-        typeHintsForVp.put(key, getSupportedType(value.getClass()));
-        if (value != null)
-            typeHintsForVp.put(key, getSupportedType(value.getClass()));
-        else
-            typeHintsForVp.put(key, null);
-
-        if (!properties.containsKey(id.getStorageId())) {
-            properties.put(id.getStorageId(), new TreeMap<>());
+        if (!properties.containsKey(this.id.getStorageId())) {
+            properties.put(this.id.getStorageId(), new TreeMap<>());
         }
+        final Map<String, Object> typeHintsForVp = typeHints.get(this.id.getStorageId());
         final Map<String, Object> propertiesForVp = properties.get(id.getStorageId());
-        propertiesForVp.put(key, value);
+
+        if (value == null) {
+            propertiesForVp.remove(key);
+            typeHintsForVp.remove(key);
+        } else {
+            typeHintsForVp.put(key, getSupportedType(value.getClass()));
+            propertiesForVp.put(key, value);
+        }
 
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
         final Bin propertiesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));

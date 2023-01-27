@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -229,7 +230,7 @@ public class SparkBulkLoader {
                                         }
                                     } else {
                                         LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
-                                                ". Attempting to write vertex again. Attempt count: " + tryCount + ".",
+                                                        ". Attempting to write vertex again. Attempt count: " + tryCount + ".",
                                                 e);
                                         exponentialBackoff(tryCount);
                                     }
@@ -288,8 +289,7 @@ public class SparkBulkLoader {
                                     isList = true;
                                 }
                                 if (isList) {
-                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
-                                    propertyValues.remove(null);
+                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
                                     for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
                                         propertyValues.remove(vertexPropertyValue);
                                     }
@@ -362,21 +362,21 @@ public class SparkBulkLoader {
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
-                    longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-                LOGGER.info("filteredFromCountPairRDD sample of 10: ");
-                filteredFromCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
+                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+            LOGGER.info("filteredFromCountPairRDD sample of 10: ");
+            filteredFromCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
             final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
-                    longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-                LOGGER.info("filteredToCountPairRDD sample of 10: ");
-                filteredToCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
+                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+            LOGGER.info("filteredToCountPairRDD sample of 10: ");
+            filteredToCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
-                LOGGER.info("fromSupernodes sample of 10: ");
-                fromSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
+            LOGGER.info("fromSupernodes sample of 10: ");
+            fromSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
             final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
-                LOGGER.info("toSupernodes sample of 10: ");
-                toSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
+            LOGGER.info("toSupernodes sample of 10: ");
+            toSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final List<Long> fromSuperNodeList = fromSupernodes.collect();
             LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);
@@ -546,8 +546,7 @@ public class SparkBulkLoader {
                                 // TODO: Handle null (when supported in Firefly) and cardinality.
                                 boolean isList = property.getValue() instanceof List<?>;
                                 if (isList) {
-                                    final Set<Object> propertyValues = new HashSet<>((List<Object>) property.getValue());
-                                    propertyValues.remove(null);
+                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
                                     for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
                                         propertyValues.remove(propertyValue);
                                     }

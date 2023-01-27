@@ -98,25 +98,15 @@ public abstract class RelationalGraph extends FireflyGraph {
             final Object value = prop.getValue();
             FireflyHelper.validatePropertyValue(value);
 
-            if (value != null)
-                typeHints.put(key, this.db.getSupportedType(value.getClass()));
-            else
-                typeHints.put(key, null);
-
-            if (properties.stream().filter(p -> p.getKey().equals(key)).count() > 1) {
-                typeHints.put(key, this.db.getSupportedType(List.class));
-                if (data.containsKey(key)) {
-                    ((List<Object>) (data.get(key))).add(value);
-                } else {
-                    List<Object> temp = new ArrayList<>();
-                    temp.add(value);
-                    data.put(key, temp);
-                }
+            if (value == null) {
+                data.remove(key);
+                typeHints.remove(key);
             } else {
+                typeHints.put(key, db.getSupportedType(value.getClass()));
                 data.put(key, value);
             }
-
         });
+
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertexId));
         final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertexId));
@@ -248,7 +238,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create vertex from a record.
+     * Function to create vertex from a KeyRecord.
      *
      * @param keyRecord Record to use.
      * @return Vertex.
@@ -256,6 +246,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
         return RelationalVertex.fromRecord(this, keyRecord);
+    }
+
+    /**
+     * Function to create vertex from a Key-Record Map.Entry pair.
+     *
+     * @param keyRecord Record to use.
+     * @return Vertex.
+     */
+    @Override
+    public FireflyVertex vertexFromRecord(final Map.Entry<Key, Record> keyRecord) {
+        return RelationalVertex.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
     }
 
     /**

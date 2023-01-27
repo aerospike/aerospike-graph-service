@@ -2,12 +2,16 @@ package com.aerospike.firefly.spark.bulkloader.integration;
 
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.file.Path;
 
 import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
 
+// TODO: Linked model is deprecated; remove this at a later date.
+@Ignore
+@Deprecated
 public class TestSparkBulkLoaderLinked extends TestSparkBulkLoaderBase {
     static private final String DEFAULT_CONFIG = "src/test/resources/conf/linked/config.properties";
     static private final String USE_PROVIDED_ID_FALSE_CONFIG = "src/test/resources/conf/linked/use-provided-id-false.properties";

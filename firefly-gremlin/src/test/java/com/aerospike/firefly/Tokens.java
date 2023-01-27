@@ -19,6 +19,7 @@ public final class Tokens {
     private static final Map<String, Path> INTEGRATION_TEST_CONFIGURATIONS = ImmutableMap.of(
             LinkedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-linked.properties"),
             PackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-packed.properties"),
+            PackedGraph.DATA_MODEL + "-sindex", Path.of("../conf/integration-test-settings-packed-sindex.properties"),
             StarPackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-star-packed.properties")
     );
 

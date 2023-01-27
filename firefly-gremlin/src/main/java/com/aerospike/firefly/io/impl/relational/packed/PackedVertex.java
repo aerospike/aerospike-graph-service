@@ -199,12 +199,13 @@ public class PackedVertex extends RelationalVertex {
 
         // Create vertex property's property bins.
         final Bin vpPropertiesValuesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));
-        final Bin vpPropertiesValuesTypeHintsBin = new Bin(db.PROPERTIES, Value.get(typeHints, MapOrder.KEY_ORDERED));
+        final Bin vpPropertiesValuesTypeHintsBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin,
-                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin);
+                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vpPropertiesValuesBin,
+                vpPropertiesValuesTypeHintsBin);
 
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);

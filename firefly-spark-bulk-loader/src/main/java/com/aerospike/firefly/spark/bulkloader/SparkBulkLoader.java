@@ -23,6 +23,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
@@ -779,13 +780,13 @@ public class SparkBulkLoader {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod");
+        final Option envOption = new Option("e", "env", true, "local or prod/remote");
         options.addOption(envOption);
 
         final Option bucketOption = new Option("b", "bucket", true, "AWS S3 bucket name");
         options.addOption(bucketOption);
 
-        final Option pathOption = new Option("c", "config", true, "config path [local -> absolute/S3 -> path to config after bucket]");
+        final Option pathOption = new Option("c", "config", true, "config path [local -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
 
         final CommandLineParser parser = new DefaultParser();
@@ -793,6 +794,8 @@ public class SparkBulkLoader {
             return parser.parse(options, args);
         } catch (final ParseException e) {
             LOGGER.error("Error parsing configuration arguments: ", e);
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp("SparkBulkLoader", options);
             throw new IllegalArgumentException(e);
         }
     }

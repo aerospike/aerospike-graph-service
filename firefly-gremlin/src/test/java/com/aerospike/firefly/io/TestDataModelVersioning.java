@@ -124,22 +124,6 @@ public class TestDataModelVersioning {
         public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value) {
             return null;
         }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(String key, Object value) {
-            return null;
-        }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate) {
-            return null;
-        }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate) {
-            return null;
-        }
-
     }
 
     public static class TestTask implements UpgradeTask {

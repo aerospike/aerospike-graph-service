@@ -238,7 +238,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create vertex from a record.
+     * Function to create vertex from a KeyRecord.
      *
      * @param keyRecord Record to use.
      * @return Vertex.
@@ -246,6 +246,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
         return RelationalVertex.fromRecord(this, keyRecord);
+    }
+
+    /**
+     * Function to create vertex from a Key-Record Map.Entry pair.
+     *
+     * @param keyRecord Record to use.
+     * @return Vertex.
+     */
+    @Override
+    public FireflyVertex vertexFromRecord(final Map.Entry<Key, Record> keyRecord) {
+        return RelationalVertex.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
     }
 
     /**

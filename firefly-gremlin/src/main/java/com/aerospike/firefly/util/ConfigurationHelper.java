@@ -123,6 +123,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_READ_THROUGH_CACHE = "ENABLE_READ_THROUGH_CACHE";
         public static final String ENABLE_PREFETCH_STRATEGY = "ENABLE_PREFETCH_STRATEGY";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
+        public static final String VERTEX_PROPERTY_INDEXES = "VERTEX_PROPERTY_INDEXES";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
 
@@ -131,8 +132,9 @@ public final class ConfigurationHelper {
         public static final String EDGE_ID_BUFFER_SIZE = "EDGE_ID_BUFFER_SIZE";
         public static final String PROPERTY_ID_BUFFER_SIZE = "PROPERTY_ID_BUFFER_SIZE";
 
-        public static final String ENABLE_PERIODIC_METADATA_UPDATE = "ENABLE_PERIODIC_METADATA_UPDATE";
-        public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
+        public static final String ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE = "ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE";
+        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "CARDINALITY_METADATA_UPDATE_FREQUENCY";
+        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "INDEX_METADATA_UPDATE_FREQUENCY";
         public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
@@ -218,14 +220,16 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
-        put(Keys.ENABLE_PERIODIC_METADATA_UPDATE, "false");
-        put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+        put(Keys.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE, "false");
+        put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+        put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.LOG_LEVEL, "INFO");
     }};
 

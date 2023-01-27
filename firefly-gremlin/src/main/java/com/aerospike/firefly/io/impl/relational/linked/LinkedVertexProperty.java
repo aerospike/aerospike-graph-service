@@ -20,6 +20,7 @@ import java.util.Optional;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
+@Deprecated
 final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     private static final Logger LOG = LoggerFactory.getLogger(LinkedVertexProperty.class);
     private final LinkedVertex vertex;

@@ -1,5 +1,7 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
@@ -63,17 +65,6 @@ public class PackedGraph extends RelationalGraph {
     }
 
     /**
-     * Function to create vertex from a record.
-     *
-     * @param keyRecord Record to use.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
-        return PackedVertex.fromRecord(this, keyRecord);
-    }
-
-    /**
      * Write vertex property to Aerospike.
      *
      * @param idValue FireflyId of vertex property to write.
@@ -118,7 +109,7 @@ public class PackedGraph extends RelationalGraph {
      * @param value Property Value being searched for
      * @return Iterator of VertexProperty results
      */
-    @Override
+//    @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value) {
         final Iterator<KeyRecord> rsi =
                 db.queryIndex(
@@ -138,7 +129,7 @@ public class PackedGraph extends RelationalGraph {
      * @param predicate Match Predicate with value embedded
      * @return Iterator of FireflyVertexProperty results
      */
-    @Override
+//    @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate) {
         final Object value = predicate.getValue();
         Filter filter;
@@ -168,7 +159,7 @@ public class PackedGraph extends RelationalGraph {
      * @param predicate type of match (lt or gt) with value embedded
      * @return Iterator of FireflyVertexProperty results
      */
-    @Override
+//    @Override
     public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate) {
         Filter filter;
         if (Number.class.isAssignableFrom(predicate.getValue().getClass())) {
@@ -191,6 +182,7 @@ public class PackedGraph extends RelationalGraph {
     }
 
     /**
+
      * Write a property to an element in this graph. Contains specific logic to handle packed vertex properties.
      *
      * @param element The element that the property is applied to.
@@ -246,9 +238,6 @@ public class PackedGraph extends RelationalGraph {
     @Override
     public void close() {
         super.close();
-        TraversalStrategies.GlobalCache
-                .getStrategies(PackedGraph.class)
-                .removeStrategies(FireflyReadThroughCacheStrategy.class);
     }
 
     /**

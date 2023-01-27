@@ -10,7 +10,6 @@ on:
 # - Build Firefly Maven
 # - Build Firefly Docker
 # - Test Spark Bulk Loader
-# - Test Linked Data Model
 # - Test Packed Data Model
 # - Test Star Packed Data Model
 
@@ -74,56 +73,32 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-build.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-build.outputs.ec2-instance-id }}
-  start-runner-linked:
-    name: Start Linked Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-movielens-linked:
-    name: Start Movielens Linked Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
   start-runner-packed:
     name: Start Packed Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-packed-sindex:
+    name: Start Packed Sindex Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -194,78 +169,6 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-small-memory-linked:
-    name: Start Small Memory Linked Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-small-memory-packed:
-    name: Start Small Memory Packed Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-small-memory-linked:
-    name: Start Small Memory Linked Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-09d4741104f30e958
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
     name: Start Docker Build Runner
     runs-on: ubuntu-latest
@@ -325,44 +228,6 @@ jobs:
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
           docker build -t aerospike/firefly .
-  test-firefly-linked:
-    name: Test Linked
-    timeout-minutes: 120
-    needs: start-runner-linked
-    runs-on: ${{ needs.start-runner-linked.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v3
-        with:
-          server-version: 6.1.0.3
-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn -pl firefly-gremlin -Dintegration.test.properties=linked test --no-transfer-progress
-  test-firefly-movielens-linked:
-    name: Test Movielens Linked
-    timeout-minutes: 120
-    needs: start-runner-movielens-linked
-    runs-on: ${{ needs.start-runner-movielens-linked.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v3
-        with:
-          server-version: 6.1.0.3
-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=linked --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
     timeout-minutes: 120
@@ -381,6 +246,24 @@ jobs:
       - name: Test with Maven
         run: |
           mvn -pl firefly-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
+  test-firefly-packed-sindex:
+    name: Test Packed Sindex
+    timeout-minutes: 120
+    needs: start-runner-packed-sindex
+    runs-on: ${{ needs.start-runner-packed-sindex.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v3
+        with:
+          server-version: 6.1.0.3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          mvn -pl firefly-gremlin -Dintegration.test.properties=packed-sindex test --no-transfer-progress
   test-firefly-movielens-packed:
     name: Test Movielens Packed
     timeout-minutes: 120
@@ -417,24 +300,6 @@ jobs:
       - name: Test with Maven
         run: |
           mvn test -pl firefly-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
-  test-firefly-small-memory-linked:
-    name: Test Small Memory Linked
-    timeout-minutes: 120
-    needs: start-runner-small-memory-linked
-    runs-on: ${{ needs.start-runner-small-memory-linked.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v3
-        with:
-          server-version: 6.1.0.3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Test with Maven
-        run: |
-          mvn test -pl firefly-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=linked -Djvmheapsize=small --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
     timeout-minutes: 15
@@ -482,7 +347,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
   
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.3.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.4.0-SNAPSHOT'
   
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.0/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -505,48 +370,6 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
-  stop-runner-linked:
-    name: Stop Linked Runner
-    needs:
-      - test-firefly-linked
-      - start-runner-linked
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-linked.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-linked.outputs.ec2-instance-id }}
-  stop-runner-movielens-linked:
-    name: Stop Movielens Linked Runner
-    needs:
-      - test-firefly-movielens-linked
-      - start-runner-movielens-linked
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-movielens-linked.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-movielens-linked.outputs.ec2-instance-id }}
   stop-runner-movielens-packed:
     name: Stop Movielens Packed Runner
     needs:
@@ -589,27 +412,6 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-small-memory-packed.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-small-memory-packed.outputs.ec2-instance-id }}
-  stop-runner-small-memory-linked:
-    name: Stop Small Memory Linked Runner
-    needs:
-      - test-firefly-small-memory-linked
-      - start-runner-small-memory-linked
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-small-memory-linked.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-small-memory-linked.outputs.ec2-instance-id }}
   stop-runner-packed:
     name: Stop Packed Runner
     needs:
@@ -631,6 +433,27 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-packed.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
+  stop-runner-packed-sindex:
+    name: Stop Packed Sindex Runner
+    needs:
+      - test-firefly-packed-sindex
+      - start-runner-packed-sindex
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-packed-sindex.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-packed-sindex.outputs.ec2-instance-id }}
   stop-runner-docker:
     name: Stop Docker Build Runner
     needs:

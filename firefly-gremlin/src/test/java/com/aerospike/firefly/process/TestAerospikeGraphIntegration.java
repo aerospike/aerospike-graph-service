@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
@@ -19,11 +20,17 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.MutationListener;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.*;
 import org.apache.tinkerpop.gremlin.structure.io.IoTest;
 import org.apache.tinkerpop.gremlin.structure.io.graphml.GraphMLResourceAccess;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONResourceAccess;
+import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoIo;
+import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoReader;
 import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoResourceAccess;
+import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoVersion;
+import org.apache.tinkerpop.gremlin.structure.io.gryo.GryoWriter;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
@@ -37,9 +44,12 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +94,23 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Before
     public void setupTraversal() {
         g = graph.traversal();
+    }
+
+
+    // 1 kB string.
+    private static final int STRING_LENGTH = 1000;
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static final Random RANDOM = new Random();
+    private static final int MAX_SIZE = 10 * 1000;
+    private static final int PROPERTY_COUNT = 1020;
+    private static final String RANDOM_STRING;
+    static {
+        final StringBuilder stringBuilder = new StringBuilder();
+        while (stringBuilder.length() < STRING_LENGTH) {
+            int idx = (int) (RANDOM.nextFloat() * CHARACTERS.length());
+            stringBuilder.append(CHARACTERS.charAt(idx));
+        }
+        RANDOM_STRING = stringBuilder.toString();
     }
 
     @Test

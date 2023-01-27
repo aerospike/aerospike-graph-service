@@ -7,15 +7,26 @@ import com.aerospike.firefly.generator.beans.vertices.Account;
 import com.aerospike.firefly.generator.beans.vertices.Device;
 import com.aerospike.firefly.generator.beans.vertices.Household;
 import com.aerospike.firefly.generator.beans.vertices.Person;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.Protocol;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.opencsv.CSVWriter;
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,7 +37,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 /**
  * IdentityGenerator is Runnable and multiple independent threads/workers can be spawned each executing their own IdentityGenerator instance.
@@ -94,21 +104,36 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 100000;
-    private HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
+    private long NO_OF_ROWS = 100;
+    private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;
     private final Random random = new Random();
-    private Logger LOG;
+    private final Logger LOG;
     private final IdentityGenerator.CsvWriter csvWriter;
     private Future future;
-
+    private static String ENV = "PROD";
+    //Set default path in local run mode
+    private static String path = "./datagenerator";
+    private static String bucket;
+    private static AmazonS3 S3_CLIENT;
     private static final AtomicLong i = new AtomicLong(0);
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
-        // update this path to your local directory if you would like to avoid storing data in class path
-        this.csvWriter = new IdentityGenerator.CsvWriter("./datageneratoroutput/identitygraph", builder);
+        CommandLine cmd = this.builder.cmd;
         this.LOG = builder.logger;
+        ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
+        path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
+        if (!ENV.equals("local")){
+            bucket = cmd.getOptionValue("b");
+            String accessKey = cmd.getOptionValue("a");
+            String secretKey = cmd.getOptionValue("s");
+            AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+            ClientConfiguration clientConfig = new ClientConfiguration();
+            clientConfig.setProtocol(Protocol.HTTP);
+            S3_CLIENT = new AmazonS3Client(credentials, clientConfig);
+        }
+        this.csvWriter = new IdentityGenerator.CsvWriter(path);
     }
 
     /**
@@ -152,52 +177,49 @@ public class IdentityGenerator implements Runnable {
         LOG.info("Generating data for firefly graph done");
     }
 
-    public void setFuture(Future future) {
+    public void setFuture(Future<?> future) {
         this.future = future;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public Edge createSubAccountNew(final Vertex account,
+    public void createSubAccountNew(final Vertex account,
                                     final Vertex subAccount,
                                     String dir,
-                                    String fileName) {
+                                    String fileName) throws IOException {
         final Edge edge = new Edge();
         edge.setId(i.getAndIncrement());
         edge.setLabel(SUB_ACCOUNT);
         edge.setFrom(account.getId());
         edge.setTo(subAccount.getId());
         generateAndWriteEdgeData(account, subAccount, edge, dir, fileName);
-        return edge;
     }
     
-    public Edge createHoldsNew(final Vertex person,
+    public void createHoldsNew(final Vertex person,
                                final Vertex account,
                                String dir,
-                               String fileName) {
+                               String fileName) throws IOException {
         final Edge edge = new Edge();
         edge.setId(i.getAndIncrement());
         edge.setLabel(HOLDS);
         edge.setFrom(person.getId());
         edge.setTo(account.getId());
         generateAndWriteEdgeData(person, account, edge, dir, fileName);
-        return edge;
     }
     
-    public Edge createOwnsNew(final Vertex person,
+    public void createOwnsNew(final Vertex person,
                               final Vertex device,
                               String dir,
-                              String fileName) {
+                              String fileName) throws IOException {
         final Edge edge = new Edge();
         edge.setId(i.getAndIncrement());
         edge.setLabel(OWNS);
         edge.setFrom(person.getId());
         edge.setTo(device.getId());
         generateAndWriteEdgeData(person, device, edge, dir, fileName);
-        return edge;
     }
     
-    public Edge createPartOfNew(final Vertex person,
+    public void createPartOfNew(final Vertex person,
                                 final Vertex household,
                                 String dir,
                                 String fileName) throws IOException {
@@ -207,7 +229,6 @@ public class IdentityGenerator implements Runnable {
         edge.setFrom(person.getId());
         edge.setTo(household.getId());
         generateAndWriteEdgeData(person, household, edge, dir, fileName);
-        return edge;
     }
 
     public Vertex createHousehold(Vertex household,
@@ -252,7 +273,7 @@ public class IdentityGenerator implements Runnable {
 
     public Vertex createDevice(Vertex device,
                                String dir,
-                               String fileName) {
+                               String fileName) throws IOException {
         final Device d = (Device)device;
         d.setId(i.getAndIncrement());
         d.setLabel(DEVICE);
@@ -265,8 +286,8 @@ public class IdentityGenerator implements Runnable {
     
     public void generateAndWriteVertexData(Vertex vertex,
                                            String dir,
-                                           String fileName){
-        final MutablePair<String[], String[]> pair = generateVertexData1(vertex);
+                                           String fileName) throws IOException {
+        final MutablePair<String[], String[]> pair = generateVertexData(vertex);
         generateAndWriteData(pair, dir, fileName);
     }
 
@@ -274,24 +295,28 @@ public class IdentityGenerator implements Runnable {
                                          Vertex to,
                                          Edge edge,
                                          String dir,
-                                         String fileName){
-        final MutablePair<String[], String[]> pair = generateEdgeData1(from, to, edge);
+                                         String fileName) throws IOException {
+        final MutablePair<String[], String[]> pair = generateEdgeData(from, to, edge);
         generateAndWriteData(pair, dir, fileName);
     }
 
     public void generateAndWriteData(MutablePair<String[], String[]> pair,
-                                     String dir, String fileName) {
+                                     String dir, String fileName) throws IOException {
         int fileCount = 0;
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
         Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
         if ( countOfRecords == NO_OF_ROWS) {
-            this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
+            if (ENV.equals("local"))
+                this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
+            else
+                this.csvWriter.writeDataMapToS3(this.graphMap, dir, fileName, fileCount);
             HashMap<String, Object> objectPropertyMap = new HashMap<>();
             objectPropertyMap.put("fileCount", fileCount + 1);
             HashSet<String[]> schemaSet = new HashSet<>();
             schemaSet.add(pair.left);
             objectPropertyMap.put("schema", schemaSet);
+            //clear the old flushed data from the map to write a new batch
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
         }
@@ -318,8 +343,8 @@ public class IdentityGenerator implements Runnable {
         return dataList.size();
     }
 
-    public synchronized MutablePair<String[], String[]> generateVertexData1(Vertex vertex) {
-        ArrayList<String> vertexheaders = (ArrayList<String>) verticesHeaders.stream().collect(Collectors.toList());
+    public synchronized MutablePair<String[], String[]> generateVertexData(Vertex vertex) {
+        ArrayList<String> vertexheaders = new ArrayList<>(verticesHeaders);
         vertexheaders.addAll(vertex.keys());
         ArrayList<String> data =new ArrayList<>();
         data.add(vertex.getId().toString());
@@ -328,12 +353,13 @@ public class IdentityGenerator implements Runnable {
         for (String key : vertex.keys())
             data.add(vertex.getValueMap().get(key).toString());
 
-        return new MutablePair<>(Arrays.copyOf(vertexheaders.toArray(), vertexheaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
+        return new MutablePair<>(Arrays.copyOf(vertexheaders.toArray(), vertexheaders.toArray().length, String[].class),
+                Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
     }
 
-    public synchronized MutablePair<String[], String[]> generateEdgeData1(Vertex from,
-                                                                          Vertex to,
-                                                                          Edge edge) {
+    public synchronized MutablePair<String[], String[]> generateEdgeData(Vertex from,
+                                                                         Vertex to,
+                                                                         Edge edge) {
         ArrayList<String> data =new ArrayList<>();
         data.add(edge.getId().toString());
         data.add(edge.getLabel());
@@ -399,44 +425,68 @@ public class IdentityGenerator implements Runnable {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class CsvWriter {
-        private String path;
+        private final String path;
 
-        public CsvWriter(String path, final IdentityGenerator.Builder builder) {
+        public CsvWriter(String path) {
             this.path = path;
         }
 
         public void writeDataMapToCSV(HashMap<String, HashMap<String,Object>> map, String dir, String fileName, int count) {
             java.io.File file = new java.io.File(path + "/" + dir + "/" + fileName);
             file.getParentFile().mkdirs();
-            try (CSVWriter writer1 = new CSVWriter(
+            try (CSVWriter writer = new CSVWriter(
                     new FileWriter(path + "/" + dir + "/" + fileName + "_" + count + ".csv"),
                     ',', CSVWriter.NO_QUOTE_CHARACTER, CSVWriter.DEFAULT_ESCAPE_CHARACTER, CSVWriter.DEFAULT_LINE_END)) {
                 // write the schema at the top of file
-                writer1.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
+                writer.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
                 // write the data
-                writer1.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));
+                writer.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        public void writeDataMapToS3(HashMap<String, HashMap<String, Object>> map, String dir, String fileName, int count) throws IOException {
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            OutputStreamWriter streamWriter = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+            try (CSVWriter writer = buildCSVWriter(streamWriter)) {
+                writer.writeAll((HashSet<String[]>)map.get(fileName).get("schema"));
+                writer.writeAll((ArrayList<String[]>)map.get(fileName).get("data"));
+                writer.flush();
+                ObjectMetadata meta = new ObjectMetadata();
+                meta.setContentLength(stream.toByteArray().length);
+                S3_CLIENT.putObject("bulk-loader-spark", path + "/" + dir + "/" + fileName + "_" + count + ".csv",
+                        new ByteArrayInputStream(stream.toByteArray()), meta);
+            }
+        }
+
+
+        private static CSVWriter buildCSVWriter(OutputStreamWriter streamWriter) {
+            return new CSVWriter(streamWriter, ',', Character.MIN_VALUE, '"', System.lineSeparator());
         }
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static class Builder {
-        protected Graph graph;
         protected Logger logger = LoggerFactory.getLogger(IdentityGenerator.class);
         protected int numberOfHouseholds;
         protected int peoplePerHousehold;
         protected int devicesPerPerson;
         protected int accountsPerHousehold;
         protected String id = UUID.randomUUID().toString();
-        protected int ops = 1000;
+        protected int ops = 10000;
+
+        protected CommandLine cmd;
 
         public static Builder create() {
             return new Builder();
         }
 
+        public Builder cmdLineArgs(CommandLine cmd) {
+            this.cmd = cmd;
+            return this;
+        }
         public Builder workerId(final String id) {
             this.id = id;
             return this;

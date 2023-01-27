@@ -118,8 +118,7 @@ public class SparkBulkLoader {
             try {
                 vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
-            }
-            catch (IOException ie) {
+            } catch (IOException ie) {
                 LOGGER.error(ie.getMessage(), ie);
                 System.exit(1);
             }
@@ -215,7 +214,7 @@ public class SparkBulkLoader {
                             boolean succeeded = false;
                             while (!succeeded) {
                                 try {
-                                    FireflyVertex vertex = graph.writeVertex(sparkVertex.getFireflyId(),
+                                    FireflyVertex vertex = graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
                                             sparkVertex.getLabel(), sparkVertex.getProperties());
                                     list.add((long) vertex.id());
                                     succeeded = true;
@@ -449,7 +448,7 @@ public class SparkBulkLoader {
                     try {
                         final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
                                 useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
-                        final FireflyId edgeId = sparkEdge.getFireflyId();
+                        final FireflyId edgeId = sparkEdge.getFireflyId(graph.getBaseGraph().EDGE_AERO_SET);
                         final long inVertexId = sparkEdge.getInVertexId();
                         final long outVertexId = sparkEdge.getOutVertexId();
                         final String edgeLabel = sparkEdge.getLabel();
@@ -481,11 +480,11 @@ public class SparkBulkLoader {
                             // Write edge to vertices' edge caches.
                             if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
                                 loadEdgeMap(graph, supernodes, outVertexId,
-                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(inVertexId)),
+                                        graph.getIdFactory().createEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
                                         edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
                                         ignoreElementCreationFailed);
                                 loadEdgeMap(graph, supernodes, inVertexId,
-                                        FireflyIdFactory.createEdgeId(edgeId, FireflyIdFactory.createId(outVertexId)),
+                                        graph.getIdFactory().createEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
                                         edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
                                         ignoreElementCreationFailed);
                             }
@@ -612,7 +611,7 @@ public class SparkBulkLoader {
         boolean successful = false;
         while (!successful) {
             try {
-                graph.bulkWriteEdgesToVertexCache(FireflyIdFactory.createId(vertexId), direction, edgeIds, label);
+                graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createId(vertexId, FireflyVertex.class), direction, edgeIds, label);
                 successful = true;
             } catch (final AerospikeException e) {
                 if (++tryCount > RETRY_LIMIT) {
@@ -635,7 +634,7 @@ public class SparkBulkLoader {
                     boolean doubtSuccessful = false;
                     while (!doubtSuccessful) {
                         try {
-                            final FireflyVertex fireflyVertex = graph.readVertex(FireflyIdFactory.createId(vertexId));
+                            final FireflyVertex fireflyVertex = graph.readVertex(graph.getIdFactory().createId(vertexId, FireflyVertex.class));
                             doubtSuccessful = true;
 
                             final Iterator<Edge> edges = fireflyVertex.edges(direction, label);
@@ -644,7 +643,7 @@ public class SparkBulkLoader {
 
                             final List<Value> edgeIdsToRemove = new ArrayList<>();
                             for (final Value edgeId : edgeIds) {
-                                final FireflyIdComposite id = (FireflyIdComposite) FireflyIdFactory.createId(edgeId.getObject());
+                                final FireflyIdComposite id = (FireflyIdComposite) graph.getIdFactory().createId(edgeId.getObject(), FireflyEdge.class);
                                 if (writtenEdgeIds.contains(id.getEdgeId())) {
                                     edgeIdsToRemove.add(edgeId);
                                 }
@@ -701,8 +700,7 @@ public class SparkBulkLoader {
      * Function to get a set of valid sub-directory strings of verticies or edges from a master directory.
      *
      * @param directory The master directory.
-     *
-     * @return  The set of valid sub-directories.
+     * @return The set of valid sub-directories.
      */
     static private Set<String> getElementDirectories(final String directory) throws IOException {
         final File file = new File(directory);
@@ -727,10 +725,9 @@ public class SparkBulkLoader {
      * Function to load input files from S3.
      * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
      *
-     * @param bucketName    Name of the S3 bucket.
-     * @param folderKey     Folder key string specifying the name of the master directory of verticies or edges.
-     *
-     * @return  Set of directory path strings containing the csv files in S3.
+     * @param bucketName Name of the S3 bucket.
+     * @param folderKey  Folder key string specifying the name of the master directory of verticies or edges.
+     * @return Set of directory path strings containing the csv files in S3.
      */
     static public Set<String> getObjectsListFromS3(final String bucketName, final String folderKey) {
         final Set<String> keys = new HashSet<>();
@@ -754,10 +751,9 @@ public class SparkBulkLoader {
     /**
      * Function to load config file from S3.
      *
-     * @param bucketName    Name of the S3 bucket.
-     * @param path          Path to config in bucket.
-     *
-     * @return  Configuration object built from config file.
+     * @param bucketName Name of the S3 bucket.
+     * @param path       Path to config in bucket.
+     * @return Configuration object built from config file.
      */
     static public Configuration loadConfigFromS3(final String bucketName, final String path) {
         try (final S3Object s3Object = S3_CLIENT.getObject(bucketName, path);

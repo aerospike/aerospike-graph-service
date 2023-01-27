@@ -119,32 +119,4 @@
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>low_memory</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-                <property>
-                    <name>jvmheapsize</name>
-                    <value>small</value>
-                </property>
-            </activation>
-            <properties>
-                <!-- Java heap parameters -->
-                <maxheap>4096m</maxheap>
-                <minheap>2048m</minheap>
-            </properties>
-        </profile>
-        <profile>
-            <id>normal</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <!-- Java heap parameters -->
-                <maxheap>16384m</maxheap>
-                <minheap>4096m</minheap>
-            </properties>
-        </profile>
-    </profiles>
 </project>

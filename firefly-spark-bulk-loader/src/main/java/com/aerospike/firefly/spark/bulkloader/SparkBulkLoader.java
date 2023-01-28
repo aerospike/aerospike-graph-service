@@ -13,7 +13,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -480,11 +479,11 @@ public class SparkBulkLoader {
                             // Write edge to vertices' edge caches.
                             if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
                                 loadEdgeMap(graph, supernodes, outVertexId,
-                                        graph.getIdFactory().createEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                                        graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
                                         edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
                                         ignoreElementCreationFailed);
                                 loadEdgeMap(graph, supernodes, inVertexId,
-                                        graph.getIdFactory().createEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                                        graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
                                         edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
                                         ignoreElementCreationFailed);
                             }

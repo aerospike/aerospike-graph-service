@@ -65,13 +65,6 @@ public class FireflyIdPoly extends FireflyId {
         this.hash = getIdHash(id, setName);
     }
 
-    /**
-     * Constructor for Numeric Firefly Id.
-     *
-     * @param id        Id to construct with.
-     * @param userClass Class to construct with.
-     */
-    // Package private. Only the factory should be instantiating this.
     private FireflyIdPoly(final Object id, final Class userClass, final String setName) {
         this.userClass = userClass;
         if (id == null) {
@@ -103,18 +96,41 @@ public class FireflyIdPoly extends FireflyId {
         this.userClass = null;
     }
 
+    /**
+     * Create a FireflyId from a user supplied id value (type checked only at runtime)
+     * @param id The user supplied id
+     * @param setName the name of the Aerospike set this id belongs to
+     * @return a FireflyId
+     */
     public static FireflyIdPoly fromObject(final Object id, final String setName) {
         return new FireflyIdPoly(id, setName);
     }
 
+    /**
+     * Create a FireflyId from a user supplied id value (type checked only at runtime)
+     * @param id The user supplied id
+     * @param userClass The class of the user supplied id
+     * @param setName the name of the Aerospike set this id belongs to
+     * @return a FireflyId
+     */
     public static FireflyIdPoly fromObject(final Object id, final Class userClass, final String setName) {
         return new FireflyIdPoly(id, userClass, setName);
     }
 
+    /**
+     * Create a FireflyId from an Aerospike Key digest
+     * @param bytes The digest bytes
+     * @param setName the name of the Aerospike Set this id belongs to
+     * @return a FireflyId
+     */
     public static FireflyIdPoly fromHash(final byte[] bytes, final String setName) {
         return new FireflyIdPoly(bytes, setName);
     }
 
+    /**
+     * Return the origional value of the id supplied by the user.
+     * @return the origional value of the id supplied by the user.
+     */
     @Override
     public Object getUserId() {
         if (this.userClass == null) throw new RuntimeException("Error, cannot get user id for hash id.");
@@ -125,6 +141,10 @@ public class FireflyIdPoly extends FireflyId {
         }
     }
 
+    /**
+     * Return the user supplied id value in the format it is stored within Aerospike
+     * @return the user supplied id value in the format it is stored within Aerospike
+     */
     @Override
     public Object getStorageId() {
         return id;

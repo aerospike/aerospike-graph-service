@@ -13,10 +13,10 @@ import java.nio.ByteBuffer;
 public class FireflyIdComposite extends FireflyId {
     private final AerospikeConnection db;
     /* The composite id is used so heavily in different forms that
-           the edge id, adjacent id, and id array are not always all needed
-           but sometimes needed multiple times. Because of this, these are
-           calculated lazily (and latched when needed the first time),
-           to increase performance. */
+       the edge id, adjacent id, and id array are not always all needed
+       but sometimes needed multiple times. Because of this, these are
+       calculated lazily (and latched when needed the first time),
+       to increase performance. */
     private byte[] id;
     private final FireflyId adjacentId;
     private FireflyId edgeId;
@@ -36,13 +36,21 @@ public class FireflyIdComposite extends FireflyId {
     }
 
 
-
+    /**
+     * Slice the id at idx from our composite 2-hash array
+     * @param idx offset of 20 byte RIPEMD160 hash (Aerospike Key digest)
+     * @return the 20 byte hash
+     */
     private byte[] digestFromBytes(final int idx) {
         final byte[] digest = new byte[20];
         System.arraycopy(id, idx, digest, 0, 20);
         return digest;
     }
 
+    /**
+     * Get the edge id from the composite id
+     * @return edge id
+     */
     public FireflyId getEdgeId() {
         if (edgeId != null) {
             return edgeId;
@@ -51,6 +59,10 @@ public class FireflyIdComposite extends FireflyId {
         return idFromHash;
     }
 
+    /**
+     * Get the adjacent Vertex id from the composite id
+     * @return the id of vertex on other side of edge
+     */
     public FireflyId getAdjacentId() {
         if (adjacentId != null) {
             return adjacentId;
@@ -58,13 +70,16 @@ public class FireflyIdComposite extends FireflyId {
         return FireflyIdPoly.fromHash(digestFromBytes(20), db.VERTEX_AERO_SET);
     }
 
-
+    /**
+     * Get the original user id (user key) of the edge
+     * @return the user id of the edge
+     */
     @Override
     public Object getUserId() {
         if (edgeId != null) {
             return edgeId.getUserId();
         }
-        return FireflyRecord.read(db,db.EDGE_AERO_SET,FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)).getUserKey();
+        return FireflyRecord.read(db, db.EDGE_AERO_SET, FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)).getUserKey();
     }
 
     @Override

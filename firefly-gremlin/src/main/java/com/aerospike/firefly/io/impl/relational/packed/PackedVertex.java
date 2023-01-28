@@ -104,7 +104,7 @@ public class PackedVertex extends RelationalVertex {
         for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
             // Create the property.
             final FireflyVertexProperty<V> property = new PackedVertexProperty<>(graph,
-                    graph.getIdFactory().createId(vertexPropertyIds.get(vertexProperty.getKey()),FireflyVertexProperty.class),
+                    graph.getIdFactory().createId(vertexPropertyIds.get(vertexProperty.getKey()), FireflyVertexProperty.class),
                     this,
                     vertexProperty.getKey(),
                     vertexProperty.getValue());
@@ -176,14 +176,14 @@ public class PackedVertex extends RelationalVertex {
 
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                      vertexPropertyId, this.id, key);
+                    vertexPropertyId, this.id, key);
             return;
         }
 
         // Remove vertex property from vertex properties in vertex.
         if (!vertexPropertyId.equals(vertexPropertyIds.get(key))) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                      vertexPropertyId, id, key, vertexPropertyId);
+                    vertexPropertyId, id, key, vertexPropertyId);
             return;
         }
 

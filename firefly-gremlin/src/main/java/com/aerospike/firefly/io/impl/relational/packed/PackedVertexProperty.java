@@ -151,7 +151,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     /**
      * Get the FireflyId of the parent vertex to which this vertex property belongs.
      *
-     * @return  The FireflyId of the parent vertex.
+     * @return The FireflyId of the parent vertex.
      */
     public FireflyId getVertexId() {
         return this.vertexId;
@@ -209,7 +209,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     /**
      * Remove a property from this vertex property.
      *
-     * @param key   The key of the property to be removed.
+     * @param key The key of the property to be removed.
      */
     public void removeProperty(final String key) {
         GenerationCheck.writeGenerationCheck(() -> protectedRemoveProperty(key));
@@ -244,8 +244,8 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     /**
      * Read all the properties of this vertex property.
      *
-     * @return      A map of all the key value pairs of properties on this vertex property.
-     * @param <V>   The value type of a property.
+     * @param <V> The value type of a property.
+     * @return A map of all the key value pairs of properties on this vertex property.
      */
     public <V> Map<String, Property<V>> readProperties() {
         final AerospikeConnection db = this.graph.getBaseGraph();

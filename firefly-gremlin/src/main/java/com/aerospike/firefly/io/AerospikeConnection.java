@@ -22,6 +22,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
@@ -85,11 +86,15 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
  */
 public class AerospikeConnection implements AutoCloseable {
     public static final String USER_KEY = "USER_KEY";
-    protected static final Policy sendKeyReadPolicy;
+    public static final Policy sendKeyReadPolicy;
+
+    public static final BatchPolicy sendKeyBatchPolicy;
 
     static {
         sendKeyReadPolicy = new Policy();
+        sendKeyBatchPolicy = new BatchPolicy();
         sendKeyReadPolicy.sendKey = true;
+        sendKeyBatchPolicy.sendKey = true;
     }
 
     protected static final Policy noKeyReadPolicy = new Policy();
@@ -487,6 +492,11 @@ public class AerospikeConnection implements AutoCloseable {
         write(k, b);
     }
 
+    /**
+     * Return the name of the set associated with the FireflyElement class
+     * @param type Firefly Element class
+     * @return name of the set
+     */
     public String setFromElementType(Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type)) {
             return VERTEX_AERO_SET;
@@ -891,6 +901,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     protected void write(final Key key, final Bin... bins) {
         Bin[] newBins;
+        //@todo This is a temporary measure to pack the user key into a bin.
+        //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
             newBins[bins.length] = new Bin(USER_KEY, key.userKey.getObject());
@@ -908,6 +920,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     protected void write(final Key key, final int generation, final Bin... bins) {
         Bin[] newBins;
+        //@todo This is a temporary measure to pack the user key into a bin.
+        //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
             newBins[bins.length] = new Bin(USER_KEY, key.userKey.getObject());

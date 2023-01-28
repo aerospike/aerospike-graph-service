@@ -122,7 +122,7 @@ public abstract class RelationalVertex extends FireflyVertex {
             if (edgeId instanceof FireflyIdComposite) {
                 final FireflyIdComposite composite = (FireflyIdComposite) edgeId;
                 edge = graph.readEdge(composite.getEdgeId());
-            }else{
+            } else {
                 edge = graph.readEdge(edgeId);
             }
             if (edge != null) {

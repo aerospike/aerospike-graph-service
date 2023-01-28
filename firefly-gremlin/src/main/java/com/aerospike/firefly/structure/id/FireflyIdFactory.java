@@ -53,6 +53,12 @@ public class FireflyIdFactory {
         this.db = db;
     }
 
+    /**
+     * Create a FireflyIdFactory
+     *
+     * @param db the AerospikeConnection
+     * @return FireflyIdFactory
+     */
     public static FireflyIdFactory create(final AerospikeConnection db) {
         return new FireflyIdFactory(db);
     }
@@ -168,6 +174,12 @@ public class FireflyIdFactory {
         return createId(idObj, TYPE_TO_IDX.get(id.getClass()), type);
     }
 
+    /**
+     * Generate a new id from the id manager.
+     * @param graph the FireflyGraph instance
+     * @param type the Firefly Element Type to generate an id for
+     * @return FireflyId
+     */
     public FireflyId createFromManager(final FireflyGraph graph, final Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type)) {
             return createId(graph.vertexIdManager.getNextId(graph), type);
@@ -180,11 +192,17 @@ public class FireflyIdFactory {
         }
     }
 
-    public FireflyId createEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
+    /**
+     * Create a composite id from an edge and a vertex id
+     * @param edgeId the edge id
+     * @param adjacentVertex the adjacent vertex id
+     * @return a FireflyIdComposite representing an edge and an adjacent Vertex
+     */
+    public FireflyId createCompositeEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
         return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
-    public FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
+    public FireflyId createCompositeEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
         return new FireflyIdComposite(db, createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
     }
 
@@ -206,6 +224,13 @@ public class FireflyIdFactory {
         }
     }
 
+    /**
+     * Create a FireflyId from an Aerospike Record and Firefly Element class
+     * @param db the AerospikeConnection
+     * @param record the Record representing the Firefly Element
+     * @param type the type of Firefly Element to create
+     * @return FireflyId
+     */
     public FireflyId createFromRecord(final AerospikeConnection db, final FireflyRecord record, final Class<? extends FireflyElement> type) {
         //@todo uses userKey, check if this works when key is constructed from hash
         final Object origId;

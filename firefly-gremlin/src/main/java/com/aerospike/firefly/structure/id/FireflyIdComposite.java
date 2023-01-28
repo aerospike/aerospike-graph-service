@@ -87,7 +87,7 @@ public class FireflyIdComposite extends FireflyId {
         if (edgeId != null) {
             return edgeId.getStorageId();
         }
-        return digestFromBytes(0);
+        return digestFromBytes(0); //@todo this is not the storage id, it is the key hash
     }
 
     @Override

@@ -12,7 +12,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -46,8 +45,8 @@ public class CompositeIdTest extends AbstractFireflySuite {
         final FireflyId fooId = graph.getIdFactory().createId(foo.id(), FireflyVertex.class);
         final FireflyId barId = graph.getIdFactory().createId(bar.id(), FireflyVertex.class);
         final FireflyId bazId = graph.getIdFactory().createId(baz.id(), FireflyEdge.class);
-        final FireflyId compositeFooId = graph.getIdFactory().createEdgeId(bazId, fooId);
-        final FireflyId compositeBarId = graph.getIdFactory().createEdgeId(bazId, barId);
+        final FireflyId compositeFooId = graph.getIdFactory().createCompositeEdgeId(bazId, fooId);
+        final FireflyId compositeBarId = graph.getIdFactory().createCompositeEdgeId(bazId, barId);
         final Map<String, List<FireflyId>> barInFireflyIdMap = graph.getIdFactory().convertMapListObjectToFireflyIdMap(barInEdges);
         final Map<String, List<FireflyId>> fooOutFireflyIdMap = graph.getIdFactory().convertMapListObjectToFireflyIdMap(fooOutEdges);
 

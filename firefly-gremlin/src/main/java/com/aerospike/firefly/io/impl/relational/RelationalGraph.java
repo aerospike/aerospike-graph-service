@@ -78,8 +78,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                                  final FireflyVertex outVertex) {
         // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
         // Add edge to inVertex and outVertex.
-        outVertex.writeEdge(Direction.OUT, getIdFactory().createEdgeId(edgeId, inVertex.id), label);
-        inVertex.writeEdge(Direction.IN, getIdFactory().createEdgeId(edgeId, outVertex.id), label);
+        outVertex.writeEdge(Direction.OUT, getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label);
+        inVertex.writeEdge(Direction.IN, getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label);
 
         // Write edge to Aerospike and return FireflyEdge.
         return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);

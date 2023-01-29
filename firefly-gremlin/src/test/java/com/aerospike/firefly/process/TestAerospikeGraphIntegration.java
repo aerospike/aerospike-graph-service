@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.WriteTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.FailStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -1560,5 +1562,16 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Assert.assertEquals(2L, (long)bothEdges.size());
         Assert.assertEquals(bothEdges.get(0), bothEdges.get(1));
+    }
+    @Test
+    public void g_io_writeXjsonX() throws IOException {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        String fileToWrite = TestHelper.generateTempFile(WriteTest.class, "tinkerpop-modern-v3d0", ".json").getAbsolutePath().replace('\\', '/');
+        File f = new File(fileToWrite);
+        MatcherAssert.assertThat(f.length() == 0L, Is.is(true));
+        Traversal<Object, Object> traversal = this.g.io(fileToWrite).write();
+        this.printTraversalForm(traversal);
+        traversal.iterate();
+        MatcherAssert.assertThat(f.length() > 0L, Is.is(true));
     }
 }

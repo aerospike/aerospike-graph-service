@@ -613,6 +613,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);
+        Object nextUserId = next.getUserId();
         assertTrue(x.contains(next.getUserId()));
         next = i.get(1);
         assertTrue(x.contains(next.getUserId()));

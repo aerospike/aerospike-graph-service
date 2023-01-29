@@ -5,6 +5,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedEdge;
@@ -92,8 +93,8 @@ public class RelationalEdge extends FireflyEdge {
 
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
 
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id.getStorageId()));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id.getStorageId()));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertex.id.getKeyHashBase64()));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertex.id.getKeyHashBase64()));
         final Bin valueBin = new Bin(db.PROPERTIES, Value.get(data, MapOrder.KEY_ORDERED));
         final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
@@ -119,8 +120,8 @@ public class RelationalEdge extends FireflyEdge {
         return RelationalEdgeFactory.create(graph.getIdFactory().createFromRecord(db, edgeRecord, FireflyEdge.class),
                 edgeRecord.record.getString(AerospikeConnection.LABEL),
                 graph,
-                FireflyIdPoly.fromObject(edgeRecord.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
-                FireflyIdPoly.fromObject(edgeRecord.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)));
+                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
+                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)));
     }
 
     /**
@@ -142,8 +143,8 @@ public class RelationalEdge extends FireflyEdge {
                         graph.getIdFactory().createFromRecord(db, record, FireflyEdge.class),
                         record.record.getString(AerospikeConnection.LABEL),
                         graph,
-                        FireflyIdPoly.fromObject(record.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
-                        FireflyIdPoly.fromObject(record.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)))).
+                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
+                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)))).
                 collect(Collectors.toList());
     }
 
@@ -168,8 +169,8 @@ public class RelationalEdge extends FireflyEdge {
                         FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record), FireflyEdge.class),
                 record.getString(AerospikeConnection.LABEL),
                 graph,
-                FireflyIdPoly.fromObject(record.getValue(Direction.OUT.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)),
-                FireflyIdPoly.fromObject(record.getValue(Direction.IN.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)));
+                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.OUT.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)),
+                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.IN.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)));
     }
 
     /**

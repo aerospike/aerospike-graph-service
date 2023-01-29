@@ -286,17 +286,17 @@ public abstract class RelationalVertex extends FireflyVertex {
             // If direction is in or out, get that specific direction.
             exp = Exp.build(
                     Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
-                            Exp.val((Long) id.getStorageId())
+                            Exp.val(id.getKeyHashBase64())
                     ));
         } else {
             // If direction is both, we need to get in and out.
             exp = Exp.build(
                     Exp.or(
                             Exp.eq(Exp.intBin(Direction.IN.name()),
-                                    Exp.val((Long) id.getStorageId())
+                                    Exp.val(id.getKeyHashBase64())
                             ),
                             Exp.eq(Exp.intBin(Direction.OUT.name()),
-                                    Exp.val((Long) id.getStorageId())
+                                    Exp.val(id.getKeyHashBase64())
                             )
                     ));
         }
@@ -316,16 +316,16 @@ public abstract class RelationalVertex extends FireflyVertex {
         Iterator<KeyRecord> iterator;
         if (direction == Direction.OUT) {
             iterator = db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(direction.name(),
-                    IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy);
+                    IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy);
         } else if (direction == Direction.IN) {
             iterator = db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(direction.name(),
-                    IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy);
+                    IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy);
         } else {
             iterator = IteratorUtils.concat(
                     db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(Direction.IN.name(),
-                            IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy),
+                            IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy),
                     db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(Direction.OUT.name(),
-                            IndexCollectionType.DEFAULT, (long) id.getStorageId()), queryPolicy));
+                            IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy));
         }
         return IteratorUtils.map(iterator, keyRecordEntry ->
                 graph.getIdFactory().createId(keyRecordEntry.key.userKey.getObject(), FireflyEdge.class));

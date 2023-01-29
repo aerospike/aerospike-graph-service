@@ -43,9 +43,9 @@ public class EgoNetwork {
 
         // Almost all instances of (Long) casting to read FireflyIds has been removed, this is one of the last ones.
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId.getStorageId())).collect(Collectors.toList());
+                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
         List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), db.EDGE_AERO_SET, (Long) edgeId.getStorageId())).collect(Collectors.toList());
+                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
 
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));
@@ -66,6 +66,7 @@ public class EgoNetwork {
 
     /**
      * Generate an ego network by reading data from Aerospike
+     *
      * @param egoId The central vertex to start from
      * @param graph FireflyGraph instance
      * @return EgoNetwork
@@ -76,6 +77,7 @@ public class EgoNetwork {
 
     /**
      * return all the Id's of Verticies in the ego network
+     *
      * @return
      */
     public List<Object> vertexNeighborhood() {
@@ -84,6 +86,7 @@ public class EgoNetwork {
 
     /**
      * return an Iterator of all Records in the ego network
+     *
      * @return Iterator of all Records in the ego network
      */
     public Iterator<KeyRecord> records() {

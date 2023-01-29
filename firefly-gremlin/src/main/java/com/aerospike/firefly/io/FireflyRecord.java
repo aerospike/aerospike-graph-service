@@ -95,7 +95,7 @@ public class FireflyRecord {
     //return the TinkerPop ID of this firefly record
     public Object id() {
         final long idval = key.userKey.toLong();
-        final long idtypidx = record.getLong(this.ac.ID_TYPE);
+        final long idtypidx = record.getLong(this.ac.IT_TYPE_BIN);
         return idStorageTypeToOriginalType(idval, idtypidx);
     }
 
@@ -106,12 +106,12 @@ public class FireflyRecord {
     //@TODO User key may be null in sendKey when record re-read
 
     // Construct an Aerospike key from a Firefly ID
-    public static Key getKeyByUserId(final String setName, final String set, final FireflyId id) {
-        return new Key(setName, set, Value.get(id.getStorageId()));
+    public static Key getKeyByUserId(final String namespace, final String set, final FireflyId id) {
+        return new Key(namespace, set, Value.get(id.getStorageId()));
     }
 
-    public static Key getKeyByHashId(final String setName, final String set, final FireflyId id) {
-        return new Key(setName, id.getKeyHash(), set, Value.NULL);
+    public static Key getKeyByHashId(final String namespace, final String set, final FireflyId id) {
+        return new Key(namespace, id.getKeyHash(), set, Value.NULL);
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
@@ -216,7 +216,7 @@ public class FireflyRecord {
                              final int generation,
                              final Bin... bins) {
         final Key key = getKeyByUserId(db.getNamespace(), set, id);
-        final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
+        final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         db.write(key, generation, listOfBins.toArray(new Bin[0]));
@@ -238,7 +238,7 @@ public class FireflyRecord {
         final Key key = getKeyByUserId(db.getNamespace(), set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         if (generation == -1) {
-            final Bin idTypeBin = new Bin(db.ID_TYPE, Value.get(id.getStorageTypeIdx()));
+            final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
             listOfBins.add(idTypeBin);
         }
         db.write(key, generation, listOfBins.toArray(new Bin[0]));

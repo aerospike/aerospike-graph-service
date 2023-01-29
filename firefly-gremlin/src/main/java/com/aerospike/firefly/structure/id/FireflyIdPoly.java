@@ -1,9 +1,11 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.Log;
 import com.aerospike.client.util.Crypto;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -58,11 +60,11 @@ public class FireflyIdPoly extends FireflyId {
             this.source = Source.NUMBER;
             this.id = ((Double) id).longValue();
             this.userClass = Double.class;
-
         } else {
             throw new IllegalArgumentException("Id must be a String or Number.");
         }
         this.hash = getIdHash(id, setName);
+        assert (!Arrays.equals(this.hash, new byte[20]));
     }
 
     private FireflyIdPoly(final Object id, final Class userClass, final String setName) {
@@ -78,7 +80,6 @@ public class FireflyIdPoly extends FireflyId {
         } else if (Double.class.isAssignableFrom(id.getClass())) {
             this.source = Source.NUMBER;
             this.id = ((Double) id).longValue();
-
         } else {
             throw new IllegalArgumentException("Id must be a String or Number.");
         }
@@ -98,7 +99,8 @@ public class FireflyIdPoly extends FireflyId {
 
     /**
      * Create a FireflyId from a user supplied id value (type checked only at runtime)
-     * @param id The user supplied id
+     *
+     * @param id      The user supplied id
      * @param setName the name of the Aerospike set this id belongs to
      * @return a FireflyId
      */
@@ -108,9 +110,10 @@ public class FireflyIdPoly extends FireflyId {
 
     /**
      * Create a FireflyId from a user supplied id value (type checked only at runtime)
-     * @param id The user supplied id
+     *
+     * @param id        The user supplied id
      * @param userClass The class of the user supplied id
-     * @param setName the name of the Aerospike set this id belongs to
+     * @param setName   the name of the Aerospike set this id belongs to
      * @return a FireflyId
      */
     public static FireflyIdPoly fromObject(final Object id, final Class userClass, final String setName) {
@@ -119,7 +122,8 @@ public class FireflyIdPoly extends FireflyId {
 
     /**
      * Create a FireflyId from an Aerospike Key digest
-     * @param bytes The digest bytes
+     *
+     * @param bytes   The digest bytes
      * @param setName the name of the Aerospike Set this id belongs to
      * @return a FireflyId
      */
@@ -128,7 +132,19 @@ public class FireflyIdPoly extends FireflyId {
     }
 
     /**
+     * Create a FireflyId from an Aerospike Key digest
+     *
+     * @param base64hash The base64 encoded hash string
+     * @param setName    the name of the Aerospike Set this id belongs to
+     * @return a FireflyId
+     */
+    public static FireflyIdPoly fromBase64Hash(final String base64hash, final String setName) {
+        return new FireflyIdPoly(Crypto.decodeBase64(base64hash.getBytes(), 0, 20), setName);
+    }
+
+    /**
      * Return the origional value of the id supplied by the user.
+     *
      * @return the origional value of the id supplied by the user.
      */
     @Override
@@ -143,6 +159,7 @@ public class FireflyIdPoly extends FireflyId {
 
     /**
      * Return the user supplied id value in the format it is stored within Aerospike
+     *
      * @return the user supplied id value in the format it is stored within Aerospike
      */
     @Override
@@ -165,6 +182,10 @@ public class FireflyIdPoly extends FireflyId {
         return hash;
     }
 
+    @Override
+    public String getKeyHashBase64() {
+        return Crypto.encodeBase64(getKeyHash());
+    }
 
     @Override
     public String toString() {

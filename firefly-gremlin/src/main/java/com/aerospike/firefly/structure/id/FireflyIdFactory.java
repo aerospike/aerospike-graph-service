@@ -39,7 +39,7 @@ public class FireflyIdFactory {
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
-    private static final Map<Long, Class<? extends Serializable>> IDX_TO_TYPE = new HashMap<>() {{
+    static final Map<Long, Class<? extends Serializable>> IDX_TO_TYPE = new HashMap<>() {{
         put(null, null);
         put(0L, null);
         put(1L, Long.class);
@@ -242,7 +242,7 @@ public class FireflyIdFactory {
         } else { //@todo list of cases
             throw new RuntimeException("no key available"); //maybe a pure hash id
         }
-        idx = record.record.getLong(db.ID_TYPE) == 0 ? FireflyIdPoly.CONVERT_TO_STORAGE_IDX.get(origId.getClass()) : record.record.getLong(db.ID_TYPE);
+        idx = record.record.getLong(db.IT_TYPE_BIN) == 0 ? FireflyIdPoly.CONVERT_TO_STORAGE_IDX.get(origId.getClass()) : record.record.getLong(db.IT_TYPE_BIN);
         return createId(origId, idx, type);
     }
 

@@ -178,7 +178,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String KEY_VALUE;
     protected final String COUNTER;
     protected final String ID_MANAGER_SET;
-    public final String ID_TYPE;
+    public final String IT_TYPE_BIN;
     public final String GLOBAL;
     public final String TEST_SET;
     public final Configuration conf;
@@ -254,7 +254,7 @@ public class AerospikeConnection implements AutoCloseable {
         KEY_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.KEY_VALUE, conf);
         COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.COUNTER, conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET, conf);
-        ID_TYPE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE, conf);
+        IT_TYPE_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE, conf);
         GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
         TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.TEST_SET, conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET, conf);
@@ -494,6 +494,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Return the name of the set associated with the FireflyElement class
+     *
      * @param type Firefly Element class
      * @return name of the set
      */
@@ -762,10 +763,10 @@ public class AerospikeConnection implements AutoCloseable {
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
-                    IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+                    IndexType.STRING, IndexCollectionType.DEFAULT);
             createIndex(existingIndexes, getElementPropertySet(FireflyEdge.class),
                     E_OUT_INDEX, Direction.OUT.name(),
-                    IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+                    IndexType.STRING, IndexCollectionType.DEFAULT);
         }
 
         createIndex(existingIndexes, getElementPropertySet(FireflyVertex.class),
@@ -876,7 +877,13 @@ public class AerospikeConnection implements AutoCloseable {
     protected Record read(final Key key, Policy policy) {
         readMetric.addAndGet(1);
         final FireflyCache cache = transactionCache.get();
-        Record[] results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(policy, key)};
+        final Record[] results;
+        try { //@todo policy causes key mismatch error
+            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(null, key)};
+        } catch (AerospikeException e) {
+            LOG.error("Error: AerospikeException in read");
+            throw e;
+        }
         return results[0];
     }
 
@@ -889,7 +896,13 @@ public class AerospikeConnection implements AutoCloseable {
     protected Record[] read(final Key[] keys) {
         readMetric.addAndGet(keys.length);
         final FireflyCache cache = transactionCache.get();
-        Record[] results = (cache != null) ? cache.read(keys) : client.get(null, keys);
+        final Record[] results;
+        try { //@todo policy causes key mismatch error
+            results = (cache != null) ? cache.read(keys) : client.get(null, keys);
+        } catch (AerospikeException e) {
+            LOG.error("Error: AerospikeException in read");
+            throw e;
+        }
         return results;
     }
 

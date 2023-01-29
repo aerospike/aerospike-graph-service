@@ -24,6 +24,8 @@ public abstract class FireflyId implements Comparable {
     public abstract Object getCachedId();
 
     public abstract byte[] getKeyHash();
+    public abstract String getKeyHashBase64();
+
 
     @Override
     public int hashCode() {
@@ -50,6 +52,7 @@ public abstract class FireflyId implements Comparable {
      */
     public static byte[] getIdHash(Object id, String setName) {
         final Value keyValue = Value.get(id);
-        return Crypto.computeDigest(setName, keyValue);
+        byte[] hash = Crypto.computeDigest(setName, keyValue);
+        return hash;
     }
 }

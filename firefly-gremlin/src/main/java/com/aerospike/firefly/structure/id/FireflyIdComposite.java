@@ -1,11 +1,15 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.nio.ByteBuffer;
+import java.util.Optional;
+
+import static com.aerospike.firefly.structure.id.FireflyIdFactory.IDX_TO_TYPE;
+import static com.aerospike.firefly.structure.id.FireflyIdPoly.CONVERT_TO_USER_CLASS;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -25,10 +29,13 @@ public class FireflyIdComposite extends FireflyId {
         this.adjacentId = adjacentId;
         this.edgeId = edgeId;
         this.db = db;
-
+        id = new byte[40];
+        System.arraycopy(edgeId.getKeyHash(), 0, id, 0, 20);
+        System.arraycopy(adjacentId.getKeyHash(), 0, id, 20, 20);
     }
 
     public FireflyIdComposite(final AerospikeConnection db, final byte[] ids) {
+        if(ids.length != 40) throw new RuntimeException("Invalid id length");
         id = ids;
         edgeId = null;
         adjacentId = null;
@@ -38,6 +45,7 @@ public class FireflyIdComposite extends FireflyId {
 
     /**
      * Slice the id at idx from our composite 2-hash array
+     *
      * @param idx offset of 20 byte RIPEMD160 hash (Aerospike Key digest)
      * @return the 20 byte hash
      */
@@ -49,6 +57,7 @@ public class FireflyIdComposite extends FireflyId {
 
     /**
      * Get the edge id from the composite id
+     *
      * @return edge id
      */
     public FireflyId getEdgeId() {
@@ -61,6 +70,7 @@ public class FireflyIdComposite extends FireflyId {
 
     /**
      * Get the adjacent Vertex id from the composite id
+     *
      * @return the id of vertex on other side of edge
      */
     public FireflyId getAdjacentId() {
@@ -72,6 +82,7 @@ public class FireflyIdComposite extends FireflyId {
 
     /**
      * Get the original user id (user key) of the edge
+     *
      * @return the user id of the edge
      */
     @Override
@@ -79,7 +90,8 @@ public class FireflyIdComposite extends FireflyId {
         if (edgeId != null) {
             return edgeId.getUserId();
         }
-        return FireflyRecord.read(db, db.EDGE_AERO_SET, FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)).getUserKey();
+        return Optional.ofNullable(FireflyRecord.read(db, db.EDGE_AERO_SET, FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)))
+                .orElseThrow(() -> new RuntimeException("No original ID available and no Record present")).getUserKey();
     }
 
     @Override
@@ -87,7 +99,11 @@ public class FireflyIdComposite extends FireflyId {
         if (edgeId != null) {
             return edgeId.getStorageId();
         }
-        return digestFromBytes(0); //@todo this is not the storage id, it is the key hash
+        Optional<FireflyRecord> maybeRec = Optional.ofNullable(FireflyRecord.read(db, db.EDGE_AERO_SET, FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)));
+        if (maybeRec.isEmpty()) return null;
+        Long idx = maybeRec.get().record.getLong(db.IT_TYPE_BIN);
+        Object userId = CONVERT_TO_USER_CLASS.get(IDX_TO_TYPE.get(idx)).getUserId(maybeRec.get().getUserKey());
+        return userId;
     }
 
     @Override
@@ -96,15 +112,15 @@ public class FireflyIdComposite extends FireflyId {
             return edgeId.getStorageTypeIdx();
         }
         edgeId = db.getIdFactory().createFromUser(FireflyEdge.class, digestFromBytes(0));
-        return db.getIdFactory().createFromUser(FireflyEdge.class, digestFromBytes(0)).getStorageTypeIdx();
+        return db.getIdFactory().createFromUser(FireflyEdge.class, edgeId).getStorageTypeIdx();
     }
 
     @Override
     public byte[] getCachedId() {
         if (id == null) {
             final ByteBuffer buffer = ByteBuffer.allocate(20 * 2);
-            buffer.put((byte[]) edgeId.getKeyHash());
-            buffer.put((byte[]) adjacentId.getKeyHash());
+            buffer.put(edgeId.getKeyHash());
+            buffer.put(adjacentId.getKeyHash());
             id = buffer.array();
         }
         return id.clone();
@@ -113,6 +129,11 @@ public class FireflyIdComposite extends FireflyId {
     @Override
     public byte[] getKeyHash() {
         return getEdgeId().getKeyHash();
+    }
+
+    @Override
+    public String getKeyHashBase64() {
+        return Crypto.encodeBase64(getKeyHash());
     }
 
     @Override

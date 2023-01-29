@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -10,7 +11,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class StringIdTest extends AbstractFireflySuite {
+public class PolyIdTest extends AbstractFireflySuite {
 
     @Override
     protected boolean clearData() {
@@ -30,5 +31,11 @@ public class StringIdTest extends AbstractFireflySuite {
         assertEquals(1L, c.longValue());
     }
 
-
+    @Test
+    public void testKeyHashRecovery() {
+        Vertex va = graph.addVertex(T.id, "A");
+        Vertex vb = graph.addVertex(T.id, "B");
+        va.addEdge("chases", vb);
+        assertEquals(va.id(), graph.traversal().V(vb).in().toList().get(0).id());
+    }
 }

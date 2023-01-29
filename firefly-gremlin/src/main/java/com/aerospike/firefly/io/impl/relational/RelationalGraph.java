@@ -107,8 +107,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         });
 
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(inVertexId));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(outVertexId));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(FireflyIdPoly.fromObject(inVertexId,db.VERTEX_AERO_SET).getKeyHashBase64()));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(FireflyIdPoly.fromObject(outVertexId,db.VERTEX_AERO_SET).getKeyHashBase64()));
         final Bin valueBin = new Bin(this.db.PROPERTIES, Value.get(data, MapOrder.KEY_ORDERED));
         final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
         FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class), -1, labelBin,

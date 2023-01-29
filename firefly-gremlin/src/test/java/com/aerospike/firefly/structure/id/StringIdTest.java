@@ -30,5 +30,4 @@ public class StringIdTest extends AbstractFireflySuite {
         assertEquals(1L, c.longValue());
     }
 
-
 }

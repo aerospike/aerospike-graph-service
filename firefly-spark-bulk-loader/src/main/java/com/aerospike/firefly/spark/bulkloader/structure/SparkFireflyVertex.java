@@ -62,6 +62,6 @@ public class SparkFireflyVertex extends SparkFireflyElement {
 
     @Override
     public FireflyId getFireflyId(final String setName) {
-        return FireflyIdPoly.fromObject(this.id,setName);
+        return FireflyIdPoly.fromObject(this.id, setName);
     }
 }

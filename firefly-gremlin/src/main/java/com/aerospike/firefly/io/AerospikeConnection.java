@@ -876,7 +876,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy
      * @return Aerospike Record
      */
-    protected Record read(final Key key, Policy policy) {
+    protected Record read(final Key key, final Policy policy) {
         readMetric.addAndGet(1);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;

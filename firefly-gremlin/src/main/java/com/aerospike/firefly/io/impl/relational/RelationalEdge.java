@@ -120,8 +120,8 @@ public class RelationalEdge extends FireflyEdge {
         return RelationalEdgeFactory.create(graph.getIdFactory().createFromRecord(db, edgeRecord, FireflyEdge.class),
                 edgeRecord.record.getString(AerospikeConnection.LABEL),
                 graph,
-                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
-                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)));
+                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.OUT.name()), db.VERTEX_AERO_SET),
+                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET));
     }
 
     /**
@@ -143,8 +143,8 @@ public class RelationalEdge extends FireflyEdge {
                         graph.getIdFactory().createFromRecord(db, record, FireflyEdge.class),
                         record.record.getString(AerospikeConnection.LABEL),
                         graph,
-                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.OUT.name()), db.getElementPropertySet(FireflyVertex.class)),
-                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.IN.name()), db.getElementPropertySet(FireflyVertex.class)))).
+                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.OUT.name()), db.VERTEX_AERO_SET),
+                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET))).
                 collect(Collectors.toList());
     }
 
@@ -169,8 +169,8 @@ public class RelationalEdge extends FireflyEdge {
                         FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, record), FireflyEdge.class),
                 record.getString(AerospikeConnection.LABEL),
                 graph,
-                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.OUT.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)),
-                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.IN.name()), graph.getBaseGraph().getElementPropertySet(FireflyVertex.class)));
+                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.OUT.name()), graph.getBaseGraph().VERTEX_AERO_SET),
+                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.IN.name()), graph.getBaseGraph().VERTEX_AERO_SET));
     }
 
     /**

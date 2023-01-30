@@ -12,6 +12,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -32,6 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.checkerframework.checker.units.qual.K;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -583,7 +585,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long edgeRawId = 3L;
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
-        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId,db.TEST_SET);
+        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId, db.TEST_SET);
         final Map<String, List<Long>> labelEdges = new TreeMap<>();
         labelEdges.put(edgeLabel, new ArrayList<>() {{
             add(edgeRawId);
@@ -619,7 +621,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final long edgeRawId = 3L;
         final long additionalEdgeRawId = 4L;
         final long vertexRawId = 1L;
-        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId,db.TEST_SET);
+        final FireflyId vertexFid = FireflyIdPoly.fromObject(vertexRawId, db.TEST_SET);
         final Map<String, List<Long>> labelEdges = new TreeMap<>();
 
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
@@ -706,5 +708,20 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertNull(orig); //This should be te original user key, but it is not, its null
     }
 
+    @Test
+    public void testKeyRead() {
+        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
+        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
+
+        Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
+        Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
+        final Record[] records = db.getClient().get(AerospikeConnection.sendKeyBatchPolicy, new Key[]{keyaObj, keybObj});
+        assertEquals(2, records.length);
+
+        Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
+        Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
+        final Record[] hashRecords = db.getClient().get(AerospikeConnection.sendKeyBatchPolicy, new Key[]{keyaHash, keybHash});
+        assertEquals(2, hashRecords.length);
+    }
 
 }

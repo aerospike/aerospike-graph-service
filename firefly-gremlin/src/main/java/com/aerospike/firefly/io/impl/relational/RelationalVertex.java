@@ -285,17 +285,17 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (direction == Direction.OUT || direction == Direction.IN) {
             // If direction is in or out, get that specific direction.
             exp = Exp.build(
-                    Exp.eq(Exp.intBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
+                    Exp.eq(Exp.stringBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
                             Exp.val(id.getKeyHashBase64())
                     ));
         } else {
             // If direction is both, we need to get in and out.
             exp = Exp.build(
                     Exp.or(
-                            Exp.eq(Exp.intBin(Direction.IN.name()),
+                            Exp.eq(Exp.stringBin(Direction.IN.name()),
                                     Exp.val(id.getKeyHashBase64())
                             ),
-                            Exp.eq(Exp.intBin(Direction.OUT.name()),
+                            Exp.eq(Exp.stringBin(Direction.OUT.name()),
                                     Exp.val(id.getKeyHashBase64())
                             )
                     ));
@@ -304,8 +304,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         final ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = true;
         final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-        return IteratorUtils.map(i, keyRecordEntry ->
-                graph.getIdFactory().createId(keyRecordEntry.getKey().userKey.getObject(), FireflyEdge.class));
+        return IteratorUtils.map(i, keyRecordEntry -> {
+            Object userKey = keyRecordEntry.getKey().userKey.getObject();
+            return graph.getIdFactory().createId(userKey, FireflyEdge.class);
+        });
 
     }
 

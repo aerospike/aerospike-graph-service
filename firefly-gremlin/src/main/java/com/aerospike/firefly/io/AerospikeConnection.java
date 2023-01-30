@@ -36,6 +36,7 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
+import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -94,7 +95,7 @@ public class AerospikeConnection implements AutoCloseable {
         sendKeyReadPolicy = new Policy();
         sendKeyBatchPolicy = new BatchPolicy();
         sendKeyReadPolicy.sendKey = true;
-        sendKeyBatchPolicy.sendKey = true;
+        sendKeyBatchPolicy.sendKey = false;
     }
 
     protected static final Policy noKeyReadPolicy = new Policy();
@@ -454,8 +455,9 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
         List<Key> vertexKeys = Arrays.stream(edgeRecords)
-                .map(record -> record.getLong(direction.name()))
-                .map(id -> new Key(namespace, VERTEX_AERO_SET, id)).collect(Collectors.toList());
+                .map(record -> record.getString(direction.name()))
+                .map(hash -> new Key(namespace, Crypto.decodeBase64(hash.getBytes(), 0, hash.getBytes().length), VERTEX_AERO_SET, Value.NULL))
+                .collect(Collectors.toList());
         Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
         List<KeyRecord> krl = new ArrayList<>();
         IntStream.range(0, vertexKeys.size()).forEach(i -> {
@@ -879,7 +881,7 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(null, key)};
+            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(AerospikeConnection.sendKeyBatchPolicy, key)};
         } catch (AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
@@ -898,7 +900,7 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(keys) : client.get(null, keys);
+            results = (cache != null) ? cache.read(keys) : client.get(AerospikeConnection.sendKeyBatchPolicy, keys);
         } catch (AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;

@@ -1574,4 +1574,21 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         traversal.iterate();
         MatcherAssert.assertThat(f.length() > 0L, Is.is(true));
     }
+
+    public Object convertToEdgeId(final String outVertexName, String edgeLabel, final String inVertexName) {
+        return this.convertToEdgeId(graph, outVertexName, edgeLabel, inVertexName);
+    }
+
+    public Object convertToEdgeId(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
+        return this.convertToEdge(graph, outVertexName, edgeLabel, inVertexName).id();
+    }
+    @Test
+    public void g_EX11X() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Vertex josh = graph.traversal().V().has("name", "josh").next();
+        Edge aJoshOutE = graph.traversal().V(josh).outE("created").next();
+        List<Vertex> joshOutEInV = graph.traversal().E(aJoshOutE).inV().toList();
+        Object edgeId =  graph.traversal().V(josh).outE("created").as("e").inV().has("name", "lop").<Edge>select("e").toList().get(0);
+
+    }
 }

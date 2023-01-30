@@ -139,7 +139,7 @@ public class FireflyIdPoly extends FireflyId {
      * @return a FireflyId
      */
     public static FireflyIdPoly fromBase64Hash(final String base64hash, final String setName) {
-        return new FireflyIdPoly(Crypto.decodeBase64(base64hash.getBytes(), 0, 20), setName);
+        return new FireflyIdPoly(Crypto.decodeBase64(base64hash.getBytes(), 0, base64hash.getBytes().length), setName);
     }
 
     /**

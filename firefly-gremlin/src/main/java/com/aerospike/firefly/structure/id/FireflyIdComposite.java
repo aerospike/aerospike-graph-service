@@ -99,7 +99,9 @@ public class FireflyIdComposite extends FireflyId {
         if (edgeId != null) {
             return edgeId.getStorageId();
         }
-        Optional<FireflyRecord> maybeRec = Optional.ofNullable(FireflyRecord.read(db, db.EDGE_AERO_SET, FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET)));
+        FireflyIdPoly fid = FireflyIdPoly.fromHash(digestFromBytes(0), db.EDGE_AERO_SET);
+        FireflyRecord x = FireflyRecord.read(db, db.EDGE_AERO_SET, fid );
+        Optional<FireflyRecord> maybeRec = Optional.ofNullable(x);
         if (maybeRec.isEmpty()) return null;
         Long idx = maybeRec.get().record.getLong(db.IT_TYPE_BIN);
         Object userId = CONVERT_TO_USER_CLASS.get(IDX_TO_TYPE.get(idx)).getUserId(maybeRec.get().getUserKey());

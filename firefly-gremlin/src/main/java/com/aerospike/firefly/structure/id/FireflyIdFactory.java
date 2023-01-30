@@ -125,7 +125,7 @@ public class FireflyIdFactory {
                 throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             return createId(tempId, TYPE_TO_IDX.get(id.getClass()), FireflyVertexProperty.class);
         } else {
-            throw new UnsupportedOperationException(type + " not a Firefly Element ");
+            throw new UnsupportedOperationException(type + " not a Firefly Element.");
         }
     }
 

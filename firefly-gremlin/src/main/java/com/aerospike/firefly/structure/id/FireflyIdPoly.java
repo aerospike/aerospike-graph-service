@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdPoly extends FireflyId {
@@ -64,7 +65,8 @@ public class FireflyIdPoly extends FireflyId {
             throw new IllegalArgumentException("Id must be a String or Number.");
         }
         this.hash = getIdHash(id, setName);
-        assert (!Arrays.equals(this.hash, new byte[20]));
+        if (Arrays.equals(this.hash, new byte[20]))
+            throw new RuntimeException("Invalid ID hash");
     }
 
     private FireflyIdPoly(final Object id, final Class userClass, final String setName) {
@@ -229,5 +231,9 @@ public class FireflyIdPoly extends FireflyId {
         public Object getUserId(final Object id) {
             return id.toString();
         }
+    }
+
+    public static byte[] decodeBase64(final String base64data){
+        return Crypto.decodeBase64(base64data.getBytes(), 0, base64data.getBytes().length);
     }
 }

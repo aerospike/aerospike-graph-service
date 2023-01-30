@@ -439,7 +439,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 .collect(Collectors.toList());
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         // TODO: Should this be batch exists? Or removed for performance?
-        List<FireflyId> idsDoNotExist = new ArrayList<>();
+        final List<FireflyId> idsDoNotExist;
         if (!idList.isEmpty()) {
             idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
             if (idsDoNotExist.size() > 0)
@@ -456,7 +456,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        List<Object> filtered = getIds(List.of(edgeIds));
+        final List<Object> filtered = getIds(List.of(edgeIds));
         return new FireflyEdgeIterator(this,
                 (filtered.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :

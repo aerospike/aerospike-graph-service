@@ -40,7 +40,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.FireflyRecord.getKeyByUserId;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 
 /**
@@ -203,7 +203,7 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         // Get key for this vertex in database.
-        final Key vertexKey = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key vertexKey = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for removing a vertex property.
         final Bin vpCounter = new Bin(this.db.VP_COUNTER, -1L);
@@ -339,7 +339,7 @@ public class LinkedVertex extends RelationalVertex {
         }
 
         // Get key for this vertex in database.
-        final Key key = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for writing a vertex property.
         final Bin vpCounter = new Bin(this.db.VP_COUNTER, 1);

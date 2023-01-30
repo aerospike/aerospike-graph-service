@@ -181,7 +181,7 @@ public class RelationalEdge extends FireflyEdge {
         // Remove edge.
         LOG.debug("Removing edge {}.", this.id);
 
-        db.delete(FireflyRecord.getKeyByUserId(db.getNamespace(), db.EDGE_AERO_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, id));
     }
 
     private static class RelationalEdgeFactory {

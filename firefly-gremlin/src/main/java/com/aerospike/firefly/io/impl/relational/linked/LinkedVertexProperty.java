@@ -147,7 +147,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
         LOG.debug("Removing vertex property {}", id);
         final AerospikeConnection db = graph.getBaseGraph();
-        db.delete(FireflyRecord.getKeyByUserId(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.VERTEX_PROPERTY_AERO_SET, id));
     }
 
     /**

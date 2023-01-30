@@ -55,7 +55,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.aerospike.firefly.io.FireflyRecord.getKeyByUserId;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
@@ -134,7 +134,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id);
-        db.delete(FireflyRecord.getKeyByUserId(db.getNamespace(), db.VERTEX_AERO_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id));
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
@@ -402,7 +402,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
 
         // Get key for this vertex in database.
-        final Key key = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for removing from edge cache.
         final Bin edgeCounter = new Bin(counterBinName, -1L);
@@ -490,7 +490,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
 
         // Get key for this vertex in database.
-        final Key key = getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id);
+        final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
         // Create operations for writing to edge cache.
         final Bin edgeCounter = new Bin(counterBinName, 1);

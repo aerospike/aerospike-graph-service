@@ -129,19 +129,14 @@ public class PolyIdTest extends AbstractFireflySuite {
         String origVAKeyHash = Crypto.encodeBase64(origVAKeyBytes);
         byte[] recoveredVAKeyBytes = Crypto.decodeBase64(outHashA.getBytes(), 0, outHashA.getBytes().length);
 
-        assertArrayEquals(origVAKeyBytes,recoveredVAKeyBytes);
+        assertArrayEquals(origVAKeyBytes, recoveredVAKeyBytes);
         Key inHashAKey = new Key(db.getNamespace(), recoveredVAKeyBytes, db.VERTEX_AERO_SET, Value.NULL);
         Record rawResult = db.getClient().get(null, inHashAKey);
-
 
         FireflyIdPoly recoveredFIDAIn = FireflyIdPoly.fromBase64Hash(inHashA, db.VERTEX_AERO_SET);
         FireflyIdPoly recoveredFIDAOut = FireflyIdPoly.fromBase64Hash(outHashA, db.VERTEX_AERO_SET);
 
-
         ((RelationalGraph) graph).readVertex(recoveredFIDAIn);
         ((RelationalGraph) graph).readVertex(recoveredFIDAOut);
-
     }
-
-
 }

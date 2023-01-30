@@ -48,8 +48,7 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         graph = FireflyGraph.open(config);
 
         // Check there are no indexes initially (besides vertex and edge label indexes).
-        Thread.sleep(1000);
-        //@todo
+        Thread.sleep(10);
         Assert.assertEquals(getInitialIndexCount(), graph.fireflyIndexMetadata.getPropertyIndexInfos().size());
 
         // Create 'index1'.

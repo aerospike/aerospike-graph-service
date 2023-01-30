@@ -101,9 +101,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id, -1, bin1, bin2, bin3);
-        assertNotEquals(null, db.read(FireflyRecord.getKeyByUserId(db.getNamespace(), db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
-        db.delete(FireflyRecord.getKeyByUserId(db.getNamespace(), db.TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKeyByUserId(db.getNamespace(), db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
+        assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
+        db.delete(FireflyRecord.getKey(db, db.TEST_SET, id));
+        assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
     }
 
     @Test

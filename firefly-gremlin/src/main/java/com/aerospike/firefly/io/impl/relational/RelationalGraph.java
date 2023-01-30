@@ -107,8 +107,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         });
 
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(FireflyIdPoly.fromObject(inVertexId,db.VERTEX_AERO_SET).getKeyHashBase64()));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(FireflyIdPoly.fromObject(outVertexId,db.VERTEX_AERO_SET).getKeyHashBase64()));
+        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
         final Bin valueBin = new Bin(this.db.PROPERTIES, Value.get(data, MapOrder.KEY_ORDERED));
         final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
         FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class), -1, labelBin,
@@ -118,16 +118,16 @@ public abstract class RelationalGraph extends FireflyGraph {
     /**
      * Function to bulk write edges to a vertex's edge cache
      *
-     * @param vertexId   Vertex label.
-     * @param direction  Direction of the edges.
-     * @param edgeIds    List of edge IDs.
-     * @param edgeLabel  Label of all edges in edge ID list.
+     * @param vertexId  Vertex label.
+     * @param direction Direction of the edges.
+     * @param edgeIds   List of edge IDs.
+     * @param edgeLabel Label of all edges in edge ID list.
      * @return False if the edge cache of the vertex is disabled.
      */
     public void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                             final List<Value> edgeIds, final String edgeLabel) {
         // Get the key.
-        final Key key = FireflyRecord.getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, vertexId);
+        final Key key = FireflyRecord.getKey(db, this.db.VERTEX_AERO_SET, vertexId);
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES : this.db.OUT_EDGES;
@@ -233,8 +233,7 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public List<FireflyVertex> readVertices(final List<FireflyId> idValues) {
-        List<FireflyVertex> results = RelationalVertex.readVertices(this, idValues);
-        return results ;
+        return RelationalVertex.readVertices(this, idValues);
     }
 
     /**
@@ -285,7 +284,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public boolean vertexExists(final FireflyId idValue) {
         LOG.debug("Checking if vertex {} exists.", idValue);
-        final Key key = FireflyRecord.getKeyByUserId(db.getNamespace(), db.VERTEX_AERO_SET, idValue);
+        final Key key = FireflyRecord.getKey(db, db.VERTEX_AERO_SET, idValue);
         return db.exists(key);
     }
 
@@ -298,7 +297,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public boolean edgeExists(final FireflyId idValue) {
         LOG.debug("Checking if edge {} exists.", idValue);
-        final Key key = FireflyRecord.getKeyByUserId(db.getNamespace(), db.EDGE_AERO_SET, idValue);
+        final Key key = FireflyRecord.getKey(db, db.EDGE_AERO_SET, idValue);
         return db.exists(key);
     }
 
@@ -316,7 +315,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         }
         return db.readTypeHintedValueFromMap(
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD,db.GRAPH_VARIABLES_SET),
+                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
                 db.GRAPH_VARIABLES_MAP,
                 key,
                 db.TYPE_HINTS);
@@ -331,7 +330,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     public Set<String> readGraphVariableKeys() {
         final FireflyRecord fireflyRecord = FireflyRecord.read(db,
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD,db.GRAPH_VARIABLES_SET));
+                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET));
         if (fireflyRecord == null) return new HashSet<>();
         final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(db.GRAPH_VARIABLES_MAP);
         return m.keySet();
@@ -347,7 +346,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public <V> void writeGraphVariable(final String key, final V value) {
         db.writeTypeHintedValueToMap(db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD,db.GRAPH_VARIABLES_SET),
+                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
                 db.GRAPH_VARIABLES_MAP,
                 key,
                 value,
@@ -363,7 +362,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     public void removeGraphVariable(final String key) {
         db.removeTypeHintedValueFromMap(
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD,db.GRAPH_VARIABLES_SET),
+                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
                 db.GRAPH_VARIABLES_MAP,
                 key,
                 db.TYPE_HINTS);

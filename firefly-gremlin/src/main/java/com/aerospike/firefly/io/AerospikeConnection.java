@@ -382,10 +382,10 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return an iterator of all the (raw) ids in a set
+     * Return an iterator of all the ids in a set represented as FireflyId
      *
      * @param setName name of Aerospike set to scan
-     * @return an Iterator of raw Long id values
+     * @return an Iterator of raw FireflyId
      */
     private Iterator<FireflyId> scanAllIdsInSet(final String setName) {
         final Class<? extends FireflyElement> type;
@@ -456,7 +456,7 @@ public class AerospikeConnection implements AutoCloseable {
     public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
         List<Key> vertexKeys = Arrays.stream(edgeRecords)
                 .map(record -> record.getString(direction.name()))
-                .map(hash -> new Key(namespace, Crypto.decodeBase64(hash.getBytes(), 0, hash.getBytes().length), VERTEX_AERO_SET, Value.NULL))
+                .map(hash -> new Key(namespace, FireflyIdPoly.decodeBase64(hash), VERTEX_AERO_SET, Value.NULL))
                 .collect(Collectors.toList());
         Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
         List<KeyRecord> krl = new ArrayList<>();

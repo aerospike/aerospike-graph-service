@@ -103,28 +103,18 @@ public class FireflyRecord {
         return record;
     }
 
-    //@TODO User key may be null in sendKey when record re-read
-
-    // Construct an Aerospike key from a Firefly ID
-    public static Key getKeyByUserId(final String namespace, final String set, final FireflyId id) {
-        return new Key(namespace, set, Value.get(id.getStorageId()));
-    }
-
-    public static Key getKeyByHashId(final String namespace, final String set, final FireflyId id) {
-        return new Key(namespace, id.getKeyHash(), set, Value.NULL);
+    public static Key getKey(final AerospikeConnection db, final String set, final FireflyId id) {
+        if (id.getStorageId() != null)
+            return new Key(db.getNamespace(), set, Value.get(id.getStorageId()));
+        else
+            return new Key(db.getNamespace(), id.getKeyHash(), set, Value.NULL);
     }
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
-        final Key key;
-        if (id.getStorageId() != null)
-            key = getKeyByUserId(db.getNamespace(), set, id);
-        else
-            key = getKeyByHashId(db.getNamespace(), set, id);
-
+        final Key key = getKey(db, set, id);
         final Record record = db.read(key, AerospikeConnection.sendKeyReadPolicy);
         if (record == null)
             return null;
-
         return new FireflyRecord(db, key, record);
     }
 
@@ -153,7 +143,7 @@ public class FireflyRecord {
             Iterator<Map.Entry<FireflyId, FireflyRecord>> i = idToRecord.entrySet().stream().filter(e ->
                     Arrays.equals(e.getKey().getKeyHash(), id.getKeyHash())
             ).iterator();
-            if(i.hasNext()) return i.next().getValue();
+            if (i.hasNext()) return i.next().getValue();
             return null;
         }).filter(Objects::nonNull).collect(Collectors.toList());
     }
@@ -169,9 +159,9 @@ public class FireflyRecord {
             if (id.getClass().equals(FireflyIdComposite.class)) {
                 key = new Key(db.getNamespace(), (byte[]) ((FireflyIdComposite) id).getEdgeId().getKeyHash(), set, Value.NULL);
             } else if (((FireflyIdPoly) id).source == FireflyId.Source.HASH) {
-                key = getKeyByHashId(db.getNamespace(), set, id);
+                key = getKey(db, set, id);
             } else {
-                key = getKeyByUserId(db.getNamespace(), set, id);
+                key = getKey(db, set, id);
             }
             return key;
         }).collect(Collectors.toList());
@@ -181,7 +171,7 @@ public class FireflyRecord {
                 // Add id/record pair to the map.
                 final FireflyId id = idsToRead.get(i);
 
-                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKeyByHashId(db.getNamespace(), set, id), records[i]);
+                final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db, set, id), records[i]);
                 idToRecord.put(id, fireflyRecord);
             }
         }
@@ -215,7 +205,7 @@ public class FireflyRecord {
                              final FireflyId id,
                              final int generation,
                              final Bin... bins) {
-        final Key key = getKeyByUserId(db.getNamespace(), set, id);
+        final Key key = getKey(db, set, id);
         final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
@@ -235,7 +225,7 @@ public class FireflyRecord {
                                     final FireflyId id,
                                     final int generation,
                                     final Bin... bins) {
-        final Key key = getKeyByUserId(db.getNamespace(), set, id);
+        final Key key = getKey(db, set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         if (generation == -1) {
             final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
@@ -263,6 +253,7 @@ public class FireflyRecord {
 
     /**
      * Return the user key associated with this record
+     *
      * @return Object user key
      */
     public Object getUserKey() {

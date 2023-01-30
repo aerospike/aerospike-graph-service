@@ -71,7 +71,7 @@ public class StarPackedVertex extends PackedVertex {
         // Remove vertex from the list.
         LOG.debug("Removing vertex {} from sets: {}.", this.id.toString(), sets);
         sets.forEach(set ->
-                this.db.delete(FireflyRecord.getKeyByUserId(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id)));
+                this.db.delete(FireflyRecord.getKey(db, this.db.VERTEX_AERO_SET, this.id)));
     }
 
     /**

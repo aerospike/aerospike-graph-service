@@ -882,7 +882,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Record[] results;
         try { //@todo policy causes key mismatch error
             results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(AerospikeConnection.sendKeyBatchPolicy, key)};
-        } catch (AerospikeException e) {
+        } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
         }

@@ -500,7 +500,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param type Firefly Element class
      * @return name of the set
      */
-    public String setFromElementType(Class<? extends FireflyElement> type) {
+    public String setFromElementType(final Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type)) {
             return VERTEX_AERO_SET;
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
@@ -876,13 +876,13 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy
      * @return Aerospike Record
      */
-    protected Record read(final Key key, Policy policy) {
+    protected Record read(final Key key, final Policy policy) {
         readMetric.addAndGet(1);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
             results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(AerospikeConnection.sendKeyBatchPolicy, key)};
-        } catch (AerospikeException e) {
+        } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
         }
@@ -901,7 +901,7 @@ public class AerospikeConnection implements AutoCloseable {
         final Record[] results;
         try { //@todo policy causes key mismatch error
             results = (cache != null) ? cache.read(keys) : client.get(AerospikeConnection.sendKeyBatchPolicy, keys);
-        } catch (AerospikeException e) {
+        } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
         }

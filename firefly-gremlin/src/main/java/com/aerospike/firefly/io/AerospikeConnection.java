@@ -500,7 +500,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param type Firefly Element class
      * @return name of the set
      */
-    public String setFromElementType(Class<? extends FireflyElement> type) {
+    public String setFromElementType(final Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type)) {
             return VERTEX_AERO_SET;
         } else if (FireflyEdge.class.isAssignableFrom(type)) {

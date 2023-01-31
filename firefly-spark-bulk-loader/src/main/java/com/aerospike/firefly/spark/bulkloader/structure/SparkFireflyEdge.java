@@ -93,7 +93,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
 
     @Override
     public FireflyId getFireflyId(final String setName) {
-        return FireflyIdPoly.fromObject(this.id,setName);
+        return FireflyIdPoly.fromObject(this.id, setName);
     }
 
     public long getInVertexId() {

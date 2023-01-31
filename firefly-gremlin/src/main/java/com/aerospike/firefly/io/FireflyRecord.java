@@ -82,21 +82,21 @@ public class FireflyRecord {
 
 
     //cast an ID read from disk back to its original type when it was provided by the user
-    public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeIdx) {
-        return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromIdx(originalTypeIdx));
+    public static Object idStorageTypeToOriginalType(final Object storedId, final long originalTypeHint) {
+        return FireflyRecord.idStorageTypeToOriginalType(storedId, idTypeFromHint(originalTypeHint));
     }
 
 
     //Convert a numeric type-hint stored on disk to the class it represents
-    private static Class<? extends Serializable> idTypeFromIdx(final long idx) {
-        return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == idx).collect(Collectors.toList()).get(0).getKey();
+    private static Class<? extends Serializable> idTypeFromHint(final long hint) {
+        return SupportedIdTypes.entrySet().stream().filter(e -> e.getValue() == hint).collect(Collectors.toList()).get(0).getKey();
     }
 
     //return the TinkerPop ID of this firefly record
     public Object id() {
-        final long idval = key.userKey.toLong();
-        final long idtypidx = record.getLong(this.ac.IT_TYPE_BIN);
-        return idStorageTypeToOriginalType(idval, idtypidx);
+        final long idVal = key.userKey.toLong();
+        final long idTypeHint = record.getLong(this.ac.ID_TYPE_BIN);
+        return idStorageTypeToOriginalType(idVal, idTypeHint);
     }
 
     public Record record() {
@@ -112,7 +112,7 @@ public class FireflyRecord {
 
     public static FireflyRecord read(final AerospikeConnection db, final String set, final FireflyId id) {
         final Key key = getKey(db, set, id);
-        final Record record = db.read(key, AerospikeConnection.sendKeyReadPolicy);
+        final Record record = db.read(key, AerospikeConnection.noSendKeyReadPolicy);
         if (record == null)
             return null;
         return new FireflyRecord(db, key, record);
@@ -138,14 +138,7 @@ public class FireflyRecord {
         }
 
         // Return the records in the same order as the ids, removing any null items.
-        idToRecord.values().removeIf(Objects::isNull);
-        return ids.stream().map(id -> {
-            Iterator<Map.Entry<FireflyId, FireflyRecord>> i = idToRecord.entrySet().stream().filter(e ->
-                    Arrays.equals(e.getKey().getKeyHash(), id.getKeyHash())
-            ).iterator();
-            if (i.hasNext()) return i.next().getValue();
-            return null;
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+        return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
     }
 
     private static void executeBatchRead(final AerospikeConnection db,
@@ -170,7 +163,6 @@ public class FireflyRecord {
             if (records[i] != null) {
                 // Add id/record pair to the map.
                 final FireflyId id = idsToRead.get(i);
-
                 final FireflyRecord fireflyRecord = new FireflyRecord(db, getKey(db, set, id), records[i]);
                 idToRecord.put(id, fireflyRecord);
             }
@@ -206,7 +198,7 @@ public class FireflyRecord {
                              final int generation,
                              final Bin... bins) {
         final Key key = getKey(db, set, id);
-        final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
+        final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(id.getStorageTypeHint()));
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         listOfBins.add(idTypeBin);
         db.write(key, generation, listOfBins.toArray(new Bin[0]));
@@ -228,7 +220,7 @@ public class FireflyRecord {
         final Key key = getKey(db, set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
         if (generation == -1) {
-            final Bin idTypeBin = new Bin(db.IT_TYPE_BIN, Value.get(id.getStorageTypeIdx()));
+            final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(id.getStorageTypeHint()));
             listOfBins.add(idTypeBin);
         }
         db.write(key, generation, listOfBins.toArray(new Bin[0]));

@@ -16,14 +16,11 @@ public abstract class FireflyElementIterator<E> implements CloseableIterator<E> 
     private final AerospikeConnection db;
     private final Iterator<FireflyId> idIterator;
     private final Function<FireflyId, E> fn;
-    private final Function<FireflyId, Boolean> existsFn;
 
-    protected FireflyElementIterator(AerospikeConnection db, Iterator<FireflyId> idIterator, Function<FireflyId, Boolean> existsFn, Function<FireflyId, E> fn) {
+    protected FireflyElementIterator(AerospikeConnection db, Iterator<FireflyId> idIterator, Function<FireflyId, E> fn) {
         this.db = db;
         this.idIterator = idIterator;
         this.fn = fn;
-        this.existsFn = existsFn;
-
     }
 
     @Override

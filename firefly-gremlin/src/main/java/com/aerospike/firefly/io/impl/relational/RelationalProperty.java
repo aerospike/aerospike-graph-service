@@ -62,7 +62,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         FireflyHelper.validatePropertyValue(value);
         db.writeTypeHintedValueToMap(
-                db.getElementPropertySet(element.getClass()),
+                db.setFromElementType(element.getClass()),
                 element.id,
                 db.PROPERTIES,
                 key,
@@ -81,7 +81,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
      */
     public static <V> Map<String, Property<V>> readProperties(final FireflyGraph graph, final FireflyElement element) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.getElementPropertySet(element.getClass()), element.id);
+        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.setFromElementType(element.getClass()), element.id);
         if (fireflyRecord == null)
             return new TreeMap<>();
 
@@ -114,7 +114,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = graph.getBaseGraph();
         return new RelationalProperty<>(graph, element, key,
                 db.readTypeHintedValueFromMap(
-                        db.getElementPropertySet(element.getClass()),
+                        db.setFromElementType(element.getClass()),
                         element.id,
                         db.PROPERTIES,
                         key,

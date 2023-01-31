@@ -12,6 +12,6 @@ import java.util.Iterator;
  */
 public class FireflyEdgeIterator extends FireflyElementIterator<Edge> {
     public FireflyEdgeIterator(FireflyGraph graph, Iterator<FireflyId> idIterator) {
-        super(graph.getBaseGraph(), idIterator, graph::edgeExists, graph::readEdge);
+        super(graph.getBaseGraph(), idIterator, graph::readEdge);
     }
 }

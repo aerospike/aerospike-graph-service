@@ -67,7 +67,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import ch.qos.logback.classic.Level;
 
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
@@ -614,9 +613,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), index);
-            db.createKeyValueSindex(existingIndexes, db.getElementPropertySet(FireflyVertex.class),
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
                     formattedIndex + "_" + STRING, db.KEY_VALUE, index, STRING, IndexCollectionType.MAPVALUES);
-            db.createKeyValueSindex(existingIndexes, db.getElementPropertySet(FireflyVertex.class),
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
                     formattedIndex + "_" + NUMERIC, db.KEY_VALUE, index, NUMERIC, IndexCollectionType.MAPVALUES);
         }
 

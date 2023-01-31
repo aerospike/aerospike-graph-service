@@ -32,14 +32,14 @@ public class FireflyIdFactory {
         Null, Long, Integer, Double, Byte, String
     }
 
-    private static final Map<Class<? extends Serializable>, Long> TYPE_TO_IDX = new HashMap<>() {{
+    private static final Map<Class<? extends Serializable>, Long> TYPE_TO_HINT = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
         put(Double.class, 3L);
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
-    static final Map<Long, Class<? extends Serializable>> IDX_TO_TYPE = new HashMap<>() {{
+    static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
         put(null, null);
         put(0L, null);
         put(1L, Long.class);
@@ -95,7 +95,7 @@ public class FireflyIdFactory {
         if (id instanceof Float) {
             id = ((Float) id).doubleValue();
         }
-        boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
+        boolean supportedType = TYPE_TO_HINT.containsKey(id.getClass());
         Object tempId;
         if (id instanceof String) {
             try {
@@ -115,51 +115,51 @@ public class FireflyIdFactory {
         if (FireflyVertex.class.isAssignableFrom(type)) {
             if (!supportedType)
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return createId(tempId, TYPE_TO_IDX.get(id.getClass()), FireflyVertex.class);
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyVertex.class);
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
             if (!supportedType)
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return createId(tempId, TYPE_TO_IDX.get(id.getClass()), FireflyEdge.class);
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyEdge.class);
         } else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
             if (!supportedType)
                 throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            return createId(tempId, TYPE_TO_IDX.get(id.getClass()), FireflyVertexProperty.class);
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyVertexProperty.class);
         } else {
             throw new UnsupportedOperationException(type + " not a Firefly Element.");
         }
     }
 
     /**
-     * Create an id using the id idx type and id object. If idx is null, it is not required.
+     * Create an id using the id typeHint type and id object. If typeHint is null, it is not required.
      *
      * @param id  Id Object.
-     * @param idx Idx to use, null if not user defined.
+     * @param typeHint typeHint to use, null if not user defined.
      * @return FireflyId.
      */
-    private FireflyId createId(final Object id, final Long idx, final Class<? extends FireflyElement> type) {
+    private FireflyId createId(final Object id, final Long typeHint, final Class<? extends FireflyElement> type) {
         final String set = db.setFromElementType(type);
-        if (!IDX_TO_TYPE.containsKey(idx)) {
+        if (!HINT_TO_TYPE.containsKey(typeHint)) {
             // This is just caught and propagated up via a gremlin specific exception.
-            throw new IllegalArgumentException("Invalid id type: " + idx + ". Id type must be one of " + IDX_TO_TYPE.keySet());
+            throw new IllegalArgumentException("Invalid id type: " + typeHint + ". Id type must be one of " + HINT_TO_TYPE.keySet());
         }
         if (Number.class.isAssignableFrom(id.getClass())) {
-            return FireflyIdPoly.fromObject(id, IDX_TO_TYPE.get(idx), set);
+            return FireflyIdPoly.fromObject(id, HINT_TO_TYPE.get(typeHint), set);
         } else if (String.class.isAssignableFrom(id.getClass())) {
             try {
                 // For numeric string ids.
                 final Number numericId = Long.parseLong((String) id);
-                return FireflyIdPoly.fromObject(numericId, IDX_TO_TYPE.get(idx), set);
+                return FireflyIdPoly.fromObject(numericId, HINT_TO_TYPE.get(typeHint), set);
             } catch (NumberFormatException ignored) {
                 return FireflyIdPoly.fromObject((String) id, set);
             }
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
             return new FireflyIdComposite(db, (byte[]) id);
         }
-        throw new IllegalArgumentException("Invalid id type: " + id.getClass() + ". Id type must be one of " + TYPE_TO_IDX.keySet());
+        throw new IllegalArgumentException("Invalid id type: " + id.getClass() + ". Id type must be one of " + TYPE_TO_HINT.keySet());
     }
 
     /**
-     * Create an id using the id idx type and id object. If idx is null, it is not required.
+     * Create an id using the id hint type and id object. If idx is null, it is not required.
      *
      * @param id Id Object.
      * @return FireflyId.
@@ -171,7 +171,7 @@ public class FireflyIdFactory {
         } else if (id instanceof FireflyId) {
             return (FireflyId) id;
         }
-        return createId(idObj, TYPE_TO_IDX.get(id.getClass()), type);
+        return createId(idObj, TYPE_TO_HINT.get(id.getClass()), type);
     }
 
     /**
@@ -234,7 +234,7 @@ public class FireflyIdFactory {
     public FireflyId createFromRecord(final AerospikeConnection db, final FireflyRecord record, final Class<? extends FireflyElement> type) {
         //@todo uses userKey, check if this works when key is constructed from hash
         final Object origId;
-        final long idx;
+        final long typeHint;
         if (record.key().userKey.getObject() != null) {
             origId = record.key().userKey.getObject();
         } else if (record.record.getValue(AerospikeConnection.USER_KEY) != null) {
@@ -242,8 +242,8 @@ public class FireflyIdFactory {
         } else { //@todo list of cases
             throw new RuntimeException("no key available"); //maybe a pure hash id
         }
-        idx = record.record.getLong(db.IT_TYPE_BIN) == 0 ? FireflyIdPoly.CONVERT_TO_STORAGE_IDX.get(origId.getClass()) : record.record.getLong(db.IT_TYPE_BIN);
-        return createId(origId, idx, type);
+        typeHint = record.record.getLong(db.ID_TYPE_BIN) == 0 ? FireflyIdPoly.STORAGE_TYPE_HINTS.get(origId.getClass()) : record.record.getLong(db.ID_TYPE_BIN);
+        return createId(origId, typeHint, type);
     }
 
     public Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {

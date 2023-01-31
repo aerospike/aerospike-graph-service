@@ -8,7 +8,7 @@ import com.aerospike.firefly.structure.FireflyEdge;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
-import static com.aerospike.firefly.structure.id.FireflyIdFactory.IDX_TO_TYPE;
+import static com.aerospike.firefly.structure.id.FireflyIdFactory.HINT_TO_TYPE;
 import static com.aerospike.firefly.structure.id.FireflyIdPoly.CONVERT_TO_USER_CLASS;
 
 /**
@@ -44,14 +44,14 @@ public class FireflyIdComposite extends FireflyId {
 
 
     /**
-     * Slice the id at idx from our composite 2-hash array
+     * Slice the id at offset from our composite 2-hash array
      *
-     * @param idx offset of 20 byte RIPEMD160 hash (Aerospike Key digest)
+     * @param offset offset of 20 byte RIPEMD160 hash (Aerospike Key digest)
      * @return the 20 byte hash
      */
-    private byte[] digestFromBytes(final int idx) {
+    private byte[] digestFromBytes(final int offset) {
         final byte[] digest = new byte[20];
-        System.arraycopy(id, idx, digest, 0, 20);
+        System.arraycopy(id, offset, digest, 0, 20);
         return digest;
     }
 
@@ -103,18 +103,18 @@ public class FireflyIdComposite extends FireflyId {
         FireflyRecord x = FireflyRecord.read(db, db.EDGE_AERO_SET, fid );
         Optional<FireflyRecord> maybeRec = Optional.ofNullable(x);
         if (maybeRec.isEmpty()) return null;
-        Long idx = maybeRec.get().record.getLong(db.IT_TYPE_BIN);
-        Object userId = CONVERT_TO_USER_CLASS.get(IDX_TO_TYPE.get(idx)).getUserId(maybeRec.get().getUserKey());
+        Long idTypeHint = maybeRec.get().record.getLong(db.ID_TYPE_BIN);
+        Object userId = CONVERT_TO_USER_CLASS.get(HINT_TO_TYPE.get(idTypeHint)).getUserId(maybeRec.get().getUserKey());
         return userId;
     }
 
     @Override
-    public Long getStorageTypeIdx() {
+    public Long getStorageTypeHint() {
         if (edgeId != null) {
-            return edgeId.getStorageTypeIdx();
+            return edgeId.getStorageTypeHint();
         }
         edgeId = db.getIdFactory().createFromUser(FireflyEdge.class, digestFromBytes(0));
-        return db.getIdFactory().createFromUser(FireflyEdge.class, edgeId).getStorageTypeIdx();
+        return db.getIdFactory().createFromUser(FireflyEdge.class, edgeId).getStorageTypeHint();
     }
 
     @Override

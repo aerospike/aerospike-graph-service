@@ -85,7 +85,7 @@ public final class ConfigurationHelper {
         public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
         public static final String KEY_VALUE = "KEY_VALUE";
         public static final String COUNTER = "COUNTER";
-        public static final String ID_TYPE = "ID_TYPE";
+        public static final String ID_TYPE_BIN = "ID_TYPE";
         public static final String GLOBAL = "GLOBAL";
         public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
@@ -177,7 +177,7 @@ public final class ConfigurationHelper {
         put(Keys.KEY_VALUE, "KEY_VALUE");
         put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
-        put(Keys.ID_TYPE, "ID_TYPE");
+        put(Keys.ID_TYPE_BIN, "ID_TYPE");
         put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
         put(Keys.Sets.TEST_SET, "TEST_SET");

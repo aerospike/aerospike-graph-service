@@ -154,6 +154,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         } else if (direction.equals(Direction.IN)) {
             return getInEdgeIds();
         } else {
+            // Both.
             return getBothEdgeIds();
         }
     }

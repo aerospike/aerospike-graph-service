@@ -268,7 +268,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public void removeProperty(final FireflyElement element, final String key) {
         db.removeTypeHintedValueFromMap(
-                db.getElementPropertySet(element.getClass()),
+                db.setFromElementType(element.getClass()),
                 element.id,
                 db.PROPERTIES,
                 key,
@@ -463,7 +463,7 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value) {
-        final Iterator<KeyRecord> iter = db.queryIndex(db.getElementPropertySet(FireflyEdge.class), db.E_LABEL_INDEX,
+        final Iterator<KeyRecord> iter = db.queryIndex(db.setFromElementType(FireflyEdge.class), db.E_LABEL_INDEX,
                 Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
         return IteratorUtils.map(iter, this::edgeFromRecord);
     }

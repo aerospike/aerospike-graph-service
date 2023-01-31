@@ -14,7 +14,6 @@ import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -24,21 +23,16 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import io.cucumber.java.bs.A;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.checkerframework.checker.units.qual.K;
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -101,9 +95,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.write(db, db.TEST_SET, id, -1, bin1, bin2, bin3);
-        assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
+        assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.noSendKeyReadPolicy));
         db.delete(FireflyRecord.getKey(db, db.TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.sendKeyReadPolicy));
+        assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.noSendKeyReadPolicy));
     }
 
     @Test
@@ -671,7 +665,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Key key = new Key("test", digest, SET_NAME, Value.NULL);
         db.write(key, new Bin("bin", 1));
 
-        Record result = db.read(key, AerospikeConnection.sendKeyReadPolicy);
+        Record result = db.read(key, AerospikeConnection.noSendKeyReadPolicy);
         class TestRL implements RecordListener {
             public Key key;
             Semaphore semaphore = new Semaphore(0);
@@ -700,7 +694,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             }
         }
         TestRL testRL = new TestRL();
-        db.getClient().get(db.getEventLoops().get(0), testRL, AerospikeConnection.sendKeyReadPolicy, key);
+        db.getClient().get(db.getEventLoops().get(0), testRL, AerospikeConnection.noSendKeyReadPolicy, key);
         KeyRecord keyRecord = testRL.get();
         assertEquals(1, keyRecord.record.getInt("bin"));
         //Cant recover the original key. Seems strange since Scan will send the original key
@@ -715,12 +709,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
-        final Record[] records = db.getClient().get(AerospikeConnection.sendKeyBatchPolicy, new Key[]{keyaObj, keybObj});
+        final Record[] records = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, new Key[]{keyaObj, keybObj});
         assertEquals(2, records.length);
 
         Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
         Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        final Record[] hashRecords = db.getClient().get(AerospikeConnection.sendKeyBatchPolicy, new Key[]{keyaHash, keybHash});
+        final Record[] hashRecords = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, new Key[]{keyaHash, keybHash});
         assertEquals(2, hashRecords.length);
     }
 

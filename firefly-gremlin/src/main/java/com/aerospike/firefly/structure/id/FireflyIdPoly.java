@@ -1,11 +1,9 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.client.Log;
 import com.aerospike.client.util.Crypto;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -27,7 +25,7 @@ public class FireflyIdPoly extends FireflyId {
             String.class, new GetStringId()
     );
 
-    protected static Map<Class, Long> CONVERT_TO_STORAGE_IDX = Map.of(
+    protected static Map<Class, Long> STORAGE_TYPE_HINTS = Map.of(
             Long.class, 1L,
             Integer.class, 2L,
             Double.class, 3L,
@@ -42,51 +40,24 @@ public class FireflyIdPoly extends FireflyId {
      */
     // Package private. Only the factory should be instantiating this.
     private FireflyIdPoly(final Object id, final String setName) {
-        if (id == null) {
-            throw new IllegalArgumentException("Id cannot be null.");
-        }
-        if (String.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.STRING;
-            this.userClass = String.class;
-            this.id = id;
-        } else if (Long.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
-            this.userClass = Long.class;
-            this.id = id;
-        } else if (Integer.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
-            this.userClass = Integer.class;
-            this.id = ((Integer) id).longValue();
-        } else if (Double.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
-            this.id = ((Double) id).longValue();
-            this.userClass = Double.class;
-        } else {
-            throw new IllegalArgumentException("Id must be a String or Number.");
-        }
-        this.hash = getIdHash(id, setName);
-        if (Arrays.equals(this.hash, new byte[20]))
-            throw new RuntimeException("Invalid ID hash");
+        this(id, id.getClass(), setName);
     }
 
-    private FireflyIdPoly(final Object id, final Class userClass, final String setName) {
+    private FireflyIdPoly(final Object id, final Class<?> userClass, final String setName) {
         this.userClass = userClass;
         if (id == null) {
             throw new IllegalArgumentException("Id cannot be null.");
-        } else if (Long.class.isAssignableFrom(id.getClass())) {
+        } else if (Number.class.isAssignableFrom(id.getClass())) {
             this.source = Source.NUMBER;
+            this.id = ((Number) id).longValue();
+        } else if (String.class.isAssignableFrom(id.getClass())) {
+            this.source = Source.STRING;
             this.id = id;
-        } else if (Integer.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
-            this.id = ((Integer) id).longValue();
-        } else if (Double.class.isAssignableFrom(id.getClass())) {
-            this.source = Source.NUMBER;
-            this.id = ((Double) id).longValue();
         } else {
             throw new IllegalArgumentException("Id must be a String or Number.");
         }
         this.hash = getIdHash(id, setName);
-        if (!CONVERT_TO_STORAGE_IDX.containsKey(this.userClass)) {
+        if (!STORAGE_TYPE_HINTS.containsKey(this.userClass)) {
             // Should not happen in production, but add case for it anyway.
             throw new RuntimeException(String.format("Error, cannot create numeric id with user class of %s.", this.userClass.getName()));
         }
@@ -170,8 +141,8 @@ public class FireflyIdPoly extends FireflyId {
     }
 
     @Override
-    public Long getStorageTypeIdx() {
-        return CONVERT_TO_STORAGE_IDX.get(userClass);
+    public Long getStorageTypeHint() {
+        return STORAGE_TYPE_HINTS.get(userClass);
     }
 
     @Override
@@ -233,7 +204,7 @@ public class FireflyIdPoly extends FireflyId {
         }
     }
 
-    public static byte[] decodeBase64(final String base64data){
+    public static byte[] decodeBase64(final String base64data) {
         return Crypto.decodeBase64(base64data.getBytes(), 0, base64data.getBytes().length);
     }
 }

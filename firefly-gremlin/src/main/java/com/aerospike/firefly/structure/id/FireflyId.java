@@ -17,7 +17,7 @@ public abstract class FireflyId implements Comparable {
 
     public abstract Object getStorageId();
 
-    public abstract Long getStorageTypeIdx();
+    public abstract Long getStorageTypeHint();
 
     public abstract boolean equals(Object o);
 

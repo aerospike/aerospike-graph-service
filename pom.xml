@@ -141,6 +141,7 @@
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>
                        <exclude>**/BenchmarkTest.java</exclude>-
+                       <exclude>**/ValidConnectionTest.java</exclude>-
                        <exclude>**/TestMovielens1M.java</exclude>-
                        <exclude>**/TestFireflyExceedHeap.java</exclude>-
                    </excludes>

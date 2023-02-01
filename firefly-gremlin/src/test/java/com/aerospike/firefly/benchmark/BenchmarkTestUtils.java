@@ -25,7 +25,7 @@ public class BenchmarkTestUtils {
         FLIGHTS
     }
 
-    static String getHost() {
+    public static String getHost() {
         final String host = System.getProperty("firefly.host");
         return host == null ? LOCALHOST : host;
     }

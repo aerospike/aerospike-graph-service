@@ -1436,10 +1436,9 @@ public class AerospikeConnection implements AutoCloseable {
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
-            LOG.debug("Will create index {}: {}", indexName, LocalDateTime.now());
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
             task.waitTillComplete(1);
-            LOG.debug("Completed create index {}: {}", indexName, LocalDateTime.now());
+            LOG.debug("Completed create index {}", indexName);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw ae;
@@ -1480,11 +1479,10 @@ public class AerospikeConnection implements AutoCloseable {
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         try {
-            LOG.info("Will create index {}: {}", indexName, LocalDateTime.now());
             final CTX ctx = CTX.mapKey(Value.get(keyName));
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
             task.waitTillComplete(1);
-            LOG.info("Completed create index {}: {}", indexName, LocalDateTime.now());
+            LOG.info("Index {} creation completed.", indexName);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw ae;

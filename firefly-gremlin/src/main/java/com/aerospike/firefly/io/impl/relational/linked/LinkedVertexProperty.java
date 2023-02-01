@@ -8,7 +8,6 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +102,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
      */
     public static <V> FireflyVertexProperty<V> fromRecord(final FireflyGraph graph, final FireflyRecord fireflyRecord, final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyId fid = FireflyIdFactory.createId(fireflyRecord.id());
+        final FireflyId fid = graph.getIdFactory().createId(fireflyRecord.id(), FireflyVertexProperty.class);
         final Optional<Map.Entry<String, Object>> kv = Optional.ofNullable(
                 db.readTypeHintedKeyValueFromMap(db.VERTEX_PROPERTY_AERO_SET, fid, db.KEY_VALUE, db.VP_TYPE_HINTS));
         if (kv.isEmpty()) {
@@ -148,7 +147,7 @@ final public class LinkedVertexProperty<V> extends FireflyVertexProperty<V> {
     public static void removeVertexProperty(final FireflyGraph graph, final FireflyId id) {
         LOG.debug("Removing vertex property {}", id);
         final AerospikeConnection db = graph.getBaseGraph();
-        db.delete(FireflyRecord.getKey(db.getNamespace(), db.VERTEX_PROPERTY_AERO_SET, id));
+        db.delete(FireflyRecord.getKey(db, db.VERTEX_PROPERTY_AERO_SET, id));
     }
 
     /**

@@ -15,6 +15,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.WriteTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.FailStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -1514,7 +1516,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
 
         final Map<Object, List<String>> values = traversal.next();
-//        assertFalse(traversal.hasNext());
         Map<Object, List<String>> extraValues;
         if(traversal.hasNext()) {
             extraValues = traversal.next();
@@ -1532,8 +1533,62 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("lop", ncvalues.get("name").get(0));
         assertEquals("java", ncvalues.get("lang").get(0));
         assertEquals(2, ncvalues.size());
+    }
+
+    @Test
+    public void g_V_hasLabelXloopsX_bothEXselfX() {
+        Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
+        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+
+        nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
+        nocacheconfig.setProperty(Graph.GRAPH, "ncg");
+
+        graph = FireflyGraph.open(nocacheconfig);
+        graph.getBaseGraph().dropDatabase();
+
+        GraphHelper.cloneElements(TinkerFactory.createKitchenSink(), graph);
+        this.g = graph.traversal();
+        Traversal<Vertex, Edge> traversal = this.g.V(new Object[0]).hasLabel("loops", new String[0]).bothE(new String[]{"self"});
+        Traversal<Vertex, Edge> traversalIn = this.g.V(new Object[0]).hasLabel("loops", new String[0]).inE(new String[]{"self"});
+        Traversal<Vertex, Edge> traversalOut = this.g.V(new Object[0]).hasLabel("loops", new String[0]).outE(new String[]{"self"});
+
+        this.printTraversalForm(traversal);
+        List<Vertex> allV = this.g.V().toList();
+        List<Edge> allE = this.g.E().toList();
+        List<Edge> bothEdges = traversal.toList();
+        List<Edge> inEdges = traversalIn.toList();
+        List<Edge> outEdges = traversalOut.toList();
 
 
+        Assert.assertEquals(2L, (long)bothEdges.size());
+        Assert.assertEquals(bothEdges.get(0), bothEdges.get(1));
+    }
+    @Test
+    public void g_io_writeXjsonX() throws IOException {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        String fileToWrite = TestHelper.generateTempFile(WriteTest.class, "tinkerpop-modern-v3d0", ".json").getAbsolutePath().replace('\\', '/');
+        File f = new File(fileToWrite);
+        MatcherAssert.assertThat(f.length() == 0L, Is.is(true));
+        Traversal<Object, Object> traversal = this.g.io(fileToWrite).write();
+        this.printTraversalForm(traversal);
+        traversal.iterate();
+        MatcherAssert.assertThat(f.length() > 0L, Is.is(true));
+    }
+
+    public Object convertToEdgeId(final String outVertexName, String edgeLabel, final String inVertexName) {
+        return this.convertToEdgeId(graph, outVertexName, edgeLabel, inVertexName);
+    }
+
+    public Object convertToEdgeId(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
+        return this.convertToEdge(graph, outVertexName, edgeLabel, inVertexName).id();
+    }
+    @Test
+    public void g_EX11X() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Vertex josh = graph.traversal().V().has("name", "josh").next();
+        Edge aJoshOutE = graph.traversal().V(josh).outE("created").next();
+        List<Vertex> joshOutEInV = graph.traversal().E(aJoshOutE).inV().toList();
+        Object edgeId =  graph.traversal().V(josh).outE("created").as("e").inV().has("name", "lop").<Edge>select("e").toList().get(0);
 
     }
 }

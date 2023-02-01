@@ -89,27 +89,15 @@ public class PackedGraph extends RelationalGraph {
         return fireflyVertexProperty;
     }
 
-    /**
-     * Create vertex property from a FireflyRecord and parent vertex id.
-     *
-     * @param fireflyRecord FireflyRecord.
-     * @param id            Parent vertex id.
-     * @param key           Key of property for record.
-     * @param <V>           Type of FireflyVertexProperty.
-     * @return FireflyVertexProperty.
-     */
-    private <V> FireflyVertexProperty<V> vertexPropertyFromRecord(final FireflyRecord fireflyRecord, final String key, final FireflyId id) {
-        return PackedVertexProperty.fromRecord(this, key, fireflyRecord, id);
-    }
 
     /**
      * Write a property to an element in this graph. Contains specific logic to handle packed vertex properties.
      *
-     * @param element   The element that the property is applied to.
-     * @param key       The property key.
-     * @param value     The property value.
-     * @return          The newly written property.
-     * @param <V>       Value type of the property.
+     * @param element The element that the property is applied to.
+     * @param key     The property key.
+     * @param value   The property value.
+     * @param <V>     Value type of the property.
+     * @return The newly written property.
      */
     @Override
     public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
@@ -125,9 +113,9 @@ public class PackedGraph extends RelationalGraph {
     /**
      * Read the properties on an element.
      *
-     * @param element   The element to read the properties of.
-     * @return          The properties on the element.
-     * @param <V>       Value type of the property.
+     * @param element The element to read the properties of.
+     * @param <V>     Value type of the property.
+     * @return The properties on the element.
      */
     @Override
     public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
@@ -141,10 +129,10 @@ public class PackedGraph extends RelationalGraph {
     /**
      * Read a property on an element.
      *
-     * @param element   The element to read the properties of.
-     * @param key       The key of the property to read.
-     * @return          The property on the element with the specified key.
-     * @param <V>       Value type of the property.
+     * @param element The element to read the properties of.
+     * @param key     The key of the property to read.
+     * @param <V>     Value type of the property.
+     * @return The property on the element with the specified key.
      */
     @Override
     public <V> Property<V> readProperty(final FireflyElement element, final String key) {

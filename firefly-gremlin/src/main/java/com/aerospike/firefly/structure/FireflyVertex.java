@@ -108,8 +108,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         // Create Firefly id for vertex property.
         final FireflyId vertexPropertyId = ElementHelper.getIdValue(keyValues).isPresent() ?
-                FireflyIdFactory.createId(ElementHelper.getIdValue(keyValues).get()) :
-                FireflyIdFactory.createFromManager(graph, FireflyVertexProperty.class);
+                graph.getIdFactory().createId(ElementHelper.getIdValue(keyValues).get(), FireflyVertexProperty.class) :
+                graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
         final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
@@ -144,15 +144,15 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         // Get id for edge.
         FireflyId edgeId;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+            edgeId = graph.getIdFactory().createFromManager(graph, FireflyEdge.class);
 
             // TODO: GRAPH-186.
             while (graph.edgeExists(edgeId)) {
-                edgeId = FireflyIdFactory.createFromManager(graph, FireflyEdge.class);
+                edgeId = graph.getIdFactory().createFromManager(graph, FireflyEdge.class);
             }
         } else {
             try {
-                edgeId = FireflyIdFactory.createFromKeyValues(FireflyEdge.class, keyValues);
+                edgeId = graph.getIdFactory().createFromKeyValues(FireflyEdge.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();

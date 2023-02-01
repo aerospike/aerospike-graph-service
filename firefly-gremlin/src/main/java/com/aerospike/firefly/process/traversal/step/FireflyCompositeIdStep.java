@@ -55,7 +55,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     public void barrierConsumer(final TraverserSet<Vertex> set) {
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Vertex> output = new TraverserSet<>();
-        final FireflyGraph firefly = ((FireflyGraph) getTraversal().getGraph().get());
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
         final List<FireflyCompositeIdStepInfo> fireflyCompositeIdStepInfos = new ArrayList<>();
@@ -73,11 +73,11 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             // If the in edge cache is disabled then we need to use the regular interface.
             if (vertex.isEdgeCacheDisabled()) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
-                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, firefly, vertex);
+                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, graph, vertex);
                     addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
                 }
                 if (direction == Direction.OUT || direction == Direction.BOTH) {
-                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, firefly, vertex);
+                    final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, graph, vertex);
                     addVerticesToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
                 }
             } else {
@@ -92,15 +92,15 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             fireflyCompositeIdStepInfos.add(new FireflyCompositeIdStepInfo(traverser, fireflyIdList.size() - previousSize));
 
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
-            if (uniqueIdSet.size() >= firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
-                    fireflyIdList.size() >= 5 * firefly.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+            if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
+                    fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
-                drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
+                drainDataToOutput(graph, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
             }
         }
 
         // Drain data to output.
-        drainDataToOutput(firefly, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
+        drainDataToOutput(graph, fireflyIdList, uniqueIdSet, fireflyVertexMap, fireflyCompositeIdStepInfos, output);
 
         // Note this cannot be added in the above loop since we are looking through it above.
         set.addAll(output);

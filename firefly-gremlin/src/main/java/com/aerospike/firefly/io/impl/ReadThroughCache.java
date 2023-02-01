@@ -6,18 +6,14 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.structure.id.FireflyId;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheStats;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -83,7 +79,7 @@ public class ReadThroughCache extends FireflyCache {
             return or;
         } else {
             missCounter.incrementAndGet();
-            final Record record = db.getClient().get(null, key);
+            final Record record = db.getClient().get(AerospikeConnection.noSendKeyReadPolicy, key);
             insert(key, record);
             return record;
         }
@@ -102,7 +98,7 @@ public class ReadThroughCache extends FireflyCache {
             final List<Key> subList = missingKeySet.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            final Record[] records = db.getClient().get(null, subList.toArray(new Key[0]));
+            final Record[] records = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, subList.toArray(new Key[0]));
             for (int j = 0; j < records.length; j++) {
                 results.put(subList.get(j), records[j]);
             }

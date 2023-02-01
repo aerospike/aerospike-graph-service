@@ -25,7 +25,7 @@ public abstract class SparkFireflyElement implements Serializable {
         this.properties = properties;
     }
 
-    public abstract FireflyId getFireflyId();
+    public abstract FireflyId getFireflyId(String setName);
 
     public long getId() {
         return this.id;

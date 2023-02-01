@@ -25,15 +25,21 @@ import java.util.TreeMap;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdFactory {
+    private final AerospikeConnection db;
+
     // Map from classes we support as TinkerPop ids to on disk type hints. NOTE: String not fully supported yet.
-    private static final Map<Class<? extends Serializable>, Long> TYPE_TO_IDX = new HashMap<>() {{
+    private enum IdType {
+        Null, Long, Integer, Double, Byte, String
+    }
+
+    private static final Map<Class<? extends Serializable>, Long> TYPE_TO_HINT = new HashMap<>() {{
         put(Long.class, 1L);
         put(Integer.class, 2L);
         put(Double.class, 3L);
         put(byte[].class, 4L);
         put(String.class, 5L);
     }};
-    private static final Map<Long, Class<? extends Serializable>> IDX_TO_TYPE = new HashMap<>() {{
+    static final Map<Long, Class<? extends Serializable>> HINT_TO_TYPE = new HashMap<>() {{
         put(null, null);
         put(0L, null);
         put(1L, Long.class);
@@ -43,19 +49,33 @@ public class FireflyIdFactory {
         put(5L, String.class);
     }};
 
+    private FireflyIdFactory(final AerospikeConnection db) {
+        this.db = db;
+    }
+
+    /**
+     * Create a FireflyIdFactory
+     *
+     * @param db the AerospikeConnection
+     * @return FireflyIdFactory
+     */
+    public static FireflyIdFactory create(final AerospikeConnection db) {
+        return new FireflyIdFactory(db);
+    }
+
     /**
      * Create an id for a specific FireflyElement type.
      *
-     * @param id          Id to use for element.
-     * @param adjacentVertex  Id of adjacent vertex.
+     * @param id             Id to use for element.
+     * @param adjacentVertex Id of adjacent vertex.
      * @return FireflyId.
      */
-    public static FireflyId createEdgeIdFromUser(final Object id, final FireflyId adjacentVertex) {
+    public FireflyId createEdgeIdFromUser(final Object id, final FireflyId adjacentVertex) {
         // Generate edge id.
         final FireflyId edgeId = createFromUser(FireflyEdge.class, id);
 
         // Generate composite id.
-        return new FireflyIdComposite(edgeId, adjacentVertex);
+        return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
     /**
@@ -65,7 +85,7 @@ public class FireflyIdFactory {
      * @param id   Id to use for element.
      * @return FireflyId.
      */
-    public static FireflyId createFromUser(final Class<? extends FireflyElement> type, Object id) {
+    public FireflyId createFromUser(final Class<? extends FireflyElement> type, Object id) {
         if (id instanceof FireflyElement) {
             return ((FireflyElement) id).id;
         } else if (id instanceof Element) {
@@ -75,99 +95,118 @@ public class FireflyIdFactory {
         if (id instanceof Float) {
             id = ((Float) id).doubleValue();
         }
-        boolean supportedType = TYPE_TO_IDX.containsKey(id.getClass());
-        final Object numericId;
+        boolean supportedType = TYPE_TO_HINT.containsKey(id.getClass());
+        Object tempId;
         if (id instanceof String) {
             try {
-                numericId = Long.parseLong((String) id);
+                tempId = Long.parseLong((String) id);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("String id must be a number.");
+                tempId = id;
             }
         } else {
-            numericId = id;
+            tempId = id;
         }
-
         if (!FireflyVertex.class.isAssignableFrom(type) &&
                 !FireflyEdge.class.isAssignableFrom(type) &&
                 !FireflyVertexProperty.class.isAssignableFrom(type)) {
             throw new UnsupportedOperationException(type + " not a Firefly Element ");
-        } else if (FireflyVertex.class.isAssignableFrom(type) && !supportedType) {
-            throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-        } else if (FireflyEdge.class.isAssignableFrom(type) && !supportedType) {
-            throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-        } else if (FireflyVertexProperty.class.isAssignableFrom(type) && !supportedType) {
-            throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
         }
 
-        // Does element with this id already exist validation is done in the element requesting the id.
-        return createId(numericId, TYPE_TO_IDX.get(id.getClass()));
+        if (FireflyVertex.class.isAssignableFrom(type)) {
+            if (!supportedType)
+                throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyVertex.class);
+        } else if (FireflyEdge.class.isAssignableFrom(type)) {
+            if (!supportedType)
+                throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyEdge.class);
+        } else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
+            if (!supportedType)
+                throw VertexProperty.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
+            return createId(tempId, TYPE_TO_HINT.get(id.getClass()), FireflyVertexProperty.class);
+        } else {
+            throw new UnsupportedOperationException(type + " not a Firefly Element.");
+        }
     }
 
     /**
-     * Create an id using the id idx type and id object. If idx is null, it is not required.
+     * Create an id using the id typeHint type and id object. If typeHint is null, it is not required.
      *
      * @param id  Id Object.
-     * @param idx Idx to use, null if not user defined.
+     * @param typeHint typeHint to use, null if not user defined.
      * @return FireflyId.
      */
-    private static FireflyId createId(final Object id, final Long idx) {
-        if (!IDX_TO_TYPE.containsKey(idx)) {
+    private FireflyId createId(final Object id, final Long typeHint, final Class<? extends FireflyElement> type) {
+        final String set = db.setFromElementType(type);
+        if (!HINT_TO_TYPE.containsKey(typeHint)) {
             // This is just caught and propagated up via a gremlin specific exception.
-            throw new IllegalArgumentException("Invalid id type: " + idx + ". Id type must be one of " + IDX_TO_TYPE.keySet());
+            throw new IllegalArgumentException("Invalid id type: " + typeHint + ". Id type must be one of " + HINT_TO_TYPE.keySet());
         }
         if (Number.class.isAssignableFrom(id.getClass())) {
-            return new FireflyIdNumeric((Number) id, IDX_TO_TYPE.get(idx));
+            return FireflyIdPoly.fromObject(id, HINT_TO_TYPE.get(typeHint), set);
         } else if (String.class.isAssignableFrom(id.getClass())) {
             try {
                 // For numeric string ids.
                 final Number numericId = Long.parseLong((String) id);
-                return new FireflyIdNumeric(numericId, IDX_TO_TYPE.get(idx));
+                return FireflyIdPoly.fromObject(numericId, HINT_TO_TYPE.get(typeHint), set);
             } catch (NumberFormatException ignored) {
-                return new FireflyIdString((String) id);
+                return FireflyIdPoly.fromObject((String) id, set);
             }
         } else if (byte[].class.isAssignableFrom(id.getClass())) {
-            return new FireflyIdComposite((byte[]) id);
+            return new FireflyIdComposite(db, (byte[]) id);
         }
-        throw new IllegalArgumentException("Invalid id type: " + id.getClass() + ". Id type must be one of " + TYPE_TO_IDX.keySet());
+        throw new IllegalArgumentException("Invalid id type: " + id.getClass() + ". Id type must be one of " + TYPE_TO_HINT.keySet());
     }
 
     /**
-     * Create an id using the id idx type and id object. If idx is null, it is not required.
+     * Create an id using the id hint type and id object. If idx is null, it is not required.
      *
      * @param id Id Object.
      * @return FireflyId.
      */
-    public static FireflyId createId(final Object id) {
+    public FireflyId createId(final Object id, final Class<? extends FireflyElement> type) {
         Object idObj = id;
         if (id instanceof Element) {
             idObj = ((Element) id).id();
         } else if (id instanceof FireflyId) {
             return (FireflyId) id;
         }
-        return createId(idObj, null);
+        return createId(idObj, TYPE_TO_HINT.get(id.getClass()), type);
     }
 
-    public static FireflyId createFromManager(final FireflyGraph graph, final Class<? extends FireflyElement> type) {
+    /**
+     * Generate a new id from the id manager.
+     * @param graph the FireflyGraph instance
+     * @param type the Firefly Element Type to generate an id for
+     * @return FireflyId
+     */
+    public FireflyId createFromManager(final FireflyGraph graph, final Class<? extends FireflyElement> type) {
         if (FireflyVertex.class.isAssignableFrom(type)) {
-            return createId(graph.vertexIdManager.getNextId(graph), null);
+            return createId(graph.vertexIdManager.getNextId(graph), type);
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
-            return createId(graph.edgeIdManager.getNextId(graph), null);
+            return createId(graph.edgeIdManager.getNextId(graph), type);
         } else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
-            return createId(graph.vertexPropertyIdManager.getNextId(graph), null);
+            return createId(graph.vertexPropertyIdManager.getNextId(graph), type);
         } else {
             throw new UnsupportedOperationException(type + " not a Firefly Element ");
         }
     }
 
-    public static FireflyId createEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(edgeId, adjacentVertex);
+    /**
+     * Create a composite id from an edge and a vertex id
+     * @param edgeId the edge id
+     * @param adjacentVertex the adjacent vertex id
+     * @return a FireflyIdComposite representing an edge and an adjacent Vertex
+     */
+    public FireflyId createCompositeEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
-    public static FireflyId createEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
+    public FireflyId createCompositeEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
+        return new FireflyIdComposite(db, createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
     }
 
-    public static FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
+    public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {
             throw new IllegalArgumentException("Id not found in keyValues");
@@ -176,7 +215,7 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createEdgeIdFromKeyValues(final FireflyId adjacentVertexId, final Object... keyValues) {
+    public FireflyId createEdgeIdFromKeyValues(final FireflyId adjacentVertexId, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {
             throw new IllegalArgumentException("Id not found in keyValues");
@@ -185,11 +224,29 @@ public class FireflyIdFactory {
         }
     }
 
-    public static FireflyId createFromRecord(final AerospikeConnection db, final FireflyRecord record) {
-        return createId(record.key().userKey.getObject(), record.record.getLong(db.ID_TYPE));
+    /**
+     * Create a FireflyId from an Aerospike Record and Firefly Element class
+     * @param db the AerospikeConnection
+     * @param record the Record representing the Firefly Element
+     * @param type the type of Firefly Element to create
+     * @return FireflyId
+     */
+    public FireflyId createFromRecord(final AerospikeConnection db, final FireflyRecord record, final Class<? extends FireflyElement> type) {
+        //@todo uses userKey, check if this works when key is constructed from hash
+        final Object origId;
+        final long typeHint;
+        if (record.key().userKey.getObject() != null) {
+            origId = record.key().userKey.getObject();
+        } else if (record.record.getValue(AerospikeConnection.USER_KEY) != null) {
+            origId = record.record.getValue(AerospikeConnection.USER_KEY);
+        } else { //@todo list of cases
+            throw new RuntimeException("no key available"); //maybe a pure hash id
+        }
+        typeHint = record.record.getLong(db.ID_TYPE_BIN) == 0 ? FireflyIdPoly.STORAGE_TYPE_HINTS.get(origId.getClass()) : record.record.getLong(db.ID_TYPE_BIN);
+        return createId(origId, typeHint, type);
     }
 
-    public static Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
+    public Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
@@ -198,9 +255,9 @@ public class FireflyIdFactory {
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final Object edge : fireflyObjectIds.get(label)) {
                 if (edge instanceof byte[]) {
-                    fireflyIds.add(new FireflyIdComposite((byte[]) edge));
+                    fireflyIds.add(new FireflyIdComposite(db, (byte[]) edge));
                 } else {
-                    fireflyIds.add(FireflyIdFactory.createId(edge));
+                    fireflyIds.add(createId(edge, FireflyEdge.class));
                 }
             }
             labelEdgeIds.put(label, fireflyIds);
@@ -208,7 +265,7 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
+    public Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
@@ -224,7 +281,7 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, List<Object>> convertMapListToCache(final Map<String, List<FireflyId>> fireflyObjectIds) {
+    public Map<String, List<Object>> convertMapListToCache(final Map<String, List<FireflyId>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
@@ -240,7 +297,7 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
+    public Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
@@ -252,7 +309,7 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, Object> convertMapToCache(final Map<String, FireflyId> fireflyObjectIds) {
+    public Map<String, Object> convertMapToCache(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
@@ -264,24 +321,24 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public static Map<String, FireflyId> convertMapObjectToFireflyIdMap(final Map<String, Object> fireflyObjectIds) {
+    public Map<String, FireflyId> convertMapObjectToFireflyIdMap(final Map<String, Object> fireflyObjectIds, final Class<? extends FireflyElement> type) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
         }
         final Map<String, FireflyId> edgeIdMap = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
-            edgeIdMap.put(label, FireflyIdFactory.createId(fireflyObjectIds.get(label)));
+            edgeIdMap.put(label, createId(fireflyObjectIds.get(label), type));
         }
         return edgeIdMap;
     }
 
-    public static List<FireflyId> convertObjectListToFireflyIdList(final List<Object> fireflyObjectIds) {
+    public List<FireflyId> convertObjectListToFireflyIdList(final List<Object> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new ArrayList<>();
         }
         List<FireflyId> fireflyIds = new ArrayList<>();
         for (final Object edge : fireflyObjectIds) {
-            fireflyIds.add(FireflyIdFactory.createId(edge));
+            fireflyIds.add(createId(edge, FireflyEdge.class));
         }
         return fireflyIds;
     }

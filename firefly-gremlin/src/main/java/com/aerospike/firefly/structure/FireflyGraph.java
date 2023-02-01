@@ -63,7 +63,9 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import ch.qos.logback.classic.Level;
+
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -121,6 +123,12 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_groupXaX_byXnameX_byXproperties_groupCount_byXlabelXX_out_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 
+// Firefly does not support Float ids
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
+
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
@@ -144,6 +152,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static String VP_INDEX_PREFIX = "~VP_";
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
+    private final FireflyIdFactory idFactory;
     protected FireflyGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
     public final IdManager<Long> edgeIdManager;
@@ -169,6 +178,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
+        this.idFactory = db.getIdFactory();
+
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
@@ -230,11 +241,19 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new ComparableVersion(FIREFLY_VERSION);
     }
 
+    /**
+     * Return the FireflyIdFactory
+     *
+     * @return FireflyIdFactory
+     */
+    public FireflyIdFactory getIdFactory() {
+        return idFactory;
+    }
 
     public abstract String getDataModel();
 
     // Vertex functions.
-    protected abstract Iterator<Long> scanAllVertices();
+    protected abstract Iterator<FireflyId> scanAllVertices();
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
@@ -331,15 +350,14 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
-
+            idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
             // TODO: GRAPH-186.
             while (vertexExists(idValue)) {
-                idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
+                idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
             }
         } else {
             try {
-                idValue = FireflyIdFactory.createFromKeyValues(FireflyVertex.class, keyValues);
+                idValue = getIdFactory().createFromKeyValues(FireflyVertex.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
@@ -393,34 +411,55 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         throw new UnsupportedOperationException(UNIMPLEMENTED);
     }
 
+    /**
+     * This function finds TinkerPop Element objects in an object array and converts them to ids
+     *
+     * @param elements array of objects that might be Elements
+     * @return array of raw ids
+     */
+    private List<Object> getIds(final List<Object> elements) {
+        return elements.stream().map(e -> {
+            if (Element.class.isAssignableFrom(e.getClass())) {
+                return ((Element) e).id();
+            } else {
+                return e;
+            }
+        }).collect(Collectors.toList());
+    }
+
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
             return IteratorUtils.of(new FireflyMetadataVertex(this));
         }
-        // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id ->
-                (Long) FireflyIdFactory.createFromUser(FireflyVertex.class, id).getStorageId()).collect(Collectors.toList());
 
+        final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
+                .map(id -> getIdFactory().createId(id, FireflyVertex.class))
+                .collect(Collectors.toList());
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         // TODO: Should this be batch exists? Or removed for performance?
-        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyIdFactory.createId(id)).allMatch(this::vertexExists)) {
-            throw new NoSuchElementException("vertex could not be found and edge could not be created");
+        final List<FireflyId> idsDoNotExist;
+        if (!idList.isEmpty()) {
+            idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
+            if (idsDoNotExist.size() > 0)
+                //@todo is this the correct place to throw this error?
+                //@todo the error string is required to satisfy a standard test case, but should likely go somewhere in the edge impl
+                throw new NoSuchElementException(String.format("%s could not be found and edge could not be created", idsDoNotExist));
         }
-
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyVertexIterator(this, longs.isEmpty() ? scanAllVertices() : longs.iterator());
+        return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
     }
 
     @Override
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
+        final List<Object> filtered = getIds(List.of(edgeIds));
         return new FireflyEdgeIterator(this,
-                (edgeIds.length == 0) ?
+                (filtered.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        Arrays.stream(edgeIds).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList()).iterator());
+                        filtered.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
     }
 
     /**
@@ -463,8 +502,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     /**
      * Create an Aerospike Expression from the predicate, map key, and bin name.
      *
-     * @param binName Bin name to use.
-     * @param mapKey Map key to use.
+     * @param binName   Bin name to use.
+     * @param mapKey    Map key to use.
      * @param predicate Predicate to use.
      * @return
      */
@@ -502,8 +541,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @param indexInfo Index info to use.
      * @param predicate Predicate to use.
      * @param transform Transform to use.
+     * @param <E>       Type of element to return.
      * @return Iterator of transformed elements.
-     * @param <E> Type of element to return.
      */
     public <E extends Element> Iterator<E> queryIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
                                                       final P<?> predicate,
@@ -518,11 +557,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     /**
      * Execute query on scan with predicate, map key, and return on the fly transformed iterator.
      *
-     * @param mapKey Map key to use.
+     * @param mapKey    Map key to use.
      * @param predicate Predicate to use.
      * @param transform Transform to use.
+     * @param <E>       Type of element to return.
      * @return Iterator of transformed elements.
-     * @param <E> Type of element to return.
      */
     public <E extends Element> Iterator<E> queryScan(final String mapKey,
                                                      final P<?> predicate,
@@ -574,9 +613,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), index);
-            db.createKeyValueSindex(existingIndexes, db.getElementPropertySet(FireflyVertex.class),
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
                     formattedIndex + "_" + STRING, db.KEY_VALUE, index, STRING, IndexCollectionType.MAPVALUES);
-            db.createKeyValueSindex(existingIndexes, db.getElementPropertySet(FireflyVertex.class),
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
                     formattedIndex + "_" + NUMERIC, db.KEY_VALUE, index, NUMERIC, IndexCollectionType.MAPVALUES);
         }
 

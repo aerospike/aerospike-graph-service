@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -41,8 +42,8 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
-            b.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
+            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
+            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -52,7 +53,7 @@ public class WriteFailureTest {
             Assert.assertFalse(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            RelationalEdge.writeEdge(fireflyGraph, FireflyIdFactory.createId(1), "fail", new ArrayList<>(), a, b);
+            RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class), "fail", new ArrayList<>(), a, b);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
             bOut = b.edges(Direction.OUT);
@@ -73,9 +74,9 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, FireflyIdFactory.createId(1), "fail");
-            b.writeEdge(Direction.OUT, FireflyIdFactory.createId(1), "fail");
-            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph, FireflyIdFactory.createId(1), "fail", new ArrayList<>(), a, b);
+            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
+            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class), "fail");
+            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class), "fail", new ArrayList<>(), a, b);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -106,7 +107,7 @@ public class WriteFailureTest {
             GraphTraversalSource g = fireflyGraph.traversal();
 
             FireflyVertex a = (FireflyVertex) g.addV().next();
-            FireflyId id = FireflyIdFactory.createId(1);
+            FireflyId id = fireflyGraph.getIdFactory().createId(1, FireflyVertexProperty.class);
 
             final FireflyVertexProperty fireflyVertexProperty = LinkedVertexProperty.writeVertexProperty(fireflyGraph, a, id, "key", "value");
             List<Object> properties = g.V().values("key").toList();

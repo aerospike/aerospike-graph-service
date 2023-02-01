@@ -85,7 +85,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class AerospikeConnection implements AutoCloseable {
-    public static final String USER_KEY = "USER_KEY";
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public static final Policy sendKeyReadPolicy;
     public static final BatchPolicy noSendKeyBatchPolicy;
     public static final BatchPolicy sendKeyBatchPolicy;
@@ -103,7 +103,7 @@ public class AerospikeConnection implements AutoCloseable {
         noSendKeyBatchPolicy.sendKey = false;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
+    public static final String USER_KEY = "USER_KEY";
     public static final String LABEL = "label";
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
@@ -865,7 +865,7 @@ public class AerospikeConnection implements AutoCloseable {
         try { //@todo policy causes key mismatch error
             results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(policy, key)};
         } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read");
+            LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;
         }
         return results[0];
@@ -896,7 +896,7 @@ public class AerospikeConnection implements AutoCloseable {
         try { //@todo policy causes key mismatch error
             results = (cache != null) ? cache.read(keys) : client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {
-            LOG.error("Error: AerospikeException in read");
+            LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;
         }
         return results;

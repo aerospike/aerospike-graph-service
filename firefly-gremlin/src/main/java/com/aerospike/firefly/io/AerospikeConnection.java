@@ -715,7 +715,7 @@ public class AerospikeConnection implements AutoCloseable {
             return EDGE_AERO_SET;
         else if (FireflyVertex.class.isAssignableFrom(type))
             return VERTEX_AERO_SET;
-        else if (FireflyVertexProperty.class.isAssignableFrom(type))
+        else if (LinkedVertexProperty.class.isAssignableFrom(type))
             return VERTEX_PROPERTY_AERO_SET;
         else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
             return VERTEX_AERO_SET;
@@ -852,9 +852,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * perform an Aerospike read by Key
+     * pass a Policy (not a BatchPolicy)
      *
      * @param key    Aerospike Key to read
-     * @param policy
+     * @param policy Aerospike Policy to use
      * @return Aerospike Record
      */
     protected Record read(final Key key, final Policy policy) {
@@ -862,7 +863,7 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(AerospikeConnection.noSendKeyBatchPolicy, key)};
+            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(policy, key)};
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
@@ -872,16 +873,28 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Perform a batch Aerospike read for a group of keys
+     * defaults to noSendKeyBatchPolicy (subject to change in future version)
      *
      * @param keys Array of Key to return records for
      * @return Array of Record
      */
     protected Record[] read(final Key[] keys) {
+        return read(keys, AerospikeConnection.noSendKeyBatchPolicy);
+    }
+
+    /**
+     * Perform a batch Aerospike read for a group of keys
+     *
+     * @param keys        Array of Key to return records for
+     * @param batchPolicy BatchPolicy to use
+     * @return Array of Record
+     */
+    protected Record[] read(final Key[] keys, final BatchPolicy batchPolicy) {
         readMetric.addAndGet(keys.length);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(keys) : client.get(AerospikeConnection.noSendKeyBatchPolicy, keys);
+            results = (cache != null) ? cache.read(keys) : client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read");
             throw e;
@@ -1573,11 +1586,11 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Create an Index on a particular Bin
      *
-     * @param indexClass Firefly Element Class
-     * @param binName    Name of Bin
-     * @param indexType    Type of Index
+     * @param indexClass          Firefly Element Class
+     * @param binName             Name of Bin
+     * @param indexType           Type of Index
      * @param indexCollectionType Type of Index Collection
-     * @param <T>        FireflyElement Type
+     * @param <T>                 FireflyElement Type
      */
     public <T extends Element> void createBinIndex(Class<? extends FireflyElement> indexClass,
                                                    String binName,

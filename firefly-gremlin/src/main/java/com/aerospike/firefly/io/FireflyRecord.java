@@ -150,9 +150,7 @@ public class FireflyRecord {
         List<Key> keyList = idsToRead.stream().map(id -> {
             Key key;
             if (id.getClass().equals(FireflyIdComposite.class)) {
-                key = new Key(db.getNamespace(), (byte[]) ((FireflyIdComposite) id).getEdgeId().getKeyHash(), set, Value.NULL);
-            } else if (((FireflyIdPoly) id).source == FireflyId.Source.HASH) {
-                key = getKey(db, set, id);
+                key = getKey(db, set, ((FireflyIdComposite) id).getEdgeId());
             } else {
                 key = getKey(db, set, id);
             }

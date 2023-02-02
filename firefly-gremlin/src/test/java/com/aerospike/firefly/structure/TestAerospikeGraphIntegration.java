@@ -81,8 +81,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertexProperty() {
-        final FireflyId vertexId = FireflyIdFactory.createFromManager(graph, LinkedVertex.class);
-        final FireflyId vpid = FireflyIdFactory.createFromManager(graph, LinkedVertexProperty.class);
+        final FireflyId vertexId = graph.getIdFactory().createFromManager(graph, LinkedVertex.class);
+        final FireflyId vpid = graph.getIdFactory().createFromManager(graph, LinkedVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
         final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
 
@@ -115,7 +115,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertex() {
-        FireflyId id = FireflyIdFactory.createFromManager(graph, FireflyVertex.class);
+        FireflyId id = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
         graph.writeVertex(id, "aVertexLabel", new ArrayList<>());
         FireflyVertex v = graph.readVertex(id);
         assertEquals(v.label(), "aVertexLabel");
@@ -123,14 +123,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testVertexIterator() {
-        List<Long> usedIds = new ArrayList<>();
+        List<FireflyId> usedIds = new ArrayList<>();
         LongStream.range(0, 10).forEach(l -> {
-            FireflyId next = FireflyIdFactory.createFromManager(graph, FireflyVertex.class);
-            usedIds.add((Long) next.getUserId());
+            FireflyId next = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
+            usedIds.add(next);
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
-        new FireflyVertexIterator<>(graph, usedIds.iterator()).forEachRemaining(v -> {
+        new FireflyVertexIterator(graph, usedIds.iterator()).forEachRemaining(v -> {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });
@@ -400,13 +400,16 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         assertEquals(1, (long) g.V().has("color", "yellow").outE().count().next());
     }
+
     public Vertex convertToVertex(final Graph graph, final String vertexName) {
         // all test graphs have "name" as a unique id which makes it easy to hardcode this...works for now
         return graph.traversal().V().has("name", vertexName).toList().get(0);
     }
+
     public Object convertToVertexId(final Graph graph, final String vertexName) {
         return convertToVertex(graph, vertexName).id();
     }
+
     private final TypeReference<HashMap<String, Object>> mapTypeReference = new TypeReference<HashMap<String, Object>>() {
     };
 
@@ -422,47 +425,48 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
         noCacheGraph.getBaseGraph().dropDatabase();
-        
+
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
 
-        ObjectMapper mapper = ((GraphSONIo)noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0))).mapper().version(GraphSONVersion.V1_0).create().createMapper();
-        Tree t = (Tree)noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph,"marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
+        ObjectMapper mapper = ((GraphSONIo) noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0))).mapper().version(GraphSONVersion.V1_0).create().createMapper();
+        Tree t = (Tree) noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph, "marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
         String json = mapper.writeValueAsString(t);
-        HashMap<String, Object> m = (HashMap)mapper.readValue(json, this.mapTypeReference);
-        Assert.assertEquals(1L, (long)m.size());
-        Assert.assertTrue(m.containsKey(this.convertToVertex(noCacheGraph,"marko").id().toString()));
-        HashMap<String, Object> branch = (HashMap)m.get(this.convertToVertexId(noCacheGraph,"marko").toString());
-        Assert.assertEquals(2L, (long)branch.size());
+        HashMap<String, Object> m = (HashMap) mapper.readValue(json, this.mapTypeReference);
+        Assert.assertEquals(1L, (long) m.size());
+        Assert.assertTrue(m.containsKey(this.convertToVertex(noCacheGraph, "marko").id().toString()));
+        HashMap<String, Object> branch = (HashMap) m.get(this.convertToVertexId(noCacheGraph, "marko").toString());
+        Assert.assertEquals(2L, (long) branch.size());
         Assert.assertTrue(branch.containsKey("key"));
         Assert.assertTrue(branch.containsKey("value"));
-        HashMap<String, Object> branchKey = (HashMap)branch.get("key");
+        HashMap<String, Object> branchKey = (HashMap) branch.get("key");
         Assert.assertTrue(branchKey.containsKey("id"));
         Assert.assertTrue(branchKey.containsKey("label"));
         Assert.assertTrue(branchKey.containsKey("type"));
         Assert.assertTrue(branchKey.containsKey("properties"));
-        Assert.assertEquals(this.convertToVertexId(noCacheGraph,"marko").toString(), branchKey.get("id").toString());
+        Assert.assertEquals(this.convertToVertexId(noCacheGraph, "marko").toString(), branchKey.get("id").toString());
         Assert.assertEquals("person", branchKey.get("label"));
         Assert.assertEquals("vertex", branchKey.get("type"));
-        HashMap<String, List<HashMap<String, Object>>> branchKeyProps = (HashMap)branchKey.get("properties");
-        Assert.assertEquals("marko", ((HashMap)((List)branchKeyProps.get("name")).get(0)).get("value"));
-        Assert.assertEquals(29, ((HashMap)((List)branchKeyProps.get("age")).get(0)).get("value"));
-        HashMap<String, Object> branchValue = (HashMap)branch.get("value");
-        Assert.assertEquals(3L, (long)branchValue.size());
-        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"vadas").toString()));
-        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"lop").toString()));
-        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph,"josh").toString()));
-        HashMap<String, HashMap<String, Object>> branch2 = (HashMap)branchValue.get(this.convertToVertexId(noCacheGraph,"vadas").toString());
+        HashMap<String, List<HashMap<String, Object>>> branchKeyProps = (HashMap) branchKey.get("properties");
+        Assert.assertEquals("marko", ((HashMap) ((List) branchKeyProps.get("name")).get(0)).get("value"));
+        Assert.assertEquals(29, ((HashMap) ((List) branchKeyProps.get("age")).get(0)).get("value"));
+        HashMap<String, Object> branchValue = (HashMap) branch.get("value");
+        Assert.assertEquals(3L, (long) branchValue.size());
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "vadas").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "lop").toString()));
+        Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "josh").toString()));
+        HashMap<String, HashMap<String, Object>> branch2 = (HashMap) branchValue.get(this.convertToVertexId(noCacheGraph, "vadas").toString());
         Assert.assertTrue(branch2.containsKey("key"));
         Assert.assertTrue(branch2.containsKey("value"));
-        Map.Entry entry = (Map.Entry)((HashMap)branch2.get("value")).entrySet().iterator().next();
-        HashMap<String, HashMap<String, Object>> branch2Prop = (HashMap)entry.getValue();
-        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("id"));
-        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("value"));
-        Assert.assertTrue(((HashMap)branch2Prop.get("key")).containsKey("label"));
-        Assert.assertEquals("name", ((HashMap)branch2Prop.get("key")).get("label"));
-        Assert.assertEquals("vadas", ((HashMap)branch2Prop.get("key")).get("value"));
-        Assert.assertEquals(entry.getKey().toString(), ((HashMap)branch2Prop.get("key")).get("id").toString());
+        Map.Entry entry = (Map.Entry) ((HashMap) branch2.get("value")).entrySet().iterator().next();
+        HashMap<String, HashMap<String, Object>> branch2Prop = (HashMap) entry.getValue();
+        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("id"));
+        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("value"));
+        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("label"));
+        Assert.assertEquals("name", ((HashMap) branch2Prop.get("key")).get("label"));
+        Assert.assertEquals("vadas", ((HashMap) branch2Prop.get("key")).get("value"));
+        Assert.assertEquals(entry.getKey().toString(), ((HashMap) branch2Prop.get("key")).get("id").toString());
     }
+
     @Test
     public void basic_edge_cache_nocache() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
@@ -605,10 +609,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(FireflyIdFactory.createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);
+        Object nextUserId = next.getUserId();
         assertTrue(x.contains(next.getUserId()));
         next = i.get(1);
         assertTrue(x.contains(next.getUserId()));
@@ -1102,6 +1107,13 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             final int currentCounter = counter;
             tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount - currentCounter));
         }
+    }
+
+    @Test
+    public void shouldAllowStringID() {
+        String id = "aSlimySalamander";
+        Vertex v = graph.addVertex(T.id, id);
+        assertEquals(id, v.id());
     }
 
 

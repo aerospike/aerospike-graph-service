@@ -25,12 +25,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class PackedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(PackedVertex.class);
@@ -102,7 +104,7 @@ public class PackedVertex extends RelationalVertex {
         for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
             // Create the property.
             final FireflyVertexProperty<V> property = new PackedVertexProperty<>(graph,
-                    FireflyIdFactory.createId(vertexPropertyIds.get(vertexProperty.getKey())),
+                    graph.getIdFactory().createId(vertexPropertyIds.get(vertexProperty.getKey()), FireflyVertexProperty.class),
                     this,
                     vertexProperty.getKey(),
                     vertexProperty.getValue());
@@ -166,16 +168,22 @@ public class PackedVertex extends RelationalVertex {
         final Map<String, Object> vertexPropertyValues = packedVertex.vertexPropertyValues;
         final Map<String, Long> vertexPropertyValuesTypeHints = packedVertex.vertexPropertyValuesTypeHints;
 
+        // Vertex properties' Properties
+        final Map<Object, Map<String, Object>> properties = (Map<Object, Map<String, Object>>) Optional.ofNullable(record.record.getMap(db.PROPERTIES)).orElse(new TreeMap<>());
+        final Map<Object, Map<String, Object>> typeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(record.record.getMap(db.TYPE_HINTS)).orElse(new TreeMap<>());
+        properties.remove(vertexPropertyId.getStorageId());
+        typeHints.remove(vertexPropertyId.getStorageId());
+
         if (!vertexPropertyIds.containsKey(key)) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties did not contain key {}.",
-                      vertexPropertyId, this.id, key);
+                    vertexPropertyId, this.id, key);
             return;
         }
 
         // Remove vertex property from vertex properties in vertex.
         if (!vertexPropertyId.equals(vertexPropertyIds.get(key))) {
             LOG.error("Could not find vertex property {} in vertex {}. Vertex properties under key {} did not contain vertex property {}.",
-                      vertexPropertyId, id, key, vertexPropertyId);
+                    vertexPropertyId, id, key, vertexPropertyId);
             return;
         }
 
@@ -186,13 +194,18 @@ public class PackedVertex extends RelationalVertex {
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(graph.getIdFactory().convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
+
+        // Create vertex property's property bins.
+        final Bin vpPropertiesValuesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));
+        final Bin vpPropertiesValuesTypeHintsBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;
         FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, id, generation, vertexPropertiesValuesBin,
-                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin);
+                vertexPropertiesIdsBin, vertexPropertiesValuesTypeHintsBin, vpPropertiesValuesBin,
+                vpPropertiesValuesTypeHintsBin);
 
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints);
@@ -234,13 +247,13 @@ public class PackedVertex extends RelationalVertex {
 
         // Update maps for vertex properties and ids.
         vertexPropertyValues.put(vertexProperty.key(), vertexProperty.value());
-        vertexPropertyIds.put(vertexProperty.key(), FireflyIdFactory.createId(vertexProperty.id.getStorageId()));
+        vertexPropertyIds.put(vertexProperty.key(), graph.getIdFactory().createId(vertexProperty.id.getStorageId(), FireflyVertexProperty.class));
         vertexPropertyValuesTypeHints.put(vertexProperty.key(), db.getSupportedType(vertexProperty.value().getClass()));
 
         // Create vertex property related bins.
         final Bin vertexPropertiesValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
         final Bin vertexPropertiesValuesTypeHintBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyValuesTypeHints, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(FireflyIdFactory.convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
+        final Bin vertexPropertiesIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(graph.getIdFactory().convertMapToStorage(vertexPropertyIds), MapOrder.KEY_ORDERED));
 
         // Write back to Aerospike.
         final int generation = record.record().generation;

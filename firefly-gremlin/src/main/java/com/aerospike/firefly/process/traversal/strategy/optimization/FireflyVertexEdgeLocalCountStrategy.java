@@ -1,13 +1,12 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.map.FireflyVertexEdgeLocalCountStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,14 +16,13 @@ import java.util.List;
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class FireflyVertexEdgeLocalCountStrategy
-        extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
-        implements TraversalStrategy.ProviderOptimizationStrategy {
+public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyVertexEdgeLocalCountStrategy.class);
-    private static final FireflyVertexEdgeLocalCountStrategy INSTANCE = new FireflyVertexEdgeLocalCountStrategy();
 
-    private FireflyVertexEdgeLocalCountStrategy() {
-
+    /**
+     * Default constructor for FireflyVertexEdgeLocalCountStrategy.
+     */
+    public FireflyVertexEdgeLocalCountStrategy() {
     }
 
     @Override
@@ -57,9 +55,5 @@ public class FireflyVertexEdgeLocalCountStrategy
                     new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection(), localStep.getLabels()),
                     traversal);
         }
-    }
-
-    public static FireflyVertexEdgeLocalCountStrategy instance() {
-        return INSTANCE;
     }
 }

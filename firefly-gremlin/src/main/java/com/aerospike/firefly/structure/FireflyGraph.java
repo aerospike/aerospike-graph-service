@@ -1,22 +1,26 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.exp.MapExp;
+import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.Filter;
+import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
+import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyCompositeEdgeIdStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphCountStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphDropStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyMergeStepStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyTraversalCacheStrategy;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyVertexEdgeLocalCountStrategy;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
@@ -24,9 +28,11 @@ import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.LoggerUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
+import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
@@ -57,8 +63,13 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import ch.qos.logback.classic.Level;
+
 import java.util.stream.Collectors;
 
+import static com.aerospike.client.query.IndexType.NUMERIC;
+import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
@@ -112,6 +123,12 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_groupXaX_byXnameX_byXproperties_groupCount_byXlabelXX_out_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
 
+// Firefly does not support Float ids
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
+@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
+
 // THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
@@ -126,27 +143,30 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    public static String FIREFLY_VERSION = "0.3.0-SNAPSHOT";
-    private AtomicBoolean closed = new AtomicBoolean(false);
-    private Timer fireflyCardinalityMetadataTask = new Timer(true);
+    public static String FIREFLY_VERSION = "0.4.0-SNAPSHOT";
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final Timer fireflyCardinalityMetadataTask = new Timer(true);
+    private final Timer fireflyIndexMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
     private final Configuration configuration;
+    public static String VP_INDEX_PREFIX = "~VP_";
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
+    private final FireflyIdFactory idFactory;
     protected FireflyGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
     public final IdManager<Long> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
+    public FireflyIndexMetadata fireflyIndexMetadata = null;
 
     static {
-        TraversalStrategies.GlobalCache.registerStrategies(
-                FireflyGraph.class,
-                TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
-                        .addStrategies(FireflyMergeStepStrategy.instance())
-                        .addStrategies(FireflyGraphStepStrategy.instance())
-                        .addStrategies(FireflyVertexEdgeLocalCountStrategy.instance())
-                        .addStrategies(OptionsStrategy.build().create()));
+        synchronized (TraversalStrategies.GlobalCache.class) {
+            TraversalStrategies.GlobalCache.registerStrategies(
+                    FireflyGraph.class, TraversalStrategies.GlobalCache.getStrategies(Graph.class).clone()
+                            .addStrategies(new FireflyContentionHandlingStrategy())
+                            .addStrategies(OptionsStrategy.build().create()));
+        }
     }
 
     protected FireflyGraph(final Configuration conf) {
@@ -158,6 +178,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
+        this.idFactory = db.getIdFactory();
+
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
@@ -166,7 +188,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
-        if (db.ENABLE_PERIODIC_METADATA_UPDATE) {
+        if (db.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE) {
             final String numericVpIndex;
             final String stringVpIndex;
             if (LinkedGraph.DATA_MODEL.equals(getDataModel())) {
@@ -179,45 +201,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             fireflyCardinalityMetadata = new FireflyCardinalityMetadata(
                     db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, numericVpIndex, stringVpIndex, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX);
             final TimerTask timerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
-            fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.METADATA_UPDATE_FREQUENCY);
-
+            fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         }
 
-        synchronized (FireflyGraph.class) {
-            final TraversalStrategies strategies = TraversalStrategies.GlobalCache.getStrategies(FireflyGraph.class);
+        // Create index metadata background task that will populate indexes for the named graph on the fly.
+        fireflyIndexMetadata = new FireflyIndexMetadata(db);
+        final TimerTask timerTask = new FireflyMetadataTask(fireflyIndexMetadata);
+        fireflyIndexMetadataTask.schedule(timerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY, configuration))) {
-                //@todo
-                // this can be supported by querying all nodes and dividing by replication factor,
-                // but since there is another known issue with Info lagging, and querying all nodes would produce results
-                // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-                if (db.getClient().getNodes().length > 1)
-                    throw new RuntimeException("fast count not supported for multi node");
-                strategies.addStrategies(FireflyGraphCountStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyGraphCountStrategy.class);
-            }
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyTraversalCacheStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyTraversalCacheStrategy.class);
-            }
-
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyGraphDropStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyGraphDropStrategy.class);
-            }
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY, configuration))) {
-                strategies.addStrategies(FireflyCompositeEdgeIdStrategy.instance());
-            } else {
-                strategies.removeStrategies(FireflyCompositeEdgeIdStrategy.class);
-            }
-        }
+        // Grab user defined indexes from the configuration and create them.
+        final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
+        createIndexes(vertexPropertyIndexes);
     }
 
     public static FireflyGraph open(final Configuration conf) {
+        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+        LoggerUtil.setLogLevel(logLevel);
         try {
             LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
@@ -242,22 +241,32 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new ComparableVersion(FIREFLY_VERSION);
     }
 
+    /**
+     * Return the FireflyIdFactory
+     *
+     * @return FireflyIdFactory
+     */
+    public FireflyIdFactory getIdFactory() {
+        return idFactory;
+    }
 
     public abstract String getDataModel();
 
     // Vertex functions.
-    protected abstract Iterator<Long> scanAllVertices();
+    protected abstract Iterator<FireflyId> scanAllVertices();
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
-    public abstract boolean bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
-                                                        final List<Value> edgeIds, final String edgeLabel);
+    public abstract void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
+                                                     final List<Value> edgeIds, final String edgeLabel);
 
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 
     public abstract List<FireflyVertex> readVertices(final List<FireflyId> vertexIds);
 
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
+
+    public abstract FireflyVertex vertexFromRecord(final Map.Entry<Key, Record> record);
 
     public abstract boolean vertexExists(final FireflyId idValue);
 
@@ -312,12 +321,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final Object value);
 
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(final String key, final Object value);
-
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(final String key, final P<?> predicate);
-
-    public abstract Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(final String key, final P<?> predicate);
-
     @Override
     public AerospikeConnection getBaseGraph() {
         return db;
@@ -347,15 +350,14 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
-
+            idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
             // TODO: GRAPH-186.
             while (vertexExists(idValue)) {
-                idValue = FireflyIdFactory.createFromManager(this, FireflyVertex.class);
+                idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
             }
         } else {
             try {
-                idValue = FireflyIdFactory.createFromKeyValues(FireflyVertex.class, keyValues);
+                idValue = getIdFactory().createFromKeyValues(FireflyVertex.class, keyValues);
             } catch (IllegalArgumentException ignored) {
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
@@ -409,34 +411,216 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         throw new UnsupportedOperationException(UNIMPLEMENTED);
     }
 
+    /**
+     * This function finds TinkerPop Element objects in an object array and converts them to ids
+     *
+     * @param elements array of objects that might be Elements
+     * @return array of raw ids
+     */
+    private List<Object> getIds(final List<Object> elements) {
+        return elements.stream().map(e -> {
+            if (Element.class.isAssignableFrom(e.getClass())) {
+                return ((Element) e).id();
+            } else {
+                return e;
+            }
+        }).collect(Collectors.toList());
+    }
+
     @Override
     public Iterator<Vertex> vertices(Object... vertexIdsOrVertices) {
-        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && ((String) vertexIdsOrVertices[0]).equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
             return IteratorUtils.of(new FireflyMetadataVertex(this));
         }
-        // Convert vertexIds to longs
-        final List<Long> longs = Arrays.stream(vertexIdsOrVertices).map(id ->
-                (Long) FireflyIdFactory.createFromUser(FireflyVertex.class, id).getStorageId()).collect(Collectors.toList());
 
+        final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
+                .map(id -> getIdFactory().createId(id, FireflyVertex.class))
+                .collect(Collectors.toList());
         // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
         // TODO: Should this be batch exists? Or removed for performance?
-        if (!longs.isEmpty() && !longs.stream().map(id -> FireflyIdFactory.createId(id)).allMatch(this::vertexExists)) {
-            throw new NoSuchElementException("vertex could not be found and edge could not be created");
+        final List<FireflyId> idsDoNotExist;
+        if (!idList.isEmpty()) {
+            idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
+            if (idsDoNotExist.size() > 0)
+                //@todo is this the correct place to throw this error?
+                //@todo the error string is required to satisfy a standard test case, but should likely go somewhere in the edge impl
+                throw new NoSuchElementException(String.format("%s could not be found and edge could not be created", idsDoNotExist));
         }
-
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyVertexIterator(this, longs.isEmpty() ? scanAllVertices() : longs.iterator());
+        return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
     }
 
     @Override
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
+        final List<Object> filtered = getIds(List.of(edgeIds));
         return new FireflyEdgeIterator(this,
-                (edgeIds.length == 0) ?
+                (filtered.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        Arrays.stream(edgeIds).map(id -> (Long) FireflyIdFactory.createId(id).getStorageId()).collect(Collectors.toList()).iterator());
+                        filtered.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
+    }
+
+    /**
+     * Create an Aerospike index Filter using the predicate and index info.
+     *
+     * @param predicate Predicate to use.
+     * @param indexInfo Index info to use.
+     * @return
+     */
+    private Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
+        final String name = AerospikeConnection.LABEL.equals(indexInfo.key) ?
+                AerospikeConnection.LABEL : db.VERTEX_PROPERTY_NAME_TO_VALUE;
+        final IndexCollectionType type = AerospikeConnection.LABEL.equals(indexInfo.key) ?
+                IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
+        final Object value = predicate.getValue();
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            final Long casted;
+            if (Integer.class.isAssignableFrom(value.getClass())) {
+                casted = Long.valueOf((Integer) value);
+            } else if (Long.class.isAssignableFrom(value.getClass())) {
+                casted = (Long) value;
+            } else {
+                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
+            }
+
+            if (predicate.getBiPredicate().equals(Compare.eq)) {
+                return Filter.contains(name, type, casted);
+            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
+                return Filter.range(name, type, Long.MIN_VALUE, casted);
+            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+                return Filter.range(name, type, casted, Long.MAX_VALUE);
+            } else {
+                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
+            }
+        } else {
+            return Filter.contains(name, type, (String) value);
+        }
+    }
+
+    /**
+     * Create an Aerospike Expression from the predicate, map key, and bin name.
+     *
+     * @param binName   Bin name to use.
+     * @param mapKey    Map key to use.
+     * @param predicate Predicate to use.
+     * @return
+     */
+    private Exp predicateToExpression(final String binName,
+                                      final String mapKey,
+                                      final P<?> predicate) {
+        final Object value = predicate.getValue();
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            final Long casted;
+            if (Integer.class.isAssignableFrom(value.getClass())) {
+                casted = Long.valueOf((Integer) value);
+            } else if (Long.class.isAssignableFrom(value.getClass())) {
+                casted = (Long) value;
+            } else {
+                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
+            }
+
+            if (predicate.getBiPredicate().equals(Compare.eq)) {
+                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
+                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+            } else {
+                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
+            }
+        } else {
+            return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
+        }
+    }
+
+    /**
+     * Execute query on index with predicate and return on the fly transformed iterator.
+     *
+     * @param indexInfo Index info to use.
+     * @param predicate Predicate to use.
+     * @param transform Transform to use.
+     * @param <E>       Type of element to return.
+     * @return Iterator of transformed elements.
+     */
+    public <E extends Element> Iterator<E> queryIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
+                                                      final P<?> predicate,
+                                                      final TransformKeyRecord<E> transform) {
+        // Query index for vertices.
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo));
+
+        // Transform record to correct element.
+        return IteratorUtils.map(keyRecordIterator, transform::transform);
+    }
+
+    /**
+     * Execute query on scan with predicate, map key, and return on the fly transformed iterator.
+     *
+     * @param mapKey    Map key to use.
+     * @param predicate Predicate to use.
+     * @param transform Transform to use.
+     * @param <E>       Type of element to return.
+     * @return Iterator of transformed elements.
+     */
+    public <E extends Element> Iterator<E> queryScan(final String mapKey,
+                                                     final P<?> predicate,
+                                                     final TransformMapEntryKeyRecord<E> transform) {
+        // Latch bin and set names.
+        final String binName = db.VERTEX_PROPERTY_NAME_TO_VALUE;
+        final String setName = db.VERTEX_AERO_SET;
+
+        // Build expression using predicate.
+        final Expression expression = Exp.build(predicateToExpression(binName, mapKey, predicate));
+
+        // Create scan policy, do not need bin data for this.
+        final ScanPolicy policy = new ScanPolicy();
+        final Iterator<Map.Entry<Key, Record>> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
+
+        // Transform record to correct element.
+        return IteratorUtils.map(keyRecordIterator, transform::transform);
+    }
+
+    /**
+     * Template to fill out to allow on the fly KeyRecord to Element mapping.
+     *
+     * @param <E> Type of element to return.
+     */
+    public interface TransformKeyRecord<E extends Element> {
+        E transform(final KeyRecord keyRecord);
+    }
+
+    /**
+     * Template to fill out to allow on the fly Map.Entry Key-Record pairs to Element mapping.
+     *
+     * @param <E> Type of element to return.
+     */
+    public interface TransformMapEntryKeyRecord<E extends Element> {
+        E transform(final Map.Entry<Key, Record> keyRecord);
+    }
+
+    /**
+     * Function to create vertex property indexes using a list of property keys.
+     *
+     * @param vertexPropertyIndexes List of vertex property indexes to create.
+     */
+    private void createIndexes(final List<String> vertexPropertyIndexes) {
+        final List<String> existingIndexes =
+                AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+
+        // Add indexes specified in properties file.
+        for (final String index : vertexPropertyIndexes) {
+            // Create both string and numeric indexes for vertex properties.
+            final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), index);
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
+                    formattedIndex + "_" + STRING, db.KEY_VALUE, index, STRING, IndexCollectionType.MAPVALUES);
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
+                    formattedIndex + "_" + NUMERIC, db.KEY_VALUE, index, NUMERIC, IndexCollectionType.MAPVALUES);
+        }
+
+        // Manually force metadata to update.
+        fireflyIndexMetadata.updateMetadata();
     }
 
     @Override
@@ -448,12 +632,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
-        if (db.ENABLE_PERIODIC_METADATA_UPDATE && fireflyCardinalityMetadataTask != null) {
+        if (db.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE) {
             fireflyCardinalityMetadataTask.cancel();
         }
-        TraversalStrategies.GlobalCache
-                .getStrategies(FireflyGraph.class)
-                .removeStrategies(FireflyTraversalCacheStrategy.class);
+        fireflyIndexMetadataTask.cancel();
         this.db.close();
     }
 

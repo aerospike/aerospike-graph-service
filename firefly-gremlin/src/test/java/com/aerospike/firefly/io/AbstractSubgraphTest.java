@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
@@ -37,17 +36,12 @@ public class AbstractSubgraphTest {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "false");
     }
 
     static final ConcurrentHashMap<UUID, CacheStats> cacheResults = new ConcurrentHashMap<>();
 
     @BeforeClass
     public static void preloadData() throws IOException {
-        FireflyCacheGCStep.registerGCHook((cacheId, cache) -> {
-            cacheResults.put(cacheId, cache.stats());
-            return null;
-        });
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         Assume.assumeTrue(!StarPackedGraph.isStarPackedGraph(graph));
@@ -58,8 +52,6 @@ public class AbstractSubgraphTest {
 
     @AfterClass
     public static void closeGraphClearData() {
-        FireflyCacheGCStep.clearGCHooks();
-
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         Util.cleanAndVerifyGraph(graph);
@@ -95,7 +87,7 @@ public class AbstractSubgraphTest {
 
     public static void openGraphCacheEnabledSync() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "true");
         config.setProperty(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE.toLowerCase(), "false");
         config.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), false);
         db = AerospikeConnection.connect(config);
@@ -105,7 +97,7 @@ public class AbstractSubgraphTest {
 
     public static void openGraphCacheEnabledAsync() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "true");
         config.setProperty(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE.toLowerCase(), "true");
 
         db = AerospikeConnection.connect(config);
@@ -114,7 +106,8 @@ public class AbstractSubgraphTest {
     }
 
     public static void openGraphCacheDisabled() {
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY.toLowerCase(), "false");
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();

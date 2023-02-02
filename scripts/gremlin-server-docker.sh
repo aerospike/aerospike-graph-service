@@ -14,8 +14,24 @@ stop_gremlin_server() {
 
 # Launch gremlin-server in the background and sets the child_pid to the PID of the process.
 (
-  python3 $CONF_DIR/firefly-graph-configure.py $CONF_DIR/firefly-graph.properties
-  gremlin-server.sh $CONF_DIR/firefly-gremlin-server.yaml
+  # If they passed in a server yaml
+  if [ -e /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml ]
+  then
+    echo "==> Docker image is using custom firefly-gremlin-server.yaml <=="
+    gremlin-server.sh /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml
+
+  # Else if they passed only a properties file
+  elif [ -e /opt/aerospike-firefly/conf/firefly-graph.properties ]
+  then
+    echo "==> Docker image is using custom firefly-graph.properties <=="
+    gremlin-server.sh $CONF_DIR/firefly-gremlin-server-custom.yaml
+
+  # Else use the default server yaml and properties
+  else
+    echo "==> Docker image is using default firefly-graph.properties <=="
+    python3 $CONF_DIR/firefly-graph-configure.py $CONF_DIR/firefly-graph.properties
+    gremlin-server.sh $CONF_DIR/firefly-gremlin-server.yaml
+  fi
 ) <&0 &
 child_pid=$!
 

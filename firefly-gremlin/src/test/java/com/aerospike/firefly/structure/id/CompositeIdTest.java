@@ -3,6 +3,8 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -10,7 +12,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -41,13 +42,13 @@ public class CompositeIdTest extends AbstractFireflySuite {
         Assert.assertNull(fooInEdges);
         Assert.assertNull(barOutEdges);
 
-        final FireflyId fooId = FireflyIdFactory.createId(foo.id());
-        final FireflyId barId = FireflyIdFactory.createId(bar.id());
-        final FireflyId bazId = FireflyIdFactory.createId(baz.id());
-        final FireflyId compositeFooId = FireflyIdFactory.createEdgeId(bazId, fooId);
-        final FireflyId compositeBarId = FireflyIdFactory.createEdgeId(bazId, barId);
-        final Map<String, List<FireflyId>> barInFireflyIdMap = FireflyIdFactory.convertMapListObjectToFireflyIdMap(barInEdges);
-        final Map<String, List<FireflyId>> fooOutFireflyIdMap = FireflyIdFactory.convertMapListObjectToFireflyIdMap(fooOutEdges);
+        final FireflyId fooId = graph.getIdFactory().createId(foo.id(), FireflyVertex.class);
+        final FireflyId barId = graph.getIdFactory().createId(bar.id(), FireflyVertex.class);
+        final FireflyId bazId = graph.getIdFactory().createId(baz.id(), FireflyEdge.class);
+        final FireflyId compositeFooId = graph.getIdFactory().createCompositeEdgeId(bazId, fooId);
+        final FireflyId compositeBarId = graph.getIdFactory().createCompositeEdgeId(bazId, barId);
+        final Map<String, List<FireflyId>> barInFireflyIdMap = graph.getIdFactory().convertMapListObjectToFireflyIdMap(barInEdges);
+        final Map<String, List<FireflyId>> fooOutFireflyIdMap = graph.getIdFactory().convertMapListObjectToFireflyIdMap(fooOutEdges);
 
         Assert.assertEquals(1, barInFireflyIdMap.size());
         Assert.assertEquals(1, fooOutFireflyIdMap.size());

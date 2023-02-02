@@ -1,8 +1,10 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
+import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                                               final boolean useProvidedId,
                                               final boolean keepProvidedId,
                                               final String providedIdPropertyName,
+                                              final String nullValue,
                                               final FireflyGraph graph) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
@@ -60,17 +63,17 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header));
+                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
                 if (!ignoreParseFailedProperties) {
-                    throw e;
+                    throw new FireflyBulkLoaderException(e);
                 }
             }
         }
         if ((id == null && useProvidedId) || fromVertexId == null || toVertexId == null) {
-            throw new RuntimeException("Could not generate edge due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate edge due to a required value being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;
@@ -81,7 +84,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         } else {
             edgeId = graph.edgeIdManager.getNextId(graph);
             if (keepProvidedId && id != null) {
-                properties.add(generateProperty(providedIdPropertyName, id));
+                properties.add(generateProperty(providedIdPropertyName, id, nullValue));
             }
         }
         return new SparkFireflyEdge(edgeId, label, Long.parseLong(fromVertexId), Long.parseLong(toVertexId),
@@ -89,8 +92,8 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     }
 
     @Override
-    public FireflyId getFireflyId() {
-        return FireflyIdFactory.createId(this.id);
+    public FireflyId getFireflyId(final String setName) {
+        return FireflyIdPoly.fromObject(this.id, setName);
     }
 
     public long getInVertexId() {

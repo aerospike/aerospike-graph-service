@@ -1,7 +1,10 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
+import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +23,8 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     }
 
     public static SparkFireflyVertex createVertex(final GenericRowWithSchema row,
-                                                  final boolean ignoreParseFailedProperties) {
+                                                  final boolean ignoreParseFailedProperties,
+                                                  final String nullValue) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
         String label = null;
@@ -38,17 +42,17 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header));
+                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
                 if (!ignoreParseFailedProperties) {
-                    throw e;
+                    throw new FireflyBulkLoaderException(e);
                 }
             }
         }
         if (id == null) {
-            throw new RuntimeException("Could not generate vertex due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate vertex due to a required value being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;
@@ -57,7 +61,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     }
 
     @Override
-    public FireflyId getFireflyId() {
-        return FireflyIdFactory.createId(this.id);
+    public FireflyId getFireflyId(final String setName) {
+        return FireflyIdPoly.fromObject(this.id, setName);
     }
 }

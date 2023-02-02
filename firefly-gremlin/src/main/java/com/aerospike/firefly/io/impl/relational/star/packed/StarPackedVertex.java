@@ -71,7 +71,7 @@ public class StarPackedVertex extends PackedVertex {
         // Remove vertex from the list.
         LOG.debug("Removing vertex {} from sets: {}.", this.id.toString(), sets);
         sets.forEach(set ->
-                this.db.delete(FireflyRecord.getKey(this.db.getNamespace(), this.db.VERTEX_AERO_SET, this.id)));
+                this.db.delete(FireflyRecord.getKey(db, this.db.VERTEX_AERO_SET, this.id)));
     }
 
     /**
@@ -137,7 +137,7 @@ public class StarPackedVertex extends PackedVertex {
         final Map<String, Object> vertexPropertyValueMap = new TreeMap<>();
         final Map<String, Long> vertexPropertyTypeHintMap = new TreeMap<>();
         adjacentVertex.properties().forEachRemaining(vp -> {
-            vertexPropertyIdMap.put(vp.key(), ((FireflyVertexProperty)vp).id.getStorageId());
+            vertexPropertyIdMap.put(vp.key(), ((FireflyVertexProperty) vp).id.getStorageId());
             vertexPropertyValueMap.put(vp.key(), vp.value());
             vertexPropertyTypeHintMap.put(vp.key(), db.getSupportedType(vp.value().getClass()));
         });
@@ -198,7 +198,6 @@ public class StarPackedVertex extends PackedVertex {
         // Otherwise we cannot reverse engineer information on our pathing using the vertex record and the
 
 
-
         // Go through in edges first.
         final Iterator<Edge> edges;
         final String dirDirSet;
@@ -228,7 +227,7 @@ public class StarPackedVertex extends PackedVertex {
 
         edges.forEachRemaining(edge -> {
             // If the edge is `this` edge, skip it. It will cause duplicated data otherwise.
-            if (!((FireflyEdge)edge).id.equals(edgeId)) {
+            if (!((FireflyEdge) edge).id.equals(edgeId)) {
                 final FireflyId adjacentVertexId = direction.equals(Direction.IN) ? ((FireflyEdge) edge).inVertexId() : ((FireflyEdge) edge).outVertexId();
                 LOG.trace("Writing vertex {} adjacent vertex {} compound edge {} from edge {}", vertex.id(), adjacentVertexId, edge.id(), edgeId);
 
@@ -260,8 +259,9 @@ public class StarPackedVertex extends PackedVertex {
                 }
 
                 final List<Object> edgeIds = adjacentVertexEdges.get(edgeLabel);
-                final int edgeIndex = findInList(edgeIds, ((FireflyEdge) edge).id.getStorageId(),
-                                                 String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
+                final int edgeIndex = findInList(db.getIdFactory(), edgeIds, ((FireflyEdge) edge).id.getStorageId(),
+
+                        String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
                 // Get the adjacent edge map.
                 Map<String, List<Map<String, List<Object>>>> adjacentEdges;
@@ -304,7 +304,8 @@ public class StarPackedVertex extends PackedVertex {
         });
     }
 
-    private static int findInList(final List<Object> list,
+    private static int findInList(final FireflyIdFactory idFactory,
+                                  final List<Object> list,
                                   final Object value,
                                   final String errorMessage,
                                   final Object... args) {
@@ -312,7 +313,7 @@ public class StarPackedVertex extends PackedVertex {
         for (int i = 0; i < list.size(); i++) {
             Object v;
             if (list.get(i) instanceof byte[]) {
-                v = FireflyIdFactory.createId(list.get(i)).getStorageId();
+                v = idFactory.createId(list.get(i),FireflyVertex.class).getStorageId();
             } else {
                 v = list.get(i);
             }
@@ -455,8 +456,9 @@ public class StarPackedVertex extends PackedVertex {
                 LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id());
                 throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id()));
             }
-            final int edgeIndex = findInList(edgeIds, ((FireflyEdge) edge).id.getStorageId(),
-                                             String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
+            final int edgeIndex = findInList(db.getIdFactory(), edgeIds, ((FireflyEdge) edge).id.getStorageId(),
+
+                    String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
             vertexPropertyValues.get(edgeIndex).put(fireflyVertexProperty.key(), fireflyVertexProperty.value());
             vertexVPValue.put(edge.label(), vertexPropertyValues);
             vertexPropertyTypeHints.get(edgeIndex).put(fireflyVertexProperty.key(), db.getSupportedType(fireflyVertexProperty.value().getClass()));
@@ -520,8 +522,8 @@ public class StarPackedVertex extends PackedVertex {
                 LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, this.id());
                 throw new RuntimeException(String.format("Edge list size %s did not match vertex property list size %s for vertex %s when adding properties to adjacent lists of vertex %s.", edgeIds.size(), vertexPropertyValues.size(), vpId, this.id()));
             }
-            final int edgeIndex = findInList(edgeIds, ((FireflyEdge) edge).id.getStorageId(),
-                                             String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, this.id()));
+            final int edgeIndex = findInList(db.getIdFactory(), edgeIds, ((FireflyEdge) edge).id.getStorageId(),
+                    String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, this.id()));
             vertexPropertyValues.get(edgeIndex).remove(key);
             vertexVPValue.put(edge.label(), vertexPropertyValues);
             vertexPropertyTypeHints.get(edgeIndex).remove(key);
@@ -587,8 +589,8 @@ public class StarPackedVertex extends PackedVertex {
         final String vertexEdgeMapBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
         final Map<String, List<Object>> vertexEdgeLabelToId = (Map<String, List<Object>>) vertexRecord.record.getMap(vertexEdgeMapBin);
         final List<Object> edgeIds = vertexEdgeLabelToId.get(edge.label());
-        final int edgeIndex = findInList(edgeIds, edge.id.getStorageId(),
-                                         String.format("Failed to find edge %s in vertex %s when removing adjacent vertex properties.", edge, vertexId));
+        final int edgeIndex = findInList(db.getIdFactory(), edgeIds, edge.id.getStorageId(),
+                String.format("Failed to find edge %s in vertex %s when removing adjacent vertex properties.", edge, vertexId));
 
         // Remove the vertex property values.
         final String errorMessageFormat = "Failed to remove %s from vertex %s when removing adjacent vertex properties for edge %s.";
@@ -703,8 +705,8 @@ public class StarPackedVertex extends PackedVertex {
         }
 
         final List<Object> edgeIds = adjacentVertexEdges.get(edgeLabel);
-        final int edgeIndex = findInList(edgeIds, ((FireflyEdge) edge).id.getStorageId(),
-                                         String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
+        final int edgeIndex = findInList(db.getIdFactory(), edgeIds, ((FireflyEdge) edge).id.getStorageId(),
+                String.format("Failed to find edge id %s in edge set %s of map %s", edge.id(), edgeIds, adjacentVertexEdges));
 
         // Get the adjacent edge map.
         Map<String, List<Map<String, List<Object>>>> adjacentEdges;
@@ -732,8 +734,8 @@ public class StarPackedVertex extends PackedVertex {
         }
         final Map<String, List<Object>> compoundEdgeMap = adjacentVertexEdgeLabelToEdgeIds.get(edgeIndex);
         final List<Object> compoundEdgeList = compoundEdgeMap.get(compoundEdge.label());
-        final int compoundIndex = findInList(compoundEdgeList, ((FireflyEdge) compoundEdge).id.getStorageId(),
-                                             String.format("Failed to find compound edge id %s in compound edge set %s of map %s", compoundEdge.id(), compoundEdgeList, compoundEdgeMap));
+        final int compoundIndex = findInList(db.getIdFactory(), compoundEdgeList, ((FireflyEdge) compoundEdge).id.getStorageId(),
+                String.format("Failed to find compound edge id %s in compound edge set %s of map %s", compoundEdge.id(), compoundEdgeList, compoundEdgeMap));
 
         if (compoundEdgeList.size() == 1) {
             // Remove the compound edge from the compound edge map.
@@ -766,7 +768,7 @@ public class StarPackedVertex extends PackedVertex {
         // This adjacent vertex edgeLabel->edgeIds map.
         final Map<String, List<Object>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES);
         final List<Object> edges = vertexEdgeMap.getOrDefault(edge.label(), new ArrayList<>());
-        final int listIndex = findInList(edges, ((FireflyEdge) edge).id.getStorageId(), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
+        final int listIndex = findInList(db.getIdFactory(), edges, ((FireflyEdge) edge).id.getStorageId(), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
 
         // Need to find index of list.
         final List<Map<String, List<Object>>> edgeMapList = vertexDirEdgeMap.getOrDefault(edge.label(), new ArrayList<>());

@@ -67,6 +67,5 @@ public class TestUtil {
         graph_two.close();
         db_one.close();
         db_two.close();
-
     }
 }

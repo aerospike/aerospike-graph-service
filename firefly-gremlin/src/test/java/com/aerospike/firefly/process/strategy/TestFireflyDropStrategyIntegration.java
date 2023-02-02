@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
@@ -18,9 +19,11 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static org.junit.Assert.fail;
 
 public class TestFireflyDropStrategyIntegration {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -41,20 +44,20 @@ public class TestFireflyDropStrategyIntegration {
     public void beforeEach() {
         SETUP_GRAPH.getBaseGraph().dropDatabase();
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
-        final FireflyVertex simon = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(1), "person", properties);
+        final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(1, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
-        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(2), "person", properties);
+        final FireflyVertex lyndon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(2, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Vincent"));
-        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(3), "cat", properties);
+        final FireflyVertex vincent = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(3, FireflyVertex.class), "cat", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Mycroft"));
-        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(FireflyIdFactory.createId(4), "cat", properties);
-        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(1), "coworker", Collections.emptyList(),
+        final FireflyVertex mycroft = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(4, FireflyVertex.class), "cat", properties);
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(1, FireflyEdge.class), "coworker", Collections.emptyList(),
                 lyndon, simon);
-        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(2), "coworker", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(2, FireflyEdge.class), "coworker", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(3), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(3, FireflyEdge.class), "owns", Collections.emptyList(),
                 vincent, lyndon);
-        SETUP_GRAPH.writeEdge(FireflyIdFactory.createId(4), "owns", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(4, FireflyEdge.class), "owns", Collections.emptyList(),
                 mycroft, lyndon);
         // Write a stray edge that normal drop traversal would not remove
         SETUP_GRAPH.bulkWriteEdge(5, "stray", Collections.emptyList(), 5, 5);
@@ -66,17 +69,47 @@ public class TestFireflyDropStrategyIntegration {
     }
 
     @Test
-    public void testDropStrategyDefault() {
+    public void testDropStrategyDefaultIterate() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            assertDropStrategyEnabled(graph);
+            assertDropStrategyEnabledIterate(graph);
         }
     }
 
     @Test
-    public void testDropStrategyEnabled() {
+    public void testDropStrategyEnabledIterate() {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            assertDropStrategyEnabled(graph);
+            assertDropStrategyEnabledIterate(graph);
+        }
+    }
+
+    @Test
+    public void testDropStrategyDefaultToList() {
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            assertDropStrategyEnabledToList(graph);
+        }
+    }
+
+    @Test
+    public void testDropStrategyEnabledToList() {
+        CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            assertDropStrategyEnabledToList(graph);
+        }
+    }
+
+    @Test
+    public void testDropStrategyDefaultNext() {
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            assertDropStrategyEnabledNext(graph);
+        }
+    }
+
+    @Test
+    public void testDropStrategyEnabledNext() {
+        CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            assertDropStrategyEnabledNext(graph);
         }
     }
 
@@ -85,6 +118,10 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -102,6 +139,10 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -119,6 +160,10 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -136,6 +181,10 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -165,6 +214,10 @@ public class TestFireflyDropStrategyIntegration {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -178,10 +231,14 @@ public class TestFireflyDropStrategyIntegration {
     }
 
     @Test
-    public void testDropStrategyDisabled() {
+    public void testDropStrategyDisabledIterate() {
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
             long vertexCount = g.V().count().next();
             Assert.assertEquals(4, vertexCount);
             long edgeCount = g.E().count().next();
@@ -194,13 +251,105 @@ public class TestFireflyDropStrategyIntegration {
         }
     }
 
-    private void assertDropStrategyEnabled(FireflyGraph graph) {
+    @Test
+    public void testDropStrategyDisabledToList() {
+        CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
+            long vertexCount = g.V().count().next();
+            Assert.assertEquals(4, vertexCount);
+            long edgeCount = g.E().count().next();
+            Assert.assertEquals(5, edgeCount);
+            g.V().drop().toList();
+            vertexCount = g.V().count().next();
+            Assert.assertEquals(0, vertexCount);
+            edgeCount = g.E().count().next();
+            Assert.assertEquals(1, edgeCount);
+        }
+    }
+
+    @Test
+    public void testDropStrategyDisabledNext() {
+        CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "false");
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+            g.V().drop();
+
+            long vertexCount = g.V().count().next();
+            Assert.assertEquals(4, vertexCount);
+            long edgeCount = g.E().count().next();
+            Assert.assertEquals(5, edgeCount);
+            try {
+                g.V().drop().next();
+                fail("Should throw NoSuchElementException on g.V().drop().next().");
+            } catch (final NoSuchElementException e) {
+                // This is expected since traversal output is empty
+                // however it should still remove the data.
+            }
+            vertexCount = g.V().count().next();
+            Assert.assertEquals(0, vertexCount);
+            edgeCount = g.E().count().next();
+            Assert.assertEquals(1, edgeCount);
+        }
+    }
+
+    private void assertDropStrategyEnabledIterate(final FireflyGraph graph) {
         final GraphTraversalSource g = graph.traversal();
+
+        // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+        g.V().drop();
+
         long vertexCount = g.V().count().next();
         Assert.assertEquals(4, vertexCount);
         long edgeCount = g.E().count().next();
         Assert.assertEquals(5, edgeCount);
         g.V().drop().iterate();
+        vertexCount = g.V().count().next();
+        Assert.assertEquals(0, vertexCount);
+        edgeCount = g.E().count().next();
+        Assert.assertEquals(0, edgeCount);
+    }
+
+    private void assertDropStrategyEnabledNext(final FireflyGraph graph) {
+        final GraphTraversalSource g = graph.traversal();
+
+        // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+        g.V().drop();
+
+        long vertexCount = g.V().count().next();
+        Assert.assertEquals(4, vertexCount);
+        long edgeCount = g.E().count().next();
+        Assert.assertEquals(5, edgeCount);
+        try {
+            g.V().drop().next();
+            fail("Should throw NoSuchElementException on next().");
+        } catch (final NoSuchElementException e) {
+            // This is expected since traversal output is empty
+            // however it should still remove the data.
+        }
+        vertexCount = g.V().count().next();
+        Assert.assertEquals(0, vertexCount);
+        edgeCount = g.E().count().next();
+        Assert.assertEquals(0, edgeCount);
+    }
+
+    private void assertDropStrategyEnabledToList(final FireflyGraph graph) {
+        final GraphTraversalSource g = graph.traversal();
+
+        // Ensure arbitrary unterminated call to g.V().drop() does nothing.
+        g.V().drop();
+
+        long vertexCount = g.V().count().next();
+        Assert.assertEquals(4, vertexCount);
+        long edgeCount = g.E().count().next();
+        Assert.assertEquals(5, edgeCount);
+        g.V().drop().toList();
         vertexCount = g.V().count().next();
         Assert.assertEquals(0, vertexCount);
         edgeCount = g.E().count().next();

@@ -57,3 +57,18 @@ jobs:
           # Push latest Docker tag.
           echo "Pushing docker tag"
           docker push $LATEST_IMAGE
+
+      - name: Java 11 Install
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Build Bulk Loader
+        run: |
+          mvn clean install -DskipTests
+
+      - name: Upload Bulk Loader
+        uses: actions/upload-artifact@v3
+        with:
+          path: firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-*.jar

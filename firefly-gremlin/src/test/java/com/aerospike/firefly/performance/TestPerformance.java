@@ -202,6 +202,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         createOrgChartData();
 
+        config.setProperty("vertex_property_indexes", ORGCHART_NAME);
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(36, db.getWriteMetric() - writeStart);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
@@ -230,7 +231,7 @@ public class TestPerformance extends AbstractFireflySuite {
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(4, result2ReadMetric - result1ReadMetric);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
-            assertEquals(1, result2ReadMetric - result1ReadMetric);
+            assertEquals(0, result2ReadMetric - result1ReadMetric);
         }
         assertEquals(result1, result2);
 
@@ -249,7 +250,7 @@ public class TestPerformance extends AbstractFireflySuite {
         if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
             assertEquals(4, result4ReadMetric - result3ReadMetric);
         } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
-            assertEquals(1, result4ReadMetric - result3ReadMetric);
+            assertEquals(0, result4ReadMetric - result3ReadMetric);
         }
 
         assertEquals(result3, result4);
@@ -271,7 +272,7 @@ public class TestPerformance extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         TraversalMetrics traversalMetrics = (TraversalMetrics) traversal.next();
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
-        assertEquals(4, m.size());
+        assertEquals(5, m.size());
     }
 
     @Override

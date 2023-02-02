@@ -1,9 +1,10 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
@@ -12,7 +13,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.AggregateG
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.IdentityStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.SideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
@@ -32,15 +32,28 @@ import java.util.Set;
  * g.E().label().count()       // is replaced by TinkerCountGlobalStep
  * </pre>
  */
-public final class FireflyGraphCountStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy> implements TraversalStrategy.ProviderOptimizationStrategy {
+public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
+    /**
+     * Default constructor for FireflyGraphCountStrategy.
+     */
+    public FireflyGraphCountStrategy() {
+    }
 
-    private static final FireflyGraphCountStrategy INSTANCE = new FireflyGraphCountStrategy();
-
-    private FireflyGraphCountStrategy() {
+    @Override
+    public String getStrategyEnabledKey() {
+        return ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY;
     }
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        // TODO:
+        // this can be supported by querying all nodes and dividing by replication factor,
+        // but since there is another known issue with Info lagging, and querying all nodes would produce results
+        // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
+        final FireflyGraph fireflyGraph = (FireflyGraph) traversal.getGraph().get();
+        if (fireflyGraph.getBaseGraph().getClient().getNodes().length > 1)
+            throw new RuntimeException("fast count not supported for multi node");
+
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
@@ -67,9 +80,5 @@ public final class FireflyGraphCountStrategy extends AbstractTraversalStrategy<T
     @Override
     public Set<Class<? extends ProviderOptimizationStrategy>> applyPost() {
         return Collections.singleton(FireflyGraphStepStrategy.class);
-    }
-
-    public static FireflyGraphCountStrategy instance() {
-        return INSTANCE;
     }
 }

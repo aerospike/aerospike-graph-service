@@ -1,11 +1,11 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 
 import java.util.List;
@@ -13,12 +13,17 @@ import java.util.List;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
-        implements TraversalStrategy.ProviderOptimizationStrategy {
-    private static final FireflyCompositeEdgeIdStrategy INSTANCE = new FireflyCompositeEdgeIdStrategy();
+public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
 
-    private FireflyCompositeEdgeIdStrategy() {
+    /**
+     * Default constructor for FireflyCompositeEdgeIdStrategy.
+     */
+    public FireflyCompositeEdgeIdStrategy() {
+    }
 
+    @Override
+    public String getStrategyEnabledKey() {
+        return ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
     }
 
     @Override
@@ -48,9 +53,5 @@ public class FireflyCompositeEdgeIdStrategy extends AbstractTraversalStrategy<Tr
             traversal.removeStep(vertexStep);
             traversal.addStep(index, new FireflyCompositeIdStep(traversal, vertexStep.getDirection(), vertexStep.getEdgeLabels(), vertexStep.getLabels()));
         }
-    }
-
-    public static FireflyCompositeEdgeIdStrategy instance() {
-        return INSTANCE;
     }
 }

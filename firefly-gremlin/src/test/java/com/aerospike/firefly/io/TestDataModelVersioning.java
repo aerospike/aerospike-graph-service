@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -42,7 +41,8 @@ public class TestDataModelVersioning {
 
     static {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_READ_THROUGH_CACHE.toLowerCase(), "false");
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_PREFETCH_STRATEGY.toLowerCase(), "false");
     }
 
     @After
@@ -124,22 +124,6 @@ public class TestDataModelVersioning {
         public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value) {
             return null;
         }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyStringIndex(String key, Object value) {
-            return null;
-        }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyNumberMatchIndex(String key, P<?> predicate) {
-            return null;
-        }
-
-        @Override
-        public Iterator<FireflyVertexProperty> queryVertexPropertyNumberRangeIndex(String key, P<?> predicate) {
-            return null;
-        }
-
     }
 
     public static class TestTask implements UpgradeTask {

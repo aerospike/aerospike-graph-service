@@ -1,6 +1,8 @@
 package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
+import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
@@ -30,6 +32,8 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +52,7 @@ import java.util.stream.Stream;
  */
 public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements Mutating<Event>,
         TraversalOptionParent<Merge, S, Vertex> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyMergeVertexStep.class);
 
     private final boolean isStart;
     private boolean first = true;
@@ -212,11 +217,20 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                         results.add(graph.vertices());
                     }
                 } else {
-                    if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
-                        results.add(FireflyHelper.queryVertexByVertexPropertyNumericIndex(graph, key.toString(), P.eq(value)));
-                    } else if (value.getClass().isAssignableFrom(String.class)) {
-                        Iterator<? extends Vertex> test = FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, key.toString(), value);
-                        results.add(FireflyHelper.queryVertexByVertexPropertyStringIndex(graph, key.toString(), value));
+                    if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) ||
+                            value.getClass().isAssignableFrom(Integer.class) || value.getClass().isAssignableFrom(String.class)) {
+                        // Find index.
+                        final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(key.toString(), value);
+
+                        // If we have index, query it, otherwise we need to scan (or error out).
+                        final Iterator<? extends Vertex> iterator;
+                        if (propertyIndexInfo.isPresent()) {
+                            iterator = graph.queryIndex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
+                        } else {
+                            LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
+                            iterator = graph.queryScan(key.toString(), P.eq(value), graph::vertexFromRecord);
+                        }
+                        results.add(iterator);
                     } else {
                         results.add(graph.vertices());
                     }

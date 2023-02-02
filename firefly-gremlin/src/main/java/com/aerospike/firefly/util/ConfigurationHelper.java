@@ -39,6 +39,7 @@ public final class ConfigurationHelper {
     }};
 
     public static class Keys {
+
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -56,7 +57,7 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
-
+        public static final String LOG_LEVEL = "LOG_LEVEL";
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
         public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
@@ -78,12 +79,13 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
         public static final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = "EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN";
         public static final String PARENT_VERTEX_ID = "PARENT_VERTEX_ID";
-        public static final String EDGE_PROPERTIES = "EDGE_PROPERTIES";
+        public static final String PROPERTIES = "PROPERTIES";
         public static final String VP_PROPERTIES = "VP_PROPERTIES";
         public static final String TYPE_HINTS = "TYPE_HINTS";
+        public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
         public static final String KEY_VALUE = "KEY_VALUE";
         public static final String COUNTER = "COUNTER";
-        public static final String ID_TYPE = "ID_TYPE";
+        public static final String ID_TYPE_BIN = "ID_TYPE";
         public static final String GLOBAL = "GLOBAL";
         public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
@@ -118,8 +120,10 @@ public final class ConfigurationHelper {
         public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
         // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
         public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
-        public static final String ENABLE_SUBGRAPH_CACHE_STRATEGY = "ENABLE_SUBGRAPH_CACHE_STRATEGY";
+        public static final String ENABLE_READ_THROUGH_CACHE = "ENABLE_READ_THROUGH_CACHE";
+        public static final String ENABLE_PREFETCH_STRATEGY = "ENABLE_PREFETCH_STRATEGY";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
+        public static final String VERTEX_PROPERTY_INDEXES = "VERTEX_PROPERTY_INDEXES";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
 
@@ -128,11 +132,13 @@ public final class ConfigurationHelper {
         public static final String EDGE_ID_BUFFER_SIZE = "EDGE_ID_BUFFER_SIZE";
         public static final String PROPERTY_ID_BUFFER_SIZE = "PROPERTY_ID_BUFFER_SIZE";
 
-        public static final String ENABLE_PERIODIC_METADATA_UPDATE = "ENABLE_PERIODIC_METADATA_UPDATE";
-        public static final String METADATA_UPDATE_FREQUENCY = "METADATA_UPDATE_FREQUENCY";
+        public static final String ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE = "ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE";
+        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "CARDINALITY_METADATA_UPDATE_FREQUENCY";
+        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "INDEX_METADATA_UPDATE_FREQUENCY";
         public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
+        public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -143,7 +149,7 @@ public final class ConfigurationHelper {
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
         put(Keys.GRAPH_VARIABLES_MAP, "G_VAR_MAP");
         put(Keys.Sets.EDGE_AERO_SET, "EDGE");
-        put(Keys.EDGE_PROPERTIES, "E_PROP");
+        put(Keys.PROPERTIES, "PROPERTIES");
         put(Keys.Sets.VERTEX_AERO_SET, "VERTEX");
         put(Keys.Sets.IN_VP_SET, "IN_VP");
         put(Keys.Sets.OUT_VP_SET, "OUT_VP");
@@ -167,10 +173,11 @@ public final class ConfigurationHelper {
         put(Keys.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, "E_L_E_L_E");
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
+        put(Keys.VP_TYPE_HINTS, "VP_TYPE_HINTS");
         put(Keys.KEY_VALUE, "KEY_VALUE");
         put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
-        put(Keys.ID_TYPE, "ID_TYPE");
+        put(Keys.ID_TYPE_BIN, "ID_TYPE");
         put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
         put(Keys.Sets.TEST_SET, "TEST_SET");
@@ -203,7 +210,8 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
-        put(Keys.ENABLE_SUBGRAPH_CACHE_STRATEGY, "true");
+        put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
+        put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
@@ -212,13 +220,17 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
-        put(Keys.ENABLE_PERIODIC_METADATA_UPDATE, "false");
-        put(Keys.METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+        put(Keys.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE, "false");
+        put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
+        put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
+        put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
+        put(Keys.VERTEX_PROPERTY_INDEXES, "");
+        put(Keys.LOG_LEVEL, "INFO");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

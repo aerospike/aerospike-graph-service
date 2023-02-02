@@ -2,6 +2,7 @@ package com.aerospike.firefly.spark.bulkloader.integration;
 
 import com.aerospike.firefly.spark.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -40,6 +41,12 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfig();
 
     protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig();
+
+    protected abstract String getDefaultConfigArtificialSupernode();
+
+    protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode();
+
+    protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode();
 
     @Test
     public void testDataAccuracy() {
@@ -81,6 +88,65 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("11", providedId.value());
     }
 
+    @Test
+    public void testDataAccuracyArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+        testSupernodes();
+    }
+
+    @Test
+    public void testUseProvidedEdgeIdTrueArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertFalse(providedId.isPresent());
+        testSupernodes();
+    }
+
+    @Test
+    public void testUseProvidedEdgeIdFalseArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertFalse(providedId.isPresent());
+        testSupernodes();
+    }
+
+    @Test
+    public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
+        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode()});
+        final GraphTraversalSource g = graph.traversal();
+        final Edge e = g.V().has("name", "Simon").outE("drives").next();
+        Assert.assertNotEquals(11L, e.id());
+        Property providedId = e.property("~providedId");
+        Assert.assertFalse(providedId.isPresent());
+        providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
+        Assert.assertEquals("11", providedId.value());
+        testSupernodes();
+    }
+
+    private void testSupernodes() {
+        final GraphTraversalSource g = graph.traversal();
+        final List<Vertex> vertices = g.V().toList();
+        for (final Vertex vertex: vertices) {
+            final FireflyVertex fireflyVertex = (FireflyVertex) vertex;
+
+            // Car models and vertex have <=1 edge in either direction and therefore are not supernodes, all other vertices are.
+            if ("model".equals(vertex.label()) || "vertex".equals(vertex.label())) {
+                Assert.assertFalse(fireflyVertex.isEdgeCacheDisabled());
+            } else {
+                Assert.assertTrue(fireflyVertex.isEdgeCacheDisabled());
+            }
+        }
+    }
+
     private void testEdges() {
         final GraphTraversalSource g = graph.traversal();
         testEdgeCount(g);
@@ -102,8 +168,23 @@ public abstract class TestSparkBulkLoaderBase {
         // Data set has a single edge without a label - check that it correctly inserted with default edge label value
         final List<Edge> edges = g.E().hasLabel("edge").toList();
         Assert.assertEquals(1, edges.size());
+        final Edge e = edges.get(0);
         // Check that properties on edges are loaded properly
-        Assert.assertEquals("hello world", edges.get(0).value("testProperty"));
+        Assert.assertEquals("hello world", e.value("defaultText"));
+        Assert.assertEquals("17", e.value("defaultNumber"));
+        Assert.assertEquals("true", e.value("defaultBoolean"));
+        // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
+        Assert.assertEquals("42", e.value("invalidType:invalid[]"));
+        // Check null properties dont exist
+        Assert.assertFalse(g.E().hasLabel("edge").has("nullValue").hasNext());
+        Assert.assertFalse(g.E().hasLabel("edge").has("nullInt").hasNext());
+        // Check null properties in a list do exist
+        final List<String> nullInList = e.value("nullInList");
+        Assert.assertEquals(2, nullInList.size());
+        Assert.assertNull(nullInList.get(0));
+        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check that null properties are not somehow saved as a valid property
+        Assert.assertEquals(5, (long) g.E().hasLabel("edge").properties().count().next());
     }
 
     private void testVertices() {
@@ -148,6 +229,16 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertEquals("true", v.value("defaultBoolean"));
         // Check invalid type specifiers default to text and include the invalid specifier in the fallback property name
         Assert.assertEquals("42", v.value("invalidType:invalid[]"));
+        // Check null properties dont exist
+        Assert.assertFalse(g.V().hasLabel("vertex").has("nullValue").hasNext());
+        Assert.assertFalse(g.V().hasLabel("vertex").has("nullInt").hasNext());
+        // Check null properties in a list do exist
+        final List<String> nullInList = v.value("nullInList");
+        Assert.assertEquals(2, nullInList.size());
+        Assert.assertNull(nullInList.get(0));
+        Assert.assertEquals("secondElement", nullInList.get(1));
+        // Check that null properties are not somehow saved as a valid property
+        Assert.assertEquals(5, (long) g.V().hasLabel("vertex").properties().count().next());
     }
 
     private void testVertexEdgeConnections() {

@@ -5,7 +5,6 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.SubgraphPrefetchTask;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
 import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
@@ -14,9 +13,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.fasterxml.jackson.module.scala.ser.SymbolSerializer;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -94,7 +96,8 @@ public class SparkBulkLoader {
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
     private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static Configuration CONFIG;
-    private static String ENV = "prod";
+    private static String ENV = "aws";
+    private static AmazonS3 S3_CLIENT;
     private static final int RETRY_LIMIT = 100;
 
     // TODO: Finalize this number or make it configurable.
@@ -107,33 +110,21 @@ public class SparkBulkLoader {
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
-        if (ENV.equals("local")) {
-            System.out.println("Configuring for local environment.");
-            LOGGER.info("Configuring for local environment.");
+        if (ENV.equals("local") || ENV.equals("non-aws")) {
             final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
             configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
-            System.out.println("configPath: " + configPath);
-            LOGGER.info("configPath: " + configPath);
             final Path path = Path.of(configPath);
-            System.out.println("Path: " + path);
-            LOGGER.info("Path: " + path);
             CONFIG = getConfig(path);
-            System.out.println("CONFIG: " + CONFIG);
-            LOGGER.info("CONFIG: " + CONFIG);
             try {
                 vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
-                System.out.println("vertexDirectories: " + vertexDirectories);
-                System.out.println("edgeDirectories: " + edgeDirectories);
-                LOGGER.info("vertexDirectories: " + vertexDirectories);
-                LOGGER.info("edgeDirectories: " + edgeDirectories);
-            }
-            catch (IOException ie) {
+            } catch (IOException ie) {
                 LOGGER.error(ie.getMessage(), ie);
                 System.exit(1);
             }
-        } else {
-            //S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+        }
+        else {
+            S3_CLIENT = AmazonS3ClientBuilder.standard().build();
             s3BucketName = cmd.getOptionValue("b");
             configPath = cmd.getOptionValue("c");
             assert s3BucketName != null;
@@ -146,8 +137,8 @@ public class SparkBulkLoader {
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
-        //if (ENV.equals("local"))
-        //    conf.setMaster("local[2]");
+        if (ENV.equals("local"))
+            conf.setMaster("local[2]");
 
         conf.setAppName("firefly-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
@@ -202,11 +193,14 @@ public class SparkBulkLoader {
             vertexData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
                 LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
                 final ArrayList<Long> list = new ArrayList<>();
-                final Path path = Path.of(finalConfigPath);
-                LOGGER.info("path = " + path);
-                CONFIG = getConfig(path);
                 Configuration localConfig = CONFIG;
-                LOGGER.info("localConfig = " + localConfig);
+                if (ENV.equalsIgnoreCase("non-aws")) {
+                    localConfig = loadConfiguration(finalConfigPath);
+                }
+                else if (ENV.equalsIgnoreCase("aws")) {
+                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                }
                 final boolean ignoreFailedProperties =
                         Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                 final boolean ignoreElementCreationFailed =
@@ -261,10 +255,14 @@ public class SparkBulkLoader {
         // Verify vertices.
         for (final Dataset<Row> vertexDataSample : sampledVertexDatasets) {
             vertexDataSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-                final Path path = Path.of(finalConfigPath);
-                LOGGER.info("path = " + path);
-                CONFIG = getConfig(path);
                 Configuration localConfig = CONFIG;
+                if (ENV.equalsIgnoreCase("non-aws")) {
+                    localConfig = loadConfiguration(finalConfigPath);
+                }
+                else if (ENV.equalsIgnoreCase("aws")) {
+                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                }
                 final boolean ignoreFailedProperties =
                         Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
                 final boolean ignoreElementCreationFailed =
@@ -431,10 +429,14 @@ public class SparkBulkLoader {
         // Write to edge caches for non-supernodes.
         persistentEdgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
-            final Path path = Path.of(finalConfigPath);
-            LOGGER.info("path = " + path);
-            CONFIG = getConfig(path);
             Configuration localConfig = CONFIG;
+            if (ENV.equalsIgnoreCase("non-aws")) {
+                localConfig = loadConfiguration(finalConfigPath);
+            }
+            else if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+            }
             final boolean ignoreFailedProperties =
                     Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
             final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
@@ -515,10 +517,14 @@ public class SparkBulkLoader {
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            final Path path = Path.of(finalConfigPath);
-            LOGGER.info("path = " + path);
-            CONFIG = getConfig(path);
             Configuration localConfig = CONFIG;
+            if (ENV.equalsIgnoreCase("non-aws")) {
+                localConfig = loadConfiguration(finalConfigPath);
+            }
+            else if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+            }
             final boolean ignoreFailedProperties =
                     Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
             final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
@@ -586,6 +592,11 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         spark.stop();
+    }
+
+    private static Configuration loadConfiguration(String configPath) {
+        final Path path = Path.of(configPath);
+        return getConfig(path);
     }
 
     static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
@@ -738,7 +749,21 @@ public class SparkBulkLoader {
      */
     static public Set<String> getObjectsListFromS3(final String bucketName, final String folderKey) {
         final Set<String> keys = new HashSet<>();
-        return null;
+        ObjectListing response = S3_CLIENT.listObjects(bucketName, folderKey);
+        List<S3ObjectSummary> objects = response.getObjectSummaries();
+        for (final S3ObjectSummary object : objects) {
+            keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+        }
+        // listObjects loads 1000 object keys in one call.
+        // If there are multiple directories with more than 1000 files, then need to consume any remaining objects.
+        while (response.isTruncated()) {
+            response = S3_CLIENT.listNextBatchOfObjects(response);
+            objects = response.getObjectSummaries();
+            for (S3ObjectSummary object : objects) {
+                keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+            }
+        }
+        return keys;
     }
 
     /**
@@ -749,18 +774,32 @@ public class SparkBulkLoader {
      * @return Configuration object built from config file.
      */
     static public Configuration loadConfigFromS3(final String bucketName, final String path) {
-        return null;
+        try (final S3Object s3Object = S3_CLIENT.getObject(bucketName, path);
+             final InputStream inputStream = s3Object.getObjectContent()) {
+            final Properties props = new Properties();
+            props.load(inputStream);
+            final HashMap<String, Object> configData = new HashMap<>();
+            props.keySet().forEach(it -> {
+                final String key = it.toString().toLowerCase();
+                final Object value = props.get(it.toString());
+                LOGGER.debug("config[{}:{}]", key, value);
+                configData.put(key, value);
+            });
+            return new MapConfiguration(configData);
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod/remote");
+        final Option envOption = new Option("e", "env", true, "local/aws/non-aws. Default is aws");
         options.addOption(envOption);
 
         final Option bucketOption = new Option("b", "bucket", true, "AWS S3 bucket name");
         options.addOption(bucketOption);
 
-        final Option pathOption = new Option("c", "config", true, "config path [local -> absolute/S3 -> full path to config.properties after bucket name]");
+        final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
 
         final CommandLineParser parser = new DefaultParser();

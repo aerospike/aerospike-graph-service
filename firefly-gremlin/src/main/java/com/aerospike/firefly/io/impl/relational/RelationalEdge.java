@@ -178,10 +178,7 @@ public class RelationalEdge extends FireflyEdge {
      */
     @Override
     public void removeEdge() {
-        // Remove edge.
-        LOG.debug("Removing edge {}.", this.id);
-
-        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, id));
+        graph.removeEdgeById(id);
     }
 
     private static class RelationalEdgeFactory {

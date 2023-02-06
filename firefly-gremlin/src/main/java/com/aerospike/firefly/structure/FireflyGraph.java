@@ -279,6 +279,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyEdge readEdge(final FireflyId edgeId);
 
+    public abstract void removeEdgeById(final FireflyId edgeId);
+
     public abstract List<FireflyEdge> readEdges(final List<FireflyId> edgeIds);
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);

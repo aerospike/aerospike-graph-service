@@ -210,6 +210,20 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Function to remove edge record via id without reading the edge back.
+     * NOTE: This function does not remove the edge from adjacent vertices. This must be done separately.
+     *
+     * @param edgeId id of edge.
+     */
+    @Override
+    public void removeEdgeById(final FireflyId edgeId) {
+        // Remove edge.
+        LOG.debug("Removing edge {}.", edgeId);
+
+        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, edgeId));
+    }
+
+    /**
      * Function to create edge from a record.
      *
      * @param keyRecord Record to use.

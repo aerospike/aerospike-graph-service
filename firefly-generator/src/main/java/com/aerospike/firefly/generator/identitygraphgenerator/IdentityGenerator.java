@@ -10,9 +10,10 @@ import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Per
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.opencsv.CSVWriter;
 import org.apache.commons.cli.CommandLine;
@@ -128,10 +129,13 @@ public class IdentityGenerator implements Runnable {
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
             String secretKey = cmd.getOptionValue("s");
-            AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+            final AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
             ClientConfiguration clientConfig = new ClientConfiguration();
             clientConfig.setProtocol(Protocol.HTTP);
-            S3_CLIENT = new AmazonS3Client(credentials, clientConfig);
+            S3_CLIENT = AmazonS3ClientBuilder
+                    .standard()
+                    .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                    .withClientConfiguration(clientConfig).build();
         }
         this.csvWriter = new IdentityGenerator.CsvWriter(path);
     }

@@ -112,7 +112,7 @@ public class IdentityGenerator implements Runnable {
     private final Logger LOG;
     private final IdentityGenerator.CsvWriter csvWriter;
     private Future future;
-    private static String ENV = "PROD";
+    private static String ENV = "aws";
     //Set default path in local run mode
     private static String path = "./datagenerator";
     private static String bucket;
@@ -125,7 +125,7 @@ public class IdentityGenerator implements Runnable {
         this.LOG = builder.logger;
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
-        if (!ENV.equals("local")){
+        if (ENV.equals("aws")){
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
             String secretKey = cmd.getOptionValue("s");
@@ -310,11 +310,11 @@ public class IdentityGenerator implements Runnable {
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
         Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
-        if ( countOfRecords == NO_OF_ROWS) {
-            if (ENV.equals("local"))
-                this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
-            else
+        if (countOfRecords == NO_OF_ROWS) {
+            if (ENV.equals("aws"))
                 this.csvWriter.writeDataMapToS3(this.graphMap, dir, fileName, fileCount);
+            else
+                this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
             HashMap<String, Object> objectPropertyMap = new HashMap<>();
             objectPropertyMap.put("fileCount", fileCount + 1);
             HashSet<String[]> schemaSet = new HashSet<>();
@@ -392,21 +392,18 @@ public class IdentityGenerator implements Runnable {
 
     public String createName(final int meanLength, final int variance) {
         String name = "";
-        for (int i = 0; i < getGaussian(meanLength, variance); i++) {
+        for (int i = 0; i < getGaussian(meanLength, variance); i++)
             name = name + LETTERS.get(this.random.nextInt(LETTERS.size() - 1));
-        }
         return name;
     }
     public String createName(final int meanLength) {
-
         return createName(meanLength, 2);
     }
 
     public Long createNumber(final int length) {
         String number = "";
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++)
             number = number + this.random.nextInt(9);
-        }
         return Long.valueOf(number);
     }
 
@@ -416,9 +413,8 @@ public class IdentityGenerator implements Runnable {
 
     public String createStreet() {
         String street = "";
-        for (int i = 0; i < this.getGaussian(6, 2); i++) {
+        for (int i = 0; i < this.getGaussian(6, 2); i++)
             street = street + this.random.nextInt(9);
-        }
         return street + " " + this.createName(10);
     }
 
@@ -464,7 +460,6 @@ public class IdentityGenerator implements Runnable {
             }
         }
 
-
         private static CSVWriter buildCSVWriter(OutputStreamWriter streamWriter) {
             return new CSVWriter(streamWriter, ',', Character.MIN_VALUE, '"', System.lineSeparator());
         }
@@ -480,7 +475,6 @@ public class IdentityGenerator implements Runnable {
         protected int accountsPerHousehold;
         protected String id = UUID.randomUUID().toString();
         protected int ops = 10000;
-
         protected CommandLine cmd;
 
         public static Builder create() {
@@ -491,6 +485,7 @@ public class IdentityGenerator implements Runnable {
             this.cmd = cmd;
             return this;
         }
+
         public Builder workerId(final String id) {
             this.id = id;
             return this;

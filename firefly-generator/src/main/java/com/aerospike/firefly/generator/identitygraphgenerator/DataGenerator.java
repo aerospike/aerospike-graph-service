@@ -45,7 +45,7 @@ public class DataGenerator {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod/remote");
+        final Option envOption = new Option("e", "env", true, "local/remote or aws");
         options.addOption(envOption);
 
         final Option pathOption = new Option("d", "directory", true, "Optional param. Absolute path to directory to write the datagenerator output in local." +

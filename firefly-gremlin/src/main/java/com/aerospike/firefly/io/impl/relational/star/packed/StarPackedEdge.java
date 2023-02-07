@@ -5,6 +5,8 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
+import java.util.Map;
+
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -15,8 +17,10 @@ public class StarPackedEdge extends RelationalEdge {
                            final String label,
                            final FireflyGraph graph,
                            final FireflyId outVertex,
-                           final FireflyId inVertex) {
-        super(fid, label, graph, outVertex, inVertex);
+                           final FireflyId inVertex,
+                           final Map<String, Object> data,
+                           final Map<String, Long> typeHints) {
+        super(fid, label, graph, outVertex, inVertex, data, typeHints);
     }
 
     @Override

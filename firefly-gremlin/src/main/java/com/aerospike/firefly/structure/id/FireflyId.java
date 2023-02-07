@@ -24,12 +24,13 @@ public abstract class FireflyId implements Comparable {
     public abstract Object getCachedId();
 
     public abstract byte[] getKeyHash();
+
     public abstract String getKeyHashBase64();
 
 
     @Override
     public int hashCode() {
-        return this.getStorageId() == null ? Arrays.hashCode(this.getKeyHash()) : this.getStorageId().hashCode();
+        return this.getKeyHash() == null ? this.getStorageId().hashCode() : Arrays.hashCode(this.getKeyHash());
     }
 
     @Override

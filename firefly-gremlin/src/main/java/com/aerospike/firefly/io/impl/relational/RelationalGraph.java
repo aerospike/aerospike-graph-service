@@ -8,6 +8,8 @@ import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
@@ -150,7 +152,10 @@ public abstract class RelationalGraph extends FireflyGraph {
         if (cache != null) {
             cache.invalidate(key);
         }
-        final Record results = this.db.getClient().operate(null, key, incrementEdgeCount, getEdgeCount,
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        final Record results = this.db.operate(writePolicy, key, incrementEdgeCount, getEdgeCount,
                 getCacheState, appendEdgeId);
         final boolean isCacheDisabled = results.getBoolean(this.db.EDGE_CACHE_DISABLED);
         final long edgeCount = results.getLong(counterBinName);
@@ -159,14 +164,14 @@ public abstract class RelationalGraph extends FireflyGraph {
             // Cache was already disabled so wipe the write we just did to prevent memory leak.
             final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
             final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.getClient().operate(null, key, wipeCache);
+            this.db.operate(writePolicy, key, wipeCache);
         } else if (edgeCount > this.db.ID_CACHE_SIZE) {
             // Disable the edge cache for this vertex and clear the cache.
             final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
             final Operation disableCache = Operation.put(disabledCacheBin);
             final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
             final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.getClient().operate(null, key, disableCache, wipeCache);
+            this.db.operate(writePolicy, key, disableCache, wipeCache);
         }
     }
 
@@ -345,7 +350,7 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public <V> void writeGraphVariable(final String key, final V value) {
-        db.writeTypeHintedValueToMap(db.GRAPH_VARIABLES_SET,
+        db.writeTypeHintedGraphVariable(db.GRAPH_VARIABLES_SET,
                 FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
                 db.GRAPH_VARIABLES_MAP,
                 key,

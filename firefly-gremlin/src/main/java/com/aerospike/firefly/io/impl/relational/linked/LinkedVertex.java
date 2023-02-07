@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -223,7 +223,7 @@ public class LinkedVertex extends RelationalVertex {
         if (cache != null) {
             cache.invalidate(vertexKey);
         }
-        final Record results = this.db.getClient().operate(null, vertexKey, getCacheDisabled, decrementVpCount,
+        final Record results = this.db.operate(null, vertexKey, getCacheDisabled, decrementVpCount,
                 removeVpId, removeEmptyVpKeys);
 
         final boolean cacheDisabled = results.getBoolean(this.db.VP_CACHE_DISABLED);
@@ -361,11 +361,11 @@ public class LinkedVertex extends RelationalVertex {
         // Operate on database.
         final Record results;
         try {
-            results = this.db.getClient().operate(null, key, getCacheDisabled, incrementVpCount,
+            results = this.db.operate(null, key, getCacheDisabled, incrementVpCount,
                     getVpCount, appendVpId);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG)
-                throw new RuntimeException(RECORD_TOO_BIG_ERROR);
+                throw new RuntimeException(RECORD_TOO_BIG);
             throw ae;
         }
 
@@ -387,7 +387,7 @@ public class LinkedVertex extends RelationalVertex {
             final Bin vertexPropertyIdBin =
                     new Bin(this.db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(new TreeMap<String, List<Object>>()));
             final Operation wipeCache = Operation.put(vertexPropertyIdBin);
-            this.db.getClient().operate(null, key, disableCache, wipeCache);
+            this.db.operate(null, key, disableCache, wipeCache);
 
             // Update cache disabled flag of this.
             this.isVertexPropertyCacheDisabled = true;

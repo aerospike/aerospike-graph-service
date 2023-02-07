@@ -7,17 +7,14 @@ import com.aerospike.client.Value;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -180,26 +177,6 @@ public class FireflyRecord {
             return null;
 
         return new FireflyRecord(db, key, record);
-    }
-
-    /**
-     * Write a new FireflyRecord to disk
-     *
-     * @param db   AerospikeConnection instance
-     * @param set  Aerospike Set to write to
-     * @param id   the ID to use
-     * @param bins Aerospike data bins
-     */
-    public static void write(final AerospikeConnection db,
-                             final String set,
-                             final FireflyId id,
-                             final int generation,
-                             final Bin... bins) {
-        final Key key = getKey(db, set, id);
-        final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(id.getStorageTypeHint()));
-        final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
-        listOfBins.add(idTypeBin);
-        db.write(key, generation, listOfBins.toArray(new Bin[0]));
     }
 
     /**

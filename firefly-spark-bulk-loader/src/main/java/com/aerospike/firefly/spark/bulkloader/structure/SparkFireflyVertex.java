@@ -1,8 +1,6 @@
 package com.aerospike.firefly.spark.bulkloader.structure;
 
 import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
-import com.aerospike.firefly.structure.FireflyElement;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;

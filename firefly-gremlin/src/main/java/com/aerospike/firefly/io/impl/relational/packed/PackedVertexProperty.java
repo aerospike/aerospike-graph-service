@@ -1,17 +1,25 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
-import com.aerospike.client.Bin;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.CTX;
+import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapPolicy;
+import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
-import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.slf4j.Logger;
@@ -24,6 +32,8 @@ import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypeValues;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -143,8 +153,13 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                 vertex.removeVertexProperty(label, id);
             }
             removeVertexProperty(graph, id);
-        } catch (Exception ignored) {
-            // Removing a vertex property that is already removed SHOULD NOT yield an error.
+        } catch (final AerospikeException ae) {
+            // Removing a property that is already removed SHOULD NOT yield an error.
+            if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                LOG.debug("Ignored exception removing an already-removed vertex property {}.", this, ae);
+            } else {
+                throw ae;
+            }
         }
     }
 
@@ -164,46 +179,39 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param value The value of the property to write.
      */
     public void writeProperty(final String key, final Object value) {
-        GenerationCheck.writeGenerationCheck(() -> protectedWriteProperty(key, value));
-    }
-
-    private void protectedWriteProperty(final String key, final Object value) {
         final AerospikeConnection db = this.graph.getBaseGraph();
-        final Map<Object, Map<String, Object>> properties;
-        final Map<Object, Map<String, Object>> typeHints;
-        final int generation;
+        final Key opKey = getKey(db, db.VERTEX_AERO_SET, this.getVertexId());
 
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, getVertexId());
-        if (fireflyRecord == null) {
-            LOG.error("Attempted to write a property to vertex property with a non-existent parent vertex: " + getVertexId().getUserId());
-            return;
-        } else {
-            generation = fireflyRecord.record.generation;
-            properties = (Map<Object, Map<String, Object>>) Optional.ofNullable(fireflyRecord.record.getMap(db.PROPERTIES)).orElse(new TreeMap<>());
-            typeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(fireflyRecord.record.getMap(db.TYPE_HINTS)).orElse(new TreeMap<>());
-        }
-
-        if (!typeHints.containsKey(this.id.getStorageId())) {
-            typeHints.put(this.id.getStorageId(), new TreeMap<>());
-        }
-        if (!properties.containsKey(this.id.getStorageId())) {
-            properties.put(this.id.getStorageId(), new TreeMap<>());
-        }
-        final Map<String, Object> typeHintsForVp = typeHints.get(this.id.getStorageId());
-        final Map<String, Object> propertiesForVp = properties.get(id.getStorageId());
+        final Operation writeValue;
+        final Operation writeTypeHint;
 
         if (value == null) {
-            propertiesForVp.remove(key);
-            typeHintsForVp.remove(key);
+            writeValue = MapOperation.removeByKey(db.PROPERTIES, Value.get(key), MapReturnType.NONE,
+                    CTX.mapKey(Value.get(this.id.getStorageId())));
+            writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(key), MapReturnType.NONE,
+                    CTX.mapKey(Value.get(this.id.getStorageId())));
         } else {
-            typeHintsForVp.put(key, getSupportedType(value.getClass()));
-            propertiesForVp.put(key, value);
+            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            writeValue = MapOperation.put(policy, db.PROPERTIES, Value.get(key), Value.get(value),
+                    CTX.mapKey(Value.get(this.id.getStorageId())));
+            writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS, Value.get(key),
+                    Value.get(getSupportedType(value.getClass())),
+                    CTX.mapKey(Value.get(this.id.getStorageId())));
         }
 
-        final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Bin propertiesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));
-
-        FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, getVertexId(), generation, typeHintBin, propertiesBin);
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        try {
+            db.operate(writePolicy, opKey, writeValue, writeTypeHint);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+                // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
+                // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
+                throw new RuntimeException(ELEMENT_NOT_FOUND, ae);
+            } else {
+                throw ae;
+            }
+        }
     }
 
     /**
@@ -212,33 +220,25 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
      * @param key The key of the property to be removed.
      */
     public void removeProperty(final String key) {
-        GenerationCheck.writeGenerationCheck(() -> protectedRemoveProperty(key));
-    }
-
-    private void protectedRemoveProperty(final String key) {
         final AerospikeConnection db = this.graph.getBaseGraph();
-        final FireflyRecord fireflyRecord = FireflyRecord.read(db, db.VERTEX_AERO_SET, getVertexId());
-        if (fireflyRecord == null)
-            return;
-        final Record r = fireflyRecord.record;
-        final int generation = r.generation;
-        final Map<Object, Map<String, Object>> properties =
-                (Map<Object, Map<String, Object>>) Optional.ofNullable(r.getMap(db.PROPERTIES)).orElse(new TreeMap<>());
-        final Map<Object, Map<String, Object>> typeHints =
-                (Map<Object, Map<String, Object>>) Optional.ofNullable(r.getMap(db.TYPE_HINTS)).orElse(new TreeMap<>());
+        final Key opKey = getKey(db, db.VERTEX_AERO_SET, this.getVertexId());
 
-        if (properties.containsKey(this.id.getStorageId())) {
-            final Map<String, Object> propertiesForVp = properties.get(this.id.getStorageId());
-            propertiesForVp.remove(key);
-        }
-        if (typeHints.containsKey(this.id.getStorageId())) {
-            final Map<String, Object> typeHintsForVp = typeHints.get(this.id.getStorageId());
-            typeHintsForVp.remove(key);
-        }
-        final Bin typeHintBin = new Bin(db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Bin propertiesBin = new Bin(db.PROPERTIES, Value.get(properties, MapOrder.KEY_ORDERED));
+        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES, Value.get(key), MapReturnType.NONE,
+                CTX.mapKey(Value.get(this.id.getStorageId())));
+        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(key), MapReturnType.NONE,
+                CTX.mapKey(Value.get(this.id.getStorageId())));
 
-        FireflyRecord.write(db, db.VERTEX_AERO_SET, getVertexId(), generation, propertiesBin, typeHintBin);
+        try {
+            db.operate(null, opKey, removeProperty, removeTypeHint);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+                // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
+                // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
+                LOG.debug("Ignored exception removing an already-removed vertex property {}", this, ae);
+            } else {
+                throw ae;
+            }
+        }
     }
 
     /**

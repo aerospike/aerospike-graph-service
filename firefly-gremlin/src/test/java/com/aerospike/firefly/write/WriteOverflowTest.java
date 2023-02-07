@@ -13,10 +13,15 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.utils.GenerationCheck.RECORD_TOO_BIG_ERROR;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 
 public class WriteOverflowTest {
     // 1 kB string.
@@ -24,7 +29,7 @@ public class WriteOverflowTest {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final Random RANDOM = new Random();
     private static final int MAX_SIZE = 10 * 1000;
-    private static final int PROPERTY_COUNT = 1020;
+    private static final int PROPERTY_COUNT = 1000;
     private static final String RANDOM_STRING;
     static {
         final StringBuilder stringBuilder = new StringBuilder();
@@ -56,7 +61,7 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG_ERROR, e.getMessage());
+                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();
@@ -91,7 +96,7 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG_ERROR, e.getMessage());
+                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();

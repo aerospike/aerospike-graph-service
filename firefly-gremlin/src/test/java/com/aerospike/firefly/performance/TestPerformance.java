@@ -8,6 +8,7 @@ import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.util.Metrics;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -273,6 +274,24 @@ public class TestPerformance extends AbstractFireflySuite {
         TraversalMetrics traversalMetrics = (TraversalMetrics) traversal.next();
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
         assertEquals(5, m.size());
+    }
+
+
+    @Test
+    public void testCustomerQuery() {
+        // Create graph.
+        GraphHelper.cloneElements(TinkerFactory.createTheCrew(), graph);
+        final GraphTraversalSource g = graph.traversal();
+        List<Vertex> vertices = g.V().toList();
+        Long count = g.V().count().next();
+        PerfUtil.Results results = PerfUtil.runTestBatch(1000, () -> {
+            g.V(vertices.get(0).id(), vertices.get(1).id()).emit().
+                    repeat(__.both().simplePath().dedup()).
+                    times(1).
+                    bothE().
+                    where(__.otherV().outE().not(__.has("foo"))).profile().next();
+        });
+        System.out.println(results);
     }
 
     @Override

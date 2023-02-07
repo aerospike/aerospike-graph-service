@@ -30,7 +30,7 @@ public abstract class FireflyId implements Comparable {
 
     @Override
     public int hashCode() {
-       return this.getStorageId() == null ? Arrays.hashCode(this.getKeyHash()) : this.getStorageId().hashCode();
+        return this.getKeyHash() == null ? this.getStorageId().hashCode() : Arrays.hashCode(this.getKeyHash());
     }
 
     @Override

@@ -213,7 +213,7 @@ public abstract class RelationalGraph extends FireflyGraph {
      * Function to remove edge record via id without reading the edge back.
      * NOTE: This function does not remove the edge from adjacent vertices. This must be done separately.
      *
-     * @param edgeId id of edge.
+     * @param edgeId Id of edge to remove.
      */
     @Override
     public void removeEdgeById(final FireflyId edgeId) {

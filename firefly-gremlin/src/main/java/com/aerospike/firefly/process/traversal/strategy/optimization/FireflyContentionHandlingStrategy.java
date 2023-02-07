@@ -13,6 +13,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
 
     // All strategies.
     private final FireflyStrategyBase fireflyCompositeEdgeIdStrategy;
+    private final FireflyStrategyBase fireflyBatchEdgeReadStrategy;
     private final FireflyStrategyBase fireflyGraphCountStrategy;
     private final FireflyStrategyBase fireflyGraphDropStrategy;
     private final FireflyStrategyBase fireflyGraphStepStrategy;
@@ -26,6 +27,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
      */
     public FireflyContentionHandlingStrategy() {
         this.fireflyCompositeEdgeIdStrategy = new FireflyCompositeEdgeIdStrategy();
+        this.fireflyBatchEdgeReadStrategy = new FireflyBatchEdgeReadStrategy();
         this.fireflyGraphCountStrategy = new FireflyGraphCountStrategy();
         this.fireflyGraphDropStrategy = new FireflyGraphDropStrategy();
         this.fireflyGraphStepStrategy = new FireflyGraphStepStrategy();
@@ -68,6 +70,7 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Steps that replace specific internal steps.
         applyStrategy(traversal, fireflyMergeStepStrategy);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
+        applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
         applyStrategy(traversal, fireflyGraphCountStrategy);
     }

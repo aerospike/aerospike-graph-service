@@ -1,6 +1,7 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -14,7 +15,6 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -114,12 +114,14 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         if ((!allowNullPropertyValues && null == value)) {
             properties(key).forEachRemaining(Property::remove);
             properties.remove(key);
+            typeHints.remove(key);
             return Property.empty();
         }
 
         // Write the property and add to edge.
         final Property<V> property = graph.writeProperty(this, key, value);
         properties.put(key, value);
+        typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
         return property;
     }
 
@@ -154,7 +156,9 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
 
             // Otherwise if there is only 1 key and it is not null, return the property if we have it, otherwise empty iterator.
             if (properties.containsKey(propertyKeys[0])) {
-                return IteratorUtils.of(new RelationalProperty<>(graph, this, propertyKeys[0], (V) properties.get(propertyKeys[0])));
+                return IteratorUtils.of(new RelationalProperty<>(graph, this, propertyKeys[0],
+                        (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
+                                properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0]))));
             } else {
                 return Collections.emptyIterator();
             }
@@ -163,7 +167,9 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             final List<Property<V>> propertyList = new ArrayList<>();
             for (final String key : properties.keySet()) {
                 if (ElementHelper.keyExists(key, propertyKeys)) {
-                    propertyList.add(new RelationalProperty<>(graph, this, key, (V) properties.get(key)));
+                    propertyList.add(new RelationalProperty<>(graph, this, key,
+                            (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
+                                    properties.get(key), typeHints.get(key))));
                 }
             }
             return propertyList.iterator();
@@ -178,5 +184,10 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public Record getBaseElement() {
         return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().EDGE_AERO_SET, id).record();
+    }
+
+    public void removeCachedProperty(String key) {
+        properties.remove(key);
+        typeHints.remove(key);
     }
 }

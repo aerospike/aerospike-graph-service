@@ -54,7 +54,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
-        System.out.println("barrierConsumer");
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Edge> output = new TraverserSet<>();
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
@@ -136,6 +135,15 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         // Read all vertices in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<FireflyEdge> unorderedEdges = firefly.readEdges(unorderedIds);
+
+        // If there is a mismatch we might have had concurrent removals. To fix this rematch the lists.
+        if (unorderedIds.size() != unorderedEdges.size()) {
+            final Set<FireflyId> unorderedEdgesIds = unorderedEdges.stream().map(e -> e.id).collect(Collectors.toSet());
+            final Set<FireflyId> missingIds = new HashSet<>(unorderedIds);
+            missingIds.removeAll(unorderedEdgesIds);
+            unorderedIds.removeAll(missingIds);
+        }
+
         for (int i = 0; i < unorderedIds.size(); i++) {
             fireflyEdgeMap.put(unorderedIds.get(i), unorderedEdges.get(i));
         }
@@ -146,8 +154,11 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             for (int j = 0; j < info.size; j++) {
                 // Create a new traverser with the edge and add it to the output set using the split.
                 // Note, this is invoked info.size times.
-                FireflyId id = fireflyIdList.get(i++);
-                final FireflyEdge fireflyEdge = fireflyEdgeMap.get(id);
+                final FireflyEdge fireflyEdge = fireflyEdgeMap.get(fireflyIdList.get(i++));
+                if (fireflyEdge == null) {
+                    // Edge was not found - this is because it was deleted concurrently.
+                    continue;
+                }
                 output.add(info.traverser.split(fireflyEdge, this));
             }
         }

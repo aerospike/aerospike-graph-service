@@ -5,7 +5,6 @@ import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertex;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -13,9 +12,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
-import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
-import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -1115,7 +1112,5 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Vertex v = graph.addVertex(T.id, id);
         assertEquals(id, v.id());
     }
-
-
 }
 

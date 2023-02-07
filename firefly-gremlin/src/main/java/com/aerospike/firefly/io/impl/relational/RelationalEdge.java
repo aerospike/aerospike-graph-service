@@ -5,7 +5,6 @@ import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedEdge;
@@ -13,7 +12,6 @@ import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -35,7 +33,6 @@ import java.util.stream.Collectors;
 public class RelationalEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
     protected final AerospikeConnection db;
-
     // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
     /**
@@ -51,8 +48,10 @@ public class RelationalEdge extends FireflyEdge {
                              final String label,
                              final FireflyGraph graph,
                              final FireflyId outVertex,
-                             final FireflyId inVertex) {
-        super(fid, label, outVertex, inVertex, graph);
+                             final FireflyId inVertex,
+                             final Map<String, Object> properties,
+                             final Map<String, Long> typeHints) {
+        super(fid, label, graph, inVertex, outVertex, properties, typeHints);
         this.db = graph.getBaseGraph();
     }
 
@@ -76,7 +75,7 @@ public class RelationalEdge extends FireflyEdge {
 
         final AerospikeConnection db = graph.getBaseGraph();
         final Map<String, Object> data = new TreeMap<>();
-        final Map<String, Object> typeHints = new TreeMap<>();
+        final Map<String, Long> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -86,7 +85,7 @@ public class RelationalEdge extends FireflyEdge {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, db.getSupportedType(value.getClass()));
+                typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
                 data.put(key, value);
             }
         });
@@ -100,7 +99,7 @@ public class RelationalEdge extends FireflyEdge {
 
         // First instance of this edge, generation -1.
         FireflyRecord.writeElement(db, db.EDGE_AERO_SET, edgeId, -1, labelBin, inVbin, outVBin, valueBin, typeHintBin);
-        return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id);
+        return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
     }
 
     /**
@@ -121,7 +120,9 @@ public class RelationalEdge extends FireflyEdge {
                 edgeRecord.record.getString(AerospikeConnection.LABEL),
                 graph,
                 FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.OUT.name()), db.VERTEX_AERO_SET),
-                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET));
+                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET),
+                (Map<String, Object>) edgeRecord.record.getMap(db.PROPERTIES),
+                (Map<String, Long>) edgeRecord.record.getMap(db.TYPE_HINTS));
     }
 
     /**
@@ -144,7 +145,9 @@ public class RelationalEdge extends FireflyEdge {
                         record.record.getString(AerospikeConnection.LABEL),
                         graph,
                         FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.OUT.name()), db.VERTEX_AERO_SET),
-                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET))).
+                        FireflyIdPoly.fromBase64Hash((String) record.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET),
+                        (Map<String, Object>) record.record.getMap(db.PROPERTIES),
+                        (Map<String, Long>) record.record.getMap(db.TYPE_HINTS))).
                 collect(Collectors.toList());
     }
 
@@ -156,6 +159,7 @@ public class RelationalEdge extends FireflyEdge {
      * @return Edge.
      */
     public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
+        System.out.println("Constructing edge from record.");
         LOG.trace("Constructing edge from record.");
         if (keyRecord == null) {
             return null;
@@ -170,7 +174,9 @@ public class RelationalEdge extends FireflyEdge {
                 record.getString(AerospikeConnection.LABEL),
                 graph,
                 FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.OUT.name()), graph.getBaseGraph().VERTEX_AERO_SET),
-                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.IN.name()), graph.getBaseGraph().VERTEX_AERO_SET));
+                FireflyIdPoly.fromBase64Hash((String) record.getValue(Direction.IN.name()), graph.getBaseGraph().VERTEX_AERO_SET),
+                (Map<String, Object>) record.getMap(graph.getBaseGraph().PROPERTIES),
+                (Map<String, Long>) record.getMap(graph.getBaseGraph().TYPE_HINTS));
     }
 
     /**
@@ -186,11 +192,11 @@ public class RelationalEdge extends FireflyEdge {
 
     private static class RelationalEdgeFactory {
         private static RelationalEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
-                                             final FireflyId outVertex, final FireflyId inVertex) {
+                                             final FireflyId outVertex, final FireflyId inVertex, final Map<String, Object> data, final Map<String, Long> typeHints) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
-                return new StarPackedEdge(fid, label, graph, outVertex, inVertex);
+                return new StarPackedEdge(fid, label, graph, outVertex, inVertex, data, typeHints);
             } else {
-                return new RelationalEdge(fid, label, graph, outVertex, inVertex);
+                return new RelationalEdge(fid, label, graph, outVertex, inVertex, data, typeHints);
             }
         }
     }

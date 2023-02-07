@@ -1,12 +1,17 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,6 +22,7 @@ import java.util.TreeMap;
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class RelationalProperty<V> extends FireflyProperty<V> {
+    private static final Logger LOG = LoggerFactory.getLogger(RelationalProperty.class);
     private final FireflyGraph graph;
     private final FireflyElement fireflyElement;
 
@@ -41,8 +47,18 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
     public void remove() {
         try {
             graph.removeProperty(fireflyElement, key());
-        } catch (Exception ignored) {
+
+            // Need to make sure cached properties are removed from Edge.
+            if (fireflyElement instanceof FireflyEdge) {
+                ((FireflyEdge) fireflyElement).removeCachedProperty(key());
+            }
+        } catch (final AerospikeException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
+            if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                LOG.debug("Ignored exception removing an already-removed property {}.", this, ae);
+            } else {
+                throw ae;
+            }
         }
     }
 

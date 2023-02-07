@@ -292,6 +292,8 @@ public class TestProperties {
         Assert.assertFalse(traversal.hasNext());
         Assert.assertFalse(g.V().outE("bought").has("year").hasNext());
         Assert.assertFalse(g.V().outE("bought").has("year", (Object) null).hasNext());
+        g.V().outE("bought").property("notExistingKey", null).iterate();
+        Assert.assertFalse(g.V().outE("bought").has("notExistingKey").hasNext());
 
         // Test null in a list
         final List<Long> ownedYears = new ArrayList<>();
@@ -342,6 +344,8 @@ public class TestProperties {
             Assert.assertFalse(traversal.hasNext());
             Assert.assertFalse(g.V().hasLabel("person").has("age").hasNext());
             Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
+            g.V().hasLabel("person").property("notExistingKey", null).iterate();
+            Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
         }
 
         // Test null in a list
@@ -386,6 +390,9 @@ public class TestProperties {
         Assert.assertFalse(traversal.hasNext());
         Assert.assertFalse(g.V().hasLabel("person").properties("name").has("language").hasNext());
         Assert.assertFalse(g.V().hasLabel("person").properties("name").has("language", (Object) null).hasNext());
+        g.V().hasLabel("person").properties("name").property("notExistingKey", null).iterate();
+        Assert.assertFalse(g.V().hasLabel("person").properties("name").has("notExistingKey").hasNext());
+
 
         // Test null in a list
         final List<String> languages = new ArrayList<>();

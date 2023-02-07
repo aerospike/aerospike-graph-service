@@ -17,7 +17,11 @@ import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.async.Throttles;
 import com.aerospike.client.cdt.CTX;
+import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapPolicy;
+import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -28,6 +32,7 @@ import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
@@ -37,7 +42,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
-import com.aerospike.firefly.io.utils.GenerationCheck;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -58,7 +62,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,6 +80,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 
 /**
@@ -1151,62 +1157,17 @@ public class AerospikeConnection implements AutoCloseable {
                                              final String mapName,
                                              final String mapKey,
                                              final String typeHintBin) {
-        GenerationCheck.writeGenerationCheck(() ->
-                protectedRemoveTypeHintedValueFromMap(aeroSet, fid, mapName, mapKey, typeHintBin));
-    }
-
-    private void protectedRemoveTypeHintedValueFromMap(final String aeroSet,
-                                                       final FireflyId fid,
-                                                       final String mapName,
-                                                       final String mapKey,
-                                                       final String typeHintBinName) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null)
-            return;
-        final Record r = fireflyRecord.record;
-        final int generation = r.generation;
-        final Map<String, Object> data =
-                (Map<String, Object>) Optional.ofNullable(r.getMap(mapName)).orElse(new TreeMap<>());
-        final Map<String, Object> typeHints =
-                (Map<String, Object>) Optional.ofNullable(r.getMap(typeHintBinName)).orElse(new TreeMap<>());
-
-        if (!data.containsKey(mapKey)) {
-            return;
-        } else {
-            data.remove(mapKey);
-            typeHints.remove(mapKey);
-        }
-        final Bin typeHintBin = new Bin(typeHintBinName, Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Bin valueBin = new Bin(mapName, Value.get(data, MapOrder.KEY_ORDERED));
-        FireflyRecord.write(this, aeroSet, fid, generation, valueBin, typeHintBin);
+        final Key key = getKey(this, aeroSet, fid);
+        final Operation removeValue = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
+        final Operation removeTypeHint = MapOperation.removeByKey(typeHintBin, Value.get(mapKey), MapReturnType.NONE);
+        this.operate(null, key, removeValue, removeTypeHint);
     }
 
     /**
      * Write a key-value pair into a Map on a Record.
-     * Also store a type hint so it can be reconstructed as the correct type
-     *
-     * @param aeroSet
-     * @param fid
-     * @param mapName
-     * @param mapKey
-     * @param value
-     * @param typeHintBinName
-     * @param <V>
-     */
-    private <V> void writeTypeHintedValueToMap(final String aeroSet,
-                                               final FireflyId fid,
-                                               final String mapName,
-                                               final String mapKey,
-                                               final V value,
-                                               final String typeHintBinName) {
-        GenerationCheck.writeGenerationCheck(() ->
-                protectedWriteTypeHintedValueToMap(aeroSet, fid, mapName, mapKey, value, typeHintBinName));
-    }
-
-    /**
-     * Write a key-value pair into a Map on a Record.
-     * Also store a type hint so it can be reconstructed as the correct type
-     * Pass additional Bins so 1 write can be made
+     * Also store a type hint so it can be reconstructed as the correct type.
+     * Pass additional Bins so 1 write can be made.
+     * UPDATE_ONLY write policy to prevent unintended writes to concurrently deleted elements.
      *
      * @param aeroSet
      * @param fid
@@ -1224,62 +1185,70 @@ public class AerospikeConnection implements AutoCloseable {
                                               final V value,
                                               final String typeHintBinName,
                                               final Bin... additionalBins) {
-        GenerationCheck.writeGenerationCheck(() ->
-                protectedWriteTypeHintedValueToMap(aeroSet, fid, mapName, mapKey, value, typeHintBinName, additionalBins));
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        writeTypeHintedValueToMapWithPolicy(aeroSet, fid, mapName, mapKey, value, typeHintBinName, writePolicy, additionalBins);
     }
 
-    private <V> void protectedWriteTypeHintedValueToMap(final String aeroSet,
-                                                        final FireflyId fid,
-                                                        final String mapName,
-                                                        final String mapKey,
-                                                        final V value,
-                                                        final String typeHintBinName,
-                                                        final Bin... additionalBins) {
-        final Map<String, Object> data;
-        final Map<String, Object> typeHints;
-        final int generation;
+    /**
+     * Write a Graph Variable as a key-value pair into a Map on a Record.
+     * Also store a type hint so it can be reconstructed as the correct type.
+     * Default write policy to allow creation and overwriting of Graph Variables.
+     *
+     * @param aeroSet
+     * @param fid
+     * @param mapName
+     * @param mapKey
+     * @param value
+     * @param typeHintBinName
+     * @param <V>
+     */
+    public <V> void writeTypeHintedGraphVariable(final String aeroSet,
+                                                 final FireflyId fid,
+                                                 final String mapName,
+                                                 final String mapKey,
+                                                 final V value,
+                                                 final String typeHintBinName) {
+        writeTypeHintedValueToMapWithPolicy(aeroSet, fid, mapName, mapKey, value, typeHintBinName, null);
+    }
 
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null) {
-            generation = -1;
-            data = new TreeMap<>();
-            typeHints = new TreeMap<>();
-        } else {
-            generation = fireflyRecord.record.generation;
-            data = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(mapName)).orElse(new TreeMap<>());
-            typeHints = (Map<String, Object>) Optional.ofNullable(fireflyRecord.record.getMap(typeHintBinName)).orElse(new TreeMap<>());
-        }
+    private <V> void writeTypeHintedValueToMapWithPolicy(final String aeroSet,
+                                                         final FireflyId fid,
+                                                         final String mapName,
+                                                         final String mapKey,
+                                                         final V value,
+                                                         final String typeHintBinName,
+                                                         final WritePolicy writePolicy,
+                                                         final Bin... additionalBins) {
+        final Key key = getKey(this, aeroSet, fid);
+        final List<Operation> ops = new ArrayList<>();
 
+        final Operation valueOp;
+        final Operation typeHintOp;
         // Null value properties are not currently supported.
         // Expected behavior is to remove the existing property key if it exists when null value is written.
-        if (value != null) {
-            typeHints.put(mapKey, getSupportedType(value.getClass()));
-            data.put(mapKey, value);
+        if (value == null) {
+            valueOp = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
+            typeHintOp = MapOperation.removeByKey(typeHintBinName, Value.get(mapKey), MapReturnType.NONE);
         } else {
-            typeHints.remove(mapKey);
-            data.remove(mapKey);
+            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            valueOp = MapOperation.put(policy, mapName, Value.get(mapKey), Value.get(value));
+            typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
+                    Value.get(getSupportedType(value.getClass())));
+        }
+        final Expression idTypeExp = Exp.build(Exp.val(fid.getStorageTypeHint()));
+        final Operation idTypeOp = ExpOperation.write(this.ID_TYPE_BIN, idTypeExp,
+                ExpWriteFlags.CREATE_ONLY | ExpWriteFlags.POLICY_NO_FAIL);
+        ops.add(valueOp);
+        ops.add(typeHintOp);
+        ops.add(idTypeOp);
+        for (final Bin bin : additionalBins) {
+            ops.add(Operation.put(bin));
         }
 
-        final Bin typeHintBin = new Bin(typeHintBinName, Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Bin valueBin = new Bin(mapName, Value.get(data, MapOrder.KEY_ORDERED));
-        if (additionalBins == null) {
-            if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {
-                FireflyRecord.writeElement(this, aeroSet, fid, generation, valueBin, typeHintBin);
-            } else {
-                FireflyRecord.write(this, aeroSet, fid, generation, valueBin, typeHintBin);
-            }
-        } else {
-            final List<Bin> listOfBins = Arrays.stream(additionalBins).collect(Collectors.toList());
-            listOfBins.add(valueBin);
-            listOfBins.add(typeHintBin);
-            if (aeroSet.equals(EDGE_AERO_SET) || aeroSet.equals(VERTEX_AERO_SET) || aeroSet.equals(VERTEX_PROPERTY_AERO_SET)) {
-                FireflyRecord.writeElement(this, aeroSet, fid, generation, listOfBins.toArray(new Bin[0]));
-            } else {
-                FireflyRecord.write(this, aeroSet, fid, generation, listOfBins.toArray(new Bin[0]));
-            }
-        }
+        final Operation[] operations = ops.toArray(new Operation[0]);
+        this.operate(writePolicy, key, operations);
     }
-
 
     /**
      * Cast an on-disk storage type to its user type
@@ -1315,7 +1284,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long incrementAndGetIdCounter(final String name, long increment) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, increment);
-        final Record record = client.operate(null, key,
+        final Record record = this.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
         return record.getLong(COUNTER);
@@ -1353,7 +1322,7 @@ public class AerospikeConnection implements AutoCloseable {
     public long decrementIdCounter(final String name, final long amount) {
         final Key key = new Key(namespace, ID_MANAGER_SET, name);
         final Bin ctr = new Bin(COUNTER, -amount);
-        final Record record = client.operate(null, key,
+        final Record record = this.operate(null, key,
                 Operation.add(ctr),
                 Operation.get(COUNTER));
         return record.getLong(COUNTER);
@@ -1367,7 +1336,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public long zeroIdCounter(final String name) {
         final Bin ctr = new Bin(COUNTER, 0);
-        FireflyRecord.write(this, ID_MANAGER_SET, FireflyIdPoly.fromObject(name, ID_MANAGER_SET), -1, ctr);
+        FireflyRecord.writeElement(this, ID_MANAGER_SET, FireflyIdPoly.fromObject(name, ID_MANAGER_SET), -1, ctr);
         return 0L;
     }
 
@@ -1392,7 +1361,7 @@ public class AerospikeConnection implements AutoCloseable {
                 Exp.val(offer),
                 Exp.add(Exp.intBin(COUNTER), Exp.val(1))
         ));
-        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        Record result = this.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
         ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
         return (long) ret.get(1);
     }
@@ -1414,7 +1383,7 @@ public class AerospikeConnection implements AutoCloseable {
                 Exp.val(offer),
                 Exp.intBin(COUNTER)
         ));
-        Record result = client.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
+        Record result = this.operate(null, key, ExpOperation.write(COUNTER, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER));
         ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER);
         return (long) ret.get(1);
     }
@@ -1617,6 +1586,32 @@ public class AerospikeConnection implements AutoCloseable {
         Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
         checkedPut(null, mKey, keysBin);
         dropIndex(setFromElementType(indexClass), key);
+    }
+
+    /**
+     * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
+     * 
+     * @param writePolicy   WritePolicy for operate.
+     * @param key           Key for operate.
+     * @param operations    Operations for operate.
+     * @return              Record resulting from operate.
+     */
+    public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
+        try {
+            return this.getClient().operate(writePolicy, key, operations);
+        } catch (final AerospikeException ae) {
+            switch (ae.getResultCode()) {
+                case ResultCode.RECORD_TOO_BIG:
+                    LOG.error(RECORD_TOO_BIG, ae);
+                    throw new RuntimeException(RECORD_TOO_BIG, ae);
+                case ResultCode.KEY_NOT_FOUND_ERROR:
+                    LOG.error(ELEMENT_NOT_FOUND, ae);
+                    throw new RuntimeException(ELEMENT_NOT_FOUND, ae);
+                default:
+                    LOG.error(ae.getMessage());
+                    throw ae;
+            }
+        }
     }
 
     @Override

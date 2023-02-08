@@ -125,6 +125,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
         public static final String VERTEX_PROPERTY_INDEXES = "VERTEX_PROPERTY_INDEXES";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
+        public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "ENABLE_BATCH_EDGE_READ_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
 
         // BufferedNumericIdManager
@@ -214,6 +215,7 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
+        put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");

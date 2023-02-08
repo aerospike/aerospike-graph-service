@@ -36,6 +36,7 @@ Testing Firefly with Maven
 -----------
 * Running test cases in local on a Mac needs update to `conf/integration-test-setting-packed.properties` and `conf/integration-test-setting-packed-sindex.properties` to `localhost`. 
 * Make sure Aerospike server is running locally through Docker
+* When running on Mac/locally, also update `properties` files in `firefly-spark-bulk-loader/src/test/resources/packed` to change the `aerospike_host` to `localhost`
 `mvn clean test`
 
 Connecting to a Firefly Server

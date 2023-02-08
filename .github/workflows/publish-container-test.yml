@@ -1,0 +1,79 @@
+name: Publish Firefly Container
+
+# Publish the container if a tag of 'v*' is made.
+# Example: v0.0.1, v0.1.0, v1.0.0, etc.
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REPOSITORY_NAME: citrusleaf
+  IMAGE_NAME: firefly
+  REGISTRY_URL: ghcr.io
+
+jobs:
+  publish:
+    name: Publish Firefly Docker Image
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+
+      - name: Publish Container
+        run: |          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          UNSTABLE_INDICATOR="-"
+          if [[ $( echo $VERSION | grep -c -i UNSTABLE_INDICATOR ) -eq 0 ]]; then
+            DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:latest-mock
+          else
+            DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:unstable
+          fi
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          # Build and tag docker image.
+          echo "Building and tagging docker image"
+          docker build --tag $OUTPUT_IMAGE .
+          
+          # Push Docker tag.
+          echo "Pushing docker tag"
+          docker push $OUTPUT_IMAGE
+          
+          # Build and tag latest docker image.
+          echo "Building and tagging docker image"
+          docker build --tag $DOCKER_IMAGE .
+          
+          # Push latest Docker tag.
+          echo "Pushing docker tag"
+          docker push $DOCKER_IMAGE
+
+      - name: Java 11 Install
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Build Bulk Loader
+        run: |
+          mvn clean install -DskipTests
+
+      - name: Upload Bulk Loader
+        uses: actions/upload-artifact@v3
+        with:
+          path: firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-*.jar

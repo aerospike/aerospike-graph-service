@@ -42,7 +42,7 @@ jobs:
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           UNSTABLE_INDICATOR="-"
-          if [[ $( echo $VERSION | grep -c -i UNSTABLE_INDICATOR ) -eq 0 ]]; then
+          if [[ $( echo $VERSION | grep -c -i $UNSTABLE_INDICATOR ) -eq 0 ]]; then
             DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:latest-mock
           else
             DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:unstable

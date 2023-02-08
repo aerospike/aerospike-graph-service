@@ -116,16 +116,13 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Collect edges in both directions and remove them all.
         final Set<FireflyId> edgeIds = new HashSet<>(getEdgeIdsFromVertex(Direction.BOTH));
         edgeIds.forEach(edgeId -> {
-            final FireflyEdge edge;
+            // If edge id is composite remove composition and get edge id directly.
             if (edgeId instanceof FireflyIdComposite) {
-                final FireflyIdComposite composite = (FireflyIdComposite) edgeId;
-                edge = graph.readEdge(composite.getEdgeId());
-            } else {
-                edge = graph.readEdge(edgeId);
+                edgeId = ((FireflyIdComposite) edgeId).getEdgeId();
             }
-            if (edge != null) {
-                edge.remove();
-            }
+
+            // Remove edge via id without materializing the edge into memory.
+            graph.removeEdgeById(edgeId);
         });
 
         removeVertexProperties();

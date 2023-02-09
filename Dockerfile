@@ -55,7 +55,7 @@ RUN mvn -DskipTests clean install --no-transfer-progress
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
 RUN gremlin.sh -e scripts/console-setup.groovy &&\
     gremlin.sh -e scripts/console-plugin-enable.groovy &&\
-    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.4.0-SNAPSHOT'
+    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.5.0-SNAPSHOT'
 
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly

@@ -215,8 +215,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
-        LoggerUtil.setLogLevel(logLevel);
+        try {
+            final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+            LoggerUtil.setLogLevel(logLevel);
+        } catch (Exception e) {
+            LOG.error("Failed to set log level {}", e);
+        }
         try {
             LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);

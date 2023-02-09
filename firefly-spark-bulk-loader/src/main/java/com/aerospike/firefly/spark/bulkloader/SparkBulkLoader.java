@@ -145,67 +145,9 @@ public class SparkBulkLoader {
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 
-//        final List<Dataset<Row>> vertexDatasets = new ArrayList<>();
-//        final List<Dataset<Row>> edgeDatasets = new ArrayList<>();
-
-//        final List<Dataset<Row>> sampledVertexDatasets = new ArrayList<>();
-
-//        for (final String vertexDirectory : vertexDirectories) {
-//            final Map<String, String> options = new HashMap<>();
-//            options.put("header", "true");
-//            final Dataset<Row> vertexData = spark.read().options(options).csv(vertexDirectory);
-//            final Set<String> headers = new HashSet<>();
-//            for (final String header : vertexData.columns()) {
-//                headers.add(header.toLowerCase());
-//            }
-//            for (final String requiredHeader : REQUIRED_VERTEX_HEADERS) {
-//                if (!headers.contains(requiredHeader)) {
-//                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-//                            vertexDirectory);
-//                }
-//            }
-//            vertexDatasets.add(vertexData);
-//            sampledVertexDatasets.add(vertexData.sample(true, sampleFraction).distinct());
-//        }
-
-        Dataset<Row> unionVertexDS = spark.emptyDataFrame();
-        for (final String vertexDirectory : vertexDirectories) {
-            final Map<String, String> options = new HashMap<>();
-            options.put("header", "true");
-            if (unionVertexDS.isEmpty())
-                unionVertexDS = spark.read().options(options).csv(vertexDirectory);
-            else {
-                unionVertexDS = unionVertexDS.unionByName(spark.read().options(options).csv(vertexDirectory), true).distinct();
-            }
-            final Set<String> headers = new HashSet<>();
-            for (final String header : unionVertexDS.columns()) {
-                headers.add(header.toLowerCase());
-            }
-            for (final String requiredHeader : REQUIRED_VERTEX_HEADERS) {
-                if (!headers.contains(requiredHeader)) {
-                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-                            vertexDirectory);
-                }
-            }
-        }
-        Dataset<Row> vertexDatasetsSample = unionVertexDS.sample(sampleFraction);
-
-//        for (final String edgeDirectory : edgeDirectories) {
-//            final Map<String, String> options = new HashMap<>();
-//            options.put("header", "true");
-//            final Dataset<Row> edgeData = spark.read().options(options).csv(edgeDirectory);
-//            final Set<String> headers = new HashSet<>();
-//            for (final String header : edgeData.columns()) {
-//                headers.add(header.toLowerCase());
-//            }
-//            for (final String requiredHeader : REQUIRED_EDGE_HEADERS) {
-//                if (!headers.contains(requiredHeader)) {
-//                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-//                            edgeDirectory);
-//                }
-//            }
-//            edgeDatasets.add(edgeData);
-//        }
+        Dataset<Row> unionVertexDS = readAndMergeDataset(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
+        // sample out vertex dataset for verifying the inserts
+        Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
 
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
@@ -213,7 +155,6 @@ public class SparkBulkLoader {
         // Vertices
         unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
-            final ArrayList<Long> list = new ArrayList<>();
             Configuration localConfig = CONFIG;
             if (!ENV.equals("local")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -226,7 +167,6 @@ public class SparkBulkLoader {
             final String nullValue = getOrDefault(NULL_VALUE, localConfig);
 
             try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
-
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     try {
@@ -236,9 +176,8 @@ public class SparkBulkLoader {
                         boolean succeeded = false;
                         while (!succeeded) {
                             try {
-                                FireflyVertex vertex = graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
+                                graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
                                         sparkVertex.getLabel(), sparkVertex.getProperties());
-                                list.add((long) vertex.id());
                                 succeeded = true;
                             } catch (final AerospikeException e) {
                                 if (++tryCount > RETRY_LIMIT) {
@@ -257,7 +196,6 @@ public class SparkBulkLoader {
                                 }
                             }
                         }
-
                     } catch (final FireflyBulkLoaderException e) {
                         LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
                         if (!ignoreElementCreationFailed) {
@@ -270,7 +208,7 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Verify vertices.
-        vertexDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             Configuration localConfig = CONFIG;
             if (!ENV.equals("local")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -303,10 +241,7 @@ public class SparkBulkLoader {
                     for (final Map.Entry<String, Object> property : sparkVertexProperties) {
                         try {
                             // TODO: Handle null (when supported in Firefly) and cardinality.
-                            boolean isList = false;
-                            if (property.getValue() instanceof List<?>) {
-                                isList = true;
-                            }
+                            boolean isList = property.getValue() instanceof List<?>;
                             if (isList) {
                                 final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
                                 for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
@@ -340,37 +275,9 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Edges
-        Dataset<Row> unionEdgeDS = spark.emptyDataFrame();
-        for (final String edgeDirectory : edgeDirectories) {
-            final Map<String, String> options = new HashMap<>();
-            options.put("header", "true");
-            if (unionVertexDS.isEmpty())
-                unionEdgeDS = spark.read().options(options).csv(edgeDirectory);
-            else
-                unionEdgeDS = unionEdgeDS.unionByName(spark.read().options(options).csv(edgeDirectory), true).distinct();
-            final Set<String> headers = new HashSet<>();
-            for (final String header : unionEdgeDS.columns()) {
-                headers.add(header.toLowerCase());
-            }
-            for (final String requiredHeader : REQUIRED_VERTEX_HEADERS) {
-                if (!headers.contains(requiredHeader)) {
-                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-                            edgeDirectory);
-                }
-            }
-        }
+        Dataset<Row> unionEdgeDS = readAndMergeDataset(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        //sample out edge dataset to verify the inserts
         Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
-        // Get the first DS in the list to use it for union in the loop.
-//        Dataset<Row> unionDS = edgeDatasets.get(0);
-//        Dataset<Row> edgeDatasetsSample = spark.emptyDataFrame();
-//        for (final Dataset<Row> edgeData : edgeDatasets) {
-//            // Invoke union to combine the edge DS.
-//            unionDS = unionDS.unionByName(edgeData, true).distinct();
-//            if (edgeDatasetsSample.isEmpty())
-//                edgeDatasetsSample = edgeData.sample(sampleFraction);
-//            else
-//                edgeDatasetsSample = edgeDatasetsSample.unionByName(edgeData.sample(sampleFraction), true).distinct();
-//        }
 
         // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
         final Dataset<Row> persistentEdgeData = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
@@ -618,6 +525,28 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         spark.stop();
+    }
+
+    static private Dataset<Row> readAndMergeDataset(SparkSession spark, Set<String> directories, String[] REQUIRED_HEADERS) {
+        Dataset<Row> unionDS = spark.emptyDataFrame();
+        for (final String directory : directories) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("header", "true");
+            if (unionDS.isEmpty())
+                unionDS = spark.read().options(options).csv(directory);
+            else
+                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory), true).distinct();
+        }
+        Set<String> headers = new HashSet<>();
+        for (final String header : unionDS.columns())
+            headers.add(header.toLowerCase());
+        for (final String requiredHeader : REQUIRED_HEADERS) {
+            if (!headers.contains(requiredHeader)) {
+                throw new IllegalArgumentException("Unable to find all required column header values in source dataset: " +
+                        directories);
+            }
+        }
+        return unionDS;
     }
 
     static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,

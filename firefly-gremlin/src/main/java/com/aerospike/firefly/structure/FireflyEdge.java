@@ -5,6 +5,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -134,14 +135,16 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         // orphaned edge on one vertex but not the other.
         removeEdge();
 
-        final FireflyVertex inVertex = graph.readVertex(inVid);
-        final FireflyVertex outVertex = graph.readVertex(outVid);
+        final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
+        final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
+        final FireflyIdFactory idFactory = this.graph.getIdFactory();
         if (inVertex != null) {
-            inVertex.removeEdge(Direction.IN, id, label);
+            inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
         }
         if (outVertex != null) {
-            outVertex.removeEdge(Direction.OUT, id, label);
+            outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
         }
+
         this.removed = true;
     }
 

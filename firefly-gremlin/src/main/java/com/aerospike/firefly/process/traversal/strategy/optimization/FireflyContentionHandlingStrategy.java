@@ -4,6 +4,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.AbstractTraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.LambdaRestrictionStrategy;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -38,10 +39,22 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     }
 
     /**
+     * This function applies a TinkerPop strategy indiscriminately.
+     *
+     * @param traversal Traversal to apply strategy to.
+     * @param strategy  Strategy to apply.
+     */
+    private void applyTinkerPopStrategy(final Traversal.Admin<?, ?> traversal, final AbstractTraversalStrategy<?> strategy) {
+        if (traversal.getGraph().isPresent()) {
+            strategy.apply(traversal);
+        }
+    }
+
+    /**
      * This function applies the strategy if the strategy is enabled.
      *
      * @param traversal Traversal to apply strategy to.
-     * @param strategy Strategy to apply, if enabled.
+     * @param strategy  Strategy to apply, if enabled.
      */
     private void applyStrategy(final Traversal.Admin<?, ?> traversal, final FireflyStrategyBase strategy) {
         if (traversal.getGraph().isPresent()) {
@@ -59,6 +72,10 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
      */
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        // Look for Lambda functions for security reasons.
+        // TinkerPop conveniently has a strategy for this.
+        applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
+
         // Drop step first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
 

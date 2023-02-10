@@ -39,8 +39,13 @@ jobs:
           # Get registry URL and convert to lower case.
           OUTPUT_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          LATEST_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:latest
-          LATEST_IMAGE=$(echo $LATEST_IMAGE | tr '[A-Z]' '[a-z]')
+          UNSTABLE_INDICATOR="-"
+          if [[ $( echo $VERSION | grep -c -i $UNSTABLE_INDICATOR ) -eq 0 ]]; then
+            DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:latest
+          else
+            DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:unstable
+          fi
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           # Build and tag docker image.
           echo "Building and tagging docker image"
@@ -52,11 +57,11 @@ jobs:
           
           # Build and tag latest docker image.
           echo "Building and tagging docker image"
-          docker build --tag $LATEST_IMAGE .
+          docker build --tag $DOCKER_IMAGE .
           
           # Push latest Docker tag.
           echo "Pushing docker tag"
-          docker push $LATEST_IMAGE
+          docker push $DOCKER_IMAGE
 
       - name: Java 11 Install
         uses: actions/setup-java@v3

@@ -1,12 +1,19 @@
 package com.aerospike.firefly.io.cache;
 
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
+import com.aerospike.client.Record;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.AfterClass;
@@ -14,9 +21,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
 public class TestEdgeCacheIntegration {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -115,6 +126,74 @@ public class TestEdgeCacheIntegration {
             Assert.assertFalse(vertexes.zeroOutOneIn.isEdgeCacheDisabled());
             assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.OUT), 0);
             assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.IN), 1);
+        }
+    }
+
+    @Test
+    public void testEdgeCacheStorageOnRecord() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+            final GraphTraversalSource g = graph.traversal();
+            final FireflyIdFactory idFactory = graph.getIdFactory();
+            final FireflyVertex v1 = (FireflyVertex) g.addV("v1").next();
+            final FireflyVertex v2 = (FireflyVertex) g.addV("v2").next();
+            final FireflyEdge e = (FireflyEdge) g.addE("pepperoni").property("toBeRemoved", "RIP" ).from(v1).to(v2).next();
+            g.addE("pepperoni").from(v1).to(v2).iterate();
+            final FireflyId expectedOutId = idFactory.createCompositeEdgeId(e.id, v2.id);
+            final FireflyId expectedInId = idFactory.createCompositeEdgeId(e.id, v1.id);
+
+            final Key v1Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v1.id);
+            final Key v2Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v2.id);
+            final Operation getOutEdgeCache = Operation.get(graph.getBaseGraph().OUT_EDGES);
+            final Operation getInEdgeCache = Operation.get(graph.getBaseGraph().IN_EDGES);
+            Record outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
+            Record inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+
+            Map<String, List<Object>> outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES);
+            Map<String, List<Object>> inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES);
+            Assert.assertEquals(1, outMap.size());
+            Assert.assertEquals(1, inMap.size());
+            Assert.assertEquals(2, outMap.get("pepperoni").size());
+            Assert.assertEquals(2, inMap.get("pepperoni").size());
+            List<Object> outPepperoniEdges = outMap.get("pepperoni");
+            boolean foundExpectedOutEdge = false;
+            for (final Object edgeId : outPepperoniEdges) {
+                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedOutId.getCachedId())) {
+                    foundExpectedOutEdge = true;
+                }
+            }
+            Assert.assertTrue("Composite ID found in OUT edge cache", foundExpectedOutEdge);
+            List<Object> inPepperoniEdges = inMap.get("pepperoni");
+            boolean foundExpectedInEdge = false;
+            for (final Object edgeId : inPepperoniEdges) {
+                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedInId.getCachedId())) {
+                    foundExpectedInEdge = true;
+                }
+            }
+            Assert.assertTrue("Composite ID found in IN edge cache", foundExpectedInEdge);
+
+            g.V().hasLabel("v1").outE().has("toBeRemoved").drop().iterate();
+
+            outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
+            inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
+
+            outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES);
+            inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES);
+            Assert.assertEquals(1, outMap.size());
+            Assert.assertEquals(1, inMap.size());
+            Assert.assertEquals(1, outMap.get("pepperoni").size());
+            Assert.assertEquals(1, inMap.get("pepperoni").size());
+            outPepperoniEdges = outMap.get("pepperoni");
+            for (final Object edgeId : outPepperoniEdges) {
+                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedOutId.getCachedId())) {
+                    Assert.fail("Composite ID was not removed from OUT edge cache");
+                }
+            }
+            inPepperoniEdges = inMap.get("pepperoni");
+            for (final Object edgeId : inPepperoniEdges) {
+                if (Arrays.equals((byte[]) edgeId, (byte[]) expectedInId.getCachedId())) {
+                    Assert.fail("Composite ID was not removed from IN edge cache");
+                }
+            }
         }
     }
 

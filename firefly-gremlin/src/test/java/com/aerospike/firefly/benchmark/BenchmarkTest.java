@@ -226,6 +226,12 @@ public class BenchmarkTest {
     }
 
     @Benchmark
+    public void benchmark_g_V_hasLabelxairportx_count(final Blackhole blackhole) {
+        final long airportCount = g.V().hasLabel("airport").count().next();
+        blackhole.consume(airportCount);
+    }
+
+    @Benchmark
     public void benchmark_g_V_addV_100(final Blackhole blackhole) {
         for (int i = 0; i < 100; i++) {
             final Vertex vertex = g.V().addV().next();

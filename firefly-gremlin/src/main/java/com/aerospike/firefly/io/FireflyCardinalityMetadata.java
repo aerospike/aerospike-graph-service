@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
  */
 public class FireflyCardinalityMetadata implements FireflyMetadata {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyCardinalityMetadata.class);
-    private static final Object LOCK = new Object();
     private static final String ENTRIES = "entries=";
     private static final String ENTRIES_PER_BVAL = "entries_per_bval=";
     private static final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
@@ -61,7 +60,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         final Node node = nodes[0];
 
         // Lock while we are changing a list that we iterate over in a different thread.
-        synchronized (LOCK) {
+        synchronized (FireflyCardinalityMetadata.class) {
             vertexLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, vertexLabelIndex), nodes.length, null);
             edgeLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, edgeLabelIndex), nodes.length, null);
             vertexStringPropertyCardinalityInfo = stringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
@@ -111,7 +110,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
      */
     public Optional<CardinalityInfo> getVertexPropertyCardinality(final String property, final IndexType indexType) {
         // Need to lock because we are iterating over a list.
-        synchronized (LOCK) {
+        synchronized (FireflyCardinalityMetadata.class) {
             if (indexType == IndexType.STRING) {
                 return getValidOptionalCardinalityInfo(vertexStringPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
             } else if (indexType == IndexType.NUMERIC) {
@@ -121,17 +120,6 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             }
         }
     }
-    // Edge property cardinality intentionally omitted here. We need to switch those over to configs and properly implement it.
-    // Note - when this is added, TestFireflyMetadata should also be updated.
-    //     public Optional<CardinalityInfo> getEdgePropertyCardinality(final String property, final IndexType indexType) {
-    //        if (indexType == IndexType.STRING) {
-    //            return getValidOptionalCardinalityInfo(edgeStringPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
-    //        } else if (indexType == IndexType.NUMERIC) {
-    //            return getValidOptionalCardinalityInfo(edgeNumericPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
-    //        } else {
-    //            throw new IllegalArgumentException("Cannot get vertex property cardinality for index type: " + indexType". Only STRING and NUMERIC are supported.");
-    //        }
-    //    }
 
     private CardinalityInfo getCardinalityInfo(final String info, final int nodeCount, final String indexName) {
         try {
@@ -157,9 +145,9 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             }
         }
         if ("FAIL:201:no-index".equals(info)) {
-            throw new Exception("Failed to find index.");
+            throw new RuntimeException("Failed to find index.");
         }
-        throw new Exception(String.format("Error, failed to find pattern %s inside string %s.", pattern, info));
+        throw new RuntimeException(String.format("Error, failed to find pattern %s inside string %s.", pattern, info));
     }
 
     public static class CardinalityInfo {

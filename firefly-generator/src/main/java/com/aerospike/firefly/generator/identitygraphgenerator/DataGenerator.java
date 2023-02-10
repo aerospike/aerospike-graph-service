@@ -22,11 +22,12 @@ public class DataGenerator {
         LOG.info("Main thread is - " + Thread.currentThread().getName());
         try {
             final CommandLine cmd = parseCmdArgs(args);
-            ExecutorService service = Executors.newFixedThreadPool(400);
+            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "500";
+            ExecutorService service = Executors.newFixedThreadPool(50000);
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(500)
+            builder = builder.opsPerTransaction(10000)
                     .cmdLineArgs(cmd)
-                    .households(500)
+                    .households(Integer.parseInt(numOfHouseholds))
                     .accountsPerHousehold(100)
                     .peoplePerHousehold(10)
                     .devicesPerPerson(5);
@@ -64,6 +65,14 @@ public class DataGenerator {
         final Option secretKeyOption = new Option("s", "awsSecretKey", true, "AWS SecretKey option when running the jar in AWS to write to S3");
         checkAndSetRequired(secretKeyOption, args);
         options.addOption(secretKeyOption);
+
+        final Option numOfHouseholdsOption = new Option("h", "numOfHouseholds", true, "Number of house holds to generate data for. default 500 for local data genration");
+        numOfHouseholdsOption.setRequired(false);
+        options.addOption(numOfHouseholdsOption);
+
+        final Option recordsPerFileOption = new Option("r", "recordsPerFile", true, "Number of records to store per file. Default is 100 for local");
+        recordsPerFileOption.setRequired(false);
+        options.addOption(recordsPerFileOption);
 
         final CommandLineParser parser = new DefaultParser();
         try {

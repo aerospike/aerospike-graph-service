@@ -72,8 +72,8 @@ public class BenchmarkTest {
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
             Map.entry("benchmark_g_V_addV_100", "g.V().addV().next() * 100"),
             Map.entry("benchmark_g_V_addVxperson_namexLyndon_agex29_100", "g.V().addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 100"),
-            Map.entry("benchmark_g_V_addE_axa_100", "a.addEdge(\"knows\", a)*100"),
-            Map.entry("benchmark_g_V_addE_axb_100", "a.addEdge(\"knows\", b)*100")
+            Map.entry("benchmark_g_V_addE_axa_100", "a.addEdge(\"knows\").from(a).to(a)*100"),
+            Map.entry("benchmark_g_V_addE_axb_100", "a.addEdge(\"knows\").from(a).to(b)*100")
     );
 
     // Run before the class, this will run before all the benchmarks
@@ -252,7 +252,7 @@ public class BenchmarkTest {
     public void benchmark_g_V_addE_axa_100(final Blackhole blackhole) {
         Vertex a = g.addV().next();
         for (int i = 0; i < 100; i++) {
-            a.addEdge("knows", a);
+            g.addE("knows").from(a).to(a).next();
         }
         blackhole.consume(a);
     }
@@ -261,8 +261,9 @@ public class BenchmarkTest {
         Vertex a = g.addV().next();
         Vertex b = g.addV().next();
         for (int i = 0; i < 100; i++) {
-            a.addEdge("knows", b);
+            g.addE("knows").from(a).to(b).next();
         }
         blackhole.consume(a);
+        blackhole.consume(b);
     }
 }

@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -448,9 +449,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (!idList.isEmpty()) {
             idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
             if (idsDoNotExist.size() > 0)
-                //@todo is this the correct place to throw this error?
-                //@todo the error string is required to satisfy a standard test case, but should likely go somewhere in the edge impl
-                throw new NoSuchElementException(String.format("%s could not be found and edge could not be created", idsDoNotExist));
+                return Collections.emptyIterator();
         }
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.

@@ -448,8 +448,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final List<FireflyId> idsDoNotExist;
         if (!idList.isEmpty()) {
             idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
-            if (idsDoNotExist.size() > 0)
+            if (idsDoNotExist.size()  == idList.size())
                 return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
         }
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.

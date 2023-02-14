@@ -204,8 +204,8 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(100, 10, (entry) -> {
-        LOG.warn("WARNING: Scan triggered on {} has been hit {} times, consider adding an index.", entry.getKey(), entry.getValue());
+    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60,100, 10, (entry) -> {
+        LOG.warn("WARNING: Scan triggered on {} has been hit {} times within 60 seconds, consider adding an index.", entry.getKey(), entry.getValue());
         return null;
     });
     private final FireflyIdFactory idFactory;

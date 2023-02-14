@@ -20,21 +20,23 @@ public class ScanHitCounter {
     private final int MAX_SIZE; // track the thousand most hit keys
     private final Logger LOG = LoggerFactory.getLogger(this.getClass());
     private final Function<Map.Entry<String, Long>, Void> onWarning;
+    private final int timeout;
+    final Cache<String, AtomicLong> stats;
 
-    private ScanHitCounter(final int keysToTrack, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
+
+    private ScanHitCounter(final int timeout, final int keysToTrack, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
         this.onWarning = onWarning;
         this.MAX_SIZE = keysToTrack;
+        this.timeout = timeout;
         this.WARNING_THRESHOLD = scanHitWarningThreshold;
+        this.stats = CacheBuilder.newBuilder()
+                .expireAfterAccess(timeout, TimeUnit.SECONDS)
+                .build();
     }
 
-    public static ScanHitCounter create(final int maxSize, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
-        return new ScanHitCounter(maxSize, scanHitWarningThreshold, onWarning);
+    public static ScanHitCounter create(final int timeout, final int maxSize, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
+        return new ScanHitCounter(timeout, maxSize, scanHitWarningThreshold, onWarning);
     }
-
-    //    ConcurrentHashMap<String, AtomicLong> stats = new ConcurrentHashMap<>();
-    Cache<String, AtomicLong> stats = CacheBuilder.newBuilder()
-            .expireAfterAccess(60, TimeUnit.SECONDS)
-            .build();
 
     public long increment(String key) {
         long val = stats.asMap().computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();

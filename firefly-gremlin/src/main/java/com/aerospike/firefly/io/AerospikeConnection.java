@@ -116,10 +116,6 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
 
     public final String GRAPH_ID;
-    public final String NUMERIC_VP_KV_INDEX;
-    public final String STRING_VP_KV_INDEX;
-    public final String NUMERIC_V_VP_KV_INDEX;
-    public final String STRING_V_VP_KV_INDEX;
     public final String STRING_E_KV_INDEX;
     public final String NUMERIC_E_KV_INDEX;
     private final String INDEXED_BINS;
@@ -272,10 +268,6 @@ public class AerospikeConnection implements AutoCloseable {
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
-        NUMERIC_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_VP_KV_INDEX, conf));
-        STRING_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_VP_KV_INDEX, conf));
-        NUMERIC_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_V_VP_KV_INDEX, conf));
-        STRING_V_VP_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_V_VP_KV_INDEX, conf));
         STRING_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_E_KV_INDEX, conf));
         NUMERIC_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_E_KV_INDEX, conf));
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
@@ -748,7 +740,7 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
-                        .map(entry -> entry.getKey()).collect(Collectors.toList());
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
@@ -762,20 +754,6 @@ public class AerospikeConnection implements AutoCloseable {
                 V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
-
-        createIndex(existingIndexes, setFromElementType(LinkedVertexProperty.class),
-                STRING_VP_KV_INDEX,
-                KEY_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, setFromElementType(LinkedVertexProperty.class),
-                NUMERIC_VP_KV_INDEX,
-                KEY_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
-
-        createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
-                STRING_V_VP_KV_INDEX,
-                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
-                NUMERIC_V_VP_KV_INDEX,
-                VERTEX_PROPERTY_NAME_TO_VALUE, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
 
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 STRING_E_KV_INDEX,
@@ -794,10 +772,6 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(setFromElementType(FireflyEdge.class), LABEL);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX);
-        dropIndex(setFromElementType(FireflyVertex.class), STRING_V_VP_KV_INDEX);
-        dropIndex(setFromElementType(FireflyVertex.class), NUMERIC_V_VP_KV_INDEX);
-        dropIndex(setFromElementType(FireflyVertexProperty.class), STRING_VP_KV_INDEX);
-        dropIndex(setFromElementType(FireflyVertexProperty.class), NUMERIC_VP_KV_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), STRING_E_KV_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), NUMERIC_E_KV_INDEX);
     }

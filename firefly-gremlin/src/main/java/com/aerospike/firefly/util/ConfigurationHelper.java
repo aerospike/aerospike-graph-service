@@ -101,10 +101,6 @@ public final class ConfigurationHelper {
 
         public static final String INDEX_METADATA = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
-        public static final String NUMERIC_VP_KV_INDEX = "NUMERIC_VP_KV_INDEX";
-        public static final String STRING_VP_KV_INDEX = "STRING_VP_KV_INDEX";
-        public static final String NUMERIC_V_VP_KV_INDEX = "NUMERIC_V_VP_KV_INDEX";
-        public static final String STRING_V_VP_KV_INDEX = "STRING_V_VP_KV_INDEX";
         public static final String STRING_E_KV_INDEX = "STRING_E_KV_INDEX";
         public static final String NUMERIC_E_KV_INDEX = "NUMERIC_E_KV_INDEX";
         public static final String INDEXED_BINS = "INDEXED_BINS";
@@ -193,10 +189,6 @@ public final class ConfigurationHelper {
         put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
         put(Keys.INDEX_METADATA, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
-        put(Keys.NUMERIC_VP_KV_INDEX, "N_VP_KV");
-        put(Keys.STRING_VP_KV_INDEX, "S_VP_KV");
-        put(Keys.NUMERIC_V_VP_KV_INDEX, "N_V_VP_KV");
-        put(Keys.STRING_V_VP_KV_INDEX, "S_V_VP_KV");
         put(Keys.STRING_E_KV_INDEX, "S_E_KV");
         put(Keys.NUMERIC_E_KV_INDEX, "N_E_KV");
         put(Keys.INDEXED_BINS, "indexedBins");

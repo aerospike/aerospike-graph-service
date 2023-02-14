@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
@@ -15,7 +16,6 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -195,35 +196,32 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
-        if (db.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE) {
-            final String numericVpIndex;
-            final String stringVpIndex;
-            if (LinkedGraph.DATA_MODEL.equals(getDataModel())) {
-                numericVpIndex = db.NUMERIC_VP_KV_INDEX;
-                stringVpIndex = db.STRING_VP_KV_INDEX;
-            } else {
-                numericVpIndex = db.NUMERIC_V_VP_KV_INDEX;
-                stringVpIndex = db.STRING_V_VP_KV_INDEX;
-            }
-            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(
-                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, numericVpIndex, stringVpIndex, db.NUMERIC_E_KV_INDEX, db.STRING_E_KV_INDEX);
-            final TimerTask timerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
-            fireflyCardinalityMetadataTask.schedule(timerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
-        }
 
         // Create index metadata background task that will populate indexes for the named graph on the fly.
         fireflyIndexMetadata = new FireflyIndexMetadata(db);
-        final TimerTask timerTask = new FireflyMetadataTask(fireflyIndexMetadata);
-        fireflyIndexMetadataTask.schedule(timerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
+        final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
+        fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
         // Grab user defined indexes from the configuration and create them.
         final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
         createIndexes(vertexPropertyIndexes);
+
+        // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
+        if (db.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE) {
+            fireflyCardinalityMetadata = new FireflyCardinalityMetadata(
+                    db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
+            final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+            fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+        }
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
-        LoggerUtil.setLogLevel(logLevel);
+        try {
+            final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+            LoggerUtil.setLogLevel(logLevel);
+        } catch (Exception e) {
+            LOG.warn("Failed to set log level {}", e.getMessage());
+        }
         try {
             LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
@@ -450,10 +448,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final List<FireflyId> idsDoNotExist;
         if (!idList.isEmpty()) {
             idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
-            if (idsDoNotExist.size() > 0)
-                //@todo is this the correct place to throw this error?
-                //@todo the error string is required to satisfy a standard test case, but should likely go somewhere in the edge impl
-                throw new NoSuchElementException(String.format("%s could not be found and edge could not be created", idsDoNotExist));
+            if (idsDoNotExist.size()  == idList.size())
+                return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
         }
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
@@ -495,16 +492,20 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             }
 
             if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Filter.contains(name, type, casted);
+                return Filter.equal(name, casted, CTX.mapKey(Value.get(indexInfo.key)));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Filter.range(name, type, Long.MIN_VALUE, casted);
+                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(indexInfo.key)));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Filter.range(name, type, casted, Long.MAX_VALUE);
+                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            return Filter.contains(name, type, (String) value);
+            if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
+                return Filter.contains(name, type, (String) value);
+            } else {
+                return Filter.equal(name, (String) value, CTX.mapKey(Value.get(indexInfo.key)));
+            }
         }
     }
 
@@ -623,9 +624,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), index);
             db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
-                    formattedIndex + "_" + STRING, db.KEY_VALUE, index, STRING, IndexCollectionType.MAPVALUES);
+                    formattedIndex + "_" + STRING, db.VERTEX_PROPERTY_NAME_TO_VALUE, index, STRING, IndexCollectionType.DEFAULT);
             db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
-                    formattedIndex + "_" + NUMERIC, db.KEY_VALUE, index, NUMERIC, IndexCollectionType.MAPVALUES);
+                    formattedIndex + "_" + NUMERIC, db.VERTEX_PROPERTY_NAME_TO_VALUE, index, NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         // Manually force metadata to update.

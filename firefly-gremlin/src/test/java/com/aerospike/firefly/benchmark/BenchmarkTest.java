@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -178,6 +179,12 @@ public class BenchmarkTest {
         }
     }
 
+    // Remove person data as it is added.
+    @Setup(Level.Invocation)
+    public void setupInvocation() {
+        g.V().hasLabel("person").drop().iterate();
+    }
+
     @Benchmark
     public void benchmark_g_V_hasxcode_DFWx(final Blackhole blackhole) {
         final List<Vertex> vertices = g.V().has("code", "DFW").toList();
@@ -236,7 +243,7 @@ public class BenchmarkTest {
     @Benchmark
     public void benchmark_g_V_addV_10(final Blackhole blackhole) {
         for (int i = 0; i < 10; i++) {
-            g.V().addV().iterate();
+            g.V("person").addV().iterate();
         }
     }
 

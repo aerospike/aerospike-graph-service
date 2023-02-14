@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
@@ -1104,6 +1105,24 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             final int currentCounter = counter;
             tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount - currentCounter));
         }
+    }
+
+    @Test
+    public void testVertexExists() {
+        Vertex v = graph.addVertex();
+        assertTrue(graph.vertices(v.id()).hasNext());
+        v.remove();
+        assertFalse(graph.vertices(v.id()).hasNext());
+        List<Long> x =List.of(1L, 2L, 3L, 4L);
+        x.stream().map(it -> graph.addVertex(T.id, it)).forEach(v1 -> assertTrue(graph.vertices(v1.id()).hasNext()));
+        Iterator<Vertex> iter = graph.vertices(8L, 9L, 1L, 2L, 3L, 4L);
+        int ctr = 0;
+        while (iter.hasNext()) {
+            iter.next();
+            ctr++;
+        }
+        assertEquals(x.size(), ctr);
+        assertFalse(graph.vertices(22,35,16,92).hasNext());
     }
 
     @Test

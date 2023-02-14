@@ -947,6 +947,16 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Determine of a key exists
+     *
+     * @param keys Aerospike Key to check
+     * @return Boolean key exists
+     */
+    public boolean[] exists(final Key[] keys) {
+        return client.exists(null, keys);
+    }
+
+    /**
      * Delete by Key
      *
      * @param key Aerospike Key to delete
@@ -1564,11 +1574,11 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
-     * 
-     * @param writePolicy   WritePolicy for operate.
-     * @param key           Key for operate.
-     * @param operations    Operations for operate.
-     * @return              Record resulting from operate.
+     *
+     * @param writePolicy WritePolicy for operate.
+     * @param key         Key for operate.
+     * @param operations  Operations for operate.
+     * @return Record resulting from operate.
      */
     public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
         try {

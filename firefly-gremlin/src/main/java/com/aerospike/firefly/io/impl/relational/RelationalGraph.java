@@ -402,7 +402,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.STRING_E_KV_INDEX,
                 Filter.contains(db.PROPERTIES, IndexCollectionType.MAPVALUES, (String) value));
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
+                readEdge(getIdFactory().createId(kr.record.getValue(AerospikeConnection.USER_KEY), FireflyEdge.class)));
         return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
     }
 
@@ -430,7 +430,7 @@ public abstract class RelationalGraph extends FireflyGraph {
 
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
+                readEdge(getIdFactory().createId(kr.record.getValue(AerospikeConnection.USER_KEY), FireflyEdge.class)));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 
@@ -457,7 +457,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         }
         final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
         final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
+                readEdge(getIdFactory().createId(kr.record.getValue(AerospikeConnection.USER_KEY), FireflyEdge.class)));
         return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
     }
 

@@ -304,7 +304,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         policy.includeBinData = true;
         final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
         return IteratorUtils.map(i, keyRecordEntry -> {
-            Object userKey = keyRecordEntry.getKey().userKey.getObject();
+            Object userKey = keyRecordEntry.getValue().getValue(AerospikeConnection.USER_KEY);
             return graph.getIdFactory().createId(userKey, FireflyEdge.class);
         });
 
@@ -329,7 +329,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                             IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy));
         }
         return IteratorUtils.map(iterator, keyRecordEntry ->
-                graph.getIdFactory().createId(keyRecordEntry.key.userKey.getObject(), FireflyEdge.class));
+                graph.getIdFactory().createId(keyRecordEntry.record.getValue(AerospikeConnection.USER_KEY), FireflyEdge.class));
 
     }
 

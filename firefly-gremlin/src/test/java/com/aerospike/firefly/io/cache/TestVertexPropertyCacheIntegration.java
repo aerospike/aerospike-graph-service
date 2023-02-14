@@ -120,7 +120,6 @@ public class TestVertexPropertyCacheIntegration {
     private Iterator<Map.Entry<Key, Record>> scanVPSet(final AerospikeConnection connection) {
         final Monitor scanMonitor = new Monitor();
         final ScanPolicy policy = new ScanPolicy();
-        policy.sendKey = true;
         final AerospikeClient client = connection.getClient();
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
                 scanMonitor,

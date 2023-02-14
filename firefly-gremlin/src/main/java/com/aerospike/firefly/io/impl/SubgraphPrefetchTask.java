@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.EgoNetwork;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.PrefetchTask;
@@ -93,7 +94,7 @@ public class SubgraphPrefetchTask implements PrefetchTask {
                         .vertexRecords
                         .forEach(kr -> {
                             cache.insert(kr.key, kr.record);
-                            EgoNetwork.create(graph.getIdFactory().createId(kr.key.userKey.toLong(), FireflyVertex.class), graph)
+                            EgoNetwork.create(graph.getIdFactory().createId(kr.record.getValue(AerospikeConnection.USER_KEY), FireflyVertex.class), graph)
                                     .records()
                                     .forEachRemaining(subKr -> cache.insert(subKr.key, subKr.record));
                         });

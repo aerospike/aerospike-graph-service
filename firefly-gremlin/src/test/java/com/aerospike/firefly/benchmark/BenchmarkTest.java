@@ -71,10 +71,10 @@ public class BenchmarkTest {
             Map.entry("benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup", "g.E().has(\"dist\", P.gt(4000L)).inV().values(\"city\").dedup()"),
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
-            Map.entry("benchmark_g_V_addV_10", "g.V().addV().next() * 10"),
-            Map.entry("benchmark_g_V_addVxperson_namexLyndon_agex29_10", "g.V().addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 10"),
-            Map.entry("benchmark_g_V_addE_axa_10", "a.addEdge(\"knows\").from(a).to(a)*10"),
-            Map.entry("benchmark_g_V_addE_axb_10", "a.addEdge(\"knows\").from(a).to(b)*10")
+            Map.entry("benchmark_g_addV_10", "g.addV().next() * 10"),
+            Map.entry("benchmark_g_addVxperson_namexLyndon_agex29_10", "g.addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 10"),
+            Map.entry("benchmark_g_addE_axa_10", "a.addEdge(\"knows\").from(a).to(a)*10"),
+            Map.entry("benchmark_g_addE_axb_10", "a.addEdge(\"knows\").from(a).to(b)*10")
     );
 
     // Run before the class, this will run before all the benchmarks
@@ -241,31 +241,31 @@ public class BenchmarkTest {
     }
 
     @Benchmark
-    public void benchmark_g_V_addV_10(final Blackhole blackhole) {
+    public void benchmark_g_addV_10(final Blackhole blackhole) {
         for (int i = 0; i < 10; i++) {
             g.V("person").addV().iterate();
         }
     }
 
     @Benchmark
-    public void benchmark_g_V_addVxperson_namexLyndon_agex29_10(final Blackhole blackhole) {
+    public void benchmark_g_addVxperson_namexLyndon_agex29_10(final Blackhole blackhole) {
         for (int i = 0; i < 10; i++) {
-            g.V().addV("person").property("name", "Lyndon").property("age", 29).iterate();
+            g.addV("person").property("name", "Lyndon").property("age", 29).iterate();
         }
     }
 
 
     @Benchmark
-    public void benchmark_g_V_addE_axa_10(final Blackhole blackhole) {
-        final Vertex a = g.addV().next();
+    public void benchmark_g_addE_axa_10(final Blackhole blackhole) {
+        final Vertex a = g.addV("person").next();
         for (int i = 0; i < 10; i++) {
             g.addE("knows").from(a).to(a).iterate();
         }
     }
     @Benchmark
-    public void benchmark_g_V_addE_axb_10(final Blackhole blackhole) {
-        final Vertex a = g.addV().next();
-        final Vertex b = g.addV().next();
+    public void benchmark_g_addE_axb_10(final Blackhole blackhole) {
+        final Vertex a = g.addV("person").next();
+        final Vertex b = g.addV("person").next();
         for (int i = 0; i < 10; i++) {
             g.addE("knows").from(a).to(b).iterate();
         }

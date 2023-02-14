@@ -292,6 +292,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
 
+    public abstract boolean[] edgeExists(final List<FireflyId> idValue);
+
     public abstract boolean edgeExists(final FireflyId idValue);
 
     // Graph variable functions.
@@ -466,11 +468,25 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        final List<Object> filtered = getIds(List.of(edgeIds));
+        final List<Object> ids = getIds(List.of(edgeIds));
+        final List<FireflyId> idList = ids.stream()
+                .map(id -> getIdFactory().createId(id, FireflyEdge.class))
+                .collect(Collectors.toList());
+        if (!idList.isEmpty()) {
+            final List<FireflyId> idsDoNotExist = new ArrayList<>();
+            boolean[] results = edgeExists(idList);
+            for (int i = 0; i < results.length; i++)
+                if (!results[i])
+                    idsDoNotExist.add(idList.get(i));
+            if (idsDoNotExist.size() == idList.size())
+                return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
+        }
+
         return new FireflyEdgeIterator(this,
-                (filtered.size() == 0) ?
+                (idList.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        filtered.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
+                        idList.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
     }
 
     /**

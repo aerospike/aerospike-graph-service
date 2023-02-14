@@ -307,6 +307,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Key key = FireflyRecord.getKey(db, db.VERTEX_AERO_SET, idValue);
         return db.exists(key);
     }
+
     /**
      * Determine verticies in a list exist.
      *
@@ -318,12 +319,19 @@ public abstract class RelationalGraph extends FireflyGraph {
         LOG.debug("Checking if vertex {} exists.", idValue);
         return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
     }
+
     /**
      * Determine if an edge exists.
      *
      * @param idValue edge id to check.
      * @return true if edge exists, false otherwise.
      */
+    @Override
+    public boolean[] edgeExists(final List<FireflyId> idValue) {
+        LOG.debug("Checking if edge {} exists.", idValue);
+        return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
+    }
+
     @Override
     public boolean edgeExists(final FireflyId idValue) {
         LOG.debug("Checking if edge {} exists.", idValue);

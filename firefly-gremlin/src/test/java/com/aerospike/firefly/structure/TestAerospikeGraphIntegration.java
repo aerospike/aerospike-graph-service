@@ -1113,7 +1113,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertTrue(graph.vertices(v.id()).hasNext());
         v.remove();
         assertFalse(graph.vertices(v.id()).hasNext());
-        List<Long> x =List.of(1L, 2L, 3L, 4L);
+        List<Long> x = List.of(1L, 2L, 3L, 4L);
         x.stream().map(it -> graph.addVertex(T.id, it)).forEach(v1 -> assertTrue(graph.vertices(v1.id()).hasNext()));
         Iterator<Vertex> iter = graph.vertices(8L, 9L, 1L, 2L, 3L, 4L);
         int ctr = 0;
@@ -1122,7 +1122,34 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             ctr++;
         }
         assertEquals(x.size(), ctr);
-        assertFalse(graph.vertices(22,35,16,92).hasNext());
+        assertFalse(graph.vertices(22, 35, 16, 92).hasNext());
+    }
+
+    @Test
+    public void testEdgeExists() {
+        Vertex va = graph.addVertex();
+        Vertex vb = graph.addVertex();
+        Vertex vc = graph.addVertex();
+        Edge eab = va.addEdge("test", vb);
+        Edge eac = va.addEdge("test", vc);
+        Edge ebc = vb.addEdge("test", vc);
+        assertTrue(graph.edges(eab.id()).hasNext());
+        Iterator<Edge> iterAllKnown = graph.edges(eab.id(), eac.id(), ebc.id());
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertFalse(iterAllKnown.hasNext());
+        eab.remove();
+        assertFalse(graph.edges(eab.id()).hasNext());
+        Iterator<Edge> iter = graph.edges(eac.id(), ebc.id(), eab.id(), 123L);
+        assertTrue(iter.hasNext());
+        iter.next();
+        assertTrue(iter.hasNext());
+        iter.next();
+        assertFalse(iter.hasNext());
     }
 
     @Test

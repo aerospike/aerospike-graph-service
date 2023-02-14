@@ -141,8 +141,10 @@ public class BenchmarkTest {
         final ChainedOptionsBuilder optBuilder = new OptionsBuilder()
                 .include(BenchmarkTest.class.getSimpleName())
                 .detectJvmArgs()
-                .forks(4)
-                .timeout(TimeValue.minutes(2)); // Timeout
+                .forks(2)
+                .measurementIterations(3)
+                .measurementTime(TimeValue.minutes(1))
+                .timeout(TimeValue.minutes(5)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
         Collection<RunResult> runResult = new Runner(opt).run();

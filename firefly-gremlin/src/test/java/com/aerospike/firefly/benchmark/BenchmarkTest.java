@@ -70,10 +70,10 @@ public class BenchmarkTest {
             Map.entry("benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup", "g.E().has(\"dist\", P.gt(4000L)).inV().values(\"city\").dedup()"),
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
-            Map.entry("benchmark_g_V_addV_100", "g.V().addV().next() * 100"),
-            Map.entry("benchmark_g_V_addVxperson_namexLyndon_agex29_100", "g.V().addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 100"),
-            Map.entry("benchmark_g_V_addE_axa_100", "a.addEdge(\"knows\").from(a).to(a)*100"),
-            Map.entry("benchmark_g_V_addE_axb_100", "a.addEdge(\"knows\").from(a).to(b)*100")
+            Map.entry("benchmark_g_V_addV_10", "g.V().addV().next() * 10"),
+            Map.entry("benchmark_g_V_addVxperson_namexLyndon_agex29_10", "g.V().addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 10"),
+            Map.entry("benchmark_g_V_addE_axa_10", "a.addEdge(\"knows\").from(a).to(a)*10"),
+            Map.entry("benchmark_g_V_addE_axb_10", "a.addEdge(\"knows\").from(a).to(b)*10")
     );
 
     // Run before the class, this will run before all the benchmarks

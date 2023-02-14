@@ -232,38 +232,33 @@ public class BenchmarkTest {
     }
 
     @Benchmark
-    public void benchmark_g_V_addV_100(final Blackhole blackhole) {
-        for (int i = 0; i < 100; i++) {
-            final Vertex vertex = g.V().addV().next();
-            blackhole.consume(vertex);
+    public void benchmark_g_V_addV_10(final Blackhole blackhole) {
+        for (int i = 0; i < 10; i++) {
+            g.V().addV().iterate();
         }
     }
 
     @Benchmark
-    public void benchmark_g_V_addVxperson_namexLyndon_agex29_100(final Blackhole blackhole) {
-        for (int i = 0; i < 100; i++) {
-            final Vertex vertex = g.V().addV("person").property("name", "Lyndon").property("age", 29).next();
-            blackhole.consume(vertex);
+    public void benchmark_g_V_addVxperson_namexLyndon_agex29_10(final Blackhole blackhole) {
+        for (int i = 0; i < 10; i++) {
+            g.V().addV("person").property("name", "Lyndon").property("age", 29).iterate();
         }
     }
 
 
     @Benchmark
-    public void benchmark_g_V_addE_axa_100(final Blackhole blackhole) {
-        Vertex a = g.addV().next();
-        for (int i = 0; i < 100; i++) {
-            g.addE("knows").from(a).to(a).next();
+    public void benchmark_g_V_addE_axa_10(final Blackhole blackhole) {
+        final Vertex a = g.addV().next();
+        for (int i = 0; i < 10; i++) {
+            g.addE("knows").from(a).to(a).iterate();
         }
-        blackhole.consume(a);
     }
     @Benchmark
-    public void benchmark_g_V_addE_axb_100(final Blackhole blackhole) {
-        Vertex a = g.addV().next();
-        Vertex b = g.addV().next();
-        for (int i = 0; i < 100; i++) {
-            g.addE("knows").from(a).to(b).next();
+    public void benchmark_g_V_addE_axb_10(final Blackhole blackhole) {
+        final Vertex a = g.addV().next();
+        final Vertex b = g.addV().next();
+        for (int i = 0; i < 10; i++) {
+            g.addE("knows").from(a).to(b).iterate();
         }
-        blackhole.consume(a);
-        blackhole.consume(b);
     }
 }

@@ -204,7 +204,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-
+    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(100, 10, (entry) -> {
+        LOG.warn("WARNING: Scan triggered on {} has been hit {} times, consider adding an index.", entry.getKey(), entry.getValue());
+        return null;
+    });
     private final FireflyIdFactory idFactory;
 
     /**
@@ -335,6 +338,15 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Get scan hit counter
+     *
+     * @return Scan hit counter
+     */
+    public ScanHitCounter getScanHitCounter() {
+        return scanHitCounter;
+    }
+
+    /**
      * Run a traversal prefetch task
      *
      * @param cacheId
@@ -421,7 +433,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Iterator of Map.Entry Key, Record
      */
     public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
-        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
+        LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
         final Throttles throttles = new Throttles(getEventLoops().getSize(), getCommandsPerLoop());
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;
@@ -1564,11 +1576,11 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
-     * 
-     * @param writePolicy   WritePolicy for operate.
-     * @param key           Key for operate.
-     * @param operations    Operations for operate.
-     * @return              Record resulting from operate.
+     *
+     * @param writePolicy WritePolicy for operate.
+     * @param key         Key for operate.
+     * @param operations  Operations for operate.
+     * @return Record resulting from operate.
      */
     public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
         try {

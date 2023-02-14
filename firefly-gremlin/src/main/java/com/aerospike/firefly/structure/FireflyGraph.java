@@ -583,6 +583,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Build expression using predicate.
         final Expression expression = Exp.build(predicateToExpression(binName, mapKey, predicate));
 
+        db.getScanHitCounter().increment(mapKey);
+
         // Create scan policy, do not need bin data for this.
         final ScanPolicy policy = new ScanPolicy();
         final Iterator<Map.Entry<Key, Record>> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);

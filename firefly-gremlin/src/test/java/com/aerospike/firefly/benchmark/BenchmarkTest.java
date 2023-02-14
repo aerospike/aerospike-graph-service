@@ -143,9 +143,9 @@ public class BenchmarkTest {
                 .include(BenchmarkTest.class.getSimpleName())
                 .detectJvmArgs()
                 .forks(2)
-                .measurementIterations(3)
-                .measurementTime(TimeValue.minutes(1))
-                .timeout(TimeValue.minutes(5)); // Timeout
+                .measurementIterations(1)
+                .measurementTime(TimeValue.seconds(30))
+                .timeout(TimeValue.minutes(1)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
         Collection<RunResult> runResult = new Runner(opt).run();

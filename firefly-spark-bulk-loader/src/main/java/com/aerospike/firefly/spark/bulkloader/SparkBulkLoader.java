@@ -145,7 +145,7 @@ public class SparkBulkLoader {
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 
-        Dataset<Row> unionVertexDS = readAndMergeDataset(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
+        Dataset<Row> unionVertexDS = loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
         // sample out vertex dataset for verifying the inserts
         Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
 
@@ -190,8 +190,7 @@ public class SparkBulkLoader {
                                     }
                                 } else {
                                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
-                                                    ". Attempting to write vertex again. Attempt count: " + tryCount + ".",
-                                            e);
+                                                    ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
                                     exponentialBackoff(tryCount);
                                 }
                             }
@@ -275,7 +274,7 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Edges
-        Dataset<Row> unionEdgeDS = readAndMergeDataset(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        Dataset<Row> unionEdgeDS = loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
         //sample out edge dataset to verify the inserts
         Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
 
@@ -510,10 +509,8 @@ public class SparkBulkLoader {
                                 continue edgeCheck;
                             }
                         }
-
                         isEdgeFound = true;
                     }
-
                     if (!isEdgeFound) {
                         throw new AssertionError("Validation failed: Could not find edge with label "
                                 + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
@@ -527,7 +524,7 @@ public class SparkBulkLoader {
         spark.stop();
     }
 
-    static private Dataset<Row> readAndMergeDataset(SparkSession spark, Set<String> directories, String[] REQUIRED_HEADERS) {
+    static private Dataset<Row> loadAndMergeDatasets(SparkSession spark, Set<String> directories, String[] REQUIRED_HEADERS) {
         Dataset<Row> unionDS = spark.emptyDataFrame();
         for (final String directory : directories) {
             final Map<String, String> options = new HashMap<>();

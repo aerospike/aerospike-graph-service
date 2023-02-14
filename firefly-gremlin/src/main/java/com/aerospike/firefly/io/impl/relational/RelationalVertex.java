@@ -329,7 +329,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                             IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy));
         }
         return IteratorUtils.map(iterator, keyRecordEntry ->
-                graph.getIdFactory().createId(keyRecordEntry.record.getValue(AerospikeConnection.USER_KEY), FireflyEdge.class));
+                graph.getIdFactory().createId(keyRecordEntry.key.userKey.getObject(), FireflyEdge.class));
 
     }
 

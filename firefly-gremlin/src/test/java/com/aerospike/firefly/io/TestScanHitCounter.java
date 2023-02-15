@@ -14,7 +14,7 @@ public class TestScanHitCounter {
     @Test
     public void testScanHitCounter() {
         AtomicBoolean called = new AtomicBoolean(false);
-        ScanHitCounter shc = ScanHitCounter.create(2, 3, e -> {
+        ScanHitCounter shc = ScanHitCounter.create(60,2, 3, e -> {
             called.set(true);
             return null;
         });

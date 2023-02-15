@@ -8,7 +8,10 @@ import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
@@ -240,6 +243,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Function to create edge from a Key-Record Map.Entry pair.
+     *
+     * @param keyRecord Record to use.
+     * @return Edge.
+     */
+    @Override
+    public FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> keyRecord) {
+        return RelationalEdge.fromRecord(this,new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+    }
+
+    /**
      * Function to read vertex from Aerospike.
      *
      * @param idValue Id of vertex.
@@ -462,29 +476,59 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Lookup Vertex by string match on property value
+     * Lookup Vertex by string match on Vertex label using an index.
      *
-     * @param value value to match
+     * @param label Label string to match
      * @return Iterator of FireflyVertex results
      */
     @Override
-    public Iterator<FireflyVertex> queryVertexLabelStringIndex(Object value) {
+    public Iterator<FireflyVertex> queryVertexLabelStringIndex(final String label) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.VERTEX_AERO_SET, db.V_LABEL_INDEX,
-                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
+                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT,label));
         return IteratorUtils.map(iter, this::vertexFromRecord);
     }
 
     /**
-     * Lookup Edge by string match on label value
+     * Lookup Vertex by string match Vertex label.
      *
-     * @param value label value to match
+     * @param label Label string to match
+     * @return Iterator of FireflyVertex results
+     */
+    @Override
+    public Iterator<FireflyVertex> queryVertexLabelString(final String label) {
+        final ScanPolicy policy = new ScanPolicy();
+        final Expression filter = Exp.build(Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val(label)));
+        policy.filterExp = filter;
+        final Iterator<Map.Entry<Key, Record>> i = db.scanAllRecordsInSet(db.VERTEX_AERO_SET, null, policy);
+        return IteratorUtils.map(i, this::vertexFromRecord);
+    }
+
+    /**
+     * Lookup Edge by string match on Edge label using an index.
+     *
+     * @param label Label string to match
      * @return Iterator of FireflyEdge results
      */
     @Override
-    public Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value) {
+    public Iterator<FireflyEdge> queryEdgeLabelStringIndex(final String label) {
         final Iterator<KeyRecord> iter = db.queryIndex(db.setFromElementType(FireflyEdge.class), db.E_LABEL_INDEX,
-                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
+                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, label));
         return IteratorUtils.map(iter, this::edgeFromRecord);
+    }
+
+    /**
+     * Lookup Edge by string match on Edge label.
+     *
+     * @param label Label string to match
+     * @return Iterator of FireflyEdge results
+     */
+    @Override
+    public Iterator<FireflyEdge> queryEdgeLabelString(final String label) {
+        final ScanPolicy policy = new ScanPolicy();
+        final Expression filter = Exp.build(Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val(label)));
+        policy.filterExp = filter;
+        final Iterator<Map.Entry<Key, Record>> i = db.scanAllRecordsInSet(db.EDGE_AERO_SET, null, policy);
+        return IteratorUtils.map(i, this::edgeFromRecord);
     }
 
     protected Iterator<FireflyId> scanAllVertices() {

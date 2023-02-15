@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -102,10 +102,11 @@ public class SparkBulkLoader {
 
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
+    private static final long  MEGABYTE = 1024L * 1024L;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
-        final String configPath;
+        String configPath;
         final Set<String> vertexDirectories = new HashSet<>();
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
@@ -307,20 +308,13 @@ public class SparkBulkLoader {
             final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
                             longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-            LOGGER.info("filteredFromCountPairRDD sample of 10: ");
-            filteredFromCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
+
             final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
                             longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-            LOGGER.info("filteredToCountPairRDD sample of 10: ");
-            filteredToCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
-            LOGGER.info("fromSupernodes sample of 10: ");
-            fromSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
             final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
-            LOGGER.info("toSupernodes sample of 10: ");
-            toSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final List<Long> fromSuperNodeList = fromSupernodes.collect();
             LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);

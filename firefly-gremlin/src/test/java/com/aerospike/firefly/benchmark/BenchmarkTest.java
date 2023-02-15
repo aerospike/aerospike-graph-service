@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -69,7 +70,11 @@ public class BenchmarkTest {
                     "by(__.unfold().has(\"country\", \"US\").count())"),
             Map.entry("benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup", "g.E().has(\"dist\", P.gt(4000L)).inV().values(\"city\").dedup()"),
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
-            Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()")
+            Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
+            Map.entry("benchmark_g_addV_10", "g.addV().next() * 10"),
+            Map.entry("benchmark_g_addVxperson_namexLyndon_agex29_10", "g.addV(\"person\").property(\"name\", \"Lyndon\").property(\"age\", 29).next() * 10"),
+            Map.entry("benchmark_g_addE_axa_10", "a.addEdge(\"knows\").from(a).to(a)*10"),
+            Map.entry("benchmark_g_addE_axb_10", "a.addEdge(\"knows\").from(a).to(b)*10")
     );
 
     // Run before the class, this will run before all the benchmarks
@@ -137,8 +142,10 @@ public class BenchmarkTest {
         final ChainedOptionsBuilder optBuilder = new OptionsBuilder()
                 .include(BenchmarkTest.class.getSimpleName())
                 .detectJvmArgs()
-                .forks(4)
-                .timeout(TimeValue.minutes(2)); // Timeout
+                .forks(2)
+                .measurementIterations(2)
+                .measurementTime(TimeValue.seconds(30))
+                .timeout(TimeValue.minutes(1)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
         Collection<RunResult> runResult = new Runner(opt).run();
@@ -170,6 +177,12 @@ public class BenchmarkTest {
         } catch (final Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // Remove person data as it is added.
+    @Setup(Level.Invocation)
+    public void setupInvocation() {
+        g.V().hasLabel("person").drop().iterate();
     }
 
     @Benchmark
@@ -225,5 +238,36 @@ public class BenchmarkTest {
     public void benchmark_g_V_hasLabelxairportx_count(final Blackhole blackhole) {
         final long airportCount = g.V().hasLabel("airport").count().next();
         blackhole.consume(airportCount);
+    }
+
+    @Benchmark
+    public void benchmark_g_addV_10(final Blackhole blackhole) {
+        for (int i = 0; i < 10; i++) {
+            g.V("person").addV().iterate();
+        }
+    }
+
+    @Benchmark
+    public void benchmark_g_addVxperson_namexLyndon_agex29_10(final Blackhole blackhole) {
+        for (int i = 0; i < 10; i++) {
+            g.addV("person").property("name", "Lyndon").property("age", 29).iterate();
+        }
+    }
+
+
+    @Benchmark
+    public void benchmark_g_addE_axa_10(final Blackhole blackhole) {
+        final Vertex a = g.addV("person").next();
+        for (int i = 0; i < 10; i++) {
+            g.addE("knows").from(a).to(a).iterate();
+        }
+    }
+    @Benchmark
+    public void benchmark_g_addE_axb_10(final Blackhole blackhole) {
+        final Vertex a = g.addV("person").next();
+        final Vertex b = g.addV("person").next();
+        for (int i = 0; i < 10; i++) {
+            g.addE("knows").from(a).to(b).iterate();
+        }
     }
 }

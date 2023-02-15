@@ -30,23 +30,25 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
  */
 public class TestProperties {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    private static FireflyGraph FIREFLY;
+    private static FireflyGraph SETUP_GRAPH;
+    protected FireflyGraph graph;
 
     @BeforeClass
     static public void beforeAll() {
-        FIREFLY = FireflyGraph.open(CONFIG);
-        FIREFLY.getBaseGraph().dropDatabase();
+        SETUP_GRAPH = FireflyGraph.open(CONFIG);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
     }
 
     @AfterClass
     static public void afterAll() {
-        FIREFLY.getBaseGraph().dropDatabase();
-        FIREFLY.close();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.close();
     }
 
     @Before
     public void beforeEach() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        graph = FireflyGraph.open(CONFIG);
+        final GraphTraversalSource g = graph.traversal();
         Vertex person = g.addV("person").next();
         Vertex car = g.addV("vehicle").next();
         g.addE("bought")
@@ -61,12 +63,12 @@ public class TestProperties {
 
     @After
     public void afterEach() {
-        FIREFLY.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase();
     }
 
     @Test
     public void testEdgeProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         // Test adding (done in beforeEach) and filtering.
         var edgeTraversal = g.E().has("year", "2022");
@@ -106,7 +108,7 @@ public class TestProperties {
 
     @Test
     public void testVertexPropertyProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         // Test adding and filtering
         g.V().hasLabel("person").property("name", "simon").property("age", "trente").iterate();
@@ -187,7 +189,7 @@ public class TestProperties {
 
     @Test
     public void testDuplicateVertexPropertyProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         Assert.assertEquals(2, (long) g.V().count().next());
 
@@ -271,7 +273,7 @@ public class TestProperties {
 
     @Test
     public void testNullEdgeProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         // "bought" edge
         GraphTraversal traversal = g.V().outE("bought").properties().count();
@@ -314,7 +316,7 @@ public class TestProperties {
 
     @Test
     public void testNullVertexProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         // "person" vertex
         g.V().hasLabel("person").property("name", "Simon").property("age", 12).iterate();
@@ -368,7 +370,7 @@ public class TestProperties {
 
     @Test
     public void testNullVertexPropertyProperties() {
-        final GraphTraversalSource g = FIREFLY.traversal();
+        final GraphTraversalSource g = graph.traversal();
 
         // "name" vertex property
         g.V().hasLabel("person").property("name", "Simon").properties("name").property("language", "english").property("addedYear", 2000).iterate();

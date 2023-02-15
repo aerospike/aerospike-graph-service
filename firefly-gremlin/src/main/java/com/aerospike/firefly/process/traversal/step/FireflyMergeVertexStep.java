@@ -212,7 +212,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
                         results.add(graph.vertices());
                     } else if (value.getClass().isAssignableFrom(String.class)) {
-                        results.add(FireflyHelper.queryVertexByLabelStringIndex(graph, value));
+                        results.add(FireflyHelper.queryVertexByLabelString(graph, (String) value));
                     } else {
                         results.add(graph.vertices());
                     }

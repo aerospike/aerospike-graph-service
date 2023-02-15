@@ -1,12 +1,8 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -16,9 +12,10 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,6 +29,8 @@ import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class FireflyHelper {
+    static private final Logger LOG = LoggerFactory.getLogger(FireflyHelper.class);
+
     private FireflyHelper() {
     }
 
@@ -95,12 +94,22 @@ public final class FireflyHelper {
             throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
     }
 
-    public static Iterator<? extends Vertex> queryVertexByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.queryVertexLabelStringIndex(value);
+    public static Iterator<? extends Vertex> queryVertexByLabelString(final FireflyGraph graph, final String label) {
+        LOG.warn("Traversal starting with a label filter on Vertices detected. This is indicative of an OLAP-style query and is not recommended due to having poor performance.");
+        if (graph.getBaseGraph().V_LABEL_INDEX_ENABLED) {
+            return graph.queryVertexLabelStringIndex(label);
+        } else {
+            return graph.queryVertexLabelString(label);
+        }
     }
 
-    public static Iterator<? extends Edge> queryEdgeByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.queryEdgeLabelStringIndex(value);
+    public static Iterator<? extends Edge> queryEdgeByLabelString(FireflyGraph graph, String label) {
+        LOG.warn("Traversal starting with a label filter on Edges detected. This is indicative of an OLAP-style query and is not recommended due to having poor performance.");
+        if (graph.getBaseGraph().E_LABEL_INDEX_ENABLED) {
+            return graph.queryEdgeLabelStringIndex(label);
+        } else {
+            return graph.queryEdgeLabelString(label);
+        }
     }
 
     public static long countVertices(FireflyGraph graph) {

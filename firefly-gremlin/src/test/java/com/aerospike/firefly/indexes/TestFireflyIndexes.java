@@ -1,10 +1,15 @@
 package com.aerospike.firefly.indexes;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -229,6 +234,130 @@ public class TestFireflyIndexes extends AbstractFireflySuite {
             Assert.assertTrue(vertexIteratorBirthplaceString.hasNext());
             Assert.assertEquals("Canada", vertexIteratorBirthplaceString.next().value("birthplace"));
             Assert.assertFalse(vertexIteratorBirthplaceString.hasNext());
+        }
+    }
+
+    @Test
+    public void testVertexLabelIndexEnabled() {
+        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.addV("person").
+                    property("name", "Lyndon").
+                    property("age", 29).
+                    property("birthplace", "Canada").
+                    next();
+
+            final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
+                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+            Map.Entry<String, String> vertexLabelIndex = null;
+            for (final Map.Entry<String, String> index : indices) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().V_LABEL_INDEX)) {
+                    vertexLabelIndex = index;
+                }
+            }
+            Assert.assertNotNull(vertexLabelIndex);
+            Assert.assertEquals(vertexLabelIndex.getValue(), (fireflyGraph.getBaseGraph().VERTEX_AERO_SET));
+
+            final Iterator<FireflyVertex> vertices = fireflyGraph.queryVertexLabelStringIndex("person");
+            Assert.assertTrue(vertices.hasNext());
+        } finally {
+            config.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase());
+        }
+    }
+
+    @Test
+    public void testVertexLabelIndexDisabled() {
+        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.addV("person").
+                    property("name", "Lyndon").
+                    property("age", 29).
+                    property("birthplace", "Canada").
+                    next();
+
+            final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
+                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+            for (final Map.Entry<String, String> index : indices) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().V_LABEL_INDEX)) {
+                    Assert.fail("Vertex label index found when it should have been disabled.");
+                }
+            }
+
+            Iterator<FireflyVertex> vertices;
+            try {
+                vertices = fireflyGraph.queryVertexLabelStringIndex("person");
+                Assert.fail("Index query succeeded when index should not exist.");
+            } catch (AerospikeException ae) {
+                // TODO: Check nothing for now, since this for some reason retries 5 times and throws a retry exceeded
+                //       exception and checking for if the index is not found in the exception is a string parse instead
+                //       of an error code.
+            }
+            vertices = fireflyGraph.queryVertexLabelString("person");
+            Assert.assertTrue(vertices.hasNext());
+        } finally {
+            config.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase());
+        }
+    }
+
+    @Test
+    public void testEdgeLabelIndexEnabled() {
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final Vertex person = g.addV("person").next();
+            final Vertex cat = g.addV("cat").next();
+            g.addE("owns").from(person).to(cat).iterate();
+
+            final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
+                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+            Map.Entry<String, String> edgeLabelIndex = null;
+            for (final Map.Entry<String, String> index : indices) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX)) {
+                    edgeLabelIndex = index;
+                }
+            }
+            Assert.assertNotNull(edgeLabelIndex);
+            Assert.assertEquals(edgeLabelIndex.getValue(), (fireflyGraph.getBaseGraph().EDGE_AERO_SET));
+
+            final Iterator<FireflyEdge> edges = fireflyGraph.queryEdgeLabelStringIndex("owns");
+            Assert.assertTrue(edges.hasNext());
+        } finally {
+            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase());
+        }
+    }
+
+    @Test
+    public void testEdgeLabelIndexDisabled() {
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final Vertex person = g.addV("person").next();
+            final Vertex cat = g.addV("cat").next();
+            g.addE("owns").from(person).to(cat).iterate();
+
+            final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
+                    fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
+            for (final Map.Entry<String, String> index : indices) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX)) {
+                    Assert.fail("Vertex label index found when it should have been disabled.");
+                }
+            }
+
+            Iterator<FireflyEdge> edges;
+            try {
+                edges = fireflyGraph.queryEdgeLabelStringIndex("owns");
+                Assert.fail("Index query succeeded when index should not exist.");
+            } catch (AerospikeException ae) {
+                // TODO: Check nothing for now, since this for some reason retries 5 times and throws a retry exceeded
+                //       exception and checking for if the index is not found in the exception is a string parse instead
+                //       of an error code.
+            }
+            edges = fireflyGraph.queryEdgeLabelString("owns");
+            Assert.assertTrue(edges.hasNext());
+        } finally {
+            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase());
         }
     }
 }

@@ -159,7 +159,6 @@ public class RelationalEdge extends FireflyEdge {
      * @return Edge.
      */
     public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
-        System.out.println("Constructing edge from record.");
         LOG.trace("Constructing edge from record.");
         if (keyRecord == null) {
             return null;

@@ -83,6 +83,7 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
+import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 
 /**
@@ -116,8 +117,6 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
 
     public final String GRAPH_ID;
-    public final String STRING_E_KV_INDEX;
-    public final String NUMERIC_E_KV_INDEX;
     private final String INDEXED_BINS;
     public final String V_LABEL_INDEX;
     public final String E_LABEL_INDEX;
@@ -270,8 +269,6 @@ public class AerospikeConnection implements AutoCloseable {
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
         VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
-        STRING_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.STRING_E_KV_INDEX, conf));
-        NUMERIC_E_KV_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.NUMERIC_E_KV_INDEX, conf));
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
         V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
         E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
@@ -762,13 +759,6 @@ public class AerospikeConnection implements AutoCloseable {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
         }
-
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                STRING_E_KV_INDEX,
-                PROPERTIES, IndexType.STRING, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                NUMERIC_E_KV_INDEX,
-                PROPERTIES, IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
     }
 
     /**
@@ -780,8 +770,6 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX);
-        dropIndex(setFromElementType(FireflyEdge.class), STRING_E_KV_INDEX);
-        dropIndex(setFromElementType(FireflyEdge.class), NUMERIC_E_KV_INDEX);
     }
 
     /**
@@ -1458,7 +1446,7 @@ public class AerospikeConnection implements AutoCloseable {
             LOG.debug("Index {} already exists", indexName);
             return;
         } else {
-            LOG.debug("Creating index {}:{}:{}.", set, indexName, binName);
+            LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
         }
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
@@ -1475,6 +1463,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     public String getVpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, VP_INDEX_PREFIX);
+    }
+
+    public String getEpIndexPrefix() {
+        return String.format("%s_%s", GRAPH_ID, EP_INDEX_PREFIX);
     }
 
     /**
@@ -1498,7 +1490,7 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexCollectionType indexCollectionType
     ) {
         if (existingIndexes.contains(indexName)) {
-            LOG.info("Index {} already exists", indexName);
+            LOG.debug("Index {} already exists", indexName);
             return;
         } else {
             LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
@@ -1509,7 +1501,7 @@ public class AerospikeConnection implements AutoCloseable {
             final CTX ctx = CTX.mapKey(Value.get(keyName));
             final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
             task.waitTillComplete(1);
-            LOG.info("Index {} creation completed.", indexName);
+            LOG.debug("Index {} creation completed.", indexName);
         } catch (AerospikeException ae) {
             if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
                 throw ae;

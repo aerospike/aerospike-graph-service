@@ -290,6 +290,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
 
+    public abstract FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> record);
+
     public abstract boolean edgeExists(final FireflyId idValue);
 
     // Graph variable functions.
@@ -324,9 +326,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(final String key, final P<?> predicate);
 
-    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final String value);
 
-    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyVertex> queryVertexLabelString(final String value);
+
+    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final String label);
+
+    public abstract Iterator<FireflyEdge> queryEdgeLabelString(final String label);
 
     @Override
     public AerospikeConnection getBaseGraph() {

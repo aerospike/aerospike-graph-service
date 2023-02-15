@@ -121,6 +121,8 @@ public class AerospikeConnection implements AutoCloseable {
     private final String INDEXED_BINS;
     public final String V_LABEL_INDEX;
     public final String E_LABEL_INDEX;
+    public final boolean V_LABEL_INDEX_ENABLED;
+    public final boolean E_LABEL_INDEX_ENABLED;
     public final String E_IN_INDEX;
     public final String E_OUT_INDEX;
     private static final int NumLoops = 2;
@@ -276,6 +278,8 @@ public class AerospikeConnection implements AutoCloseable {
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
         V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
         E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
+        V_LABEL_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED, conf));
+        E_LABEL_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED, conf));
         E_IN_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_IN_INDEX, conf));
         E_OUT_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_OUT_INDEX, conf));
         IN_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGES, conf);
@@ -762,10 +766,14 @@ public class AerospikeConnection implements AutoCloseable {
                     IndexType.STRING, IndexCollectionType.DEFAULT);
         }
 
-        createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
-                V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+        if (V_LABEL_INDEX_ENABLED) {
+            createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
+                    V_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+        }
+        if (E_LABEL_INDEX_ENABLED) {
+            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                    E_LABEL_INDEX, LABEL, IndexType.STRING, IndexCollectionType.DEFAULT);
+        }
 
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 STRING_E_KV_INDEX,
@@ -780,8 +788,8 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropGraphIndices() {
         LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), LABEL);
-        dropIndex(setFromElementType(FireflyEdge.class), LABEL);
+        dropIndex(setFromElementType(FireflyVertex.class), E_IN_INDEX);
+        dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), STRING_E_KV_INDEX);
@@ -982,18 +990,7 @@ public class AerospikeConnection implements AutoCloseable {
 
 
     public Iterator<KeyRecord> queryIndex(final String setName, final String indexName, final Filter filter) {
-        try {
-            return queryIndex(setName, indexName, filter, new QueryPolicy());
-        } catch (AerospikeException e) {
-            if (e.getResultCode() == ResultCode.INDEX_NOTFOUND) {
-                // Rethrow as RuntimeException so that it is not retried.
-                // This case should not ever happen, but handle it anyway.
-                LOG.error("Error, index {} not found", indexName);
-                throw new RuntimeException(e);
-            } else {
-                throw e;
-            }
-        }
+        return queryIndex(setName, indexName, filter, new QueryPolicy());
     }
 
     /**
@@ -1010,11 +1007,7 @@ public class AerospikeConnection implements AutoCloseable {
         stmt.setSetName(setName);
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
-        try {
-            return client.query(policy, stmt).iterator();
-        } catch (AerospikeException ae) {
-            throw new RuntimeException(ae);
-        }
+        return client.query(policy, stmt).iterator();
     }
 
     /**

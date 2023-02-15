@@ -140,6 +140,8 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         db.conf.setProperty(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY.toLowerCase(), "1");
         final String originalIndexes = (String) db.conf.getProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase());
         db.conf.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase(), "key1,key2,key3,key4,key5");
+        db.conf.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        db.conf.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
 
         graph.close();
         graph = FireflyGraph.open(db.conf);

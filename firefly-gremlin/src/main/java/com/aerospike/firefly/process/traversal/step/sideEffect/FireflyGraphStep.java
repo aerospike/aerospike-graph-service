@@ -67,7 +67,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         else if (indexedContainer == null || indexedContainer.getKey() == null)
             iterator = this.hasContainerCheckedIterator(graph.edges());
         else if (indexedContainer.getKey().startsWith("~label"))
-            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
+            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeByLabelString(graph, (String) indexedContainer.getPredicate().getValue()));
         else if (indexedContainer.getKey().startsWith("~"))
             iterator = this.hasContainerCheckedIterator(graph.edges());
         else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
@@ -111,7 +111,12 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 iterator = graph.queryIndex(propertyIndexInfo.get(), indexedContainer.getPredicate(), graph::vertexFromRecord);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", indexedContainer.getKey(), indexedContainer.getValue());
-                iterator = graph.queryScan(indexedContainer.getKey(), indexedContainer.getPredicate(), graph::vertexFromRecord);
+                // TODO @Lyndon: The queryScan doesn't work properly for the label bin
+                if (indexedContainer.getKey().equals("~label")) {
+                    iterator = FireflyHelper.queryVertexByLabelString(graph, (String) indexedContainer.getValue());
+                } else {
+                    iterator = graph.queryScan(indexedContainer.getKey(), indexedContainer.getPredicate(), graph::vertexFromRecord);
+                }
             }
         } else {
             iterator = Collections.emptyIterator();

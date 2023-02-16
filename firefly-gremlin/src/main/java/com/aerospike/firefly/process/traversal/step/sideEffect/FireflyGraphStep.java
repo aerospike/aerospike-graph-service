@@ -1,12 +1,11 @@
 package com.aerospike.firefly.process.traversal.step.sideEffect;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.io.impl.SubgraphPrefetchTask;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
@@ -35,6 +34,7 @@ import java.util.function.BiPredicate;
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Pieter Martin
  * @author Grant Haywood <a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> implements HasContainerHolder {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphStep.class);
@@ -54,29 +54,20 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
      * @return iterator of edges
      */
     private Iterator<? extends Edge> edges() {
+        // Get FireflyGraph from the traversal.
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
-        // do we have an index over edges
-        final HasContainer indexedContainer = getIndexKey(FireflyEdge.class);
-        Iterator<? extends Edge> iterator;
-        // ids are present, filter on them first
-        if (null == this.ids)
-            iterator = Collections.emptyIterator();
-        else if (this.ids.length > 0)
-            iterator = this.hasContainerCheckedIterator(graph.edges(this.ids));
-        else if (indexedContainer == null || indexedContainer.getKey() == null)
-            iterator = this.hasContainerCheckedIterator(graph.edges());
-        else if (indexedContainer.getKey().startsWith("~label"))
-            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeByLabelStringIndex(graph, indexedContainer.getPredicate().getValue()));
-        else if (indexedContainer.getKey().startsWith("~"))
-            iterator = this.hasContainerCheckedIterator(graph.edges());
-        else if (indexedContainer.getValue().getClass().isAssignableFrom(String.class))
-            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeStringIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate().getValue()));
-        else if (Number.class.isAssignableFrom(indexedContainer.getValue().getClass()))
-            iterator = this.hasContainerCheckedIterator(FireflyHelper.queryEdgeNumericIndex(graph, indexedContainer.getKey(), indexedContainer.getPredicate()));
-        else
-            iterator = Collections.emptyIterator();
+        // Grab all Edges for iterator.
+        final Iterator<? extends Edge> iterator = elements(
+                graph,
+                graph.getBaseGraph().EDGE_AERO_SET,
+                graph.getBaseGraph().PROPERTIES,
+                FireflyEdge.class,
+                graph::edges,
+                graph::edgeFromRecord,
+                graph::edgeFromRecord);
 
+        // Append to iterators and return base iterator.
         iterators.add(iterator);
         return iterator;
     }
@@ -88,36 +79,67 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
      * @return iterator of vertices
      */
     private Iterator<? extends Vertex> vertices() {
+        // Get FireflyGraph from the traversal.
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
+
+        // Grab all Vertices for iterator.
+        final Iterator<? extends Vertex> iterator = elements(
+                graph,
+                graph.getBaseGraph().VERTEX_AERO_SET,
+                graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE,
+                FireflyVertex.class,
+                graph::vertices,
+                graph::vertexFromRecord,
+                graph::vertexFromRecord);
+
+        // Append to iterators and return base iterator.
+        iterators.add(iterator);
+        return iterator;
+    }
+
+    private <R extends Element> Iterator<R> elements(final FireflyGraph graph,
+                                                     final String setName,
+                                                     final String binName,
+                                                     final Class<? extends FireflyElement> elementClass,
+                                                     final FireflyGraph.GetElements<R> getElements,
+                                                     final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
+                                                     final FireflyGraph.TransformMapEntryKeyRecord<R> transformMapEntryKeyRecord) {
+        Iterator<R> iterator;
         final HasContainer indexedContainer = getIndexKey(FireflyVertex.class);
-        Iterator<? extends Vertex> iterator;
         if (null == this.ids) {
             iterator = Collections.emptyIterator();
         } else if (this.ids.length > 0) {
-            iterator = graph.vertices(this.ids);
+            iterator = getElements.get(this.ids);
         } else if (indexedContainer == null || indexedContainer.getKey() == null ||
                 (indexedContainer.getKey().startsWith("~") && !indexedContainer.getKey().equals("~label"))) {
             // If index container is null or key is null or if key starts with ~ but is not ~label, then get graph.vertices().
-            iterator = graph.vertices();
+            iterator = getElements.get();
         } else if (indexedContainer.getKey().equals("~label") ||
                 Number.class.isAssignableFrom(indexedContainer.getValue().getClass()) ||
                 String.class.isAssignableFrom(indexedContainer.getValue().getClass())) {
             // Find index.
             final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
-                    graph.fireflyIndexMetadata.getPropertyIndexInfo(indexedContainer.getKey(), indexedContainer.getValue());
+                    graph.fireflyIndexMetadata.getPropertyIndexInfo(elementClass, indexedContainer.getKey(), indexedContainer.getValue());
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = graph.queryIndex(propertyIndexInfo.get(), indexedContainer.getPredicate(), graph::vertexFromRecord);
+                iterator = graph.queryIndex(propertyIndexInfo.get(), indexedContainer.getPredicate(), transformKeyRecord);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", indexedContainer.getKey(), indexedContainer.getValue());
-                iterator = graph.queryScan(indexedContainer.getKey(), indexedContainer.getPredicate(), graph::vertexFromRecord);
+                iterator = graph.queryScan(
+                        indexedContainer.getKey(),
+                        setName,
+                        indexedContainer.getKey().equals("~label") ? AerospikeConnection.LABEL : binName,
+                        indexedContainer.getPredicate(),
+                        transformMapEntryKeyRecord);
             }
         } else {
             iterator = Collections.emptyIterator();
         }
+
         // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers.
         iterator = this.hasContainerCheckedIterator(iterator);
+
         iterators.add(iterator);
         return iterator;
     }

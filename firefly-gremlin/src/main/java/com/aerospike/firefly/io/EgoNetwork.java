@@ -81,7 +81,7 @@ public class EgoNetwork {
      * @return
      */
     public List<Object> vertexNeighborhood() {
-        return vertexRecords.stream().map(kr -> kr.key.userKey).collect(Collectors.toList());
+        return vertexRecords.stream().map(kr -> kr.record.getValue(AerospikeConnection.USER_KEY)).collect(Collectors.toList());
     }
 
     /**

@@ -20,8 +20,8 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     private static final String ENTRIES = "entries=";
     private static final String ENTRIES_PER_BVAL = "entries_per_bval=";
     private static final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
-    private CardinalityInfo vertexLabelCardinalityInfo = new CardinalityInfo();
-    private CardinalityInfo edgeLabelCardinalityInfo = new CardinalityInfo();
+    private CardinalityInfo vertexLabelCardinalityInfo;
+    private CardinalityInfo edgeLabelCardinalityInfo;
     private List<CardinalityInfo> vertexNumericPropertyCardinalityInfo = new ArrayList<>();
     private List<CardinalityInfo> vertexStringPropertyCardinalityInfo = new ArrayList<>();
     private final AerospikeConnection db;
@@ -51,6 +51,12 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
 
         // Get current list of numeric and string indexes.
         final List<FireflyIndexMetadata.IndexInfo> indexes = indexMetadata.getPropertyIndexInfos();
+        final List<FireflyIndexMetadata.IndexInfo> vertexLabelIndexes = indexes.stream().
+                filter(index -> index.indexType == IndexType.STRING && "label".equals(index.key) && index.indexName.equals(db.V_LABEL_INDEX))
+                .collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> edgeLabelIndexes = indexes.stream().
+                filter(index -> index.indexType == IndexType.STRING && "label".equals(index.key) && index.indexName.equals(db.E_LABEL_INDEX))
+                .collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> stringIndexes = indexes.stream().
                 filter(index -> index.indexType == IndexType.STRING && !"label".equals(index.key)).collect(Collectors.toList());
         final List<FireflyIndexMetadata.IndexInfo> numericIndexes = indexes.stream().
@@ -61,8 +67,16 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
 
         // Lock while we are changing a list that we iterate over in a different thread.
         synchronized (FireflyCardinalityMetadata.class) {
-            vertexLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, vertexLabelIndex), nodes.length, null);
-            edgeLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, edgeLabelIndex), nodes.length, null);
+            if (!vertexLabelIndexes.isEmpty()) {
+                vertexLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, vertexLabelIndex), nodes.length, null);
+            } else {
+                vertexLabelCardinalityInfo = null;
+            }
+            if (!edgeLabelIndexes.isEmpty()) {
+                edgeLabelCardinalityInfo = getCardinalityInfo(Info.request(new InfoPolicy(), node, edgeLabelIndex), nodes.length, null);
+            } else {
+                edgeLabelCardinalityInfo = null;
+            }
             vertexStringPropertyCardinalityInfo = stringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
             vertexNumericPropertyCardinalityInfo = numericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
         }
@@ -138,7 +152,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         }
     }
 
-    private Long getValue(final String info, final String pattern) throws Exception {
+    private Long getValue(final String info, final String pattern) {
         for (final String s : info.split(";")) {
             if (s.startsWith(pattern)) {
                 return Long.parseLong(s.split(pattern)[1]);

@@ -1,12 +1,8 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -16,9 +12,10 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,6 +29,8 @@ import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class FireflyHelper {
+    static private final Logger LOG = LoggerFactory.getLogger(FireflyHelper.class);
+
     private FireflyHelper() {
     }
 
@@ -78,29 +77,6 @@ public final class FireflyHelper {
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {
         final Set<String> labels = new HashSet<>(Arrays.asList(edgeLabels));
         return getEdgeList(graph, vertex, direction, labels).iterator();
-    }
-
-    public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.queryEdgePropertyStringMatchIndex(key, value);
-    }
-
-    public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
-        if (predicate.getBiPredicate().equals(Compare.eq))
-            return graph.queryEdgePropertyNumericMatchIndex(key, predicate);
-        else if (predicate.getBiPredicate().equals(Compare.lt))
-            return graph.queryEdgePropertyNumericRangeIndex(key, predicate);
-        else if (predicate.getBiPredicate().equals(Compare.gt))
-            return graph.queryEdgePropertyNumericRangeIndex(key, predicate);
-        else
-            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
-    }
-
-    public static Iterator<? extends Vertex> queryVertexByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.queryVertexLabelStringIndex(value);
-    }
-
-    public static Iterator<? extends Edge> queryEdgeByLabelStringIndex(FireflyGraph graph, Object value) {
-        return graph.queryEdgeLabelStringIndex(value);
     }
 
     public static long countVertices(FireflyGraph graph) {

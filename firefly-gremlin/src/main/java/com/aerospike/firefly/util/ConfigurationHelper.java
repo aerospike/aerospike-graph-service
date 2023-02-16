@@ -101,12 +101,12 @@ public final class ConfigurationHelper {
 
         public static final String INDEX_METADATA = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
-        public static final String STRING_E_KV_INDEX = "STRING_E_KV_INDEX";
-        public static final String NUMERIC_E_KV_INDEX = "NUMERIC_E_KV_INDEX";
         public static final String INDEXED_BINS = "INDEXED_BINS";
         public static final String LABEL = "LABEL";
         public static final String V_LABEL_INDEX = "V_LABEL_INDEX";
         public static final String E_LABEL_INDEX = "E_LABEL_INDEX";
+        public static final String V_LABEL_INDEX_ENABLED = "V_LABEL_INDEX_ENABLED";
+        public static final String E_LABEL_INDEX_ENABLED = "E_LABEL_INDEX_ENABLED";
         public static final String E_IN_INDEX = "E_IN_INDEX";
         public static final String E_OUT_INDEX = "E_OUT_INDEX";
         // User supplied id cache
@@ -120,6 +120,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_PREFETCH_STRATEGY = "ENABLE_PREFETCH_STRATEGY";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
         public static final String VERTEX_PROPERTY_INDEXES = "VERTEX_PROPERTY_INDEXES";
+        public static final String EDGE_PROPERTY_INDEXES = "EDGE_PROPERTY_INDEXES";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "ENABLE_BATCH_EDGE_READ_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
@@ -189,11 +190,11 @@ public final class ConfigurationHelper {
         put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
         put(Keys.INDEX_METADATA, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
-        put(Keys.STRING_E_KV_INDEX, "S_E_KV");
-        put(Keys.NUMERIC_E_KV_INDEX, "N_E_KV");
         put(Keys.INDEXED_BINS, "indexedBins");
         put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
+        put(Keys.V_LABEL_INDEX_ENABLED, "false");
+        put(Keys.E_LABEL_INDEX_ENABLED, "false");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
         put(Keys.SCAN_MAX_WAIT, "2000");
@@ -224,6 +225,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
+        put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.LOG_LEVEL, "INFO");
     }};
 

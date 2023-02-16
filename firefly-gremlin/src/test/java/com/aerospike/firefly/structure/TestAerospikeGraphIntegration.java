@@ -1153,6 +1153,33 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
+    public void testEdgeExistsBatch() {
+        Vertex va = graph.addVertex();
+        Vertex vb = graph.addVertex();
+        Vertex vc = graph.addVertex();
+        Edge eab = va.addEdge("test", vb);
+        Edge eac = va.addEdge("test", vc);
+        Edge ebc = vb.addEdge("test", vc);
+        List<Vertex> vl= new ArrayList<>();
+        List<Edge> el = new ArrayList<>();
+        assertEquals(3, IteratorUtils.count(graph.vertices(va.id(), vb.id(), vc.id())));
+        assertEquals(3, IteratorUtils.count(graph.edges(eab.id(), eac.id(), ebc.id())));
+        IntStream.range(0,db.AEROSPIKE_BATCH_READ_SIZE + 3).forEach(i -> {
+            Vertex v = graph.addVertex();
+            vl.add(v);
+            el.add(va.addEdge("test", v));
+        });
+        Object[] vertexIdArray = new Vertex[vl.size()];
+        vl.toArray(vertexIdArray);
+        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE+3, IteratorUtils.count(graph.vertices(vertexIdArray)));
+        Object[] edgeIdArray = new Edge[el.size()];
+        el.toArray(edgeIdArray);
+        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE+3, IteratorUtils.count(graph.edges(edgeIdArray)));
+    }
+
+
+
+    @Test
     public void shouldAllowStringID() {
         String id = "aSlimySalamander";
         Vertex v = graph.addVertex(T.id, id);

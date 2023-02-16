@@ -942,7 +942,25 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Boolean key exists
      */
     public boolean[] exists(final Key[] keys) {
-        return client.exists(null, keys);
+        List<Boolean> results = new ArrayList<>();
+        while (results.size() < keys.length) {
+            if (keys.length - results.size() >= AEROSPIKE_BATCH_READ_SIZE) {
+                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), results.size() + AEROSPIKE_BATCH_READ_SIZE - 1);
+                boolean[] batchResults = client.exists(null, batchKeys);
+                for (boolean batchResult : batchResults)
+                    results.add(batchResult);
+            } else {
+                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), keys.length);
+                boolean[] batchResults = client.exists(null, batchKeys);
+                for (boolean batchResult : batchResults)
+                    results.add(batchResult);
+            }
+        }
+        boolean[] resultArray = new boolean[results.size()];
+        for (int i = 0; i < results.size(); i++)
+            resultArray[i] = results.get(i);
+
+        return resultArray;
     }
 
     /**

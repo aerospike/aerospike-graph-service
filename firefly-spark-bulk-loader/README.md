@@ -1,6 +1,6 @@
 # Firefly Spark Bulk Loader
 
-Bulk loading of data using Firefly Graph is a process that enables the user to load large volumes of graph  data into the database using the Apache Spark distributed computing framework via our pre-defined csv format.
+Bulk loading of data using Firefly Bulk Loader is a process that enables the user to load large volumes of graph  data into the database using the Apache Spark distributed computing framework via the [Gremlin data csv format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html).
 
 ### Requirements
 * Hardware with minimum 8GB of RAM
@@ -8,7 +8,7 @@ Bulk loading of data using Firefly Graph is a process that enables the user to l
 * Java 11+ installed (for building & running locally)
 * CSV files containing vertices and edges to be loaded in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
   - These can live locally or in an AWS S3 bucket
-* A running instance of Aerospike.
+* A running instance of Aerospike
 * `.properties` configuration file for Firefly configured to use that instance
 
 ### Configurations
@@ -17,14 +17,15 @@ The Firefly Spark Bulk Loader uses the data models within Firefly to accurately 
 Additional Bulk Loader specific configurations should be added to it to create the `.properties` config for it. The following configuration options are available:
 
 * `edge_directory` - `String`: The path to where the CSV files containing the edges are stored
-  - Each type of edge (i.e. the same label and some properties) **must** be in its own sub-directory within `edge_directory`. Within those sub-directories, the Bulk Loader is able to handle the CSV file split into multiple in cases of extremely large datasets.
+  - Each type of edge (i.e. the same label and some properties) **must** be in its own sub-directory within `edge_directory`.  
 * `vertex_directory` - `String`: The path to where the CSV files containing the vertices are stored
-  - Each type of vertex (i.e. the same label and some properties) **must** be in its own sub-directory within `vertex_directory`. Within those sub-directories, the Bulk Loader is able to handle the CSV file split into multiple in cases of extremely large datasets.
+  - Each type of vertex (i.e. the same label and some properties) **must** also be in its own sub-directory within `vertex_directory`. 
+* The bulk loader loads different edges and vertices from the sub-directories within the parent `edge_directory` and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge` and `vertex` dataset 
 * `use_provided_edge_id` - `Boolean`: If the `~id` of the edges in the CSV file are whole numeric values, this enables them to be stored with the ID provided. Setting this to true will automatically generate valid edge IDs if they are currently not whole numeric values. Vertex IDs **must** be whole numeric values.
 * `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
 * `ignore_element_creation_failed` - `Boolean`: If there is a row of data in the provided CSV that is insufficient to create an edge or vertex, `true` will allow the bulk loading job to continue. *Setting this to `true` should be used with caution.*
 * `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow the bulk loading job to continue.
-* `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was successful (default is 0.1%)
+* `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was successful (default is 0.1%).
 
 ### Running the Bulk Loader Locally
 

@@ -122,8 +122,7 @@ public class SparkBulkLoader {
                 LOGGER.error(ie.getMessage(), ie);
                 System.exit(1);
             }
-        }
-        else {
+        } else {
             S3_CLIENT = AmazonS3ClientBuilder.standard().build();
             s3BucketName = cmd.getOptionValue("b");
             configPath = cmd.getOptionValue("c");

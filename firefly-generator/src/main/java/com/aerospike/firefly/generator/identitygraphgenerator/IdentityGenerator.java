@@ -105,7 +105,7 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private int NO_OF_ROWS = 100;
+    private int numberOfRecordsPerFile = 100;
     private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;
     private final Random random = new Random();
@@ -125,7 +125,7 @@ public class IdentityGenerator implements Runnable {
         this.LOG = builder.logger;
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
-        NO_OF_ROWS = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : NO_OF_ROWS;
+        numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
         if (ENV.equals("aws")){
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
@@ -311,7 +311,7 @@ public class IdentityGenerator implements Runnable {
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
         Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
-        if (countOfRecords == NO_OF_ROWS) {
+        if (countOfRecords == numberOfRecordsPerFile) {
             if (ENV.equals("aws"))
                 this.csvWriter.writeDataMapToS3(this.graphMap, dir, fileName, fileCount);
             else

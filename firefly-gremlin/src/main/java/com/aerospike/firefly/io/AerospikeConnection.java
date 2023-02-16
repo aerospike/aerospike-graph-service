@@ -93,20 +93,13 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
  */
 public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
-    public static final Policy sendKeyReadPolicy;
     public static final BatchPolicy noSendKeyBatchPolicy;
-    public static final BatchPolicy sendKeyBatchPolicy;
     public static final Policy noSendKeyReadPolicy;
 
-    // @todo using sendKey = true results in an Aerospike "key mismatch error" when constructing keys from hash
     static {
-        sendKeyReadPolicy = new Policy();
         noSendKeyReadPolicy = new Policy();
         noSendKeyBatchPolicy = new BatchPolicy();
-        sendKeyBatchPolicy = new BatchPolicy();
-        sendKeyReadPolicy.sendKey = true;
         noSendKeyReadPolicy.sendKey = false;
-        sendKeyBatchPolicy.sendKey = true;
         noSendKeyBatchPolicy.sendKey = false;
     }
 

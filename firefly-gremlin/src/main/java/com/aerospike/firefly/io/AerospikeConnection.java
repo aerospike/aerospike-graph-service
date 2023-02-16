@@ -936,6 +936,34 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Determine of a key exists
+     *
+     * @param keys Aerospike Key to check
+     * @return Boolean key exists
+     */
+    public boolean[] exists(final Key[] keys) {
+        List<Boolean> results = new ArrayList<>();
+        while (results.size() < keys.length) {
+            if (keys.length - results.size() >= AEROSPIKE_BATCH_READ_SIZE) {
+                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), results.size() + AEROSPIKE_BATCH_READ_SIZE - 1);
+                boolean[] batchResults = client.exists(null, batchKeys);
+                for (boolean batchResult : batchResults)
+                    results.add(batchResult);
+            } else {
+                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), keys.length);
+                boolean[] batchResults = client.exists(null, batchKeys);
+                for (boolean batchResult : batchResults)
+                    results.add(batchResult);
+            }
+        }
+        boolean[] resultArray = new boolean[results.size()];
+        for (int i = 0; i < results.size(); i++)
+            resultArray[i] = results.get(i);
+
+        return resultArray;
+    }
+
+    /**
      * Delete by Key
      *
      * @param key Aerospike Key to delete
@@ -1542,11 +1570,11 @@ public class AerospikeConnection implements AutoCloseable {
 
     /**
      * Wrapper for AerospikeConnection.operate() to handle returning Firefly exceptions.
-     * 
-     * @param writePolicy   WritePolicy for operate.
-     * @param key           Key for operate.
-     * @param operations    Operations for operate.
-     * @return              Record resulting from operate.
+     *
+     * @param writePolicy WritePolicy for operate.
+     * @param key         Key for operate.
+     * @param operations  Operations for operate.
+     * @return Record resulting from operate.
      */
     public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
         try {

@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
@@ -322,11 +323,29 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Determine verticies in a list exist.
+     *
+     * @param idValue vertex id to check.
+     * @return true if vertex exists, false otherwise.
+     */
+    @Override
+    public boolean[] vertexExists(final List<FireflyId> idValue) {
+        LOG.debug("Checking if vertex {} exists.", idValue);
+        return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
+    }
+
+    /**
      * Determine if an edge exists.
      *
      * @param idValue edge id to check.
      * @return true if edge exists, false otherwise.
      */
+    @Override
+    public boolean[] edgeExists(final List<FireflyId> idValue) {
+        LOG.debug("Checking if edge {} exists.", idValue);
+        return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
+    }
+
     @Override
     public boolean edgeExists(final FireflyId idValue) {
         LOG.debug("Checking if edge {} exists.", idValue);

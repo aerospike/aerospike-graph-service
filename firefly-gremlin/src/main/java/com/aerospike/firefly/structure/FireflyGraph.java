@@ -278,6 +278,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract boolean vertexExists(final FireflyId idValue);
 
+    public abstract boolean[] vertexExists(final List<FireflyId> idValues);
+
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
 
@@ -292,6 +294,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract List<FireflyEdge> readEdges(final List<FireflyId> edgeIds);
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
+
+    public abstract boolean[] edgeExists(final List<FireflyId> idValue);
 
     public abstract FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> record);
 
@@ -437,15 +441,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
                 .map(id -> getIdFactory().createId(id, FireflyVertex.class))
                 .collect(Collectors.toList());
-        // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
-        // TODO: Should this be batch exists? Or removed for performance?
-        final List<FireflyId> idsDoNotExist;
+
         if (!idList.isEmpty()) {
-            idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
-            if (idsDoNotExist.size()  == idList.size())
+            final List<FireflyId> idsDoNotExist = new ArrayList<>();
+            boolean[] results = vertexExists(idList);
+            for (int i = 0; i < results.length; i++)
+                if (!results[i])
+                    idsDoNotExist.add(idList.get(i));
+            if (idsDoNotExist.size() == idList.size())
                 return Collections.emptyIterator();
             idList.removeAll(idsDoNotExist);
         }
+
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
         return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
@@ -455,11 +462,25 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        final List<Object> filtered = getIds(List.of(edgeIds));
+        final List<Object> ids = getIds(List.of(edgeIds));
+        final List<FireflyId> idList = ids.stream()
+                .map(id -> getIdFactory().createId(id, FireflyEdge.class))
+                .collect(Collectors.toList());
+        if (!idList.isEmpty()) {
+            final List<FireflyId> idsDoNotExist = new ArrayList<>();
+            boolean[] results = edgeExists(idList);
+            for (int i = 0; i < results.length; i++)
+                if (!results[i])
+                    idsDoNotExist.add(idList.get(i));
+            if (idsDoNotExist.size() == idList.size())
+                return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
+        }
+
         return new FireflyEdgeIterator(this,
-                (filtered.size() == 0) ?
+                (idList.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        filtered.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
+                        idList.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
     }
 
     /**

@@ -79,39 +79,6 @@ public final class FireflyHelper {
         return getEdgeList(graph, vertex, direction, labels).iterator();
     }
 
-    public static Iterator<FireflyEdge> queryEdgeStringIndex(FireflyGraph graph, String key, Object value) {
-        return graph.queryEdgePropertyStringMatchIndex(key, value);
-    }
-
-    public static Iterator<? extends Edge> queryEdgeNumericIndex(FireflyGraph graph, String key, P<?> predicate) {
-        if (predicate.getBiPredicate().equals(Compare.eq))
-            return graph.queryEdgePropertyNumericMatchIndex(key, predicate);
-        else if (predicate.getBiPredicate().equals(Compare.lt))
-            return graph.queryEdgePropertyNumericRangeIndex(key, predicate);
-        else if (predicate.getBiPredicate().equals(Compare.gt))
-            return graph.queryEdgePropertyNumericRangeIndex(key, predicate);
-        else
-            throw new RuntimeException("Predicate not supported on index query " + predicate.getBiPredicate());
-    }
-
-    public static Iterator<? extends Vertex> queryVertexByLabelString(final FireflyGraph graph, final String label) {
-        LOG.warn("Traversal starting with a label filter on Vertices detected. This is indicative of an OLAP-style query and is not recommended due to having poor performance.");
-        if (graph.getBaseGraph().V_LABEL_INDEX_ENABLED) {
-            return graph.queryVertexLabelStringIndex(label);
-        } else {
-            return graph.queryVertexLabelString(label);
-        }
-    }
-
-    public static Iterator<? extends Edge> queryEdgeByLabelString(FireflyGraph graph, String label) {
-        LOG.warn("Traversal starting with a label filter on Edges detected. This is indicative of an OLAP-style query and is not recommended due to having poor performance.");
-        if (graph.getBaseGraph().E_LABEL_INDEX_ENABLED) {
-            return graph.queryEdgeLabelStringIndex(label);
-        } else {
-            return graph.queryEdgeLabelString(label);
-        }
-    }
-
     public static long countVertices(FireflyGraph graph) {
         return graph.getVertexCount();
     }

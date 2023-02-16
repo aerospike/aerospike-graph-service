@@ -26,13 +26,9 @@ import java.util.stream.Collectors;
  */
 
 public class ReadThroughCache extends FireflyCache {
-    public static final WritePolicy sendKeyWritePolicy = new WritePolicy();
     private final AtomicLong hitCounter = new AtomicLong(0);
     private final AtomicLong missCounter = new AtomicLong(0);
 
-    static {
-        sendKeyWritePolicy.sendKey = true;
-    }
 
     // Key->Record. getIfPresent will return null if the key is not in the cache.
     private final Cache<Key, Record> cache;
@@ -140,7 +136,7 @@ public class ReadThroughCache extends FireflyCache {
     @Override
     public void remove(final Key key) {
         cache.invalidate(key);
-        db.getClient().delete(sendKeyWritePolicy, key);
+        db.getClient().delete(null, key);
     }
 
     /**

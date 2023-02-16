@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import ch.qos.logback.classic.Level;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
@@ -64,9 +65,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import ch.qos.logback.classic.Level;
-
 import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
@@ -157,7 +155,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     private final Timer fireflyIndexMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
     private final Configuration configuration;
-    public static String VP_INDEX_PREFIX = "~VP_";
+    public static String VP_INDEX_PREFIX = "VP";
+    public static String EP_INDEX_PREFIX = "EP";
     private final FireflyGraphVariables variables;
     protected final AerospikeConnection db;
     private final FireflyIdFactory idFactory;
@@ -202,9 +201,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final TimerTask indexMetadataTimerTask = new FireflyMetadataTask(fireflyIndexMetadata);
         fireflyIndexMetadataTask.schedule(indexMetadataTimerTask, 0, db.INDEX_METADATA_UPDATE_FREQUENCY);
 
-        // Grab user defined indexes from the configuration and create them.
+        // Grab user defined vertex property indexes from the configuration and create them.
         final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-        createIndexes(vertexPropertyIndexes);
+        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE, db.getVpIndexPrefix(), vertexPropertyIndexes);
+
+        // Grab user defined edge property indexes from the configuration and create them.
+        final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
+        createIndexes(FireflyEdge.class, db.PROPERTIES, db.getEpIndexPrefix(), edgePropertyIndexes);
 
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
         if (db.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE) {
@@ -275,6 +278,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract boolean vertexExists(final FireflyId idValue);
 
+    public abstract boolean[] vertexExists(final List<FireflyId> idValues);
+
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
 
@@ -289,6 +294,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract List<FireflyEdge> readEdges(final List<FireflyId> edgeIds);
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
+
+    public abstract boolean[] edgeExists(final List<FireflyId> idValue);
 
     public abstract FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> record);
 
@@ -318,21 +325,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract long getVertexCount();
 
     public abstract long getEdgeCount();
-
-    // Index functions.
-    public abstract Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(final String key, final Object value);
-
-    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(final String key, final P<?> predicate);
-
-    public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(final String key, final P<?> predicate);
-
-    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final String value);
-
-    public abstract Iterator<FireflyVertex> queryVertexLabelString(final String value);
-
-    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final String label);
-
-    public abstract Iterator<FireflyEdge> queryEdgeLabelString(final String label);
 
     @Override
     public AerospikeConnection getBaseGraph() {
@@ -449,15 +441,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
                 .map(id -> getIdFactory().createId(id, FireflyVertex.class))
                 .collect(Collectors.toList());
-        // If vertex id count is > 0 && not all vertices exist, then we have a no such element exception.
-        // TODO: Should this be batch exists? Or removed for performance?
-        final List<FireflyId> idsDoNotExist;
+
         if (!idList.isEmpty()) {
-            idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
-            if (idsDoNotExist.size()  == idList.size())
+            final List<FireflyId> idsDoNotExist = new ArrayList<>();
+            boolean[] results = vertexExists(idList);
+            for (int i = 0; i < results.length; i++)
+                if (!results[i])
+                    idsDoNotExist.add(idList.get(i));
+            if (idsDoNotExist.size() == idList.size())
                 return Collections.emptyIterator();
             idList.removeAll(idsDoNotExist);
         }
+
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
         return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
@@ -467,11 +462,25 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public Iterator<Edge> edges(Object... edgeIds) {
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
-        final List<Object> filtered = getIds(List.of(edgeIds));
+        final List<Object> ids = getIds(List.of(edgeIds));
+        final List<FireflyId> idList = ids.stream()
+                .map(id -> getIdFactory().createId(id, FireflyEdge.class))
+                .collect(Collectors.toList());
+        if (!idList.isEmpty()) {
+            final List<FireflyId> idsDoNotExist = new ArrayList<>();
+            boolean[] results = edgeExists(idList);
+            for (int i = 0; i < results.length; i++)
+                if (!results[i])
+                    idsDoNotExist.add(idList.get(i));
+            if (idsDoNotExist.size() == idList.size())
+                return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
+        }
+
         return new FireflyEdgeIterator(this,
-                (filtered.size() == 0) ?
+                (idList.size() == 0) ?
                         db.readElementIds(FireflyEdge.class) :
-                        filtered.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
+                        idList.stream().map(id -> getIdFactory().createId(id, FireflyEdge.class)).collect(Collectors.toList()).iterator());
     }
 
     /**
@@ -482,8 +491,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @return
      */
     private Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
-        final String name = AerospikeConnection.LABEL.equals(indexInfo.key) ?
-                AerospikeConnection.LABEL : db.VERTEX_PROPERTY_NAME_TO_VALUE;
+        final String name;
+        if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
+            name = AerospikeConnection.LABEL;
+        } else if (indexInfo.setName.equals(getBaseGraph().VERTEX_AERO_SET)) {
+            name = db.VERTEX_PROPERTY_NAME_TO_VALUE;
+        } else if (indexInfo.setName.equals(getBaseGraph().EDGE_AERO_SET)) {
+            name = db.PROPERTIES;
+        } else {
+            throw new IllegalArgumentException(
+                    "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
+        }
+
         final IndexCollectionType type = AerospikeConnection.LABEL.equals(indexInfo.key) ?
                 IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
         final Object value = predicate.getValue();
@@ -526,6 +545,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     private Exp predicateToExpression(final String binName,
                                       final String mapKey,
                                       final P<?> predicate) {
+        // If the bin is the label bin, we can make a very simple predicate.
+        if (AerospikeConnection.LABEL.equals(binName)) {
+            return Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val((String) predicate.getValue()));
+        }
+
+        // Need to build a more complex expression for nested map values.
         final Object value = predicate.getValue();
         if (Number.class.isAssignableFrom(value.getClass())) {
             final Long casted;
@@ -580,12 +605,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @return Iterator of transformed elements.
      */
     public <E extends Element> Iterator<E> queryScan(final String mapKey,
+                                                     final String setName,
+                                                     final String binName,
                                                      final P<?> predicate,
                                                      final TransformMapEntryKeyRecord<E> transform) {
-        // Latch bin and set names.
-        final String binName = db.VERTEX_PROPERTY_NAME_TO_VALUE;
-        final String setName = db.VERTEX_AERO_SET;
-
         // Build expression using predicate.
         final Expression expression = Exp.build(predicateToExpression(binName, mapKey, predicate));
 
@@ -615,12 +638,16 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         E transform(final Map.Entry<Key, Record> keyRecord);
     }
 
+    public interface GetElements<E extends Element> {
+        Iterator<E> get(final Object... ids);
+    }
+
     /**
      * Function to create vertex property indexes using a list of property keys.
      *
      * @param vertexPropertyIndexes List of vertex property indexes to create.
      */
-    private void createIndexes(final List<String> vertexPropertyIndexes) {
+    private void createIndexes(final Class<? extends FireflyElement> elementClass, final String binName, final String prefix, final List<String> vertexPropertyIndexes) {
         final List<String> existingIndexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
@@ -628,11 +655,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Add indexes specified in properties file.
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
-            final String formattedIndex = String.format("%s_%s", db.getVpIndexPrefix(), index);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
-                    formattedIndex + "_" + STRING, db.VERTEX_PROPERTY_NAME_TO_VALUE, index, STRING, IndexCollectionType.DEFAULT);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(FireflyVertex.class),
-                    formattedIndex + "_" + NUMERIC, db.VERTEX_PROPERTY_NAME_TO_VALUE, index, NUMERIC, IndexCollectionType.DEFAULT);
+            final String formattedIndex = String.format("%s_%s", prefix, index);
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + STRING, binName, index, STRING, IndexCollectionType.DEFAULT);
+            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + NUMERIC, binName, index, NUMERIC, IndexCollectionType.DEFAULT);
         }
 
         // Manually force metadata to update.

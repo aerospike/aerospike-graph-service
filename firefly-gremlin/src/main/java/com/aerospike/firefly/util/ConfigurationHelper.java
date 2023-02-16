@@ -107,6 +107,8 @@ public final class ConfigurationHelper {
         public static final String LABEL = "LABEL";
         public static final String V_LABEL_INDEX = "V_LABEL_INDEX";
         public static final String E_LABEL_INDEX = "E_LABEL_INDEX";
+        public static final String V_LABEL_INDEX_ENABLED = "V_LABEL_INDEX_ENABLED";
+        public static final String E_LABEL_INDEX_ENABLED = "E_LABEL_INDEX_ENABLED";
         public static final String E_IN_INDEX = "E_IN_INDEX";
         public static final String E_OUT_INDEX = "E_OUT_INDEX";
         // User supplied id cache
@@ -194,6 +196,8 @@ public final class ConfigurationHelper {
         put(Keys.INDEXED_BINS, "indexedBins");
         put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
+        put(Keys.V_LABEL_INDEX_ENABLED, "false");
+        put(Keys.E_LABEL_INDEX_ENABLED, "false");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
         put(Keys.SCAN_MAX_WAIT, "2000");

@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -289,6 +290,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
 
+    public abstract FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> record);
+
     public abstract boolean edgeExists(final FireflyId idValue);
 
     // Graph variable functions.
@@ -323,9 +326,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(final String key, final P<?> predicate);
 
-    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyVertex> queryVertexLabelStringIndex(final String value);
 
-    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final Object value);
+    public abstract Iterator<FireflyVertex> queryVertexLabelString(final String value);
+
+    public abstract Iterator<FireflyEdge> queryEdgeLabelStringIndex(final String label);
+
+    public abstract Iterator<FireflyEdge> queryEdgeLabelString(final String label);
 
     @Override
     public AerospikeConnection getBaseGraph() {
@@ -447,10 +454,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final List<FireflyId> idsDoNotExist;
         if (!idList.isEmpty()) {
             idsDoNotExist = idList.stream().filter(it -> !vertexExists(it)).collect(Collectors.toList());
-            if (idsDoNotExist.size() > 0)
-                //@todo is this the correct place to throw this error?
-                //@todo the error string is required to satisfy a standard test case, but should likely go somewhere in the edge impl
-                throw new NoSuchElementException(String.format("%s could not be found and edge could not be created", idsDoNotExist));
+            if (idsDoNotExist.size()  == idList.size())
+                return Collections.emptyIterator();
+            idList.removeAll(idsDoNotExist);
         }
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.

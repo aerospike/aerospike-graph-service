@@ -1,6 +1,9 @@
 package com.aerospike.firefly.io;
 
 import com.aerospike.client.query.IndexType;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,16 +39,19 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     @Override
     public void updateMetadata() {
         // Read the index metadata.
-        final List<String> vertexPropertyIndexes =
+        final List<String> indexes =
                 AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
                         .map(Map.Entry::getKey).filter(s ->
-                                s.startsWith(db.getVpIndexPrefix()) || db.V_LABEL_INDEX.equals(s) || db.E_LABEL_INDEX.equals(s)).
+                                s.startsWith(db.getVpIndexPrefix()) ||
+                                        s.startsWith(db.getEpIndexPrefix()) ||
+                                        db.V_LABEL_INDEX.equals(s) ||
+                                        db.E_LABEL_INDEX.equals(s)).
                         collect(Collectors.toList());
 
         // Update the index metadata.
         synchronized (FireflyIndexMetadata.class) {
             indexInfos.clear();
-            for (final String indexName : vertexPropertyIndexes) {
+            for (final String indexName : indexes) {
                 // If it is the vertex or edge label index, insert it.
                 if (db.V_LABEL_INDEX.equals(indexName)) {
                     indexInfos.add(new IndexInfo(db.V_LABEL_INDEX, AerospikeConnection.LABEL, STRING, db.VERTEX_AERO_SET));
@@ -55,14 +61,27 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                     continue;
                 }
 
-                // Otherwise check if it is a property index.
-                String propertyName = indexName.substring((db.getVpIndexPrefix() + "_").length());
+                // Otherwise, if it is a property index, we need to strip the info.
+                String propertyName;
+                final String setName;
+                if (indexName.startsWith(db.getVpIndexPrefix())) {
+                    setName = db.VERTEX_AERO_SET;
+                    propertyName = indexName.substring((db.getVpIndexPrefix() + "_").length());
+                } else if (indexName.startsWith(db.getEpIndexPrefix())) {
+                    setName = db.EDGE_AERO_SET;
+                    propertyName = indexName.substring((db.getEpIndexPrefix() + "_").length());
+                } else {
+                    // Not a property index.
+                    LOG.warn("Unknown index: {}.", indexName);
+                    continue;
+                }
+
                 if (propertyName.endsWith("_" + IndexType.NUMERIC)) {
                     propertyName = propertyName.substring(0, propertyName.length() - IndexType.NUMERIC.toString().length() - 1);
-                    indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.NUMERIC, db.VERTEX_AERO_SET));
+                    indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.NUMERIC, setName));
                 } else if (propertyName.endsWith("_" + IndexType.STRING)) {
                     propertyName = propertyName.substring(0, propertyName.length() - IndexType.STRING.toString().length() - 1);
-                    indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.STRING, db.VERTEX_AERO_SET));
+                    indexInfos.add(new IndexInfo(indexName, propertyName, IndexType.STRING, setName));
                 } else {
                     LOG.warn("Unknown index type for index: {}.", indexName);
                 }
@@ -89,17 +108,35 @@ public class FireflyIndexMetadata implements FireflyMetadata {
      * @param value Value of the property.
      * @return PropertyIndexInfo if it exists, empty optional otherwise.
      */
-    public Optional<IndexInfo> getPropertyIndexInfo(final String key, final Object value) {
+    public Optional<IndexInfo> getPropertyIndexInfo(final Class<? extends FireflyElement> elementClass, final String key, final Object value) {
         final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
         for (final IndexInfo indexInfo : indexInfosList) {
-            if (indexInfo.key.equals(key) || (AerospikeConnection.LABEL.equals(indexInfo.key) && "~label".equals(key))) {
-                if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
-                    // If value is number, index type must also be numeric.
-                    return Optional.of(indexInfo);
-                } else if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(STRING)) {
-                    // If value is string, index type must also be string.
-                    return Optional.of(indexInfo);
+            if (FireflyVertex.class.isAssignableFrom(elementClass)) {
+                if (indexInfo.setName.equals(db.V_LABEL_INDEX) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
+                    if (indexInfo.key.equals(key) || (AerospikeConnection.LABEL.equals(indexInfo.key) && "~label".equals(key))) {
+                        if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
+                            // If value is number, index type must also be numeric.
+                            return Optional.of(indexInfo);
+                        } else if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(STRING)) {
+                            // If value is string, index type must also be string.
+                            return Optional.of(indexInfo);
+                        }
+                    }
                 }
+            } else if (FireflyEdge.class.isAssignableFrom(elementClass)) {
+                if (indexInfo.setName.equals(db.E_LABEL_INDEX) || indexInfo.setName.equals(db.EDGE_AERO_SET)) {
+                    if (indexInfo.key.equals(key) || (AerospikeConnection.LABEL.equals(indexInfo.key) && "~label".equals(key))) {
+                        if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
+                            // If value is number, index type must also be numeric.
+                            return Optional.of(indexInfo);
+                        } else if (String.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(STRING)) {
+                            // If value is string, index type must also be string.
+                            return Optional.of(indexInfo);
+                        }
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Cannot get property index info for unknown element class: " + elementClass);
             }
         }
         return Optional.empty();
@@ -120,9 +157,9 @@ public class FireflyIndexMetadata implements FireflyMetadata {
          * Default constructor, simply populates the info class.
          *
          * @param indexName Name of the index.
-         * @param key Key of the property.
+         * @param key       Key of the property.
          * @param indexType Type of the index.
-         * @param setName Name of the set.
+         * @param setName   Name of the set.
          */
         public IndexInfo(final String indexName,
                          final String key,

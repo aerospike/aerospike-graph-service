@@ -393,8 +393,9 @@ public class IdentityGenerator implements Runnable {
 
     public String createName(final int meanLength, final int variance) {
         String name = "";
-        for (int i = 0; i < getGaussian(meanLength, variance); i++)
+        for (int i = 0; i < getGaussian(meanLength, variance); i++) {
             name = name + LETTERS.get(this.random.nextInt(LETTERS.size() - 1));
+        }
         return name;
     }
     public String createName(final int meanLength) {

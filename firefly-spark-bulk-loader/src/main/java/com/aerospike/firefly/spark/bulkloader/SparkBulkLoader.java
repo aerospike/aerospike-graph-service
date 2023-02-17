@@ -111,7 +111,7 @@ public class SparkBulkLoader {
         final Set<String> vertexDirectories = new HashSet<>();
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
-        final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
+        // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         try {
@@ -125,18 +125,19 @@ public class SparkBulkLoader {
                 vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
             } else {
+                final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
                 configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
                 CONFIG = loadConfiguration(configPath);
                 vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
             }
         }
-        catch (IOException ie) {
+        catch (final IOException ie) {
             LOGGER.error("Unable to load config." + ie.getMessage());
             ie.printStackTrace();
             System.exit(1);
         }
-        catch (AmazonClientException awsexception) {
+        catch (final AmazonClientException awsexception) {
             LOGGER.error("Amazon SDK client error" + awsexception.getMessage());
             System.exit(1);
         }

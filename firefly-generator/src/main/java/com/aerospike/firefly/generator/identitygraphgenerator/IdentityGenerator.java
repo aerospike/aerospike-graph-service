@@ -10,9 +10,10 @@ import com.aerospike.firefly.generator.identitygraphgenerator.beans.vertices.Per
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.opencsv.CSVWriter;
 import org.apache.commons.cli.CommandLine;
@@ -104,14 +105,14 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private long NO_OF_ROWS = 100;
+    private int numberOfRecordsPerFile = 100;
     private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;
     private final Random random = new Random();
     private final Logger LOG;
     private final IdentityGenerator.CsvWriter csvWriter;
     private Future future;
-    private static String ENV = "PROD";
+    private static String ENV = "aws";
     //Set default path in local run mode
     private static String path = "./datagenerator";
     private static String bucket;
@@ -124,14 +125,18 @@ public class IdentityGenerator implements Runnable {
         this.LOG = builder.logger;
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
-        if (!ENV.equals("local")){
+        numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
+        if (ENV.equals("aws")){
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
             String secretKey = cmd.getOptionValue("s");
-            AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+            final AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
             ClientConfiguration clientConfig = new ClientConfiguration();
             clientConfig.setProtocol(Protocol.HTTP);
-            S3_CLIENT = new AmazonS3Client(credentials, clientConfig);
+            S3_CLIENT = AmazonS3ClientBuilder
+                    .standard()
+                    .withCredentials(new AWSStaticCredentialsProvider(credentials))
+                    .withClientConfiguration(clientConfig).build();
         }
         this.csvWriter = new IdentityGenerator.CsvWriter(path);
     }
@@ -306,11 +311,11 @@ public class IdentityGenerator implements Runnable {
         if (graphMap.containsKey(fileName))
             fileCount = (int)graphMap.get(fileName).get("fileCount");
         Integer countOfRecords = populateGraphMap(fileName, pair, fileCount);
-        if ( countOfRecords == NO_OF_ROWS) {
-            if (ENV.equals("local"))
-                this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
-            else
+        if (countOfRecords == numberOfRecordsPerFile) {
+            if (ENV.equals("aws"))
                 this.csvWriter.writeDataMapToS3(this.graphMap, dir, fileName, fileCount);
+            else
+                this.csvWriter.writeDataMapToCSV(this.graphMap, dir, fileName, fileCount);
             HashMap<String, Object> objectPropertyMap = new HashMap<>();
             objectPropertyMap.put("fileCount", fileCount + 1);
             HashSet<String[]> schemaSet = new HashSet<>();
@@ -394,15 +399,13 @@ public class IdentityGenerator implements Runnable {
         return name;
     }
     public String createName(final int meanLength) {
-
         return createName(meanLength, 2);
     }
 
     public Long createNumber(final int length) {
         String number = "";
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++)
             number = number + this.random.nextInt(9);
-        }
         return Long.valueOf(number);
     }
 
@@ -412,9 +415,8 @@ public class IdentityGenerator implements Runnable {
 
     public String createStreet() {
         String street = "";
-        for (int i = 0; i < this.getGaussian(6, 2); i++) {
+        for (int i = 0; i < this.getGaussian(6, 2); i++)
             street = street + this.random.nextInt(9);
-        }
         return street + " " + this.createName(10);
     }
 
@@ -460,7 +462,6 @@ public class IdentityGenerator implements Runnable {
             }
         }
 
-
         private static CSVWriter buildCSVWriter(OutputStreamWriter streamWriter) {
             return new CSVWriter(streamWriter, ',', Character.MIN_VALUE, '"', System.lineSeparator());
         }
@@ -476,7 +477,6 @@ public class IdentityGenerator implements Runnable {
         protected int accountsPerHousehold;
         protected String id = UUID.randomUUID().toString();
         protected int ops = 10000;
-
         protected CommandLine cmd;
 
         public static Builder create() {
@@ -487,6 +487,7 @@ public class IdentityGenerator implements Runnable {
             this.cmd = cmd;
             return this;
         }
+
         public Builder workerId(final String id) {
             this.id = id;
             return this;

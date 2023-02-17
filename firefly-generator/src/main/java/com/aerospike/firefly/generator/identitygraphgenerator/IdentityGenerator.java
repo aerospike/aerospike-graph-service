@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -39,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -106,9 +104,9 @@ public class IdentityGenerator implements Runnable {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private final List<String> verticesHeaders = Arrays.asList("~id", "~label");
-    private final LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private int NO_OF_ROWS = 100;
+    private List<String> verticesHeaders = Arrays.asList("~id", "~label");
+    private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
+    private int numberOfRecordsPerFile = 100;
     private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;
     private final Random random = new Random();
@@ -129,7 +127,7 @@ public class IdentityGenerator implements Runnable {
         this.LOG = builder.logger;
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
-        NO_OF_ROWS = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : NO_OF_ROWS;
+        numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
         if (ENV.equals("aws")){
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
@@ -181,6 +179,7 @@ public class IdentityGenerator implements Runnable {
                 }
             }
         } catch (IOException e) {
+            LOG.error("Error in running data generator. " + e.getMessage());
             throw new RuntimeException(e);
         }
         //Write remaining file stream to output files
@@ -191,7 +190,7 @@ public class IdentityGenerator implements Runnable {
             else
                 this.csvWriter.flushStreamToFile(entry.getValue().left.toByteArray(), fileName);
         }
-        LOG.info("Generating data for firefly graph done");
+        LOG.info("Generating data for firefly graph done..");
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +321,7 @@ public class IdentityGenerator implements Runnable {
         this.csvWriter.csvwriterWriteToStream((ArrayList<String[]>)this.graphMap.get(fileName).get("data"),
                     streamMap.get(dir + "/" + fileName + "_" + fileCount).right);
         HashMap<String, Object> objectPropertyMap = new HashMap<>();
-        if (countOfRecords == NO_OF_ROWS) {
+        if (countOfRecords == numberOfRecordsPerFile) {
             if (ENV.equals("aws"))
                 this.csvWriter.flushStreamToS3(streamMap.get(dir + "/" + fileName + "_" + fileCount).left.toByteArray(), dir + "/" + fileName + "_" + fileCount);
             else
@@ -416,8 +415,9 @@ public class IdentityGenerator implements Runnable {
 
     public String createName(final int meanLength, final int variance) {
         String name = "";
-        for (int i = 0; i < getGaussian(meanLength, variance); i++)
+        for (int i = 0; i < getGaussian(meanLength, variance); i++) {
             name = name + LETTERS.get(this.random.nextInt(LETTERS.size() - 1));
+        }
         return name;
     }
     public String createName(final int meanLength) {
@@ -458,12 +458,16 @@ public class IdentityGenerator implements Runnable {
             this.streamMap = map;
         }
 
-        public void populateStreamMap(String filePath) {
+        public void populateStreamMap(String filePath) throws IOException {
             java.io.File file = new java.io.File(path + "/" + filePath + ".csv");
-            file.getParentFile().mkdirs();
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
-            streamMap.put(filePath, new MutablePair<>(stream, writer));
+            boolean isCreated = file.getParentFile().mkdirs();
+            if (isCreated) {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+                streamMap.put(filePath, new MutablePair<>(stream, writer));
+            } else {
+                throw new IOException("path creation failed");
+            }
         }
 
         private CSVWriter buildCSVWriter(OutputStreamWriter streamWriter) {

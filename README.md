@@ -35,7 +35,7 @@ docker run -p8182:8182 -e AEROSPIKE_NAMESPACE="test" -e AEROSPIKE_HOST="<aerospi
 Testing Firefly with Maven
 -----------
 * Running test cases in local on a Mac needs update to `conf/integration-test-setting-packed.properties`, `conf/integration-test-setting-packed-sindex.properties` and `firefly-spark-bulk-loader/src/test/resources/packed` to change `aerospike_host` to `localhost`. 
-* Make sure Aerospike server is running locally through Docker
+* Make sure an Aerospike server is running locally. The easiest way is through Docker.
 
 `mvn clean test`
 

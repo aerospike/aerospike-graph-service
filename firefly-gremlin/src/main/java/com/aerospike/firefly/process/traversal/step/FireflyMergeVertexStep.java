@@ -1,9 +1,10 @@
 package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
-import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -212,7 +213,18 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) || value.getClass().isAssignableFrom(Integer.class)) {
                         results.add(graph.vertices());
                     } else if (value.getClass().isAssignableFrom(String.class)) {
-                        results.add(FireflyHelper.queryVertexByLabelStringIndex(graph, value));
+                        // Find index.
+                        final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo =
+                                graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", value);
+
+                        // If we have index, query it, otherwise we need to scan (or error out).
+                        final P<?> predicate = P.eq(value);
+                        if (propertyIndexInfo.isPresent()) {
+                            results.add(graph.queryIndex(propertyIndexInfo.get(), predicate, graph::vertexFromRecord));
+                        } else {
+                            LOG.debug("No index found for vertex label, running scan");
+                            results.add(graph.queryScan(null, graph.getBaseGraph().VERTEX_AERO_SET, AerospikeConnection.LABEL, predicate, graph::vertexFromRecord));
+                        }
                     } else {
                         results.add(graph.vertices());
                     }
@@ -220,7 +232,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     if (value.getClass().isAssignableFrom(Long.class) || value.getClass().isAssignableFrom(Double.class) ||
                             value.getClass().isAssignableFrom(Integer.class) || value.getClass().isAssignableFrom(String.class)) {
                         // Find index.
-                        final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(key.toString(), value);
+                        final Optional<FireflyIndexMetadata.IndexInfo> propertyIndexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, key.toString(), value);
 
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final Iterator<? extends Vertex> iterator;
@@ -228,7 +240,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                             iterator = graph.queryIndex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
-                            iterator = graph.queryScan(key.toString(), P.eq(value), graph::vertexFromRecord);
+                            iterator = graph.queryScan(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE, P.eq(value), graph::vertexFromRecord);
                         }
                         results.add(iterator);
                     } else {

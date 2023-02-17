@@ -92,7 +92,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public <V> Property<V> property(final String key) {
         if (properties.containsKey(key)) {
-            return new RelationalProperty<V>(graph, this, key, (V) properties.get(key));
+            final V casted = (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(properties.get(key), typeHints.get(key));
+            return new RelationalProperty<>(graph, this, key, casted);
         } else {
             return Property.empty();
         }

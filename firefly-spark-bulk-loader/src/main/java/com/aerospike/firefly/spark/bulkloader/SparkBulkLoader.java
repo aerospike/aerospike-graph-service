@@ -14,6 +14,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -72,6 +73,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -96,7 +98,7 @@ public class SparkBulkLoader {
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
     private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static Configuration CONFIG;
-    private static String ENV = "prod";
+    private static String MODE = "cluster";
     private static AmazonS3 S3_CLIENT;
     private static final int RETRY_LIMIT = 100;
 
@@ -106,39 +108,46 @@ public class SparkBulkLoader {
 
     public static void main(final String[] args) {
         String s3BucketName = null;
-        String configPath;
+        String configPath = "";
         final Set<String> vertexDirectories = new HashSet<>();
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
-        ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
-        if (ENV.equals("local")) {
-            final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
-            configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
-            final Path path = Path.of(configPath);
-            CONFIG = getConfig(path);
-            try {
+        // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
+        MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
+        final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
+        try {
+            if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                s3BucketName = cmd.getOptionValue("b");
+                configPath = cmd.getOptionValue("c");
+                assert s3BucketName != null;
+                assert configPath != null;
+                CONFIG = loadConfigFromS3(s3BucketName, configPath);
+                vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
+                edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+            } else {
+                final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
+                configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
+                CONFIG = loadConfiguration(configPath);
                 vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
-            } catch (IOException ie) {
-                LOGGER.error(ie.getMessage(), ie);
-                System.exit(1);
             }
-        } else {
-            S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-            s3BucketName = cmd.getOptionValue("b");
-            configPath = cmd.getOptionValue("c");
-            assert s3BucketName != null;
-            assert configPath != null;
-            CONFIG = loadConfigFromS3(s3BucketName, configPath);
-            vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
-            edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+        }
+        catch (final IOException ie) {
+            LOGGER.error("Unable to load config." + ie.getMessage());
+            ie.printStackTrace();
+            System.exit(1);
+        }
+        catch (final AmazonClientException awsexception) {
+            LOGGER.error("Amazon SDK client error" + awsexception.getMessage());
+            System.exit(1);
         }
         final double sampleFraction = Double.parseDouble(getOrDefault(SAMPLING_PERCENTAGE, CONFIG)) / 100;
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
-        if (ENV.equals("local"))
-            conf.setMaster("local[2]");
+        if (MODE.equals("local"))
+            conf.setMaster("local[*]");
 
         conf.setAppName("firefly-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
@@ -154,20 +163,23 @@ public class SparkBulkLoader {
         final String finalConfigPath = configPath;
 
         // Vertices
+        final AtomicReference<Configuration> localConfig = new AtomicReference<>();
         unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            }
+            else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     try {
@@ -209,18 +221,20 @@ public class SparkBulkLoader {
 
         // Verify vertices.
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            }
+            else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -280,13 +294,13 @@ public class SparkBulkLoader {
         Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
 
         // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
-        final Dataset<Row> persistentEdgeData = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
+        // final Dataset<Row> persistentEdgeData = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
 
         final Set<Long> supernodes = new HashSet<>();
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
             // Csv format is: ~id, ~from, ~to, ...
-            final JavaRDD<Row> edgeRDD = persistentEdgeData.javaRDD();
+            final JavaRDD<Row> edgeRDD = unionEdgeDS.javaRDD();
 
             // Values in csv for ~from and ~to will return as strings but are longs.
             final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
@@ -359,24 +373,25 @@ public class SparkBulkLoader {
         }
 
         // Write to edge caches for non-supernodes.
-        persistentEdgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            } else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
@@ -442,25 +457,26 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Unpersist the dataframe to free up the memory.
-        persistentEdgeData.unpersist();
+//        persistentEdgeData.unpersist();
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            } else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -526,7 +542,7 @@ public class SparkBulkLoader {
             if (unionDS.isEmpty())
                 unionDS = spark.read().options(options).csv(directory);
             else
-                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory), true).distinct();
+                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory), true);
         }
         Set<String> headers = new HashSet<>();
         for (final String header : unionDS.columns())
@@ -538,6 +554,11 @@ public class SparkBulkLoader {
             }
         }
         return unionDS;
+    }
+
+    private static Configuration loadConfiguration(String configPath) {
+        final Path path = Path.of(configPath);
+        return getConfig(path);
     }
 
     static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
@@ -734,13 +755,16 @@ public class SparkBulkLoader {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod/remote");
+        final Option modeOption = new Option("m", "mode", true, "local when running in IDE, cluster when running spark-submit through CLI or in AWS");
+        options.addOption(modeOption);
+
+        final Option envOption = new Option("e", "env", true, " Optional argument. aws env when running job in cluster mode in AWS.");
         options.addOption(envOption);
 
         final Option bucketOption = new Option("b", "bucket", true, "AWS S3 bucket name");
         options.addOption(bucketOption);
 
-        final Option pathOption = new Option("c", "config", true, "config path [local -> absolute/S3 -> full path to config.properties after bucket name]");
+        final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
 
         final CommandLineParser parser = new DefaultParser();

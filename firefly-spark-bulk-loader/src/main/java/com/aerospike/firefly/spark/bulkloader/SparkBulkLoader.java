@@ -101,10 +101,8 @@ public class SparkBulkLoader {
     private static String MODE = "cluster";
     private static AmazonS3 S3_CLIENT;
     private static final int RETRY_LIMIT = 100;
-
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
-    private static final long  MEGABYTE = 1024L * 1024L;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
@@ -293,9 +291,6 @@ public class SparkBulkLoader {
         //sample out edge dataset to verify the inserts
         Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
 
-        // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
-        // final Dataset<Row> persistentEdgeData = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
-
         final Set<Long> supernodes = new HashSet<>();
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
@@ -455,9 +450,6 @@ public class SparkBulkLoader {
             }
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
-
-        // Unpersist the dataframe to free up the memory.
-//        persistentEdgeData.unpersist();
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {

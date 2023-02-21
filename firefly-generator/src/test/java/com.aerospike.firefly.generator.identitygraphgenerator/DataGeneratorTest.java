@@ -99,7 +99,7 @@ public class DataGeneratorTest {
         IdentityGenerator.Builder builder = IdentityGenerator.Builder.create();
         builder = builder.opsPerTransaction(500)
                 .cmdLineArgs(cmd)
-                .households(50)
+                .households(Integer.parseInt(numOfHouseholds))
                 .accountsPerHousehold(10)
                 .peoplePerHousehold(3)
                 .devicesPerPerson(2);
@@ -108,15 +108,16 @@ public class DataGeneratorTest {
     }
 
     @Test
-    public void testGeneratedFileCount() throws IOException {
+    public void testGeneratedFileCount() throws IOException, InterruptedException {
         assertTrue(Files.exists(Paths.get(dataDir)));
-        mockMain(new String[]{"-e", "local", "-d", dataDir, "-h", "100"});
+        mockMain(new String[]{"-e", "local", "-d", dataDir, "-h", "2", "-r","2"});
+        Thread.sleep(2000);
         long vertexFileCount = Files.walk(Paths.get(dataDir).resolve("vertices"))
                 .filter(Files::isRegularFile).count();
-        assertEquals(12, vertexFileCount);
+        assertEquals(20, vertexFileCount);
         long edgeFileCount = Files.walk(Paths.get(dataDir).resolve("edges"))
                 .filter(Files::isRegularFile).count();
-        assertEquals(12, edgeFileCount);
+        assertEquals(21, edgeFileCount);
     }
 
     @Test
@@ -197,5 +198,35 @@ public class DataGeneratorTest {
                 System.out.println("Vertex out id not found: " + id);
             }
         });
+    }
+
+    @Test
+    public void testGeneratedIDForVertexIsNotNull() throws IOException {
+        assertTrue(Files.exists(Paths.get(dataDir)));
+        mockMain(new String[]{"-e", "local", "-d", dataDir});
+        long vertexCount = Files.walk(Paths.get(dataDir).resolve("vertices"))
+                .filter(Files::isRegularFile)
+                .map(f -> {
+                    try {
+                        return Files.readAllLines(f).size() - 1; // exclude header
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return 0;
+                }).reduce(0, Integer::sum);
+        List<Long> vertexIdsFromWrittenVertices = Files.walk(Paths.get(dataDir).resolve("vertices"))
+                .filter(Files::isRegularFile)
+                .flatMap(f -> {
+                    try {
+                        return Files.readAllLines(f).stream()
+                                .filter(line -> !line.startsWith("~"))
+                                .map(line -> line.split(",")[0])
+                                .map(Long::parseLong);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return Stream.empty();
+                }).collect(Collectors.toList());
+        assertEquals(vertexCount, vertexIdsFromWrittenVertices.size());
     }
 }

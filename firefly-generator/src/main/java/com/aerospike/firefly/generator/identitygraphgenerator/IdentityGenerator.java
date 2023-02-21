@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -460,8 +462,9 @@ public class IdentityGenerator implements Runnable {
 
         public void populateStreamMap(String filePath) throws IOException {
             java.io.File file = new java.io.File(path + "/" + filePath + ".csv");
-            boolean isCreated = file.getParentFile().mkdirs();
-            if (isCreated) {
+            file.getParentFile().mkdirs();
+            boolean exists = Files.exists(Paths.get(path));
+            if (exists) {
                 ByteArrayOutputStream stream = new ByteArrayOutputStream();
                 OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
                 streamMap.put(filePath, new MutablePair<>(stream, writer));

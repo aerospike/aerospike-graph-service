@@ -198,7 +198,10 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-
+    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60,100, 10, (entry) -> {
+        LOG.warn("WARNING: Scan triggered on {} has been hit {} times within 60 seconds, consider adding an index.", entry.getKey(), entry.getValue());
+        return null;
+    });
     private final FireflyIdFactory idFactory;
 
     /**
@@ -329,6 +332,15 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Get scan hit counter
+     *
+     * @return Scan hit counter
+     */
+    public ScanHitCounter getScanHitCounter() {
+        return scanHitCounter;
+    }
+
+    /**
      * Run a traversal prefetch task
      *
      * @param cacheId
@@ -415,7 +427,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Iterator of Map.Entry Key, Record
      */
     public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
-        LOG.trace("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
+        LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
         final Throttles throttles = new Throttles(getEventLoops().getSize(), getCommandsPerLoop());
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;

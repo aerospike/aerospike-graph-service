@@ -149,7 +149,9 @@ public class SparkBulkLoader {
 
         conf.setAppName("firefly-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
-                .set("spark.ui.enabled", "true");
+                .set("spark.ui.enabled", "true")
+                .set("mapreduce.fileoutputcommitter.algorithm.version","2");
+
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 

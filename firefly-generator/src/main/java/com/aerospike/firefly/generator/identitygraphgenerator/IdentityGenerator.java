@@ -108,7 +108,8 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private int numberOfRecordsPerFile = 100;
+    private int numberOfRecordsPerFile = 2;
+    private int variance = 2;
     private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;
     private final Random random = new Random();
@@ -130,6 +131,7 @@ public class IdentityGenerator implements Runnable {
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
         numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
+        variance = cmd.hasOption("v") ? Integer.parseInt(cmd.getOptionValue("v")) : variance;
         if (ENV.equals("aws")){
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
@@ -158,8 +160,9 @@ public class IdentityGenerator implements Runnable {
         try {
             for (int i = 0; i < builder.numberOfHouseholds; i++) {
                 final Vertex household = this.createHousehold(newHouseHold, "vertices/Household", "household");
-                final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, 2); // +/- 2 from the mean
-                final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, 1);
+                // default variance set to 2.
+                final long numberOfPeople = this.getGaussian(builder.peoplePerHousehold, variance); // +/- 2 from the mean
+                final long numberOfAccounts = this.getGaussian(builder.accountsPerHousehold, variance);
                 final List<Vertex> accounts = new ArrayList<>();
                 for (int j = 0; j < numberOfAccounts; j++) {
                     final Vertex account = this.createAccount(newAccount, "vertices/Account", "account");
@@ -173,7 +176,7 @@ public class IdentityGenerator implements Runnable {
                     final Vertex person = this.createPerson(newPerson, "vertices/Person", "person");
                     if (accounts.size() > 0) this.createHoldsNew(person, accounts.remove(0), "edges/Holds", "holds");
                     this.createPartOfNew(person, household, "edges/PartOf", "partof");
-                    final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, 2);
+                    final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, variance);
                     for (int k = 0; k < numberOfDevices; k++) {
                         final Vertex device = this.createDevice(newDevice, "vertices/Device", "device");
                         this.createOwnsNew(person, device, "edges/Owns", "owns");

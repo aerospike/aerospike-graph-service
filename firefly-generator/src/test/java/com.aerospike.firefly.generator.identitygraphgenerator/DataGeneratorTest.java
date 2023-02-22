@@ -29,8 +29,6 @@ public class DataGeneratorTest {
 
     public static class CSVLine {
         public static class Keys {
-            public static final String ID = "~id";
-            public static final String LABEL = "~label";
             public static final String OUT_V = "~from";
             public static final String IN_V = "~to";
         }
@@ -110,14 +108,13 @@ public class DataGeneratorTest {
     @Test
     public void testGeneratedFileCount() throws IOException, InterruptedException {
         assertTrue(Files.exists(Paths.get(dataDir)));
-        mockMain(new String[]{"-e", "local", "-d", dataDir, "-h", "2", "-r","2"});
-        Thread.sleep(2000);
+        mockMain(new String[]{"-e", "local", "-d", dataDir, "-h", "2", "-r","2", "-v", "0"});
         long vertexFileCount = Files.walk(Paths.get(dataDir).resolve("vertices"))
                 .filter(Files::isRegularFile).count();
         assertEquals(20, vertexFileCount);
         long edgeFileCount = Files.walk(Paths.get(dataDir).resolve("edges"))
                 .filter(Files::isRegularFile).count();
-        assertEquals(21, edgeFileCount);
+        assertEquals(20, edgeFileCount);
     }
 
     @Test
@@ -228,5 +225,35 @@ public class DataGeneratorTest {
                     return Stream.empty();
                 }).collect(Collectors.toList());
         assertEquals(vertexCount, vertexIdsFromWrittenVertices.size());
+    }
+
+    @Test
+    public void testGeneratedIDForEdgesIsNotNull() throws IOException {
+        assertTrue(Files.exists(Paths.get(dataDir)));
+        mockMain(new String[]{"-e", "local", "-d", dataDir});
+        long edgeCount = Files.walk(Paths.get(dataDir).resolve("edges"))
+                .filter(Files::isRegularFile)
+                .map(f -> {
+                    try {
+                        return Files.readAllLines(f).size() - 1; // exclude header
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return 0;
+                }).reduce(0, Integer::sum);
+        List<Long> edgeIdsFromWrittenEdges = Files.walk(Paths.get(dataDir).resolve("edges"))
+                .filter(Files::isRegularFile)
+                .flatMap(f -> {
+                    try {
+                        return Files.readAllLines(f).stream()
+                                .filter(line -> !line.startsWith("~"))
+                                .map(line -> line.split(",")[0])
+                                .map(Long::parseLong);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return Stream.empty();
+                }).collect(Collectors.toList());
+        assertEquals(edgeCount, edgeIdsFromWrittenEdges.size());
     }
 }

@@ -22,7 +22,7 @@ public class DataGenerator {
         LOG.info("Main thread is - " + Thread.currentThread().getName());
         try {
             final CommandLine cmd = parseCmdArgs(args);
-            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "1000";
+            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "2";
             Builder builder = Builder.create();
             builder = builder.opsPerTransaction(50000)
                     .cmdLineArgs(cmd)
@@ -67,6 +67,10 @@ public class DataGenerator {
         final Option recordsPerFileOption = new Option("r", "recordsPerFile", true, "Number of records to store per file. Default is 100 for local");
         recordsPerFileOption.setRequired(false);
         options.addOption(recordsPerFileOption);
+
+        final Option varianceOption = new Option("v", "variance", true, "'variance' for Gaussian distribution");
+        varianceOption.setRequired(false);
+        options.addOption(varianceOption);
 
         final CommandLineParser parser = new DefaultParser();
         try {

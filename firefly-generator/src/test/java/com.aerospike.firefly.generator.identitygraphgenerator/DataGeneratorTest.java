@@ -106,7 +106,7 @@ public class DataGeneratorTest {
     }
 
     @Test
-    public void testGeneratedFileCount() throws IOException, InterruptedException {
+    public void testGeneratedFileCount() throws IOException {
         assertTrue(Files.exists(Paths.get(dataDir)));
         mockMain(new String[]{"-e", "local", "-d", dataDir, "-h", "2", "-r","2", "-v", "0"});
         long vertexFileCount = Files.walk(Paths.get(dataDir).resolve("vertices"))
@@ -128,9 +128,10 @@ public class DataGeneratorTest {
                         return Files.readAllLines(f).size() - 1; // exclude header
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for vertices in testGeneratedData in path = " + dataDir);
                     }
-                    return 0;
                 }).reduce(0, Integer::sum);
+
         List<Long> vertexIdsFromWrittenVertices = Files.walk(Paths.get(dataDir).resolve("vertices"))
                 .filter(Files::isRegularFile)
                 .flatMap(f -> {
@@ -141,8 +142,8 @@ public class DataGeneratorTest {
                                 .map(Long::parseLong);
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for Vertices in path = " + dataDir);
                     }
-                    return Stream.empty();
                 }).collect(Collectors.toList());
         Set<Long> uniqueVertexIdsFromWrittenVertices = new HashSet<>(vertexIdsFromWrittenVertices);
         assertEquals(uniqueVertexIdsFromWrittenVertices.size(), vertexIdsFromWrittenVertices.size());
@@ -161,14 +162,15 @@ public class DataGeneratorTest {
                                 });
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for vertices in path = " + dataDir);
                     }
-                    return Stream.empty();
                 }).collect(Collectors.toSet());
         uniqueVertexINIds.forEach(id -> {
             try{
                 assertTrue(vertexIdsFromWrittenVertices.contains(id));
             }catch (AssertionError e){
-                System.out.println("Vertex in id not found: " + id);
+                System.out.println("Vertex in id=" + id + "not found for edge");
+                throw new RuntimeException("Vertex In id=" + id + "not found for edge");
             }
         });
 
@@ -185,14 +187,15 @@ public class DataGeneratorTest {
                                 });
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for edges in path = " + dataDir);
                     }
-                    return Stream.empty();
                 }).collect(Collectors.toSet());
         uniqueVertexOUTIds.forEach(id -> {
             try{
                 assertTrue(vertexIdsFromWrittenVertices.contains(id));
             }catch (AssertionError e){
-                System.out.println("Vertex out id not found: " + id);
+                System.out.println("Vertex Out id=" + id + "not found for edge");
+                throw new RuntimeException("Vertex Out id=" + id + "not found for edge");
             }
         });
     }
@@ -208,9 +211,10 @@ public class DataGeneratorTest {
                         return Files.readAllLines(f).size() - 1; // exclude header
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for vertices in testGeneratedIDForVertexIsNotNull in path = " + dataDir);
                     }
-                    return 0;
                 }).reduce(0, Integer::sum);
+
         List<Long> vertexIdsFromWrittenVertices = Files.walk(Paths.get(dataDir).resolve("vertices"))
                 .filter(Files::isRegularFile)
                 .flatMap(f -> {
@@ -221,8 +225,8 @@ public class DataGeneratorTest {
                                 .map(Long::parseLong);
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for vertices in testGeneratedIDForVertexIsNotNull in path = " + dataDir);
                     }
-                    return Stream.empty();
                 }).collect(Collectors.toList());
         assertEquals(vertexCount, vertexIdsFromWrittenVertices.size());
     }
@@ -238,8 +242,8 @@ public class DataGeneratorTest {
                         return Files.readAllLines(f).size() - 1; // exclude header
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for edges in testGeneratedIDForEdgesIsNotNull in path = " + dataDir);
                     }
-                    return 0;
                 }).reduce(0, Integer::sum);
         List<Long> edgeIdsFromWrittenEdges = Files.walk(Paths.get(dataDir).resolve("edges"))
                 .filter(Files::isRegularFile)
@@ -251,8 +255,8 @@ public class DataGeneratorTest {
                                 .map(Long::parseLong);
                     } catch (IOException e) {
                         e.printStackTrace();
+                        throw new RuntimeException("Unable to read Files for edges in testGeneratedIDForEdgesIsNotNull in path = " + dataDir);
                     }
-                    return Stream.empty();
                 }).collect(Collectors.toList());
         assertEquals(edgeCount, edgeIdsFromWrittenEdges.size());
     }

@@ -751,7 +751,7 @@ public class SparkBulkLoader {
         final Option modeOption = new Option("m", "mode", true, "local when running in IDE, cluster when running spark-submit through CLI or in AWS");
         options.addOption(modeOption);
 
-        final Option envOption = new Option("e", "env", true, " Optional argument. aws env when running job in cluster mode in AWS.");
+        final Option envOption = new Option("e", "env", true, " Optional argument. 'aws' when running job in cluster mode in AWS");
         options.addOption(envOption);
 
         final Option bucketOption = new Option("b", "bucket", true, "AWS S3 bucket name");

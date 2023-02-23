@@ -22,7 +22,7 @@ public class DataGenerator {
         LOG.info("Main thread is - " + Thread.currentThread().getName());
         try {
             final CommandLine cmd = parseCmdArgs(args);
-            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "2";
+            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "1000";
             Builder builder = Builder.create();
             builder = builder.opsPerTransaction(50000)
                     .cmdLineArgs(cmd)

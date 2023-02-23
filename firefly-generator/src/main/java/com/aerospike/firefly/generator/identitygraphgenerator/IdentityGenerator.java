@@ -108,7 +108,7 @@ public class IdentityGenerator implements Runnable {
 
     private List<String> verticesHeaders = Arrays.asList("~id", "~label");
     private LinkedHashSet<String> edgesHeaders = new LinkedHashSet<>(Arrays.asList("~id", "~label", "~from", "~to")); // INVID = FROM & OUTVID = TO
-    private int numberOfRecordsPerFile = 2;
+    private int numberOfRecordsPerFile = 100;
     private int variance = 2;
     private final HashMap<String, HashMap<String, Object>> graphMap = new HashMap<>();
     private final Builder builder;

@@ -31,7 +31,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
 
 #### Setup
 
-1. [Download Latest version of Apache Spark](https://spark.apache.org/downloads.html) and extract the files somewhere on your local
+1. [Download the latest version of Apache Spark](https://spark.apache.org/downloads.html) and extract the files somewhere on your local
 2. Windows: 
    - Find the version of Hadoop that matches the Spark download [here](https://github.com/cdarlint/winutils), navigate into that version, and download the `winutils.exe` file
    - Put `winutils.exe` into a folder anywhere you want called `bin` and put the `bin` folder into another folder called `hadoop`

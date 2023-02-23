@@ -24,6 +24,8 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
     private CardinalityInfo edgeLabelCardinalityInfo;
     private List<CardinalityInfo> vertexNumericPropertyCardinalityInfo = new ArrayList<>();
     private List<CardinalityInfo> vertexStringPropertyCardinalityInfo = new ArrayList<>();
+    private List<CardinalityInfo> edgeNumericPropertyCardinalityInfo = new ArrayList<>();
+    private List<CardinalityInfo> edgeStringPropertyCardinalityInfo = new ArrayList<>();
     private final AerospikeConnection db;
     private final String vertexLabelIndex;
     private final String edgeLabelIndex;
@@ -57,10 +59,14 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         final List<FireflyIndexMetadata.IndexInfo> edgeLabelIndexes = indexes.stream().
                 filter(index -> index.indexType == IndexType.STRING && "label".equals(index.key) && index.indexName.equals(db.E_LABEL_INDEX))
                 .collect(Collectors.toList());
-        final List<FireflyIndexMetadata.IndexInfo> stringIndexes = indexes.stream().
-                filter(index -> index.indexType == IndexType.STRING && !"label".equals(index.key)).collect(Collectors.toList());
-        final List<FireflyIndexMetadata.IndexInfo> numericIndexes = indexes.stream().
-                filter(index -> index.indexType == IndexType.NUMERIC && !"label".equals(index.key)).collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> vertexStringIndexes = indexes.stream().
+                filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.STRING && !"label".equals(index.key)).collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> vertexNumericIndexes = indexes.stream().
+                filter(index -> index.setName.equals(db.VERTEX_AERO_SET) && index.indexType == IndexType.NUMERIC && !"label".equals(index.key)).collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> edgeStringIndexes = indexes.stream().
+                filter(index -> index.setName.equals(db.EDGE_AERO_SET) && index.indexType == IndexType.STRING && !"label".equals(index.key)).collect(Collectors.toList());
+        final List<FireflyIndexMetadata.IndexInfo> edgeNumericIndexes = indexes.stream().
+                filter(index -> index.setName.equals(db.EDGE_AERO_SET) && index.indexType == IndexType.NUMERIC && !"label".equals(index.key)).collect(Collectors.toList());
 
         // We can assume that data is relatively evenly distributed across nodes.
         final Node node = nodes[0];
@@ -77,8 +83,10 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             } else {
                 edgeLabelCardinalityInfo = null;
             }
-            vertexStringPropertyCardinalityInfo = stringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
-            vertexNumericPropertyCardinalityInfo = numericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
+            vertexStringPropertyCardinalityInfo = vertexStringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
+            vertexNumericPropertyCardinalityInfo = vertexNumericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
+            edgeStringPropertyCardinalityInfo = edgeStringIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
+            edgeNumericPropertyCardinalityInfo = edgeNumericIndexes.stream().map(idx -> getCardinalityInfo(Info.request(new InfoPolicy(), node, String.format(infoQueryFormat, db.getNamespace(), idx.indexName)), nodes.length, idx.key)).collect(Collectors.toList());
         }
     }
 
@@ -131,6 +139,26 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
                 return getValidOptionalCardinalityInfo(vertexNumericPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
             } else {
                 throw new IllegalArgumentException("Cannot get vertex property cardinality for index type: " + indexType + ". Only STRING and NUMERIC are supported.");
+            }
+        }
+    }
+
+    /**
+     * Function to get cardinality of a given edge property with the provided index type.
+     *
+     * @param property  property name.
+     * @param indexType index type.
+     * @return cardinality info.
+     */
+    public Optional<CardinalityInfo> getEdgePropertyCardinality(final String property, final IndexType indexType) {
+        // Need to lock because we are iterating over a list.
+        synchronized (FireflyCardinalityMetadata.class) {
+            if (indexType == IndexType.STRING) {
+                return getValidOptionalCardinalityInfo(edgeStringPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
+            } else if (indexType == IndexType.NUMERIC) {
+                return getValidOptionalCardinalityInfo(edgeNumericPropertyCardinalityInfo.stream().filter(cardinalityInfo -> cardinalityInfo.property.equals(property)).findFirst().orElse(null));
+            } else {
+                throw new IllegalArgumentException("Cannot get edge property cardinality for index type: " + indexType + ". Only STRING and NUMERIC are supported.");
             }
         }
     }

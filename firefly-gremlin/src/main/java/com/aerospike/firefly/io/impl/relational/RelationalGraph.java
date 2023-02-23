@@ -11,10 +11,7 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
@@ -27,8 +24,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -42,7 +38,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
@@ -107,7 +102,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, db.getSupportedType(value.getClass()));
+                typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
                 data.put(key, value);
             }
         });
@@ -251,7 +246,7 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> keyRecord) {
-        return RelationalEdge.fromRecord(this,new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+        return RelationalEdge.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
     }
 
     /**
@@ -332,6 +327,32 @@ public abstract class RelationalGraph extends FireflyGraph {
     public boolean[] vertexExists(final List<FireflyId> idValue) {
         LOG.debug("Checking if vertex {} exists.", idValue);
         return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
+    }
+
+    /**
+     * Determine verticies in a list exist.
+     *
+     * @param expression expression to check.
+     * @param idValue    vertex id to check.
+     * @return true if vertex exists, false otherwise.
+     */
+    @Override
+    public boolean[] vertexExists(final Expression expression, final List<FireflyId> idValue) {
+        LOG.debug("Checking if vertex {} exists.", idValue);
+        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
+    }
+
+    /**
+     * Determine if an edge exists.
+     *
+     * @param expression expression to check.
+     * @param idValue    edge id to check.
+     * @return true if edge exists, false otherwise.
+     */
+    @Override
+    public boolean[] edgeExists(final Expression expression, final List<FireflyId> idValue) {
+        LOG.debug("Checking if edge {} exists.", idValue);
+        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
     }
 
     /**
@@ -421,7 +442,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     protected Iterator<FireflyId> scanAllVertices() {
-        //@todo performance
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
         final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
         return IteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));

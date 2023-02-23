@@ -27,7 +27,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow the bulk loading job to continue.
 * `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was successful (default is 0.1%).
 
-### Running the Bulk Loader locally
+### Running the Bulk Loader Locally
 
 #### Setup
 

@@ -31,7 +31,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
 
 #### Setup
 
-1. [Download Spark](https://spark.apache.org/downloads.html) and extract the files somewhere on your local
+1. [Download Latest version of Apache Spark](https://spark.apache.org/downloads.html) and extract the files somewhere on your local
 2. Windows: 
    - Find the version of Hadoop that matches the Spark download [here](https://github.com/cdarlint/winutils), navigate into that version, and download the `winutils.exe` file
    - Put `winutils.exe` into a folder anywhere you want called `bin` and put the `bin` folder into another folder called `hadoop`
@@ -56,9 +56,9 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * Grab a copy of a `.properties` config to use as a base - one can be found at `firefly/conf/spark-bulk-loader-conf`
 * Properly configure it to match your system and desired behaviour
 * Build the `firefly-spark-bulk-loader` jar by running `mvn clean install -DskipTests` in the `firefly` root directory
-   - This should build a jar located at `firefly\firefly-spark-bulk-loader\target\firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
-     The jar prefixed with `original` can be ignored
-* Submit a spark job with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.memory=1g --conf spark.executor.memory=2g --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader  </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c </path/to>/config.properties`
+   - This should build a jar located at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
+   - The jar prefixed with `original` can be ignored
+* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.memory=1g --conf spark.executor.memory=2g --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader  </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c </path/to>/config.properties`
 
 #### Running the Bulk Loader on AWS
 

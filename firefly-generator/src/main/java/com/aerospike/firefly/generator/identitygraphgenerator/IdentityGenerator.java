@@ -355,7 +355,6 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap.put("schema", schemaSet);
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
-
         }
         else objectPropertyMap = graphMap.get(fileName);
 

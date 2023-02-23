@@ -27,7 +27,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow the bulk loading job to continue.
 * `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was successful (default is 0.1%).
 
-### Running the Bulk Loader Locally
+### Running the Bulk Loader locally
 
 #### Setup
 
@@ -58,8 +58,9 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * Build the `firefly-spark-bulk-loader` jar by running `mvn clean install -DskipTests` in the `firefly` root directory
    - This should build a jar located at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
    - The jar prefixed with `original` can be ignored
-* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.memory=1g --conf spark.executor.memory=2g --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -c </path/to>/config.properties`
+* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL>  --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -c </path/to>/config.properties`
+   - The configuration to achieve maximum parallelism in Spark is achieved by allocating right number of the number of cores per executor, memory per executor and number of partitions (parallelism) for task creation as defined in the link below when running the bulk-loader in AWS.
 
-#### Running the Bulk Loader on AWS
+#### Running the Bulk Loader in AWS
 
 Follow the link [here](https://aerospike.atlassian.net/wiki/spaces/PRODUCT/pages/2850324542/Bulk+Loading+Data+using+Firefly+to+Aerospike) to run the bulk loader in AWS

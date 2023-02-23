@@ -4,7 +4,7 @@ Bulk loading of data using Firefly Bulk Loader is a process that enables the use
 
 ### Requirements
 * Hardware with minimum 8GB of RAM
-* Locally running Spark cluster (Link to download & setting up Spark is in Set Up section)
+* Locally running Spark cluster
 * Java 11+ installed (for building & running locally)
 * CSV files containing vertices and edges to be loaded in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
   - These can live locally or in an AWS S3 bucket

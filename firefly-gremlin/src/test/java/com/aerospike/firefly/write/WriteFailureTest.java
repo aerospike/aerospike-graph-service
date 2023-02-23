@@ -1,14 +1,13 @@
 package com.aerospike.firefly.write;
 
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
+import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -102,14 +101,14 @@ public class WriteFailureTest {
     public void writeVertexPropertyFailure() {
         // Test that if we partially write a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(LinkedGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase();
             GraphTraversalSource g = fireflyGraph.traversal();
 
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyId id = fireflyGraph.getIdFactory().createId(1, FireflyVertexProperty.class);
 
-            final FireflyVertexProperty fireflyVertexProperty = LinkedVertexProperty.writeVertexProperty(fireflyGraph, a, id, "key", "value");
+            final FireflyVertexProperty fireflyVertexProperty = PackedVertexProperty.writeVertexProperty(fireflyGraph, a, id, "key", "value");
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 
@@ -125,7 +124,7 @@ public class WriteFailureTest {
     public void removeVertexPropertyFailure() {
         // Test that if we partially remove a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(LinkedGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase();
             GraphTraversalSource g = fireflyGraph.traversal();
 
@@ -137,7 +136,7 @@ public class WriteFailureTest {
             Assert.assertEquals("value", properties.get(0));
 
             final FireflyVertexProperty vp = (FireflyVertexProperty) a.property("key");
-            LinkedVertexProperty.removeVertexProperty(fireflyGraph, vp.id);
+            PackedVertexProperty.removeVertexProperty(fireflyGraph, vp.id);
 
             properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());

@@ -41,7 +41,6 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -517,10 +516,6 @@ public class AerospikeConnection implements AutoCloseable {
                 AERO_SET = ac.EDGE_AERO_SET;
                 ID_KEY = ac.EDGE_ID_KEY;
                 ID_BIN = ac.EDGE_ID_BIN;
-            } else if (type == LinkedVertexProperty.class) {
-                AERO_SET = ac.VERTEX_PROPERTY_AERO_SET;
-                ID_KEY = ac.VERTEX_PROPERTY_ID_KEY;
-                ID_BIN = ac.VERTEX_PROPERTY_ID_BIN;
             } else
                 throw new RuntimeException("Unknown ID type: " + type);
         }
@@ -719,8 +714,6 @@ public class AerospikeConnection implements AutoCloseable {
             return EDGE_AERO_SET;
         else if (FireflyVertex.class.isAssignableFrom(type))
             return VERTEX_AERO_SET;
-        else if (LinkedVertexProperty.class.isAssignableFrom(type))
-            return VERTEX_PROPERTY_AERO_SET;
         else if (FireflyVertexProperty.class.isAssignableFrom(type)) {
             return VERTEX_AERO_SET;
         }

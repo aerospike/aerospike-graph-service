@@ -2,7 +2,6 @@ package com.aerospike.firefly.io;
 
 import com.aerospike.firefly.io.impl.Upgrade;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -11,7 +10,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
 import org.junit.Rule;
@@ -21,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -54,7 +51,7 @@ public class TestDataModelVersioning {
 
     public static void openGraphLinked() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), LinkedGraph.DATA_MODEL);
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), PackedGraph.DATA_MODEL);
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
@@ -62,7 +59,7 @@ public class TestDataModelVersioning {
 
     public static void openGraphLinkedNewVersion() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), LinkedGraph.DATA_MODEL);
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), PackedGraph.DATA_MODEL);
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
@@ -94,7 +91,7 @@ public class TestDataModelVersioning {
         private static String version = "0.0.1";
 
         /**
-         * Constructor for LinkedGraph.
+         * Constructor for PackedGraph.
          *
          * @param db   AerospikeConnection.
          * @param conf Configuration.

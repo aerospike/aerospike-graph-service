@@ -1,6 +1,5 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -204,9 +203,8 @@ public class TestPerformance extends AbstractFireflySuite {
         createOrgChartData();
 
         config.setProperty("vertex_property_indexes", ORGCHART_NAME);
-        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(36, db.getWriteMetric() - writeStart);
-        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+
+        if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(12, db.getWriteMetric() - writeStart);
         }
 
@@ -217,9 +215,7 @@ public class TestPerformance extends AbstractFireflySuite {
         final long result1ReadMetric = db.getReadMetric();
 
         // when using label, reads are much higher
-        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(38, result1ReadMetric - readStart);
-        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result1ReadMetric - readStart);
         }
 
@@ -228,10 +224,7 @@ public class TestPerformance extends AbstractFireflySuite {
                 .in(ORGCHART_EDGE_LABEL_REPORTS)
                 .in(ORGCHART_EDGE_LABEL_REPORTS).values(ORGCHART_NAME).toList();
         final long result2ReadMetric = db.getReadMetric();
-
-        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(4, result2ReadMetric - result1ReadMetric);
-        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result2ReadMetric - result1ReadMetric);
         }
         assertEquals(result1, result2);
@@ -239,18 +232,14 @@ public class TestPerformance extends AbstractFireflySuite {
         List<Vertex> result3 = g.V().has(ORGCHART_VERTEX_LABEL_EMPLOYEE, ORGCHART_NAME, "ivan").toList();
         final long result3ReadMetric = db.getReadMetric();
 
-        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(14, result3ReadMetric - result2ReadMetric);
-        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result3ReadMetric - result2ReadMetric);
         }
 
         List<Vertex> result4 = g.V().has(ORGCHART_NAME, "ivan").toList();
         final long result4ReadMetric = db.getReadMetric();
 
-        if (graph.getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            assertEquals(4, result4ReadMetric - result3ReadMetric);
-        } else if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
+        if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(0, result4ReadMetric - result3ReadMetric);
         }
 

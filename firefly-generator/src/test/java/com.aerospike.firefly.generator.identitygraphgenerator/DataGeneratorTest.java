@@ -89,6 +89,7 @@ public class DataGeneratorTest {
     public void setUp() throws Exception {
         dataDir = Files.createTempDirectory("datagenerator").toAbsolutePath().toString();
     }
+    
     @After
     public void tearDown() throws Exception {
         FileUtils.deleteDirectory(new File(dataDir));

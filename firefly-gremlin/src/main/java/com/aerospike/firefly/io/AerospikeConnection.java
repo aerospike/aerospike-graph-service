@@ -47,8 +47,8 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
+import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Tokens;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -184,7 +184,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
-    public final boolean ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final boolean ADJACENCY_INDEX_ENABLED;
@@ -198,7 +197,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60,100, 10, (entry) -> {
+    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60, 100, 10, (entry) -> {
         LOG.warn("WARNING: Scan triggered on {} has been hit {} times within 60 seconds, consider adding an index.", entry.getKey(), entry.getValue());
         return null;
     });
@@ -279,7 +278,6 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
-        ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE, conf));
         CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
         INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -954,23 +952,33 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Boolean key exists
      */
     public boolean[] exists(final Key[] keys) {
-        List<Boolean> results = new ArrayList<>();
+        return exists(null, keys);
+    }
+
+    /**
+     * Determine of a key exists
+     *
+     * @param keys       Aerospike Key to check
+     * @param expression Aerospike expression to check on record.
+     * @return Boolean key exists
+     */
+    public boolean[] exists(final Expression expression, final Key[] keys) {
+        final List<Boolean> results = new ArrayList<>();
+        final BatchPolicy batchPolicy = BatchPolicy.ReadDefault();
+        batchPolicy.filterExp = expression;
         while (results.size() < keys.length) {
-            if (keys.length - results.size() >= AEROSPIKE_BATCH_READ_SIZE) {
-                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), results.size() + AEROSPIKE_BATCH_READ_SIZE - 1);
-                boolean[] batchResults = client.exists(null, batchKeys);
-                for (boolean batchResult : batchResults)
-                    results.add(batchResult);
-            } else {
-                Key[] batchKeys = Arrays.copyOfRange(keys, results.size(), keys.length);
-                boolean[] batchResults = client.exists(null, batchKeys);
-                for (boolean batchResult : batchResults)
-                    results.add(batchResult);
+            final Key[] batchKeys = (keys.length - results.size() >= AEROSPIKE_BATCH_READ_SIZE) ?
+                    Arrays.copyOfRange(keys, results.size(), results.size() + AEROSPIKE_BATCH_READ_SIZE - 1) :
+                    Arrays.copyOfRange(keys, results.size(), keys.length);
+            final boolean[] batchResults = client.exists(batchPolicy, batchKeys);
+            for (boolean batchResult : batchResults) {
+                results.add(batchResult);
             }
         }
-        boolean[] resultArray = new boolean[results.size()];
-        for (int i = 0; i < results.size(); i++)
+        final boolean[] resultArray = new boolean[results.size()];
+        for (int i = 0; i < results.size(); i++) {
             resultArray[i] = results.get(i);
+        }
 
         return resultArray;
     }

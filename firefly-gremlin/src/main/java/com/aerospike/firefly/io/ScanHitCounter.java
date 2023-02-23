@@ -39,6 +39,8 @@ public class ScanHitCounter {
     }
 
     public long increment(String key) {
+        if (key == null)
+            return 0; // ignore null keys
         long val = stats.asMap().computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
 
         if (stats.size() > MAX_SIZE) {

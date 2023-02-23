@@ -14,7 +14,9 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +30,8 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class TestProperties {
+    @Rule
+    public TestName testName = new TestName();
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
     private static FireflyGraph SETUP_GRAPH;
     protected FireflyGraph graph;
@@ -46,6 +50,7 @@ public class TestProperties {
 
     @Before
     public void beforeEach() {
+        System.out.println("===> Running " + testName.getMethodName() + " <===");
         graph = FireflyGraph.open(CONFIG);
         final GraphTraversalSource g = graph.traversal();
         Vertex person = g.addV("person").next();
@@ -62,6 +67,7 @@ public class TestProperties {
 
     @After
     public void afterEach() {
+        System.out.println("===> Completed " + testName.getMethodName() + " <===");
         graph.getBaseGraph().dropDatabase();
     }
 

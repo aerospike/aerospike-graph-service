@@ -136,7 +136,6 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
     @Test
     public void testFireflyCardinalityMetadata() throws InterruptedException {
         // Set metadata to update every millisecond for this test.
-        db.conf.setProperty(ConfigurationHelper.Keys.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE.toLowerCase(), true);
         db.conf.setProperty(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY.toLowerCase(), "5");
         db.conf.setProperty(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY.toLowerCase(), "1");
         final String originalIndexes = (String) db.conf.getProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase());
@@ -175,7 +174,6 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         graph.close();
         graph = FireflyGraph.open(db.conf);
 
-        db.conf.setProperty(ConfigurationHelper.Keys.ENABLE_PERIODIC_CARDINALITY_METADATA_UPDATE.toLowerCase(), false);
         db.conf.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase(), originalIndexes);
 
         Thread.sleep(10);

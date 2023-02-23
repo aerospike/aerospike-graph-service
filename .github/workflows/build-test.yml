@@ -341,20 +341,20 @@ jobs:
           wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.1/apache-tinkerpop-gremlin-server-3.6.1-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
-  
+          
           echo "Build Firefly"
           cd firefly
           mvn clean install -DskipTests --no-transfer-progress
-  
+          
           echo "Installing Firefly in gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.5.0-SNAPSHOT'
-  
+          
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-  
+          
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
-  
+          
           echo "Running benchmark"
           mvn test -pl firefly-gremlin -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Results

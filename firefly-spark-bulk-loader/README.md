@@ -4,7 +4,7 @@ Bulk loading of data using Firefly Bulk Loader is a process that enables the use
 
 ### Requirements
 * Hardware with minimum 8GB of RAM
-* Locally running Spark cluster
+* Locally running Spark cluster (Link to download & setting up Spark is in Set Up section)
 * Java 11+ installed (for building & running locally)
 * CSV files containing vertices and edges to be loaded in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
   - These can live locally or in an AWS S3 bucket
@@ -58,7 +58,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * Build the `firefly-spark-bulk-loader` jar by running `mvn clean install -DskipTests` in the `firefly` root directory
    - This should build a jar located at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
    - The jar prefixed with `original` can be ignored
-* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.memory=1g --conf spark.executor.memory=2g --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader  </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c </path/to>/config.properties`
+* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.memory=1g --conf spark.executor.memory=2g --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -c </path/to>/config.properties`
 
 #### Running the Bulk Loader on AWS
 

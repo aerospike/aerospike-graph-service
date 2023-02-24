@@ -136,7 +136,7 @@ public class WriteFailureTest {
             Assert.assertEquals("value", properties.get(0));
 
             final FireflyVertexProperty vp = (FireflyVertexProperty) a.property("key");
-            PackedVertexProperty.removeVertexProperty(fireflyGraph, vp.id);
+            a.removeVertexProperty("key", vp.id);
 
             properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());

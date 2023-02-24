@@ -349,7 +349,7 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap = new HashMap<>();
             //update file fileCount to be appended to the output file
             objectPropertyMap.put("fileCount", fileCount);
-            objectPropertyMap.put("countOfRecords" , 0);
+            objectPropertyMap.put("countOfRecords", 0);
             HashSet<String[]> schemaSet = new HashSet<>();
             schemaSet.add(pair.left);
             objectPropertyMap.put("schema", schemaSet);

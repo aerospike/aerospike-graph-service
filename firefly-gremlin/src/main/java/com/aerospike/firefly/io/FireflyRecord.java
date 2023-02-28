@@ -4,6 +4,8 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -115,7 +117,7 @@ public class FireflyRecord {
         return new FireflyRecord(db, key, record);
     }
 
-    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final Expression expression, final String set, final List<FireflyId> ids) {
         // Check if empty and return empty if it is.
         if (ids.size() == 0) {
             return new ArrayList<>();
@@ -131,20 +133,25 @@ public class FireflyRecord {
             final List<FireflyId> subList = uniqueIds.stream().skip(i).limit(db.AEROSPIKE_BATCH_READ_SIZE).collect(Collectors.toList());
 
             // Execute batch read. subList ids are read from the database.
-            executeBatchRead(db, set, idToRecord, subList);
+            executeBatchRead(db, expression, set, idToRecord, subList);
         }
 
         // Return the records in the same order as the ids, removing any null items.
         return ids.stream().filter(idToRecord::containsKey).map(idToRecord::get).collect(Collectors.toList());
     }
 
+    public static List<FireflyRecord> batchRead(final AerospikeConnection db, final String set, final List<FireflyId> ids) {
+        return batchRead(db, null, set, ids);
+    }
+
     private static void executeBatchRead(final AerospikeConnection db,
+                                         final Expression expression,
                                          final String set,
                                          final Map<FireflyId, FireflyRecord> idToRecord,
                                          final List<FireflyId> idsToRead) {
         // Read all records from the database.
         // Before reading id list must be converted to array of keys.
-        List<Key> keyList = idsToRead.stream().map(id -> {
+        final List<Key> keyList = idsToRead.stream().map(id -> {
             Key key;
             if (id.getClass().equals(FireflyIdComposite.class)) {
                 key = getKey(db, set, ((FireflyIdComposite) id).getEdgeId());
@@ -153,7 +160,12 @@ public class FireflyRecord {
             }
             return key;
         }).collect(Collectors.toList());
-        Record[] records = db.read(keyList.toArray(Key[]::new));
+
+        // Default batch read used by read.
+        final BatchPolicy batchReadPolicy = AerospikeConnection.noSendKeyBatchPolicy;
+        batchReadPolicy.filterExp = expression;
+
+        final Record[] records = db.read(keyList.toArray(Key[]::new), batchReadPolicy);
         for (int i = 0; i < records.length; i++) {
             if (records[i] != null) {
                 // Add id/record pair to the map.

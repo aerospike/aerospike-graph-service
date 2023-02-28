@@ -268,15 +268,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex readVertex(final FireflyId idValue);
 
-    public abstract List<FireflyVertex> readVertices(final List<FireflyId> vertexIds);
+    public abstract List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> vertexIds);
 
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
 
     public abstract FireflyVertex vertexFromRecord(final Map.Entry<Key, Record> record);
 
     public abstract boolean vertexExists(final FireflyId idValue);
-
-    public abstract boolean[] vertexExists(final List<FireflyId> idValues);
 
     public abstract boolean[] vertexExists(final Expression exp, final List<FireflyId> idValues);
 
@@ -291,11 +289,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void removeEdgeById(final FireflyId edgeId);
 
-    public abstract List<FireflyEdge> readEdges(final List<FireflyId> edgeIds);
+    public abstract List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds);
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record);
-
-    public abstract boolean[] edgeExists(final List<FireflyId> idValue);
 
     public abstract boolean[] edgeExists(final Expression expression, final List<FireflyId> idValue);
 
@@ -450,13 +446,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         if (!idList.isEmpty()) {
             final List<FireflyId> idsDoNotExist = new ArrayList<>();
-            final boolean[] results;
-            if (!filters.isEmpty()) {
-                final Exp[] exps = hasContainerListToExpArray(filters, FireflyVertex.class);
-                results = vertexExists(exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps)), idList);
-            } else {
-                results = vertexExists(idList);
-            }
+            final boolean[] results = vertexExists(hasContainerListToExpression(filters, FireflyVertex.class), idList);
             for (int i = 0; i < results.length; i++)
                 if (!results[i])
                     idsDoNotExist.add(idList.get(i));
@@ -484,13 +474,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 .collect(Collectors.toList());
         if (!idList.isEmpty()) {
             final List<FireflyId> idsDoNotExist = new ArrayList<>();
-            final boolean[] results;
-            if (!filters.isEmpty()) {
-                final Exp[] exps = hasContainerListToExpArray(filters, FireflyEdge.class);
-                results = edgeExists(exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps)), idList);
-            } else {
-                results = edgeExists(idList);
-            }
+            final boolean[] results = edgeExists(hasContainerListToExpression(filters, FireflyEdge.class), idList);
             for (int i = 0; i < results.length; i++)
                 if (!results[i])
                     idsDoNotExist.add(idList.get(i));
@@ -565,8 +549,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @return Expression.
      */
     private Exp predicateToExpression(final String binName,
-                                      final String mapKey,
-                                      final P<?> predicate) {
+                                             final String mapKey,
+                                             final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
         if (AerospikeConnection.LABEL.equals(binName)) {
             return Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val((String) predicate.getValue()));
@@ -599,6 +583,20 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
 
+    public Expression hasContainerListToExpression(final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
+        // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
+        if (hasContainers.size() == 0) {
+            return null;
+        }
+        final Exp[] exps = hasContainers.stream().map(h ->
+                predicateToExpression(h.getKey().equals("~label") ?
+                                AerospikeConnection.LABEL : FireflyVertex.class.isAssignableFrom(clazz) ?
+                                db.VERTEX_PROPERTY_NAME_TO_VALUE : db.PROPERTIES,
+                        h.getKey(),
+                        h.getPredicate())).toArray(Exp[]::new);
+        return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
+    }
+
     private Exp[] hasContainerListToExpArray(final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
         return hasContainers.stream().map(h ->
@@ -623,13 +621,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                                       final TransformKeyRecord<E> transform,
                                                       final List<HasContainer> hasContainers,
                                                       final Class<? extends FireflyElement> clazz) {
-        final Exp[] exps = hasContainerListToExpArray(hasContainers, clazz);
-
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        if (exps.length > 0) {
-            queryPolicy.filterExp = (exps.length == 1) ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
-        }
+        queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
         final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
@@ -735,6 +729,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public interface GetElements<E extends Element> {
         Iterator<E> getFiltered(final List<HasContainer> hasContainers, final Object... ids);
+
         Iterator<E> getUnfiltered(final Object... ids);
     }
 

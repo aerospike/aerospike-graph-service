@@ -1,14 +1,13 @@
 package com.aerospike.firefly.process.traversal.step.sideEffect;
 
-import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
@@ -46,7 +45,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
     public FireflyGraphStep(final GraphStep<S, E> originalGraphStep) {
         super(originalGraphStep.getTraversal(), originalGraphStep.getReturnClass(), originalGraphStep.isStartStep(), originalGraphStep.getIds());
         originalGraphStep.getLabels().forEach(this::addLabel);
-        this.setIteratorSupplier(() ->  (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>)this.vertices() : (Iterator<E>)this.edges()));
+        this.setIteratorSupplier(() -> (Vertex.class.isAssignableFrom(this.returnClass) ? (Iterator<E>) this.vertices() : (Iterator<E>) this.edges()));
     }
 
     /**
@@ -117,14 +116,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         return iterator;
     }
 
-    private List<HasContainer> getFireflyHasContainers(final List<HasContainerWithCardinality> hasContainerWithCardinalities) {
-        return hasContainerWithCardinalities.stream().filter(c -> !c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
-    }
-
-    private List<HasContainer> getAerospikeHasContainers(final List<HasContainerWithCardinality> hasContainerWithCardinalities) {
-        return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
-    }
-
     private <R extends Element> Iterator<R> elements(final FireflyGraph graph,
                                                      final String setName,
                                                      final String binName,
@@ -133,9 +124,9 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                                                      final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
                                                      final FireflyGraph.TransformMapEntryKeyRecord<R> transformMapEntryKeyRecord) {
         Iterator<R> iterator;
-        final List<HasContainerWithCardinality> sortedHasContainers = getHasContainersWithCardinalityOrder();
-        final List<HasContainer> aerospikeSideHasContainers = getAerospikeHasContainers(sortedHasContainers);
-        final List<HasContainer> fireflySideHasContainers = getFireflyHasContainers(sortedHasContainers);
+        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
+        final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
+        final List<HasContainer> fireflySideHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(sortedHasContainers);
 
         if (null == this.ids) {
             iterator = Collections.emptyIterator();
@@ -249,129 +240,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             this.isLabel = "~label".equals(hasContainer.getKey());
             this.isSupported = true;
         }
-    }
-
-    /**
-     * Get list of has containers with cardinality info attached.
-     * Only public to allow easier testing.
-     *
-     * @return List of has containers with cardinality info.
-     */
-    public List<HasContainerWithCardinality> getHasContainersWithCardinalityOrder() {
-        final ArrayList<BiPredicate> supportedNumericPredicates = new ArrayList<>() {{
-            add(Compare.eq);
-            add(Compare.lt);
-            add(Compare.gt);
-        }};
-        final ArrayList<BiPredicate> supportedStringPredicates = new ArrayList<>() {{
-            add(Compare.eq);
-        }};
-
-        final List<HasContainerWithCardinality> hasContainersWithCardinality = new ArrayList<>();
-        final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-        hasContainers.iterator().forEachRemaining(hasContainer -> {
-            // TODO GRAPH-368: We should go through expressions and see what kind of
-            //  predicates we can push down to Aerospike via Exp.
-            if (hasContainer != null && hasContainer.getKey() != null && hasContainer.getValue() == null) {
-                hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, false));
-            } else if (hasContainer == null || hasContainer.getKey() == null || hasContainer.getValue() == null) {
-                hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, false));
-            } else if (!Long.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                    !Integer.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                    !String.class.isAssignableFrom(hasContainer.getValue().getClass())) {
-                // If the HasContainer predicate is for an unsupported type.
-                hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, false));
-            } else if ((Long.class.isAssignableFrom(hasContainer.getValue().getClass()) ||
-                    Integer.class.isAssignableFrom(hasContainer.getValue().getClass()))
-                    && !supportedNumericPredicates.contains(hasContainer.getBiPredicate())) {
-                // Else if the HasContainer predicate is for a numeric type but is not supported.
-                hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, false));
-            } else if (String.class.isAssignableFrom(hasContainer.getValue().getClass()) &&
-                    !supportedStringPredicates.contains(hasContainer.getBiPredicate())) {
-                // Else if the HasContainer predicate is for a string type but is not supported.
-                hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, false));
-            } else {
-                // Else the HasContainer predicate is supported.
-                final Optional<FireflyIndexMetadata.IndexInfo> indexInfo = graph.fireflyIndexMetadata.getPropertyIndexInfo(
-                        Vertex.class.isAssignableFrom(returnClass) ? FireflyVertex.class : FireflyEdge.class,
-                        hasContainer.getKey(),
-                        hasContainer.getValue());
-
-                if (indexInfo.isPresent()) {
-                    final FireflyCardinalityMetadata.CardinalityInfo cardinality;
-                    if ("~label".equals(hasContainer.getKey())) {
-                        if (Vertex.class.isAssignableFrom(returnClass)) {
-                            cardinality = graph.fireflyCardinalityMetadata.getVertexLabelCardinality().orElse(null);
-                        } else {
-                            cardinality = graph.fireflyCardinalityMetadata.getEdgeLabelCardinality().orElse(null);
-                        }
-                    } else {
-                        final IndexType indexType = String.class.isAssignableFrom(hasContainer.getValue().getClass()) ? IndexType.STRING : IndexType.NUMERIC;
-                        if (Vertex.class.isAssignableFrom(returnClass)) {
-                            cardinality = graph.fireflyCardinalityMetadata.getVertexPropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
-                        } else {
-                            cardinality = graph.fireflyCardinalityMetadata.getEdgePropertyCardinality(hasContainer.getKey(), indexType).orElse(null);
-                        }
-                    }
-                    hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer, cardinality));
-                } else {
-                    hasContainersWithCardinality.add(new HasContainerWithCardinality(hasContainer));
-                }
-            }
-        });
-
-
-        orderHasContainersWithCardinality(hasContainersWithCardinality);
-        return hasContainersWithCardinality;
-    }
-
-    private void orderHasContainersWithCardinality(final List<HasContainerWithCardinality> hasContainerWithCardinalities) {
-        // -1 -> o1 is better than o2
-        // 0 -> o1 is equal to o2
-        // 1 -> o1 is worse than o2
-        final int O1Best = -1;
-        final int O2Best = 1;
-        final int O1O2Equal = 0;
-        hasContainerWithCardinalities.sort((o1, o2) -> {
-            if (o1.cardinality == null && o2.cardinality == null) {
-                // Neither are indexed.
-                // Properties > labels since properties are likely to be higher cardinality.
-                if (o1.isLabel && !o2.isLabel) {
-                    return O2Best;
-                } else if (!o1.isLabel && o2.isLabel) {
-                    return O1Best;
-                } else {
-                    // Both are either labels or both are properties, but neither are indexed.
-                    // We don't know which is better, so we'll just say they're equal.
-                    return O1O2Equal;
-                }
-            } else if (o1.cardinality == null) {
-                // o1 is not indexed but o2 is.
-                return O2Best;
-            } else if (o2.cardinality == null) {
-                // o2 is not indexed but o1 is.
-                return O1Best;
-            } else {
-                // This is the case where both are indexed.
-                if (o1.isLabel && !o2.isLabel) {
-                    // Properties > labels
-                    return O2Best;
-                } else if (!o1.isLabel && o2.isLabel) {
-                    return O1Best;
-                } else {
-                    // Both are either properties or both are labels.
-                    // We'll compare the cardinalities.
-                    //
-                    // Entries per bval gives you how many entries there are on average
-                    // for each unique value.
-                    final long o1BVal = o1.cardinality.entriesPerBval;
-                    final long o2BVal = o2.cardinality.entriesPerBval;
-
-                    // Long comparison gives us exactly what we want.
-                    return Long.compare(o1BVal, o2BVal);
-                }
-            }
-        });
     }
 
     @Override

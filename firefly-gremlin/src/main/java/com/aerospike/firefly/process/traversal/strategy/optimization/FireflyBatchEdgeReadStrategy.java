@@ -1,14 +1,17 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
-import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -48,10 +51,29 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             if (!vertexStep.returnsEdge()) {
                 continue;
             }
+            traversal.removeStep(vertexStep);
+
+            // Peek after the VertexStep to see if there is any HasStep's. If there are grab them all and push
+            // them into the FireflyVertexStep.
+            // Null has container is okay, it simply means that there is no HasContainer.
+            // Note we don't want to push down ids.
+            List<HasContainer> hasContainers = null;
+            Set<String> labels = vertexStep.getLabels();
+            if (labels.isEmpty() && index < steps.size() && steps.get(index) instanceof HasStep) {
+                final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
+                hasContainers = hasStep.getHasContainers();
+
+                // Ensure there are no labels since a hasStep sometimes contains labels for the step before it.
+                if (hasStep.getLabels().isEmpty() && hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
+                    labels = hasStep.getLabels();
+                    traversal.removeStep(hasStep);
+                } else {
+                    hasContainers = null;
+                }
+            }
 
             // Replace vertex step with composite id step.
-            traversal.removeStep(vertexStep);
-            traversal.addStep(index, new FireflyBatchEdgeReadStep(traversal, vertexStep.getDirection(), vertexStep.getEdgeLabels(), vertexStep.getLabels()));
+            traversal.addStep(index, new FireflyBatchEdgeReadStep(traversal, vertexStep.getDirection(), vertexStep.getEdgeLabels(), labels, hasContainers));
         }
     }
 }

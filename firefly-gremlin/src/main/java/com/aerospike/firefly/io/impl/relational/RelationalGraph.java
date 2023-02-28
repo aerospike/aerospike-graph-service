@@ -199,7 +199,12 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public FireflyEdge readEdge(final FireflyId edgeId) {
-        return RelationalEdge.readEdge(this, edgeId);
+        final List<FireflyEdge> edges = readEdges(List.of(), List.of(edgeId));
+        if (edges.isEmpty()) {
+            return null;
+        } else {
+            return edges.get(0);
+        }
     }
 
     /**
@@ -209,8 +214,8 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @return Edge.
      */
     @Override
-    public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
-        return RelationalEdge.readEdges(this, edgeIds);
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds) {
+        return RelationalEdge.readEdges(this, hasContainers, edgeIds);
     }
 
     /**
@@ -257,12 +262,17 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public FireflyVertex readVertex(final FireflyId idValue) {
-        return RelationalVertex.readVertex(this, idValue);
+        final List<FireflyVertex> vertices = readVertices(List.of(), List.of(idValue));
+        if (vertices.isEmpty()) {
+            return null;
+        } else {
+            return vertices.get(0);
+        }
     }
 
     @Override
-    public List<FireflyVertex> readVertices(final List<FireflyId> idValues) {
-        return RelationalVertex.readVertices(this, idValues);
+    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues) {
+        return RelationalVertex.readVertices(this, hasContainers, idValues);
     }
 
     /**
@@ -318,19 +328,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Determine verticies in a list exist.
-     *
-     * @param idValue vertex id to check.
-     * @return true if vertex exists, false otherwise.
-     */
-    @Override
-    public boolean[] vertexExists(final List<FireflyId> idValue) {
-        LOG.debug("Checking if vertex {} exists.", idValue);
-        return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
-    }
-
-    /**
-     * Determine verticies in a list exist.
+     * Determine vertices in a list exist.
      *
      * @param expression expression to check.
      * @param idValue    vertex id to check.
@@ -353,18 +351,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     public boolean[] edgeExists(final Expression expression, final List<FireflyId> idValue) {
         LOG.debug("Checking if edge {} exists.", idValue);
         return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
-    }
-
-    /**
-     * Determine if an edge exists.
-     *
-     * @param idValue edge id to check.
-     * @return true if edge exists, false otherwise.
-     */
-    @Override
-    public boolean[] edgeExists(final List<FireflyId> idValue) {
-        LOG.debug("Checking if edge {} exists.", idValue);
-        return db.exists(idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
     }
 
     @Override

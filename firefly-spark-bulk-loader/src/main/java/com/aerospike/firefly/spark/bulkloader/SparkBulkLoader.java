@@ -78,6 +78,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -405,6 +406,7 @@ public class SparkBulkLoader {
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                List<Future<?>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     class TP implements Runnable {
@@ -464,16 +466,16 @@ public class SparkBulkLoader {
                     }
                     executor.execute(new TP());
                 }
-
                 executor.shutdown();
+                while(!executor.awaitTermination(30, TimeUnit.SECONDS)) {}
                 while (!executor.isTerminated()) {}
+
                 flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
                 flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
                 final Instant endOfGraphOperations = Instant.now();
                 final Duration interval1 = Duration.between(startOfGraphOperations, endOfGraphOperations);
                 res.setDuration1(interval1.getSeconds());
                 cumulativeTime.add(res);
-
             }
 //            return cumulativeTime.iterator();
             return Collections.singletonList(1).iterator();

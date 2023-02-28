@@ -74,6 +74,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -377,7 +378,8 @@ public class SparkBulkLoader {
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
         final ArrayList<DurationResult> cumulativeTime = new ArrayList<>();
-        List<DurationResult> d = unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, DurationResult>) rowIterator -> {
+//        List<DurationResult> d = unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, DurationResult>) rowIterator -> {
+        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -397,12 +399,12 @@ public class SparkBulkLoader {
 
             final DurationResult res = new DurationResult();
             final Instant startOfGraphOperations = Instant.now();
-            final ExecutorService executor = Executors.newFixedThreadPool(8);
+            final ExecutorService executor = Executors.newFixedThreadPool(4);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
-                final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
-                final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new HashMap<>();
+                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
+                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     class TP implements Runnable {
@@ -473,92 +475,92 @@ public class SparkBulkLoader {
                 cumulativeTime.add(res);
 
             }
-            return cumulativeTime.iterator();
-//            return Collections.singletonList(1).iterator();
-        }, Encoders.bean(DurationResult.class)).collectAsList();
-//        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+//            return cumulativeTime.iterator();
+            return Collections.singletonList(1).iterator();
+//        }, Encoders.bean(DurationResult.class)).collectAsList();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration interval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + interval.getSeconds());
 
-        List<Long> st = d.stream().map(DurationResult::getDuration1).collect(Collectors.toList());
-        int totalDuration = d.stream().mapToInt(o -> Math.toIntExact(o.getDuration1())).sum();
-        int noOfPartitions = d.size();
-        LOGGER.info("Sum of duration from all partitions = " + totalDuration + " for # of partitions = " + noOfPartitions + " that has a mean of " + totalDuration/noOfPartitions);
-        LOGGER.info("Mode for stream 1  = " + computeMode(st));
-        LOGGER.info("Range for stream 1 = " + range(st));
+//        List<Long> st = d.stream().map(DurationResult::getDuration1).collect(Collectors.toList());
+//        int totalDuration = d.stream().mapToInt(o -> Math.toIntExact(o.getDuration1())).sum();
+//        int noOfPartitions = d.size();
+//        LOGGER.info("Sum of duration from all partitions = " + totalDuration + " for # of partitions = " + noOfPartitions + " that has a mean of " + totalDuration/noOfPartitions);
+//        LOGGER.info("Mode for stream 1  = " + computeMode(st));
+//        LOGGER.info("Range for stream 1 = " + range(st));
 
-        // Verify edges.
-//        edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-//            if (ENV.equalsIgnoreCase("aws")) {
-//                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-//                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
-//            } else {
-//                localConfig.set(loadConfiguration(finalConfigPath));
-//            }
-//            final boolean ignoreFailedProperties =
-//                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
-//            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
-//            final boolean keepProvidedId =
-//                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
-//            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
-//            final boolean ignoreElementCreationFailed =
-//                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
-//            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
-//            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
-//                final GraphTraversalSource g = graph.traversal();
-//                while (rowIterator.hasNext()) {
-//                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-//                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
-//                            useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
-//
-//                    final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
-//                            .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
-//                    final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
-//
-//                    // Multiple edges can exist that match the label between the FROM and TO vertices.
-//                    // Assume if one is found with all the properties we've succeeded.
-//                    boolean isEdgeFound = false;
-//
-//                    edgeCheck:
-//                    while (edgeTraversal.hasNext() && !isEdgeFound) {
-//                        final Edge edge = edgeTraversal.next();
-//
-//                        for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
-//                            try {
-//                                // TODO: Handle null (when supported in Firefly) and cardinality.
-//                                boolean isList = property.getValue() instanceof List<?>;
-//                                if (isList) {
-//                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
-//                                    for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
-//                                        propertyValues.remove(propertyValue);
-//                                    }
-//                                    if (!propertyValues.isEmpty()) {
-//                                        continue edgeCheck;
-//                                    }
-//                                } else {
-//                                    if (property.getValue() != null) {
-//                                        final Object propertyValue = edge.value(property.getKey());
-//                                        if (!property.getValue().equals(propertyValue)) {
-//                                            continue edgeCheck;
-//                                        }
-//                                    }
-//                                }
-//                            } catch (final Exception e) {
-//                                continue edgeCheck;
-//                            }
-//                        }
-//                        isEdgeFound = true;
-//                    }
-//                    if (!isEdgeFound) {
-//                        throw new AssertionError("Validation failed: Could not find edge with label "
-//                                + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
-//                                + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
-//                    }
-//                }
-//            }
-//            return Collections.singletonList(1).iterator();
-//        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+//         Verify edges.
+        edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+            if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            } else {
+                localConfig.set(loadConfiguration(finalConfigPath));
+            }
+            final boolean ignoreFailedProperties =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
+            final boolean keepProvidedId =
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
+            final boolean ignoreElementCreationFailed =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
+                final GraphTraversalSource g = graph.traversal();
+                while (rowIterator.hasNext()) {
+                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
+                            useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
+
+                    final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
+                            .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
+                    final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
+
+                    // Multiple edges can exist that match the label between the FROM and TO vertices.
+                    // Assume if one is found with all the properties we've succeeded.
+                    boolean isEdgeFound = false;
+
+                    edgeCheck:
+                    while (edgeTraversal.hasNext() && !isEdgeFound) {
+                        final Edge edge = edgeTraversal.next();
+
+                        for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
+                            try {
+                                // TODO: Handle null (when supported in Firefly) and cardinality.
+                                boolean isList = property.getValue() instanceof List<?>;
+                                if (isList) {
+                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
+                                    for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
+                                        propertyValues.remove(propertyValue);
+                                    }
+                                    if (!propertyValues.isEmpty()) {
+                                        continue edgeCheck;
+                                    }
+                                } else {
+                                    if (property.getValue() != null) {
+                                        final Object propertyValue = edge.value(property.getKey());
+                                        if (!property.getValue().equals(propertyValue)) {
+                                            continue edgeCheck;
+                                        }
+                                    }
+                                }
+                            } catch (final Exception e) {
+                                continue edgeCheck;
+                            }
+                        }
+                        isEdgeFound = true;
+                    }
+                    if (!isEdgeFound) {
+                        throw new AssertionError("Validation failed: Could not find edge with label "
+                                + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
+                                + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
+                    }
+                }
+            }
+            return Collections.singletonList(1).iterator();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         spark.stop();
     }
@@ -636,11 +638,11 @@ public class SparkBulkLoader {
 
     static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
                                     final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
-                                    final AtomicInteger edgeCount, final Map<Long, Map<String, List<Value>>> edgeMap,
+                                    final AtomicInteger edgeCount, final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
                                     final boolean ignoreElementCreationFailed) {
         if (!supernodes.contains(vertexId)) {
             if (!edgeMap.containsKey(vertexId)) {
-                edgeMap.put(vertexId, new HashMap<>());
+                edgeMap.put(vertexId, new ConcurrentHashMap<>());
             }
             final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
             if (!labelEdgeIds.containsKey(edgeLabel)) {
@@ -736,9 +738,9 @@ public class SparkBulkLoader {
     }
 
     static private void flushEdgeMap(final FireflyGraph graph, final Direction direction,
-                                     final Map<Long, Map<String, List<Value>>> edgeMap,
+                                     final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
                                      final boolean ignoreElementCreationFailed) {
-        for (Map.Entry<Long, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+        for (Map.Entry<Long, ConcurrentHashMap<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final long vertexId = vertexIdToLabelMaps.getKey();
             final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {

@@ -1,6 +1,8 @@
 package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -8,6 +10,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -31,24 +34,26 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     // Set max barrier size so that if we get a really long running traversal that has output limit
     // the semi-lazy execution will allow the traversal to exit early.
     private static final int MAX_BARRIER_SIZE = 1000;
+    public final List<HasContainer> fireflyHasContainers;
+    public final List<HasContainer> aerospikeHasContainers;
 
     public FireflyBatchEdgeReadStep(final Traversal.Admin traversal,
                                     final Direction direction,
                                     final String[] edgeLabels,
-                                    final Set<String> labels) {
+                                    final Set<String> labels,
+                                    final List<HasContainer> hasContainers) {
         super(traversal, MAX_BARRIER_SIZE);
         this.direction = direction;
         this.edgeLabels = edgeLabels;
         this.labels = labels;
-    }
-
-    static class FireflyBatchEdgeReadStepInfo {
-        final Traverser.Admin<Edge> traverser;
-        final Integer size;
-
-        public FireflyBatchEdgeReadStepInfo(final Traverser.Admin<Edge> traversers, final Integer size) {
-            this.traverser = traversers;
-            this.size = size;
+        if (hasContainers != null) {
+            final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
+                    FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
+            fireflyHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(hasContainerWithCardinalities);
+            aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
+        } else {
+            fireflyHasContainers = List.of();
+            aerospikeHasContainers = List.of();
         }
     }
 
@@ -59,7 +64,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
-        final List<FireflyBatchEdgeReadStepInfo> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
+        final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
         final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new TreeMap<>();
@@ -74,34 +79,36 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             // If the in edge cache is disabled then we need to use the regular interface.
             if (vertex.isEdgeCacheDisabled()) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
-                    final List<FireflyId> vertexIds = getEdgeIdsFromVertex(Direction.IN, graph, vertex);
-                    addEdgesToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, vertexIds);
+                    final List<FireflyId> edgeIds = getEdgeIdsFromVertex(Direction.IN, graph, vertex);
+                    FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
                 }
                 if (direction == Direction.OUT || direction == Direction.BOTH) {
-                    final List<FireflyId> vertexIds = getEdgeIdsFromVertex(Direction.OUT, graph, vertex);
-                    addEdgesToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, vertexIds);
+                    final List<FireflyId> edgeIds = getEdgeIdsFromVertex(Direction.OUT, graph, vertex);
+                    FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
                 }
             } else {
                 // Get the ids of the adjacent vertices and add them to the list.
                 final List<FireflyId> edgeIds = new ArrayList<>();
                 vertex.appendEdgeIds(edgeIds, direction, edgeLabels);
-                addEdgesToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
+                FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
             }
 
             // Calculate how many ids were added by the function (size of list - previous size).
             // Create composite id info with this value and the appropriate traverser to the info list.
-            fireflyBatchEdgeReadStepInfos.add(new FireflyBatchEdgeReadStepInfo(traverser, fireflyIdList.size() - previousSize));
+            fireflyBatchEdgeReadStepInfos.add(new FireflyBatchReadHelper.ReadStepInfo<>(traverser, fireflyIdList.size() - previousSize));
 
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 // Drain data to output.
-                drainDataToOutput(graph, fireflyIdList, uniqueIdSet, fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, output);
+                FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readEdges);
             }
         }
 
         // Drain data to output.
-        drainDataToOutput(graph, fireflyIdList, uniqueIdSet, fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, output);
+        FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
+                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readEdges);
 
         // Note this cannot be added in the above loop since we are looking through it above.
         set.addAll(output);
@@ -111,61 +118,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     private List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
-        return firefly.readEdges(edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
-    }
-
-    private void addEdgesToSet(final List<FireflyId> fireflyIdList,
-                                  final Set<FireflyId> uniqueIdSet,
-                                  final Map<FireflyId, FireflyEdge> fireflyEdgeMap,
-                                  final List<FireflyId> edgeIds) {
-        fireflyIdList.addAll(edgeIds);
-        for (final FireflyId id : edgeIds) {
-            if (!fireflyEdgeMap.containsKey(id)) {
-                uniqueIdSet.add(id);
-            }
-        }
-    }
-
-    private void drainDataToOutput(final FireflyGraph firefly,
-                       final List<FireflyId> fireflyIdList,
-                       final Set<FireflyId> uniqueIdSet,
-                       final Map<FireflyId, FireflyEdge> fireflyEdgeMap,
-                       final List<FireflyBatchEdgeReadStepInfo> fireflyBatchEdgeReadStepInfos,
-                       final TraverserSet<Edge> output) {
-        // Read all vertices in a batch.
-        final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
-        final List<FireflyEdge> unorderedEdges = firefly.readEdges(unorderedIds);
-
-        // If there is a mismatch we might have had concurrent removals. To fix this rematch the lists.
-        if (unorderedIds.size() != unorderedEdges.size()) {
-            final Set<FireflyId> unorderedEdgesIds = unorderedEdges.stream().map(e -> e.id).collect(Collectors.toSet());
-            final Set<FireflyId> missingIds = new HashSet<>(unorderedIds);
-            missingIds.removeAll(unorderedEdgesIds);
-            unorderedIds.removeAll(missingIds);
-        }
-
-        for (int i = 0; i < unorderedIds.size(); i++) {
-            fireflyEdgeMap.put(unorderedIds.get(i), unorderedEdges.get(i));
-        }
-
-        // Loop through the info list and assign the appropriate number of vertices to each traverser using the info.
-        int i = 0;
-        for (final FireflyBatchEdgeReadStepInfo info : fireflyBatchEdgeReadStepInfos) {
-            for (int j = 0; j < info.size; j++) {
-                // Create a new traverser with the edge and add it to the output set using the split.
-                // Note, this is invoked info.size times.
-                final FireflyEdge fireflyEdge = fireflyEdgeMap.get(fireflyIdList.get(i++));
-                if (fireflyEdge == null) {
-                    // Edge was not found - this is because it was deleted concurrently.
-                    continue;
-                }
-                output.add(info.traverser.split(fireflyEdge, this));
-            }
-        }
-
-        // Clear intermediate buffers.
-        fireflyIdList.clear();
-        uniqueIdSet.clear();
-        fireflyBatchEdgeReadStepInfos.clear();
+        return firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
     }
 }

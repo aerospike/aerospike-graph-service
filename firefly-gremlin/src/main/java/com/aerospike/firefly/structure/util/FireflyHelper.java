@@ -69,7 +69,8 @@ public final class FireflyHelper {
     }
 
     private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
-        return graph.readEdges(vertex.getEdgeIdsFromVertex(direction)).stream().filter(
+        // TODO: This returns a raw list and could blow up on a supernode.
+        return graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction)).stream().filter(
                         edge -> (labels.isEmpty() || labels.contains(edge.label()))).
                 collect(Collectors.toList());
     }

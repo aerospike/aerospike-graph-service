@@ -1,8 +1,10 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
+import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyGraphStepStrategy;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.TextP;
@@ -230,7 +232,8 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyGraphStep fireflyGraphStep = (FireflyGraphStep) step;
-                final List<FireflyGraphStep.HasContainerWithCardinality> orderedHasContainers = fireflyGraphStep.getHasContainersWithCardinalityOrder();
+                final List<FireflyGraphStep.HasContainerWithCardinality> orderedHasContainers =
+                        FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, fireflyGraphStep.getHasContainers());
                 Assert.assertEquals(expectedOrder.size(), orderedHasContainers.size());
                 for (int i = 0; i < expectedOrder.size(); i++) {
                     final KeyValuePair expected = expectedOrder.get(i);
@@ -259,7 +262,8 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyGraphStep fireflyGraphStep = (FireflyGraphStep) step;
-                final List<FireflyGraphStep.HasContainerWithCardinality> orderedHasContainers = fireflyGraphStep.getHasContainersWithCardinalityOrder();
+                final List<FireflyGraphStep.HasContainerWithCardinality> orderedHasContainers =
+                        FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, FireflyVertex.class, fireflyGraphStep.getHasContainers());
                 Assert.assertTrue(expectedOrder.size() <= orderedHasContainers.size());
                 for (int i = 0; i < expectedOrder.size(); i++) {
                     final KeyValuePair expected = expectedOrder.get(i);

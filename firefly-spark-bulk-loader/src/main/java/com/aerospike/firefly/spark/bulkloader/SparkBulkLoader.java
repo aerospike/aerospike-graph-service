@@ -522,7 +522,7 @@ public class SparkBulkLoader {
 
     public static void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
                                    final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
-                                   final AtomicInteger edgeCount, final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
+                                   final AtomicInteger edgeCount, final Map<Long, Map<String, List<Value>>> edgeMap,
                                    final boolean ignoreElementCreationFailed) {
         synchronized (SparkBulkLoader.class) {
             if (!supernodes.contains(vertexId)) {

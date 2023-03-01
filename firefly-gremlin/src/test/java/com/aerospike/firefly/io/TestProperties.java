@@ -404,7 +404,6 @@ public class TestProperties {
         g.V().hasLabel("person").properties("name").property("language", languages).iterate();
         traversal = g.V().hasLabel("person").properties("name").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").properties("name").has("language", new LinkedList<>(languages));

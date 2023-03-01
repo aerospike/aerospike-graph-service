@@ -359,7 +359,6 @@ public class TestProperties {
         g.V().hasLabel("person").property("age", 12).property("name", names).iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").has("name", new LinkedList<>(names));

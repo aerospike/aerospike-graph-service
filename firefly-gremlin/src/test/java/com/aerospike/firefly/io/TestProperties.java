@@ -310,7 +310,6 @@ public class TestProperties {
         g.V().outE("bought").property("year", ownedYears).iterate();
         traversal = g.V().outE("bought").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().outE("bought").has("year", new LinkedList<>(ownedYears));
@@ -360,7 +359,6 @@ public class TestProperties {
         g.V().hasLabel("person").property("age", 12).property("name", names).iterate();
         traversal = g.V().hasLabel("person").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").has("name", new LinkedList<>(names));
@@ -406,7 +404,6 @@ public class TestProperties {
         g.V().hasLabel("person").properties("name").property("language", languages).iterate();
         traversal = g.V().hasLabel("person").properties("name").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").properties("name").has("language", new LinkedList<>(languages));

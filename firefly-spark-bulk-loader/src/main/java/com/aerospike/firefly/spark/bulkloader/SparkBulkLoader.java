@@ -398,8 +398,8 @@ public class SparkBulkLoader {
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
-                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
-                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
+                final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     executor.execute(new EdgeWriteTP(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,

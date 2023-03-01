@@ -7,7 +7,6 @@ import com.aerospike.client.Value;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
-import com.aerospike.firefly.spark.bulkloader.util.DurationResult;
 import com.aerospike.firefly.spark.bulkloader.util.EdgeWriteTP;
 import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -78,8 +77,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -379,9 +376,7 @@ public class SparkBulkLoader {
 
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
-        final ArrayList<DurationResult> cumulativeTime = new ArrayList<>();
-        List<DurationResult> d = unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, DurationResult>) rowIterator -> {
-        //unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -399,8 +394,6 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            final DurationResult res = new DurationResult();
-            final Instant startOfGraphOperations = Instant.now();
             final ExecutorService executor = Executors.newFixedThreadPool(8);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
@@ -414,30 +407,16 @@ public class SparkBulkLoader {
                             inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
                 }
                 executor.shutdown();
-                while(!executor.awaitTermination(30, TimeUnit.SECONDS)) {}
-                while (!executor.isTerminated()) {}
+                while(!executor.isTerminated()) {}
 
                 flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
                 flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
-                final Instant endOfGraphOperations = Instant.now();
-                final Duration interval1 = Duration.between(startOfGraphOperations, endOfGraphOperations);
-                res.setDuration1(interval1.getSeconds());
-                cumulativeTime.add(res);
             }
-            return cumulativeTime.iterator();
-            // return Collections.singletonList(1).iterator();
-        }, Encoders.bean(DurationResult.class)).collectAsList();
-        // }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+             return Collections.singletonList(1).iterator();
+         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration interval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + interval.getSeconds());
-
-        List<Long> st = d.stream().map(DurationResult::getDuration1).collect(Collectors.toList());
-        int totalDuration = d.stream().mapToInt(o -> Math.toIntExact(o.getDuration1())).sum();
-        int noOfPartitions = d.size();
-        LOGGER.info("Sum of duration from all partitions = " + totalDuration + " for # of partitions = " + noOfPartitions + " that has a mean of " + totalDuration/noOfPartitions);
-        LOGGER.info("Mode for all partitions = " + computeMode(st));
-        LOGGER.info("Range for all partitions = " + range(st));
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
@@ -512,50 +491,6 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         spark.stop();
-    }
-
-    public static long computeMode(List<Long> list) {
-        // precondition: The list array has exactly 1 mode.
-        Map<Long, Long> values = new HashMap<>();
-        for (Long aLong : list) {
-            if (values.get(aLong) == null) {
-                values.put(aLong, 1L);
-            } else {
-                values.put(aLong, values.get(aLong) + 1);
-            }
-        }
-
-        long greatestTotal = 0;
-        long mode = 0L;
-
-        // iterate over the Map and find element with greatest occurrence
-        Iterator<Map.Entry<Long, Long>> it = values.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<Long, Long> pair = it.next();
-            if (pair.getValue() > greatestTotal) {
-                mode = pair.getKey();
-                greatestTotal = pair.getValue();
-            }
-            it.remove();
-        }
-        return mode;
-    }
-
-    public static long range(final List<Long> list) {
-        if (list.isEmpty()) {
-            return 0;
-        } else {
-            long max = list.get(0);
-            long min = list.get(0);
-            for (final Long i : list) {
-                if (i > max) {
-                    max = i;
-                } else if (i < min) {
-                    min = i;
-                }
-            }
-            return (max - min) + 1;
-        }
     }
 
     static private Dataset<Row> loadAndMergeDatasets(SparkSession spark, Set<String> directories, String[] REQUIRED_HEADERS) {

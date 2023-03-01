@@ -39,6 +39,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -806,14 +807,18 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param vertexIds FireflyIds to use.
      * @return FireflyVertex.
      */
-    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
+    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<HasContainer> hasContainers, final List<FireflyId> vertexIds) {
         LOG.debug("Reading vertices {}.", vertexIds);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Batch read vertex records.
-        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
+        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
+                db,
+                graph.hasContainerListToExpression(hasContainers, FireflyVertex.class),
+                db.VERTEX_AERO_SET,
+                vertexIds);
         if (vertexRecords == null) {
             return new ArrayList<>();
         }

@@ -624,7 +624,7 @@ public class SparkBulkLoader {
     }
 
     static private void flushEdgeMap(final FireflyGraph graph, final Direction direction,
-                                     final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
+                                     final Map<Long, Map<String, List<Value>>> edgeMap,
                                      final boolean ignoreElementCreationFailed) {
         for (Map.Entry<Long, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final long vertexId = vertexIdToLabelMaps.getKey();

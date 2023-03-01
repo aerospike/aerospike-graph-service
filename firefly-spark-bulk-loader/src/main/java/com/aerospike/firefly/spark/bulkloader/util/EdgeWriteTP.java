@@ -33,8 +33,8 @@ public class EdgeWriteTP implements Runnable {
     FireflyGraph graph;
     AtomicInteger outEdgeCount;
     java.util.concurrent.atomic.AtomicInteger inEdgeCount;
-    ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap;
-    ConcurrentHashMap<Long, java.util.concurrent.ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap;
+    Map<Long, Map<String, List<Value>>> vertexOutEdgeMap;
+    Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
     GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
     public EdgeWriteTP(Set<Long> supernodes, boolean ignoreFailedProperties, boolean useProvidedId, boolean keepProvidedId, String providedIdPropertyName, boolean ignoreElementCreationFailed, String nullValue, FireflyGraph graph, AtomicInteger outEdgeCount, AtomicInteger inEdgeCount, ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap, ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap, GenericRowWithSchema row) {

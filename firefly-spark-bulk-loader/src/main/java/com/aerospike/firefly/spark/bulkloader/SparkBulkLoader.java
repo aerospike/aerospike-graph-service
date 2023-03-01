@@ -8,6 +8,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
 import com.aerospike.firefly.spark.bulkloader.util.DurationResult;
+import com.aerospike.firefly.spark.bulkloader.util.EdgeWriteTP;
 import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -379,8 +380,8 @@ public class SparkBulkLoader {
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
         final ArrayList<DurationResult> cumulativeTime = new ArrayList<>();
-//        List<DurationResult> d = unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, DurationResult>) rowIterator -> {
-        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        List<DurationResult> d = unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, DurationResult>) rowIterator -> {
+        //unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -400,71 +401,17 @@ public class SparkBulkLoader {
 
             final DurationResult res = new DurationResult();
             final Instant startOfGraphOperations = Instant.now();
-            final ExecutorService executor = Executors.newFixedThreadPool(4);
+            final ExecutorService executor = Executors.newFixedThreadPool(8);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
-                List<Future<?>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    class TP implements Runnable {
-                        @Override
-                        public void run() {
-                            try {
-                                final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
-                                        useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
-                                final FireflyId edgeId = sparkEdge.getFireflyId(graph.getBaseGraph().EDGE_AERO_SET);
-                                final long inVertexId = sparkEdge.getInVertexId();
-                                final long outVertexId = sparkEdge.getOutVertexId();
-                                final String edgeLabel = sparkEdge.getLabel();
-                                int tryCount = 0;
-                                boolean succeeded = false;
-                                while (!succeeded) {
-                                    try {
-                                        graph.bulkWriteEdge(sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                                                inVertexId, outVertexId);
-                                        succeeded = true;
-                                    } catch (final AerospikeException e) {
-                                        if (++tryCount > RETRY_LIMIT) {
-                                            LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                                    inVertexId + " after " + tryCount + " attempts.", e);
-                                            if (!ignoreElementCreationFailed) {
-                                                throw e;
-                                            } else {
-                                                break;
-                                            }
-                                        } else {
-                                            LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                                    inVertexId + ". Attempting to write edge again. Attempt count: "
-                                                    + tryCount + ".", e);
-                                            exponentialBackoff(tryCount);
-                                            continue;
-                                        }
-                                    }
-
-                                    // Write edge to vertices' edge caches.
-                                    if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                                        loadEdgeMap(graph, supernodes, outVertexId,
-                                                graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                                                edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
-                                                ignoreElementCreationFailed);
-                                        loadEdgeMap(graph, supernodes, inVertexId,
-                                                graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                                                edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
-                                                ignoreElementCreationFailed);
-                                    }
-                                }
-                            } catch (final FireflyBulkLoaderException e) {
-                                LOGGER.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
-                                if (!ignoreElementCreationFailed) {
-                                    throw e;
-                                }
-                            }
-                        }
-                    }
-                    executor.execute(new TP());
+                    executor.execute(new EdgeWriteTP(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
+                            providedIdPropertyName, ignoreElementCreationFailed, nullValue, graph, outEdgeCount,
+                            inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
                 }
                 executor.shutdown();
                 while(!executor.awaitTermination(30, TimeUnit.SECONDS)) {}
@@ -477,22 +424,22 @@ public class SparkBulkLoader {
                 res.setDuration1(interval1.getSeconds());
                 cumulativeTime.add(res);
             }
-//            return cumulativeTime.iterator();
-            return Collections.singletonList(1).iterator();
-//        }, Encoders.bean(DurationResult.class)).collectAsList();
-        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+            return cumulativeTime.iterator();
+            // return Collections.singletonList(1).iterator();
+        }, Encoders.bean(DurationResult.class)).collectAsList();
+        // }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration interval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + interval.getSeconds());
 
-//        List<Long> st = d.stream().map(DurationResult::getDuration1).collect(Collectors.toList());
-//        int totalDuration = d.stream().mapToInt(o -> Math.toIntExact(o.getDuration1())).sum();
-//        int noOfPartitions = d.size();
-//        LOGGER.info("Sum of duration from all partitions = " + totalDuration + " for # of partitions = " + noOfPartitions + " that has a mean of " + totalDuration/noOfPartitions);
-//        LOGGER.info("Mode for stream 1  = " + computeMode(st));
-//        LOGGER.info("Range for stream 1 = " + range(st));
+        List<Long> st = d.stream().map(DurationResult::getDuration1).collect(Collectors.toList());
+        int totalDuration = d.stream().mapToInt(o -> Math.toIntExact(o.getDuration1())).sum();
+        int noOfPartitions = d.size();
+        LOGGER.info("Sum of duration from all partitions = " + totalDuration + " for # of partitions = " + noOfPartitions + " that has a mean of " + totalDuration/noOfPartitions);
+        LOGGER.info("Mode for all partitions = " + computeMode(st));
+        LOGGER.info("Range for all partitions = " + range(st));
 
-//         Verify edges.
+        // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -638,24 +585,26 @@ public class SparkBulkLoader {
         return getConfig(path);
     }
 
-    static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
-                                    final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
-                                    final AtomicInteger edgeCount, final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
-                                    final boolean ignoreElementCreationFailed) {
-        if (!supernodes.contains(vertexId)) {
-            if (!edgeMap.containsKey(vertexId)) {
-                edgeMap.put(vertexId, new ConcurrentHashMap<>());
-            }
-            final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
-            if (!labelEdgeIds.containsKey(edgeLabel)) {
-                labelEdgeIds.put(edgeLabel, Collections.synchronizedList(new ArrayList<>()));
-            }
-            final List<Value> edgeIds = labelEdgeIds.get(edgeLabel);
-            edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
-            final int count = edgeCount.incrementAndGet();
-            if (count > EDGE_CACHE_FLUSH_THRESHOLD) {
-                flushEdgeMap(graph, direction, edgeMap, ignoreElementCreationFailed);
-                edgeCount.set(0);
+    public static void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
+                                   final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
+                                   final AtomicInteger edgeCount, final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
+                                   final boolean ignoreElementCreationFailed) {
+        synchronized (SparkBulkLoader.class) {
+            if (!supernodes.contains(vertexId)) {
+                if (!edgeMap.containsKey(vertexId)) {
+                    edgeMap.put(vertexId, new ConcurrentHashMap<>());
+                }
+                final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
+                if (!labelEdgeIds.containsKey(edgeLabel)) {
+                    labelEdgeIds.put(edgeLabel, Collections.synchronizedList(new ArrayList<>()));
+                }
+                final List<Value> edgeIds = labelEdgeIds.get(edgeLabel);
+                edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
+                final int count = edgeCount.incrementAndGet();
+                if (count > EDGE_CACHE_FLUSH_THRESHOLD) {
+                    flushEdgeMap(graph, direction, edgeMap, ignoreElementCreationFailed);
+                    edgeCount.set(0);
+                }
             }
         }
     }
@@ -855,7 +804,7 @@ public class SparkBulkLoader {
         }
     }
 
-    static private void exponentialBackoff(final int attempt) {
+    public static void exponentialBackoff(final int attempt) {
         // This is to prevent overflow since we cap at 10000ms anyways.
         final int cappedAttempt = Math.min(attempt, 14);
 

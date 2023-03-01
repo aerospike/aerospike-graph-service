@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.client.Value;
 import com.aerospike.client.util.Crypto;
 
 import java.util.Arrays;
@@ -10,28 +11,25 @@ import java.util.Map;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyIdPoly extends FireflyId {
-    private final Object id;
-
-    public final Source source;
-
-
-    // Can be null.
-    private final Class userClass;
-
     protected static Map<Class, GetUserId> CONVERT_TO_USER_CLASS = Map.of(
             Long.class, new GetLongId(),
             Integer.class, new GetIntegerId(),
             Double.class, new GetDoubleId(),
             String.class, new GetStringId()
     );
-
     protected static Map<Class, Long> STORAGE_TYPE_HINTS = Map.of(
             Long.class, 1L,
             Integer.class, 2L,
             Double.class, 3L,
             String.class, 5L
     );
-    private final byte[] hash;
+    protected final Object id;
+    public final Source source;
+    // Can be null.
+    private final Class userClass;
+    private final String setName;
+    // Lazily instantiate this.
+    private byte[] hash = null;
 
     /**
      * Constructor for Numeric Firefly Id. Object class assumed.
@@ -39,7 +37,7 @@ public class FireflyIdPoly extends FireflyId {
      * @param id Id to construct with.
      */
     // Package private. Only the factory should be instantiating this.
-    private FireflyIdPoly(final Object id, final String setName) {
+    protected FireflyIdPoly(final Object id, final String setName) {
         this(id, id.getClass(), setName);
     }
 
@@ -56,7 +54,7 @@ public class FireflyIdPoly extends FireflyId {
         } else {
             throw new IllegalArgumentException("Id must be a String or Number.");
         }
-        this.hash = getIdHash(id, setName);
+        this.setName = setName;
         if (!STORAGE_TYPE_HINTS.containsKey(this.userClass)) {
             // Should not happen in production, but add case for it anyway.
             throw new RuntimeException(String.format("Error, cannot create numeric id with user class of %s.", this.userClass.getName()));
@@ -68,6 +66,7 @@ public class FireflyIdPoly extends FireflyId {
         this.hash = hash;
         this.id = null;
         this.userClass = null;
+        this.setName = setName;
     }
 
     /**
@@ -116,9 +115,9 @@ public class FireflyIdPoly extends FireflyId {
     }
 
     /**
-     * Return the origional value of the id supplied by the user.
+     * Return the original value of the id supplied by the user.
      *
-     * @return the origional value of the id supplied by the user.
+     * @return the original value of the id supplied by the user.
      */
     @Override
     public Object getUserId() {
@@ -152,7 +151,10 @@ public class FireflyIdPoly extends FireflyId {
 
     @Override
     public byte[] getKeyHash() {
-        return hash;
+        if (this.hash == null) {
+            this.hash = getIdHash(this.setName);
+        }
+        return this.hash;
     }
 
     @Override
@@ -160,8 +162,22 @@ public class FireflyIdPoly extends FireflyId {
         return Crypto.encodeBase64(getKeyHash());
     }
 
+    /**
+     * Uses the Aerospike Client Crypto routines to produce a RIPEMD160 hash of the string capable of retrieving the record by digest.
+     *
+     * @param setName the Aerospike namespace
+     * @return the digest of the string
+     */
+    protected byte[] getIdHash(String setName) {
+        final Value keyValue = Value.get(this.id);
+        return Crypto.computeDigest(setName, keyValue);
+    }
+
     @Override
     public String toString() {
+        if (this.hash == null) {
+            this.hash = getIdHash(this.setName);
+        }
         return Crypto.encodeBase64(hash);
     }
 

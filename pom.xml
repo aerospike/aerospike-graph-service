@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -43,7 +43,7 @@
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>0.4.0-SNAPSHOT</firefly.version>
+        <firefly.version>0.5.0-SNAPSHOT</firefly.version>
         <aerospike.version>6.1.6</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -140,10 +140,11 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>
-                       <exclude>**/BenchmarkTest.java</exclude>-
-                       <exclude>**/ValidConnectionTest.java</exclude>-
-                       <exclude>**/TestMovielens1M.java</exclude>-
-                       <exclude>**/TestFireflyExceedHeap.java</exclude>-
+                       <exclude>**/BenchmarkTest.java</exclude>
+                       <exclude>**/BenchmarkTestSyntheticData.java</exclude>
+                       <exclude>**/ValidConnectionTest.java</exclude>
+                       <exclude>**/TestMovielens1M.java</exclude>
+                       <exclude>**/TestFireflyExceedHeap.java</exclude>
                    </excludes>
                 </configuration>
             </plugin>

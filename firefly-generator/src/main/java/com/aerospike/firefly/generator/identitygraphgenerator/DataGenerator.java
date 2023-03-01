@@ -22,22 +22,17 @@ public class DataGenerator {
         LOG.info("Main thread is - " + Thread.currentThread().getName());
         try {
             final CommandLine cmd = parseCmdArgs(args);
-            ExecutorService service = Executors.newFixedThreadPool(400);
+            final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "1000";
             Builder builder = Builder.create();
-            builder = builder.opsPerTransaction(500)
+            builder = builder.opsPerTransaction(50000)
                     .cmdLineArgs(cmd)
-                    .households(500)
-                    .accountsPerHousehold(100)
+                    .households(Integer.parseInt(numOfHouseholds))
+                    .accountsPerHousehold(20)
                     .peoplePerHousehold(10)
-                    .devicesPerPerson(5);
+                    .devicesPerPerson(3);
             IdentityGenerator identityGenerator = builder.generate();
-            Future<?> future = service.submit(identityGenerator);
-            identityGenerator.setFuture(future);
-            future.get();
-            if ( future.isDone() ) {
-                service.shutdown();
-                LOG.info("Data generator finished. Exiting.");
-            }
+            identityGenerator.run();
+            LOG.info("Data generator finished. Exiting.");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -45,7 +40,7 @@ public class DataGenerator {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod/remote");
+        final Option envOption = new Option("e", "env", true, "local/remote or aws");
         options.addOption(envOption);
 
         final Option pathOption = new Option("d", "directory", true, "Optional param. Absolute path to directory to write the datagenerator output in local." +
@@ -64,6 +59,18 @@ public class DataGenerator {
         final Option secretKeyOption = new Option("s", "awsSecretKey", true, "AWS SecretKey option when running the jar in AWS to write to S3");
         checkAndSetRequired(secretKeyOption, args);
         options.addOption(secretKeyOption);
+
+        final Option numOfHouseholdsOption = new Option("h", "numOfHouseholds", true, "Number of house holds to generate data for. default 500 for local data genration");
+        numOfHouseholdsOption.setRequired(false);
+        options.addOption(numOfHouseholdsOption);
+
+        final Option recordsPerFileOption = new Option("r", "recordsPerFile", true, "Number of records to store per file. Default is 100 for local");
+        recordsPerFileOption.setRequired(false);
+        options.addOption(recordsPerFileOption);
+
+        final Option varianceOption = new Option("v", "variance", true, "'variance' for Gaussian distribution");
+        varianceOption.setRequired(false);
+        options.addOption(varianceOption);
 
         final CommandLineParser parser = new DefaultParser();
         try {

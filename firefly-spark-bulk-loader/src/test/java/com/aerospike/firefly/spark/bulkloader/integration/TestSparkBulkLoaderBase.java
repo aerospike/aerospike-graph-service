@@ -50,7 +50,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracy() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfig()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -58,7 +58,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdTrue() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfig()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertEquals(11L, e.id());
@@ -68,7 +68,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdFalse() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());
@@ -78,7 +78,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyName() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());
@@ -90,7 +90,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracyArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -99,7 +99,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdTrueArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getDefaultConfigArtificialSupernode()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertEquals(11L, e.id());
@@ -110,7 +110,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testUseProvidedEdgeIdFalseArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());
@@ -121,7 +121,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-e", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Assert.assertNotEquals(11L, e.id());

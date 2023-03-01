@@ -8,10 +8,10 @@ import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
@@ -24,8 +24,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -103,7 +102,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, db.getSupportedType(value.getClass()));
+                typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
                 data.put(key, value);
             }
         });
@@ -200,7 +199,12 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public FireflyEdge readEdge(final FireflyId edgeId) {
-        return RelationalEdge.readEdge(this, edgeId);
+        final List<FireflyEdge> edges = readEdges(List.of(), List.of(edgeId));
+        if (edges.isEmpty()) {
+            return null;
+        } else {
+            return edges.get(0);
+        }
     }
 
     /**
@@ -210,8 +214,22 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @return Edge.
      */
     @Override
-    public List<FireflyEdge> readEdges(final List<FireflyId> edgeIds) {
-        return RelationalEdge.readEdges(this, edgeIds);
+    public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds) {
+        return RelationalEdge.readEdges(this, hasContainers, edgeIds);
+    }
+
+    /**
+     * Function to remove edge record via id without reading the edge back.
+     * NOTE: This function does not remove the edge from adjacent vertices. This must be done separately.
+     *
+     * @param edgeId Id of edge to remove.
+     */
+    @Override
+    public void removeEdgeById(final FireflyId edgeId) {
+        // Remove edge.
+        LOG.debug("Removing edge {}.", edgeId);
+
+        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, edgeId));
     }
 
     /**
@@ -226,6 +244,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Function to create edge from a Key-Record Map.Entry pair.
+     *
+     * @param keyRecord Record to use.
+     * @return Edge.
+     */
+    @Override
+    public FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> keyRecord) {
+        return RelationalEdge.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+    }
+
+    /**
      * Function to read vertex from Aerospike.
      *
      * @param idValue Id of vertex.
@@ -233,12 +262,17 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public FireflyVertex readVertex(final FireflyId idValue) {
-        return RelationalVertex.readVertex(this, idValue);
+        final List<FireflyVertex> vertices = readVertices(List.of(), List.of(idValue));
+        if (vertices.isEmpty()) {
+            return null;
+        } else {
+            return vertices.get(0);
+        }
     }
 
     @Override
-    public List<FireflyVertex> readVertices(final List<FireflyId> idValues) {
-        return RelationalVertex.readVertices(this, idValues);
+    public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues) {
+        return RelationalVertex.readVertices(this, hasContainers, idValues);
     }
 
     /**
@@ -294,11 +328,31 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
+     * Determine vertices in a list exist.
+     *
+     * @param expression expression to check.
+     * @param idValue    vertex id to check.
+     * @return true if vertex exists, false otherwise.
+     */
+    @Override
+    public boolean[] vertexExists(final Expression expression, final List<FireflyId> idValue) {
+        LOG.debug("Checking if vertex {} exists.", idValue);
+        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
+    }
+
+    /**
      * Determine if an edge exists.
      *
-     * @param idValue edge id to check.
+     * @param expression expression to check.
+     * @param idValue    edge id to check.
      * @return true if edge exists, false otherwise.
      */
+    @Override
+    public boolean[] edgeExists(final Expression expression, final List<FireflyId> idValue) {
+        LOG.debug("Checking if edge {} exists.", idValue);
+        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
+    }
+
     @Override
     public boolean edgeExists(final FireflyId idValue) {
         LOG.debug("Checking if edge {} exists.", idValue);
@@ -373,108 +427,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 db.TYPE_HINTS);
     }
 
-    /**
-     * Lookup Edges with a particular property value by index
-     *
-     * @param key   Property Key
-     * @param value Property Value being searched for
-     * @return an Iterator of Edges
-     */
-    @Override
-    public Iterator<FireflyEdge> queryEdgePropertyStringMatchIndex(String key, Object value) {
-        if (!String.class.isAssignableFrom(value.getClass())) {
-            throw new RuntimeException(String.format("%s not a string", value.getClass()));
-        }
-        final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.STRING_E_KV_INDEX,
-                Filter.contains(db.PROPERTIES, IndexCollectionType.MAPVALUES, (String) value));
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
-        return IteratorUtils.filter(edges, edge -> edge.property(key).value().equals(value));
-    }
-
-    /**
-     * Lookup Edge by numeric match on property value
-     *
-     * @param key       Property key to match
-     * @param predicate type of match
-     * @return Iterator of FireflyEdge results
-     */
-    @Override
-    public Iterator<FireflyEdge> queryEdgePropertyNumericMatchIndex(String key, P<?> predicate) {
-        final Object value = predicate.getValue();
-        Filter filter;
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            if (Integer.class.isAssignableFrom(value.getClass()))
-                filter = Filter.contains(db.PROPERTIES, IndexCollectionType.MAPVALUES, (Long.valueOf((Integer) value)));
-            else if (Long.class.isAssignableFrom(value.getClass()))
-                filter = Filter.contains(db.PROPERTIES, IndexCollectionType.MAPVALUES, (Long) value);
-            else
-                throw new RuntimeException(String.format("%s not a supported numeric match type", value.getClass()));
-        } else {
-            throw new RuntimeException(String.format("%s not assignable to Number", value.getClass()));
-        }
-
-        final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
-        return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
-    }
-
-    /**
-     * Lookup Edge by numeric range match on property value
-     *
-     * @param key       Property key to match
-     * @param predicate type of match (lt or gt) with value embedded
-     * @return Iterator of FireflyEdge results
-     */
-    @Override
-    public Iterator<FireflyEdge> queryEdgePropertyNumericRangeIndex(String key, P<?> predicate) {
-        Filter filter;
-        if (Number.class.isAssignableFrom(predicate.getValue().getClass())) {
-            final long val = Long.class.isAssignableFrom(predicate.getValue().getClass()) ?
-                    (long) predicate.getValue() : Long.valueOf((Integer) predicate.getValue());
-            if (predicate.getBiPredicate().equals(Compare.lt))
-                filter = Filter.range(db.PROPERTIES, IndexCollectionType.MAPVALUES, Long.MIN_VALUE, val);
-            else if (predicate.getBiPredicate().equals(Compare.gt))
-                filter = Filter.range(db.PROPERTIES, IndexCollectionType.MAPVALUES, val, Long.MAX_VALUE);
-            else throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-        } else {
-            throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-        }
-        final Iterator<KeyRecord> rsi = db.queryIndex(db.EDGE_AERO_SET, db.NUMERIC_E_KV_INDEX, filter);
-        final Iterator<FireflyEdge> edges = IteratorUtils.map(rsi, kr ->
-                readEdge(getIdFactory().createId(kr.key.userKey.getObject(), FireflyEdge.class)));
-        return IteratorUtils.filter(edges, edge -> edge.properties(key).hasNext());
-    }
-
-    /**
-     * Lookup Vertex by string match on property value
-     *
-     * @param value value to match
-     * @return Iterator of FireflyVertex results
-     */
-    @Override
-    public Iterator<FireflyVertex> queryVertexLabelStringIndex(Object value) {
-        final Iterator<KeyRecord> iter = db.queryIndex(db.VERTEX_AERO_SET, db.V_LABEL_INDEX,
-                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
-        return IteratorUtils.map(iter, this::vertexFromRecord);
-    }
-
-    /**
-     * Lookup Edge by string match on label value
-     *
-     * @param value label value to match
-     * @return Iterator of FireflyEdge results
-     */
-    @Override
-    public Iterator<FireflyEdge> queryEdgeLabelStringIndex(Object value) {
-        final Iterator<KeyRecord> iter = db.queryIndex(db.setFromElementType(FireflyEdge.class), db.E_LABEL_INDEX,
-                Filter.contains(AerospikeConnection.LABEL, IndexCollectionType.DEFAULT, (String) value));
-        return IteratorUtils.map(iter, this::edgeFromRecord);
-    }
-
     protected Iterator<FireflyId> scanAllVertices() {
-        //@todo performance
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
         final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
         return IteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));

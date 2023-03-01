@@ -71,7 +71,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * Triggered when scan fails
      */
     public void onFailure(final AerospikeException e) {
-        LOG.error("Error: scan failed with exception - %s", e);
+        LOG.error("Error: scan failed with exception", e);
         this.complete.set(true);
         semaphore.release();
         scanMonitor.notifyComplete();

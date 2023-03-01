@@ -47,8 +47,6 @@ import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_STRATEGY;
-import static org.apache.tinkerpop.gremlin.process.AbstractGremlinProcessTest.checkResults;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -1105,6 +1103,78 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             tryCommit(graph, getAssertVertexEdgeCounts(vertexCount, edgeCount - currentCounter));
         }
     }
+
+    @Test
+    public void testVertexExists() {
+        Vertex v = graph.addVertex();
+        assertTrue(graph.vertices(v.id()).hasNext());
+        v.remove();
+        assertFalse(graph.vertices(v.id()).hasNext());
+        List<Long> x = List.of(1L, 2L, 3L, 4L);
+        x.stream().map(it -> graph.addVertex(T.id, it)).forEach(v1 -> assertTrue(graph.vertices(v1.id()).hasNext()));
+        Iterator<Vertex> iter = graph.vertices(8L, 9L, 1L, 2L, 3L, 4L);
+        int ctr = 0;
+        while (iter.hasNext()) {
+            iter.next();
+            ctr++;
+        }
+        assertEquals(x.size(), ctr);
+        assertFalse(graph.vertices(22, 35, 16, 92).hasNext());
+    }
+
+    @Test
+    public void testEdgeExists() {
+        Vertex va = graph.addVertex();
+        Vertex vb = graph.addVertex();
+        Vertex vc = graph.addVertex();
+        Edge eab = va.addEdge("test", vb);
+        Edge eac = va.addEdge("test", vc);
+        Edge ebc = vb.addEdge("test", vc);
+        assertTrue(graph.edges(eab.id()).hasNext());
+        Iterator<Edge> iterAllKnown = graph.edges(eab.id(), eac.id(), ebc.id());
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertTrue(iterAllKnown.hasNext());
+        iterAllKnown.next();
+        assertFalse(iterAllKnown.hasNext());
+        eab.remove();
+        assertFalse(graph.edges(eab.id()).hasNext());
+        Iterator<Edge> iter = graph.edges(eac.id(), ebc.id(), eab.id(), 123L);
+        assertTrue(iter.hasNext());
+        iter.next();
+        assertTrue(iter.hasNext());
+        iter.next();
+        assertFalse(iter.hasNext());
+    }
+
+    @Test
+    public void testEdgeExistsBatch() {
+        Vertex va = graph.addVertex();
+        Vertex vb = graph.addVertex();
+        Vertex vc = graph.addVertex();
+        Edge eab = va.addEdge("test", vb);
+        Edge eac = va.addEdge("test", vc);
+        Edge ebc = vb.addEdge("test", vc);
+        List<Vertex> vl= new ArrayList<>();
+        List<Edge> el = new ArrayList<>();
+        assertEquals(3, IteratorUtils.count(graph.vertices(va.id(), vb.id(), vc.id())));
+        assertEquals(3, IteratorUtils.count(graph.edges(eab.id(), eac.id(), ebc.id())));
+        IntStream.range(0,db.AEROSPIKE_BATCH_READ_SIZE + 3).forEach(i -> {
+            Vertex v = graph.addVertex();
+            vl.add(v);
+            el.add(va.addEdge("test", v));
+        });
+        Object[] vertexIdArray = new Vertex[vl.size()];
+        vl.toArray(vertexIdArray);
+        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE+3, IteratorUtils.count(graph.vertices(vertexIdArray)));
+        Object[] edgeIdArray = new Edge[el.size()];
+        el.toArray(edgeIdArray);
+        assertEquals(db.AEROSPIKE_BATCH_READ_SIZE+3, IteratorUtils.count(graph.edges(edgeIdArray)));
+    }
+
+
 
     @Test
     public void shouldAllowStringID() {

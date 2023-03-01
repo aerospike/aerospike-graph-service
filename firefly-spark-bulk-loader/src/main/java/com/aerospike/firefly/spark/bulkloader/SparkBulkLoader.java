@@ -14,6 +14,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -42,7 +43,6 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -72,6 +72,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -96,251 +97,206 @@ public class SparkBulkLoader {
     private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
     private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static Configuration CONFIG;
-    private static String ENV = "prod";
+    private static String MODE = "cluster";
     private static AmazonS3 S3_CLIENT;
     private static final int RETRY_LIMIT = 100;
-
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
-        final String configPath;
+        String configPath = "";
         final Set<String> vertexDirectories = new HashSet<>();
         final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = parseCmdArgs(args);
-        ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
-        if (ENV.equals("local")) {
-            final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
-            configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
-            final Path path = Path.of(configPath);
-            CONFIG = getConfig(path);
-            try {
+        // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
+        MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
+        final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
+        try {
+            if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                s3BucketName = cmd.getOptionValue("b");
+                configPath = cmd.getOptionValue("c");
+                assert s3BucketName != null;
+                assert configPath != null;
+                CONFIG = loadConfigFromS3(s3BucketName, configPath);
+                vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
+                edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+            } else {
+                final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
+                configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
+                CONFIG = loadConfiguration(configPath);
                 vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
                 edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
-            } catch (IOException ie) {
-                LOGGER.error(ie.getMessage(), ie);
-                System.exit(1);
             }
-        } else {
-            S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-            s3BucketName = cmd.getOptionValue("b");
-            configPath = cmd.getOptionValue("c");
-            assert s3BucketName != null;
-            assert configPath != null;
-            CONFIG = loadConfigFromS3(s3BucketName, configPath);
-            vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
-            edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+        }
+        catch (final IOException ie) {
+            LOGGER.error("Unable to load config." + ie.getMessage());
+            ie.printStackTrace();
+            System.exit(1);
+        }
+        catch (final AmazonClientException awsexception) {
+            LOGGER.error("Amazon SDK client error" + awsexception.getMessage());
+            System.exit(1);
         }
         final double sampleFraction = Double.parseDouble(getOrDefault(SAMPLING_PERCENTAGE, CONFIG)) / 100;
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
-        if (ENV.equals("local"))
-            conf.setMaster("local[2]");
+        if (MODE.equals("local"))
+            conf.setMaster("local[*]");
 
         conf.setAppName("firefly-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
-                .set("spark.ui.enabled", "true");
+                .set("spark.ui.enabled", "true")
+                .set("mapreduce.fileoutputcommitter.algorithm.version","2");
+
         final SparkSession spark = SparkSession
                 .builder().config(conf).getOrCreate();
 
-        final List<Dataset<Row>> vertexDatasets = new ArrayList<>();
-        final List<Dataset<Row>> edgeDatasets = new ArrayList<>();
-
-        final List<Dataset<Row>> sampledVertexDatasets = new ArrayList<>();
-        for (final String vertexDirectory : vertexDirectories) {
-            final Map<String, String> options = new HashMap<>();
-            options.put("header", "true");
-            final Dataset<Row> vertexData = spark.read().options(options).csv(vertexDirectory);
-            final Set<String> headers = new HashSet<>();
-            for (final String header : vertexData.columns()) {
-                headers.add(header.toLowerCase());
-            }
-            for (final String requiredHeader : REQUIRED_VERTEX_HEADERS) {
-                if (!headers.contains(requiredHeader)) {
-                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-                            vertexDirectory);
-                }
-            }
-            vertexDatasets.add(vertexData);
-            sampledVertexDatasets.add(vertexData.sample(true, sampleFraction).distinct());
-        }
-
-        for (final String edgeDirectory : edgeDirectories) {
-            final Map<String, String> options = new HashMap<>();
-            options.put("header", "true");
-            final Dataset<Row> edgeData = spark.read().options(options).csv(edgeDirectory);
-            final Set<String> headers = new HashSet<>();
-            for (final String header : edgeData.columns()) {
-                headers.add(header.toLowerCase());
-            }
-            for (final String requiredHeader : REQUIRED_EDGE_HEADERS) {
-                if (!headers.contains(requiredHeader)) {
-                    throw new IllegalArgumentException("Unable to find all required column header values in source: " +
-                            edgeDirectory);
-                }
-            }
-            edgeDatasets.add(edgeData);
-        }
+        Dataset<Row> unionVertexDS = loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
+        // sample out vertex dataset for verifying the inserts
+        Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
 
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
 
         // Vertices
-        for (final Dataset<Row> vertexData : vertexDatasets) {
-            vertexData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-                LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
-                final ArrayList<Long> list = new ArrayList<>();
-                Configuration localConfig = CONFIG;
-                if (!ENV.equals("local")) {
-                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
-                }
-                final boolean ignoreFailedProperties =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-                final boolean ignoreElementCreationFailed =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+        final AtomicReference<Configuration> localConfig = new AtomicReference<>();
+        unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+            LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
+            if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            }
+            else {
+                localConfig.set(loadConfiguration(finalConfigPath));
+            }
+            final boolean ignoreFailedProperties =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean ignoreElementCreationFailed =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
-
-                    while (rowIterator.hasNext()) {
-                        final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                        try {
-                            final SparkFireflyVertex sparkVertex =
-                                    SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
-                            int tryCount = 0;
-                            boolean succeeded = false;
-                            while (!succeeded) {
-                                try {
-                                    FireflyVertex vertex = graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
-                                            sparkVertex.getLabel(), sparkVertex.getProperties());
-                                    list.add((long) vertex.id());
-                                    succeeded = true;
-                                } catch (final AerospikeException e) {
-                                    if (++tryCount > RETRY_LIMIT) {
-                                        LOGGER.error("Failed to write vertex with ID " + sparkVertex.getId() + " after "
-                                                + tryCount + " attempts.", e);
-                                        if (!ignoreElementCreationFailed) {
-                                            throw e;
-                                        } else {
-                                            break;
-                                        }
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
+                while (rowIterator.hasNext()) {
+                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    try {
+                        final SparkFireflyVertex sparkVertex =
+                                SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
+                        int tryCount = 0;
+                        boolean succeeded = false;
+                        while (!succeeded) {
+                            try {
+                                graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
+                                        sparkVertex.getLabel(), sparkVertex.getProperties());
+                                succeeded = true;
+                            } catch (final AerospikeException e) {
+                                if (++tryCount > RETRY_LIMIT) {
+                                    LOGGER.error("Failed to write vertex with ID " + sparkVertex.getId() + " after "
+                                            + tryCount + " attempts.", e);
+                                    if (!ignoreElementCreationFailed) {
+                                        throw e;
                                     } else {
-                                        LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
-                                                        ". Attempting to write vertex again. Attempt count: " + tryCount + ".",
-                                                e);
-                                        exponentialBackoff(tryCount);
+                                        break;
                                     }
+                                } else {
+                                    LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
+                                                    ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
+                                    exponentialBackoff(tryCount);
                                 }
                             }
-
-                        } catch (final FireflyBulkLoaderException e) {
-                            LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
-                            if (!ignoreElementCreationFailed) {
-                                throw e;
-                            }
+                        }
+                    } catch (final FireflyBulkLoaderException e) {
+                        LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
+                        if (!ignoreElementCreationFailed) {
+                            throw e;
                         }
                     }
                 }
-                return Collections.singletonList(1).iterator();
-            }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
-        }
+            }
+            return Collections.singletonList(1).iterator();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Verify vertices.
-        for (final Dataset<Row> vertexDataSample : sampledVertexDatasets) {
-            vertexDataSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-                Configuration localConfig = CONFIG;
-                if (!ENV.equals("local")) {
-                    S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                    localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
-                }
-                final boolean ignoreFailedProperties =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-                final boolean ignoreElementCreationFailed =
-                        Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-                final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+        sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+            if (ENV.equalsIgnoreCase("aws")) {
+                S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            }
+            else {
+                localConfig.set(loadConfiguration(finalConfigPath));
+            }
+            final boolean ignoreFailedProperties =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean ignoreElementCreationFailed =
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-                try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
-                    final GraphTraversalSource g = graph.traversal();
-                    while (rowIterator.hasNext()) {
-                        final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                        final SparkFireflyVertex sparkVertex =
-                                SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
+                final GraphTraversalSource g = graph.traversal();
+                while (rowIterator.hasNext()) {
+                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final SparkFireflyVertex sparkVertex =
+                            SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
 
-                        final long id = sparkVertex.getId();
-                        final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
-                        Vertex v = vertexById.next();
-                        if (vertexById.hasNext()) {
-                            throw new AssertionError("Validation failed: More than one vertex with ID " + id
-                                    + " exists");
-                        }
-                        if (!v.label().equals(sparkVertex.getLabel())) {
-                            throw new AssertionError("Validation failed: Label did not match for vertex with ID " + id);
-                        }
-                        final List<Map.Entry<String, Object>> sparkVertexProperties = sparkVertex.getProperties();
-                        for (final Map.Entry<String, Object> property : sparkVertexProperties) {
-                            try {
-                                // TODO: Handle null (when supported in Firefly) and cardinality.
-                                boolean isList = false;
-                                if (property.getValue() instanceof List<?>) {
-                                    isList = true;
+                    final long id = sparkVertex.getId();
+                    final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
+                    Vertex v = vertexById.next();
+                    if (vertexById.hasNext()) {
+                        throw new AssertionError("Validation failed: More than one vertex with ID " + id
+                                + " exists");
+                    }
+                    if (!v.label().equals(sparkVertex.getLabel())) {
+                        throw new AssertionError("Validation failed: Label did not match for vertex with ID " + id);
+                    }
+                    final List<Map.Entry<String, Object>> sparkVertexProperties = sparkVertex.getProperties();
+                    for (final Map.Entry<String, Object> property : sparkVertexProperties) {
+                        try {
+                            // TODO: Handle null (when supported in Firefly) and cardinality.
+                            boolean isList = property.getValue() instanceof List<?>;
+                            if (isList) {
+                                final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
+                                for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
+                                    propertyValues.remove(vertexPropertyValue);
                                 }
-                                if (isList) {
-                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
-                                    for (final Object vertexPropertyValue : (List<Object>) v.value(property.getKey())) {
-                                        propertyValues.remove(vertexPropertyValue);
-                                    }
-                                    if (!propertyValues.isEmpty()) {
+                                if (!propertyValues.isEmpty()) {
+                                    throw new AssertionError("Validation failed: Property key "
+                                            + property.getKey() + " on vertex with ID " + id
+                                            + " did not match value " + property.getValue());
+                                }
+                            } else {
+                                if (property.getValue() != null) {
+                                    final Object vertexPropertyValue = v.value(property.getKey());
+                                    if (!property.getValue().equals(vertexPropertyValue)) {
                                         throw new AssertionError("Validation failed: Property key "
                                                 + property.getKey() + " on vertex with ID " + id
                                                 + " did not match value " + property.getValue());
                                     }
-                                } else {
-                                    if (property.getValue() != null) {
-                                        final Object vertexPropertyValue = v.value(property.getKey());
-                                        if (!property.getValue().equals(vertexPropertyValue)) {
-                                            throw new AssertionError("Validation failed: Property key "
-                                                    + property.getKey() + " on vertex with ID " + id
-                                                    + " did not match value " + property.getValue());
-                                        }
-                                    }
                                 }
-                            } catch (final AssertionError ae) {
-                                throw ae;
-                            } catch (final Exception e) {
-                                throw new AssertionError("Validation failed: Property key " + property.getKey() +
-                                        " on vertex with ID " + id + " did not match value " + property.getValue(), e);
                             }
+                        } catch (final AssertionError ae) {
+                            throw ae;
+                        } catch (final Exception e) {
+                            throw new AssertionError("Validation failed: Property key " + property.getKey() +
+                                    " on vertex with ID " + id + " did not match value " + property.getValue(), e);
                         }
                     }
                 }
-                return Collections.singletonList(1).iterator();
-            }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
-        }
+            }
+            return Collections.singletonList(1).iterator();
+        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         // Edges
-        // Get the first DS in the list to use it for union in the loop.
-        Dataset<Row> unionDS = edgeDatasets.get(0);
-        Dataset<Row> edgeDatasetsSample = spark.emptyDataFrame();
-        for (final Dataset<Row> edgeData : edgeDatasets) {
-            // Invoke union to combine the edge DS.
-            unionDS = unionDS.unionByName(edgeData, true).distinct();
-            if (edgeDatasetsSample.isEmpty())
-                edgeDatasetsSample = edgeData.sample(sampleFraction);
-            else
-                edgeDatasetsSample = edgeDatasetsSample.unionByName(edgeData.sample(sampleFraction), true).distinct();
-        }
-
-        // Persist the union dataframe to allow for subsequent transformations to avoid calling old transformations again.
-        final Dataset<Row> persistentEdgeData = unionDS.persist(StorageLevel.DISK_ONLY());
+        Dataset<Row> unionEdgeDS = loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        //sample out edge dataset to verify the inserts
+        Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
 
         final Set<Long> supernodes = new HashSet<>();
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
             // Csv format is: ~id, ~from, ~to, ...
-            final JavaRDD<Row> edgeRDD = persistentEdgeData.javaRDD();
+            final JavaRDD<Row> edgeRDD = unionEdgeDS.javaRDD();
 
             // Values in csv for ~from and ~to will return as strings but are longs.
             final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
@@ -362,20 +318,13 @@ public class SparkBulkLoader {
             final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
                             longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-            LOGGER.info("filteredFromCountPairRDD sample of 10: ");
-            filteredFromCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
+
             final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
                     (Function<Tuple2<Long, Long>, Boolean>)
                             longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
-            LOGGER.info("filteredToCountPairRDD sample of 10: ");
-            filteredToCountPairRDD.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
-            LOGGER.info("fromSupernodes sample of 10: ");
-            fromSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
             final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
-            LOGGER.info("toSupernodes sample of 10: ");
-            toSupernodes.take(10).forEach(t -> LOGGER.info(t.toString()));
 
             final List<Long> fromSuperNodeList = fromSupernodes.collect();
             LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);
@@ -420,24 +369,25 @@ public class SparkBulkLoader {
         }
 
         // Write to edge caches for non-supernodes.
-        persistentEdgeData.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            } else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new HashMap<>();
@@ -502,26 +452,24 @@ public class SparkBulkLoader {
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
-        // Unpersist the dataframe to free up the memory.
-        persistentEdgeData.unpersist();
-
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            Configuration localConfig = CONFIG;
-            if (!ENV.equals("local")) {
+            if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
-                localConfig = loadConfigFromS3(finalS3BucketName, finalConfigPath);
+                localConfig.set(loadConfigFromS3(finalS3BucketName, finalConfigPath));
+            } else {
+                localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig));
+                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig);
+                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig);
-            try (final FireflyGraph graph = FireflyGraph.open(localConfig)) {
+                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+            try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -564,10 +512,8 @@ public class SparkBulkLoader {
                                 continue edgeCheck;
                             }
                         }
-
                         isEdgeFound = true;
                     }
-
                     if (!isEdgeFound) {
                         throw new AssertionError("Validation failed: Could not find edge with label "
                                 + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
@@ -579,6 +525,33 @@ public class SparkBulkLoader {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
 
         spark.stop();
+    }
+
+    static private Dataset<Row> loadAndMergeDatasets(SparkSession spark, Set<String> directories, String[] REQUIRED_HEADERS) {
+        Dataset<Row> unionDS = spark.emptyDataFrame();
+        for (final String directory : directories) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("header", "true");
+            if (unionDS.isEmpty())
+                unionDS = spark.read().options(options).csv(directory);
+            else
+                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory), true);
+        }
+        Set<String> headers = new HashSet<>();
+        for (final String header : unionDS.columns())
+            headers.add(header.toLowerCase());
+        for (final String requiredHeader : REQUIRED_HEADERS) {
+            if (!headers.contains(requiredHeader)) {
+                throw new IllegalArgumentException("Unable to find all required column header values in source dataset: " +
+                        directories);
+            }
+        }
+        return unionDS;
+    }
+
+    private static Configuration loadConfiguration(String configPath) {
+        final Path path = Path.of(configPath);
+        return getConfig(path);
     }
 
     static private void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
@@ -775,13 +748,16 @@ public class SparkBulkLoader {
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
-        final Option envOption = new Option("e", "env", true, "local or prod/remote");
+        final Option modeOption = new Option("m", "mode", true, "local when running in IDE, cluster when running spark-submit through CLI or in AWS");
+        options.addOption(modeOption);
+
+        final Option envOption = new Option("e", "env", true, " Optional argument. 'aws' when running job in cluster mode in AWS");
         options.addOption(envOption);
 
         final Option bucketOption = new Option("b", "bucket", true, "AWS S3 bucket name");
         options.addOption(bucketOption);
 
-        final Option pathOption = new Option("c", "config", true, "config path [local -> absolute/S3 -> full path to config.properties after bucket name]");
+        final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
 
         final CommandLineParser parser = new DefaultParser();

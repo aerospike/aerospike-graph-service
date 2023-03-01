@@ -12,11 +12,13 @@ import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
-import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
-import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.exp.ListExp;
+import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.ScanPolicy;
@@ -38,6 +40,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -57,6 +60,7 @@ import java.util.stream.Stream;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
+import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_IN_INDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.E_OUT_INDEX;
 
@@ -116,16 +120,13 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Collect edges in both directions and remove them all.
         final Set<FireflyId> edgeIds = new HashSet<>(getEdgeIdsFromVertex(Direction.BOTH));
         edgeIds.forEach(edgeId -> {
-            final FireflyEdge edge;
+            // If edge id is composite remove composition and get edge id directly.
             if (edgeId instanceof FireflyIdComposite) {
-                final FireflyIdComposite composite = (FireflyIdComposite) edgeId;
-                edge = graph.readEdge(composite.getEdgeId());
-            } else {
-                edge = graph.readEdge(edgeId);
+                edgeId = ((FireflyIdComposite) edgeId).getEdgeId();
             }
-            if (edge != null) {
-                edge.remove();
-            }
+
+            // Remove edge via id without materializing the edge into memory.
+            graph.removeEdgeById(edgeId);
         });
 
         removeVertexProperties();
@@ -304,7 +305,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         policy.includeBinData = true;
         final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
         return IteratorUtils.map(i, keyRecordEntry -> {
-            Object userKey = keyRecordEntry.getKey().userKey.getObject();
+            Object userKey = keyRecordEntry.getValue().getValue(AerospikeConnection.USER_KEY);
             return graph.getIdFactory().createId(userKey, FireflyEdge.class);
         });
 
@@ -414,8 +415,14 @@ public abstract class RelationalVertex extends FireflyVertex {
                 ListReturnType.NONE,
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
         );
-        final Operation removeEmptyEdgeCacheKeys = MapOperation.removeByValue(cacheBinName,
-                Value.get(new ArrayList<>()), MapReturnType.COUNT);
+        final Expression removeEmptyKey = Exp.build(
+                Exp.cond(
+                        Exp.eq(ListExp.size(Exp.mapBin(cacheBinName), CTX.mapKey(Value.get(edgeLabel))), Exp.val(0)),
+                        MapExp.removeByKey(Exp.val(edgeLabel), Exp.mapBin(cacheBinName)),
+                        Exp.unknown()
+                )
+        );
+        final Operation removeEmptyEdgeCacheKeys = ExpOperation.write(cacheBinName, removeEmptyKey, ExpWriteFlags.EVAL_NO_FAIL);
 
         // Operate on database.
         final FireflyCache cache = db.transactionCache.get();
@@ -455,16 +462,11 @@ public abstract class RelationalVertex extends FireflyVertex {
             }
 
             // Update count.
-            // TODO GRAPH-278: Figure out the odd behavior behind the results of counterBinName. More information in
-            //                 the JIRA ticket. Just decrement the count by 1 for now instead of syncing with source of
-            //                 truth from Aerospike since doing so has extremely limited if any impact.
-            //final long edgeCount = results.getLong(counterBinName);
+            final long edgeCount = (long) getValueAtIndex(results, counterBinName, 1);
             if (direction == Direction.IN) {
-                //this.inEdgeCount = edgeCount;
-                this.inEdgeCount--;
+                this.inEdgeCount = edgeCount;
             } else {
-                //this.outEdgeCount = edgeCount;
-                this.outEdgeCount--;
+                this.outEdgeCount = edgeCount;
             }
         }
 
@@ -722,12 +724,9 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
         final Bin vertexPropertyIdsBin;
         final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT, Value.get(vertexTypeHint));
-        final Map<String, List<Long>> uninitalizedEdgeCacheIn = new TreeMap<>();
-        final Bin edgeCacheInBin =
-                new Bin(Direction.IN.name(), Value.get(uninitalizedEdgeCacheIn, MapOrder.KEY_ORDERED));
-        final Map<String, List<Long>> uninitalizedEdgeCacheOut = new TreeMap<>();
-        final Bin edgeCacheOutBin =
-                new Bin(Direction.OUT.name(), Value.get(uninitalizedEdgeCacheOut, MapOrder.KEY_ORDERED));
+        final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
+        final Bin edgeCacheInBin = new Bin(db.IN_EDGES, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
+        final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
         final Map<String, Long> vertexPropertyTypeHintMap;
 
         switch (vertexTypeHint) {
@@ -835,14 +834,18 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param vertexIds FireflyIds to use.
      * @return FireflyVertex.
      */
-    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<FireflyId> vertexIds) {
+    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<HasContainer> hasContainers, final List<FireflyId> vertexIds) {
         LOG.debug("Reading vertices {}.", vertexIds);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
 
         // Batch read vertex records.
-        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(db, db.VERTEX_AERO_SET, vertexIds);
+        final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
+                db,
+                graph.hasContainerListToExpression(hasContainers, FireflyVertex.class),
+                db.VERTEX_AERO_SET,
+                vertexIds);
         if (vertexRecords == null) {
             return new ArrayList<>();
         }

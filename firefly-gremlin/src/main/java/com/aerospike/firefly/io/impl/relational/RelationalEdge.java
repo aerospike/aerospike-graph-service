@@ -15,6 +15,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,38 +106,19 @@ public class RelationalEdge extends FireflyEdge {
     /**
      * Read an Edge by the id.
      *
-     * @param graph  Graph handle.
-     * @param edgeId Edge id to read.
-     * @return Edge.
-     */
-    public static RelationalEdge readEdge(final FireflyGraph graph, final FireflyId edgeId) {
-        LOG.debug("Reading edge {}.", edgeId.toString());
-        final AerospikeConnection db = graph.getBaseGraph();
-        final FireflyRecord edgeRecord = FireflyRecord.read(db, db.EDGE_AERO_SET, edgeId);
-        if (edgeRecord == null) {
-            return null;
-        }
-        return RelationalEdgeFactory.create(graph.getIdFactory().createFromRecord(db, edgeRecord, FireflyEdge.class),
-                edgeRecord.record.getString(AerospikeConnection.LABEL),
-                graph,
-                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.OUT.name()), db.VERTEX_AERO_SET),
-                FireflyIdPoly.fromBase64Hash((String) edgeRecord.record.getValue(Direction.IN.name()), db.VERTEX_AERO_SET),
-                (Map<String, Object>) edgeRecord.record.getMap(db.PROPERTIES),
-                (Map<String, Long>) edgeRecord.record.getMap(db.TYPE_HINTS));
-    }
-
-    /**
-     * Read an Edge by the id.
-     *
      * @param graph   Graph handle.
      * @param edgeIds Edge ids to read.
      * @return Edge.
      */
-    public static List<FireflyEdge> readEdges(final FireflyGraph graph, final List<FireflyId> edgeIds) {
+    public static List<FireflyEdge> readEdges(final FireflyGraph graph, final List<HasContainer> hasContainers, final List<FireflyId> edgeIds) {
         LOG.debug("Reading edges {}.", edgeIds.toString());
         final AerospikeConnection db = graph.getBaseGraph();
 
-        final List<FireflyRecord> edgeRecord = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
+        final List<FireflyRecord> edgeRecord = FireflyRecord.batchRead(
+                db,
+                graph.hasContainerListToExpression(hasContainers, FireflyEdge.class),
+                db.EDGE_AERO_SET,
+                edgeIds);
         if (edgeRecord == null) {
             return new ArrayList<>();
         }
@@ -159,7 +141,6 @@ public class RelationalEdge extends FireflyEdge {
      * @return Edge.
      */
     public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
-        System.out.println("Constructing edge from record.");
         LOG.trace("Constructing edge from record.");
         if (keyRecord == null) {
             return null;
@@ -184,10 +165,7 @@ public class RelationalEdge extends FireflyEdge {
      */
     @Override
     public void removeEdge() {
-        // Remove edge.
-        LOG.debug("Removing edge {}.", this.id);
-
-        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, id));
+        graph.removeEdgeById(id);
     }
 
     private static class RelationalEdgeFactory {

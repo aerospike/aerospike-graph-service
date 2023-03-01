@@ -310,7 +310,6 @@ public class TestProperties {
         g.V().outE("bought").property("year", ownedYears).iterate();
         traversal = g.V().outE("bought").properties().count();
         propertiesCount = (long) traversal.next();
-        ;
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().outE("bought").has("year", new LinkedList<>(ownedYears));

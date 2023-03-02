@@ -108,6 +108,7 @@ public class SparkBulkLoader {
     private static final int RETRY_LIMIT = 100;
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
+    private static int threadPoolSize;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
@@ -117,6 +118,7 @@ public class SparkBulkLoader {
         final CommandLine cmd = parseCmdArgs(args);
         // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
+        threadPoolSize = cmd.hasOption("t") ? Integer.parseInt(cmd.getOptionValue("t")) : 1;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         try {
             if (ENV.equalsIgnoreCase("aws")) {
@@ -394,7 +396,7 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            final ExecutorService executor = Executors.newFixedThreadPool(8);
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
@@ -727,6 +729,9 @@ public class SparkBulkLoader {
 
         final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
+
+        final Option threadPoolSizeOption = new Option("t", "threadPoolSize", true, "ThreadPool size to achieve parallelism when writing edges/vertices, Default is Runtime.availableProcessors()");
+        options.addOption(threadPoolSizeOption);
 
         final CommandLineParser parser = new DefaultParser();
         try {

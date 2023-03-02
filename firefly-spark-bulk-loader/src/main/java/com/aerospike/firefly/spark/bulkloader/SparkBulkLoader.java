@@ -398,8 +398,8 @@ public class SparkBulkLoader {
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
-                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
-                final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
+                final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     executor.execute(new EdgeWriteTP(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
@@ -522,7 +522,7 @@ public class SparkBulkLoader {
 
     public static void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,
                                    final FireflyId cachedEdgeId, final String edgeLabel, final Direction direction,
-                                   final AtomicInteger edgeCount, final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
+                                   final AtomicInteger edgeCount, final Map<Long, Map<String, List<Value>>> edgeMap,
                                    final boolean ignoreElementCreationFailed) {
         synchronized (SparkBulkLoader.class) {
             if (!supernodes.contains(vertexId)) {
@@ -624,9 +624,9 @@ public class SparkBulkLoader {
     }
 
     static private void flushEdgeMap(final FireflyGraph graph, final Direction direction,
-                                     final ConcurrentHashMap<Long, ConcurrentHashMap<String, List<Value>>> edgeMap,
+                                     final Map<Long, Map<String, List<Value>>> edgeMap,
                                      final boolean ignoreElementCreationFailed) {
-        for (Map.Entry<Long, ConcurrentHashMap<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+        for (Map.Entry<Long, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final long vertexId = vertexIdToLabelMaps.getKey();
             final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {

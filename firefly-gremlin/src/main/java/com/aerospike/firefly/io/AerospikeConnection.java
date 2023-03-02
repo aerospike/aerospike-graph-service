@@ -220,6 +220,7 @@ public class AerospikeConnection implements AutoCloseable {
         this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
         final Host[] hosts = Host.parseHosts(host, port);
         this.clientPolicy = new ClientPolicy();
+        this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
         this.client = new AerospikeClient(clientPolicy, hosts);

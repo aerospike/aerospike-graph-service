@@ -77,6 +77,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -194,7 +195,7 @@ public class SparkBulkLoader {
                     executor.execute(new VertexWriteTP(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
                 }
                 executor.shutdown();
-                while(!executor.isTerminated()) {}
+                while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
             }
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
@@ -385,7 +386,7 @@ public class SparkBulkLoader {
                             inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
                 }
                 executor.shutdown();
-                while(!executor.isTerminated()) {}
+                while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
                 flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
                 flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
             }

@@ -22,7 +22,6 @@ import static com.aerospike.firefly.spark.bulkloader.SparkBulkLoader.loadEdgeMap
 
 public class EdgeWriteTP implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteTP.class);
-
     Set<Long> supernodes;
     boolean ignoreFailedProperties;
     boolean useProvidedId;

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.impl;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -22,7 +21,6 @@ final public class GraphFactory {
     // We can map the class here, but we do not instantiate the Graphs because that would
     // be unnecessary overhead.
     private static final Map<String, Class<? extends FireflyGraph>> DATA_MODEL_MAP = ImmutableMap.of(
-            LinkedGraph.DATA_MODEL, LinkedGraph.class,
             PackedGraph.DATA_MODEL, PackedGraph.class,
             StarPackedGraph.DATA_MODEL, StarPackedGraph.class
     );

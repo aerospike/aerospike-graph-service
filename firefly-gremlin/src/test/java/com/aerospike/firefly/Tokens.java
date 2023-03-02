@@ -1,6 +1,5 @@
 package com.aerospike.firefly;
 
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.google.common.collect.ImmutableMap;
@@ -17,7 +16,6 @@ public final class Tokens {
 
     //Path is relative to module, ie ./firefly-gremlin/
     private static final Map<String, Path> INTEGRATION_TEST_CONFIGURATIONS = ImmutableMap.of(
-            LinkedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-linked.properties"),
             PackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-packed.properties"),
             PackedGraph.DATA_MODEL + "-sindex", Path.of("../conf/integration-test-settings-packed-sindex.properties"),
             StarPackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-star-packed.properties")

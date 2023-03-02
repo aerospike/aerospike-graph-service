@@ -168,7 +168,6 @@ public class SparkBulkLoader {
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
 
-        LOGGER.info("Available cores = " + Runtime.getRuntime().availableProcessors());
         final int threadPoolBuffer = Runtime.getRuntime().availableProcessors()/2;
         // Vertices
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();

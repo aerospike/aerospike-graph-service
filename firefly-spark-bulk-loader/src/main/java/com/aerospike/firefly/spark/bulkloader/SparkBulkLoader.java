@@ -108,7 +108,7 @@ public class SparkBulkLoader {
     private static final int RETRY_LIMIT = 100;
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
-    private static int threadPoolSize;
+    private static int threadPoolSize = 1;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
@@ -118,7 +118,7 @@ public class SparkBulkLoader {
         final CommandLine cmd = parseCmdArgs(args);
         // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
-        threadPoolSize = cmd.hasOption("t") ? Integer.parseInt(cmd.getOptionValue("t")) : 1;
+        threadPoolSize = cmd.hasOption("t") ? Integer.parseInt(cmd.getOptionValue("t")) : threadPoolSize;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         try {
             if (ENV.equalsIgnoreCase("aws")) {

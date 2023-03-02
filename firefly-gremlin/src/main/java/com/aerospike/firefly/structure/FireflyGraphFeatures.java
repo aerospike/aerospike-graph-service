@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.structure.id.IdManager;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -194,7 +193,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsMultiProperties() {
-            return fireflyGraph.getClass().equals(LinkedGraph.class);
+            return false;
         }
 
         @Override
@@ -229,7 +228,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public VertexProperty.Cardinality getCardinality(final String key) {
-            return fireflyGraph.getClass().equals(LinkedGraph.class) ? VertexProperty.Cardinality.list : VertexProperty.Cardinality.single;
+            return VertexProperty.Cardinality.single;
         }
     }
 

@@ -63,6 +63,9 @@ public class StarPackedGraph extends PackedGraph {
     public String getDataModel() {
         return DATA_MODEL;
     }
+    public static String getDataModelName() {
+        return DATA_MODEL;
+    }
 
     /**
      * Function to write edge to Aerospike.

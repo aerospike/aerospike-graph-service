@@ -8,7 +8,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
 import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
 import com.aerospike.firefly.spark.bulkloader.util.EdgeWriteTP;
-import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.spark.bulkloader.util.VertexWriteTP;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -108,7 +108,6 @@ public class SparkBulkLoader {
     private static final int RETRY_LIMIT = 100;
     // TODO: Finalize this number or make it configurable.
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
-    private static int threadPoolSize = 1;
 
     public static void main(final String[] args) {
         String s3BucketName = null;
@@ -118,7 +117,6 @@ public class SparkBulkLoader {
         final CommandLine cmd = parseCmdArgs(args);
         // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
-        threadPoolSize = cmd.hasOption("t") ? Integer.parseInt(cmd.getOptionValue("t")) : threadPoolSize;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         try {
             if (ENV.equalsIgnoreCase("aws")) {
@@ -169,8 +167,11 @@ public class SparkBulkLoader {
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
 
+        LOGGER.info("Available cores = " + Runtime.getRuntime().availableProcessors());
+        final int threadPoolBuffer = Runtime.getRuntime().availableProcessors()/2;
         // Vertices
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();
+        final Instant startOfVertexMapPartitions = Instant.now();
         unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
@@ -186,45 +187,20 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    try {
-                        final SparkFireflyVertex sparkVertex =
-                                SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
-                        int tryCount = 0;
-                        boolean succeeded = false;
-                        while (!succeeded) {
-                            try {
-                                graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
-                                        sparkVertex.getLabel(), sparkVertex.getProperties());
-                                succeeded = true;
-                            } catch (final AerospikeException e) {
-                                if (++tryCount > RETRY_LIMIT) {
-                                    LOGGER.error("Failed to write vertex with ID " + sparkVertex.getId() + " after "
-                                            + tryCount + " attempts.", e);
-                                    if (!ignoreElementCreationFailed) {
-                                        throw e;
-                                    } else {
-                                        break;
-                                    }
-                                } else {
-                                    LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
-                                                    ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
-                                    exponentialBackoff(tryCount);
-                                }
-                            }
-                        }
-                    } catch (final FireflyBulkLoaderException e) {
-                        LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
-                        if (!ignoreElementCreationFailed) {
-                            throw e;
-                        }
-                    }
+                    executor.execute(new VertexWriteTP(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
                 }
+                executor.shutdown();
+                while(!executor.isTerminated()) {}
             }
             return Collections.singletonList(1).iterator();
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+        final Instant endOfVertexMapPartitions = Instant.now();
+        Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
+        LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
 
         // Verify vertices.
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
@@ -396,7 +372,7 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
@@ -410,15 +386,14 @@ public class SparkBulkLoader {
                 }
                 executor.shutdown();
                 while(!executor.isTerminated()) {}
-
                 flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
                 flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
             }
              return Collections.singletonList(1).iterator();
          }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
         final Instant endOfEdgeMapPartitions = Instant.now();
-        Duration interval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
-        LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + interval.getSeconds());
+        Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
+        LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
@@ -729,9 +704,6 @@ public class SparkBulkLoader {
 
         final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
-
-        final Option threadPoolSizeOption = new Option("t", "threadPoolSize", true, "ThreadPool size to achieve parallelism when writing edges/vertices, Default is Runtime.availableProcessors()");
-        options.addOption(threadPoolSizeOption);
 
         final CommandLineParser parser = new DefaultParser();
         try {

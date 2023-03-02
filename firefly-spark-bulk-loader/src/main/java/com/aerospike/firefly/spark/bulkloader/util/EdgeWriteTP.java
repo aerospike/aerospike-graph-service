@@ -22,20 +22,21 @@ import static com.aerospike.firefly.spark.bulkloader.SparkBulkLoader.loadEdgeMap
 
 public class EdgeWriteTP implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteTP.class);
-    Set<Long> supernodes;
-    boolean ignoreFailedProperties;
-    boolean useProvidedId;
-    boolean keepProvidedId;
-    String providedIdPropertyName;
-    boolean ignoreElementCreationFailed;
-    String nullValue;
-    FireflyGraph graph;
-    AtomicInteger outEdgeCount;
-    java.util.concurrent.atomic.AtomicInteger inEdgeCount;
-    Map<Long, Map<String, List<Value>>> vertexOutEdgeMap;
-    Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
-    GenericRowWithSchema row;
+    private final Set<Long> supernodes;
+    private final boolean ignoreFailedProperties;
+    private final boolean useProvidedId;
+    private final boolean keepProvidedId;
+    private final String providedIdPropertyName;
+    private final boolean ignoreElementCreationFailed;
+    private final String nullValue;
+    private final FireflyGraph graph;
+    private final AtomicInteger outEdgeCount;
+    private final AtomicInteger inEdgeCount;
+    private final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap;
+    private final Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
+    private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
+    
     public EdgeWriteTP(Set<Long> supernodes, boolean ignoreFailedProperties, boolean useProvidedId, boolean keepProvidedId, String providedIdPropertyName, boolean ignoreElementCreationFailed, String nullValue, FireflyGraph graph, AtomicInteger outEdgeCount, AtomicInteger inEdgeCount, Map<Long, Map<String, List<Value>>> vertexOutEdgeMap, Map<Long, Map<String, List<Value>>> vertexInEdgeMap, GenericRowWithSchema row) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;

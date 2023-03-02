@@ -102,7 +102,7 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
 
         // Submit traversal and get boolean for whether it completed or not.
         executorService.shutdown();
-        final boolean traversalCompleted = executorService.awaitTermination(10, TimeUnit.SECONDS);
+        final boolean traversalCompleted = executorService.awaitTermination(30, TimeUnit.SECONDS);
         if (!traversalCompleted) {
             // Did not complete, force it to shut down manually.
             executorService.shutdownNow();

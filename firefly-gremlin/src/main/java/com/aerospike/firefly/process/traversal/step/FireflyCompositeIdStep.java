@@ -120,7 +120,8 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
         return (direction == Direction.IN) ?
-                firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
-                firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
+                // Note do not use aerospikeHasContainers here, those are to be applied on vertices, not edges.
+                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
+                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
     }
 }

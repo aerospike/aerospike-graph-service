@@ -118,6 +118,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     private List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
+        // Note use aerospikeHasContainers here, those are to be applied on edges, so they are valid.
         return firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
     }
 }

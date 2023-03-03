@@ -1150,6 +1150,10 @@ public class AerospikeConnection implements AutoCloseable {
         final Key key = getKey(this, aeroSet, fid);
         final Operation removeValue = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
         final Operation removeTypeHint = MapOperation.removeByKey(typeHintBin, Value.get(mapKey), MapReturnType.NONE);
+        final FireflyCache cache = transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         this.operate(null, key, removeValue, removeTypeHint);
     }
 
@@ -1237,6 +1241,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         final Operation[] operations = ops.toArray(new Operation[0]);
+
+        final FireflyCache cache = transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         this.operate(writePolicy, key, operations);
     }
 

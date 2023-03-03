@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.relational.linked.LinkedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -310,7 +309,7 @@ public class TestProperties {
         ownedYears.add(2023L);
         g.V().outE("bought").property("year", ownedYears).iterate();
         traversal = g.V().outE("bought").properties().count();
-        propertiesCount = (long) traversal.next();;
+        propertiesCount = (long) traversal.next();
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().outE("bought").has("year", new LinkedList<>(ownedYears));
@@ -342,19 +341,14 @@ public class TestProperties {
         propertiesCount = (long) traversal.next();
         // TODO GRAPH-301: Null does not remove the property in Linked model since cardinality is not Single.
         //                 GRAPH-301 introduces support for multi-properties in Packed so revisit this.
-        if (((FireflyGraph) g.getGraph()).getDataModel().equals(LinkedGraph.DATA_MODEL)) {
-            Assert.assertEquals(2, propertiesCount);
-            Assert.assertFalse(traversal.hasNext());
-            Assert.assertTrue(g.V().hasLabel("person").has("age").hasNext());
-            Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
-        } else {
-            Assert.assertEquals(1, propertiesCount);
-            Assert.assertFalse(traversal.hasNext());
-            Assert.assertFalse(g.V().hasLabel("person").has("age").hasNext());
-            Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
-            g.V().hasLabel("person").property("notExistingKey", null).iterate();
-            Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
-        }
+
+        Assert.assertEquals(1, propertiesCount);
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertFalse(g.V().hasLabel("person").has("age").hasNext());
+        Assert.assertFalse(g.V().hasLabel("person").has("age", (Object) null).hasNext());
+        g.V().hasLabel("person").property("notExistingKey", null).iterate();
+        Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
+
 
         // Test null in a list
         final List<String> names = new ArrayList<>();
@@ -364,7 +358,7 @@ public class TestProperties {
         g.V().hasLabel("person").properties().drop().iterate();
         g.V().hasLabel("person").property("age", 12).property("name", names).iterate();
         traversal = g.V().hasLabel("person").properties().count();
-        propertiesCount = (long) traversal.next();;
+        propertiesCount = (long) traversal.next();
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").has("name", new LinkedList<>(names));
@@ -409,7 +403,7 @@ public class TestProperties {
         languages.add("french");
         g.V().hasLabel("person").properties("name").property("language", languages).iterate();
         traversal = g.V().hasLabel("person").properties("name").properties().count();
-        propertiesCount = (long) traversal.next();;
+        propertiesCount = (long) traversal.next();
         Assert.assertEquals(2, propertiesCount);
         Assert.assertFalse(traversal.hasNext());
         traversal = g.V().hasLabel("person").properties("name").has("language", new LinkedList<>(languages));

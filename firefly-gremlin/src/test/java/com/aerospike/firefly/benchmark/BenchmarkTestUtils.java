@@ -4,7 +4,6 @@ import com.aerospike.firefly.util.IOUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.IO;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +27,11 @@ public class BenchmarkTestUtils {
     public static String getHost() {
         final String host = System.getProperty("firefly.host");
         return host == null ? LOCALHOST : host;
+    }
+
+    public static Integer getThreads() {
+        final String threads = System.getProperty("benchmark.threads");
+        return threads == null ? 1 : Integer.parseInt(threads);
     }
 
     private static boolean getFireflyLocal(final String host) {

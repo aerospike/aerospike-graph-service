@@ -45,12 +45,13 @@ public class BenchmarkTestSyntheticData {
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestSyntheticData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
+    private static final Integer THREADS = BenchmarkTestUtils.getThreads();
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
     private List<Object> deviceIds = null;
     private List<Object> householdIds = null;
     private Random random = new Random();
-    private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
+    private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false).maxConnectionPoolSize(THREADS).minConnectionPoolSize(THREADS);
 
     // Setup for the benchmark. Note, BeforeClass won't work to set static variables
     // because jmh launches a separate JVM for the benchmark and the @BeforeClass
@@ -98,6 +99,7 @@ public class BenchmarkTestSyntheticData {
                 .include(BenchmarkTestSyntheticData.class.getSimpleName())
                 .detectJvmArgs()
                 .forks(4)
+                .threads(THREADS)
                 .timeout(TimeValue.minutes(2)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();

@@ -836,7 +836,7 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(new Key[]{key}) : new Record[]{client.get(policy, key)};
+            results = (cache != null) ? new Record[]{cache.read(key)} : new Record[]{client.get(policy, key)};
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;
@@ -867,7 +867,7 @@ public class AerospikeConnection implements AutoCloseable {
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
         try { //@todo policy causes key mismatch error
-            results = (cache != null) ? cache.read(keys) : client.get(batchPolicy, keys);
+            results = (cache != null) ? cache.read(keys, batchPolicy) : client.get(batchPolicy, keys);
         } catch (final AerospikeException e) {
             LOG.error("Error: AerospikeException in read {}", e.getMessage());
             throw e;
@@ -1150,6 +1150,10 @@ public class AerospikeConnection implements AutoCloseable {
         final Key key = getKey(this, aeroSet, fid);
         final Operation removeValue = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
         final Operation removeTypeHint = MapOperation.removeByKey(typeHintBin, Value.get(mapKey), MapReturnType.NONE);
+        final FireflyCache cache = transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         this.operate(null, key, removeValue, removeTypeHint);
     }
 
@@ -1237,6 +1241,11 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         final Operation[] operations = ops.toArray(new Operation[0]);
+
+        final FireflyCache cache = transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         this.operate(writePolicy, key, operations);
     }
 

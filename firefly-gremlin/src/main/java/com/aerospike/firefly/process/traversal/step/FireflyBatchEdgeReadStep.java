@@ -49,7 +49,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
-            fireflyHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(hasContainerWithCardinalities);
+            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
+            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
+            //  matter what.
+            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
             aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
         } else {
             fireflyHasContainers = List.of();

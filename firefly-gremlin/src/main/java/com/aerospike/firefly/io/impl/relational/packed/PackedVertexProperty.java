@@ -15,6 +15,7 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -199,6 +200,10 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                     CTX.mapKey(Value.get(this.id.getStorageId())));
         }
 
+        final FireflyCache cache = this.graph.getBaseGraph().transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(opKey);
+        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
@@ -228,6 +233,10 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
         final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(key), MapReturnType.NONE,
                 CTX.mapKey(Value.get(this.id.getStorageId())));
 
+        final FireflyCache cache = this.graph.getBaseGraph().transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(opKey);
+        }
         try {
             db.operate(null, opKey, removeProperty, removeTypeHint);
         } catch (AerospikeException ae) {

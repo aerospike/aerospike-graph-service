@@ -44,6 +44,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -168,7 +169,7 @@ public class SparkBulkLoader {
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
 
-        final int threadPoolBuffer = Runtime.getRuntime().availableProcessors()/2;
+        final int threadPoolBuffer = 4;
         // Vertices
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();
         final Instant startOfVertexMapPartitions = Instant.now();
@@ -273,14 +274,15 @@ public class SparkBulkLoader {
 
         // Edges
         Dataset<Row> unionEdgeDS = loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        Dataset<Row> persistedEdgeDS = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
         //sample out edge dataset to verify the inserts
-        Dataset<Row> edgeDatasetsSample = unionEdgeDS.sample(sampleFraction);
+        Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
         final Set<Long> supernodes = new HashSet<>();
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
             // Csv format is: ~id, ~from, ~to, ...
-            final JavaRDD<Row> edgeRDD = unionEdgeDS.javaRDD();
+            final JavaRDD<Row> edgeRDD = persistedEdgeDS.javaRDD();
 
             // Values in csv for ~from and ~to will return as strings but are longs.
             final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
@@ -354,7 +356,7 @@ public class SparkBulkLoader {
 
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
-        unionEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        persistedEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();

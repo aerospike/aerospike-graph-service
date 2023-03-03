@@ -126,7 +126,10 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         Iterator<R> iterator;
         final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
         final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
-        final List<HasContainer> fireflySideHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(sortedHasContainers);
+        // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
+        //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
+        //  matter what.
+        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(a -> a.hasContainer).collect(Collectors.toList());
 
         if (null == this.ids) {
             iterator = Collections.emptyIterator();

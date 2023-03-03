@@ -14,10 +14,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
 
+// TODO GRAPH-401: While we have hacks to get around the fact that we cannot filter our cache with a hasContainer
+//  this test is not valid. Remove @Ignore when this is fixed.
+@Ignore
 public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
     @Override

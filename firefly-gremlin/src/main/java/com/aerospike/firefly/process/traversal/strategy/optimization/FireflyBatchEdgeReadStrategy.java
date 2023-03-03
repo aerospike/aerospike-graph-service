@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
@@ -59,7 +60,14 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             // Note we don't want to push down ids.
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
-            if (labels.isEmpty() && index < steps.size() && steps.get(index) instanceof HasStep) {
+
+            // TODO GRAPH-402: Investigate HasContainer aware LazyBarrierStep in place of NoOpBarrierStep/HasStep.
+            if ((labels.isEmpty() && index < steps.size() && steps.get(index) instanceof HasStep) ||
+                    (index + 1 < steps.size() && steps.get(index) instanceof NoOpBarrierStep &&
+                            steps.get(index + 1) instanceof HasStep)) {
+                if (steps.get(index) instanceof NoOpBarrierStep) {
+                    traversal.removeStep(steps.get(index));
+                }
                 final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
                 hasContainers = hasStep.getHasContainers();
 

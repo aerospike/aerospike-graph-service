@@ -135,8 +135,8 @@ public class SparkBulkLoader {
             ie.printStackTrace();
             System.exit(1);
         }
-        catch (final AmazonClientException awsexception) {
-            LOGGER.error("Amazon SDK client error" + awsexception.getMessage());
+        catch (final RuntimeException runtimeException) {
+            LOGGER.error("Amazon SDK client error" + runtimeException.getMessage());
             System.exit(1);
         }
         final double sampleFraction = Double.parseDouble(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SAMPLING_PERCENTAGE, CONFIG)) / 100;

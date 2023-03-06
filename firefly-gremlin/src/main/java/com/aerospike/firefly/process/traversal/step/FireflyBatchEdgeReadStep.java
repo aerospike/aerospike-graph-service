@@ -49,7 +49,10 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
-            fireflyHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(hasContainerWithCardinalities);
+            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
+            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
+            //  matter what.
+            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
             aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
         } else {
             fireflyHasContainers = List.of();
@@ -118,6 +121,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     private List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
+        // Note use aerospikeHasContainers here, those are to be applied on edges, so they are valid.
         return firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
     }
 }

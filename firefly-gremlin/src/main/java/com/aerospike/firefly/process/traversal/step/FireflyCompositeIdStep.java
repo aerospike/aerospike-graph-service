@@ -50,7 +50,10 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);
-            fireflyHasContainers = FireflyBatchReadHelper.getFireflyHasContainers(hasContainerWithCardinalities);
+            // TODO GRAPH-401: This is a hack to get around the fact that we cannot filter our cache with a hasContainer.
+            //  To get around this we have to filter everything post read again, so all containers pushed to firefly no
+            //  matter what.
+            fireflyHasContainers = hasContainerWithCardinalities.stream().map(a -> a.hasContainer).collect(Collectors.toList());
             aerospikeHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(hasContainerWithCardinalities);
         } else {
             fireflyHasContainers = List.of();
@@ -120,7 +123,8 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
         return (direction == Direction.IN) ?
-                firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
-                firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
+                // Note do not use aerospikeHasContainers here, those are to be applied on vertices, not edges.
+                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
+                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
     }
 }

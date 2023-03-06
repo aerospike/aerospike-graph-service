@@ -12,6 +12,7 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
@@ -182,6 +183,10 @@ public class PackedVertex extends RelationalVertex {
         final Operation getVertexPropertyValuesTypeHints = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
         final Operation getVertexPropertyIds = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_ID);
 
+        final FireflyCache cache = this.db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(opKey);
+        }
         final Record result = this.db.operate(null, opKey, removeProperty, removePropertyTypeHint,
                 removeVertexPropertyValue, removeVertexPropertyId, removeVertexPropertyTypeHint,
                 getVertexPropertyValues, getVertexPropertyValuesTypeHints, getVertexPropertyIds);
@@ -233,6 +238,10 @@ public class PackedVertex extends RelationalVertex {
         final Operation addKeyPropertiesTypeHints = MapOperation.put(mapPolicy, this.db.TYPE_HINTS,
                 Value.get(vertexProperty.id.getStorageId()), Value.get(new TreeMap<>()));
 
+        final FireflyCache cache = db.transactionCache.get();
+        if (cache != null) {
+            cache.invalidate(key);
+        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         final Record result = this.db.operate(writePolicy, key, putValue, putId, putTypeHint, getValues, getTypeHints,

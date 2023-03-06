@@ -98,6 +98,7 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
         // Cache size exceeded
         CONFIG.setProperty(ID_CACHE_SIZE.toLowerCase(), "2");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
+            CONFIG.clearProperty(ID_CACHE_SIZE.toLowerCase());
             assertCountStrategyAccuracy(graph);
             assertCountStrategyVertexLabelAccuracy(graph);
             assertCountStrategyEdgeLabelAccuracy(graph);

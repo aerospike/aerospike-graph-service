@@ -71,39 +71,7 @@
             <id>central</id>
             <url>https://repo1.maven.org/maven2</url>
         </repository>
-        <repository>
-            <id>mvn.phaseshift.internal/releases</id>
-            <url>http://mvn.phaseshift.internal/releases</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </repository>
-        <repository>
-            <id>mvn.phaseshift.internal/snapshots</id>
-            <url>http://mvn.phaseshift.internal/snapshots</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
     </repositories>
-    <distributionManagement>
-        <repository>
-            <id>mvn.phaseshift.internal/releases</id>
-            <url>http://mvn.phaseshift.internal/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>mvn.phaseshift.internal/snapshots</id>
-            <url>http://mvn.phaseshift.internal/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
     <!-- BUILD/DOC INFRASTRUCTURE -->
     <build>
         <directory>${basedir}/target</directory>
@@ -127,7 +95,6 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>${maven-resources-plugin.version}</version>
             </plugin>
-
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>

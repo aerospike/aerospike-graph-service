@@ -137,7 +137,6 @@
                     <attach>true</attach>
                     <descriptors>
                         <descriptor>src/assembly/standalone.xml</descriptor>
-<!--                        <descriptor>src/assembly/distribution.xml</descriptor>-->
                     </descriptors>
                     <finalName>aerospike-${project.artifactId}-${project.version}</finalName>
                     <outputDirectory>target</outputDirectory>

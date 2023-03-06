@@ -173,7 +173,8 @@ public class SparkBulkLoader {
         // Vertices
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();
         final Instant startOfVertexMapPartitions = Instant.now();
-        unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        final ArrayList<Long> cumulativeVertexTime = new ArrayList<>();
+        List<Long> result = unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -189,6 +190,7 @@ public class SparkBulkLoader {
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
+            final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
@@ -196,12 +198,20 @@ public class SparkBulkLoader {
                 }
                 executor.shutdown();
                 while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
+                final Instant endOfGraphOperations = Instant.now();
+                final Duration interval = Duration.between(startOfGraphOperations, endOfGraphOperations);
+                cumulativeVertexTime.add(interval.getSeconds());
             }
-            return Collections.singletonList(1).iterator();
-        }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+
+            return cumulativeVertexTime.iterator();
+        }, Encoders.LONG()).collectAsList();
         final Instant endOfVertexMapPartitions = Instant.now();
         Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
         LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
+
+        final int totalVertexDuration = result.stream().mapToInt(Math::toIntExact).sum();
+        int noOfVertexPartitions = result.size();
+        LOGGER.info("Mean time taken per Vertex partition for " + noOfVertexPartitions + " partitions = " + totalVertexDuration);
 
         // Verify vertices.
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
@@ -356,7 +366,8 @@ public class SparkBulkLoader {
 
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
-        persistedEdgeDS.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
+        final ArrayList<Long> cumulativeEdgeTime = new ArrayList<>();
+        result = persistedEdgeDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -375,6 +386,7 @@ public class SparkBulkLoader {
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
+            final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
                 final AtomicInteger inEdgeCount = new AtomicInteger(0);
@@ -390,12 +402,19 @@ public class SparkBulkLoader {
                 while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
                 flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
                 flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                final Instant endOfGraphOperations = Instant.now();
+                final Duration interval = Duration.between(startOfGraphOperations, endOfGraphOperations);
+                cumulativeEdgeTime.add(interval.getSeconds());
             }
-             return Collections.singletonList(1).iterator();
-         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
+             return cumulativeEdgeTime.iterator();
+         }, Encoders.LONG()).collectAsList();
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
+
+        final int totalEgdeDuration = result.stream().mapToInt(Math::toIntExact).sum();
+        int noOfEdgePartitions = result.size();
+        LOGGER.info("Mean time taken per Edge partition for " + noOfEdgePartitions + " partitions = " + totalEgdeDuration);
 
         // Verify edges.
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {

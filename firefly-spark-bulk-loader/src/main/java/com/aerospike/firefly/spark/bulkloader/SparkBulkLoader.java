@@ -21,6 +21,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -78,6 +79,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -174,6 +176,7 @@ public class SparkBulkLoader {
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();
         final Instant startOfVertexMapPartitions = Instant.now();
         final ArrayList<Long> cumulativeVertexTime = new ArrayList<>();
+        spark.sparkContext().setJobGroup("Vertex write group id", "Vertex MapPartition and collectAsList", true);
         List<Long> result = unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
@@ -189,12 +192,16 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
+            ThreadFactory threadFactory =
+                    new ThreadFactoryBuilder().setNameFormat("Running write operation for VERTICES within partitionId = " + TaskContext.getPartitionId()).build();
+
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer, threadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     executor.execute(new VertexWriteTP(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
+                    LOGGER.info(Thread.currentThread().getName() + " for vertex id = " + row.getAs("~id"));
                 }
                 executor.shutdown();
                 while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
@@ -214,6 +221,7 @@ public class SparkBulkLoader {
         LOGGER.info("Mean time taken per Vertex partition for " + noOfVertexPartitions + " partitions = " + totalVertexDuration);
 
         // Verify vertices.
+        spark.sparkContext().setJobGroup("Verify Vertex group id", "Verify vertex MapPartition", true);
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();
@@ -291,6 +299,7 @@ public class SparkBulkLoader {
         final Set<Long> supernodes = new HashSet<>();
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
+            spark.sparkContext().setJobGroup("Compute Supernodes group id", "Compute Supernodes RDD operations", true);
             // Csv format is: ~id, ~from, ~to, ...
             final JavaRDD<Row> edgeRDD = persistedEdgeDS.javaRDD();
 
@@ -367,6 +376,7 @@ public class SparkBulkLoader {
         final Instant startOfEdgeMapPartitions = Instant.now();
         // Write to edge caches for non-supernodes.
         final ArrayList<Long> cumulativeEdgeTime = new ArrayList<>();
+        spark.sparkContext().setJobGroup("Edges write group id", "Edges MapPartition and collectAsList", true);
         result = persistedEdgeDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             if (ENV.equalsIgnoreCase("aws")) {
@@ -385,7 +395,10 @@ public class SparkBulkLoader {
                     Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
             final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
 
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer);
+            ThreadFactory threadFactory =
+                    new ThreadFactoryBuilder().setNameFormat("Running write operation for EDGES within partitionId = " + TaskContext.getPartitionId()).build();
+
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer, threadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
@@ -397,6 +410,7 @@ public class SparkBulkLoader {
                     executor.execute(new EdgeWriteTP(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
                             providedIdPropertyName, ignoreElementCreationFailed, nullValue, graph, outEdgeCount,
                             inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
+                    LOGGER.info(Thread.currentThread().getName() + " for edge id = " + row.getAs("~id"));
                 }
                 executor.shutdown();
                 while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
@@ -417,6 +431,7 @@ public class SparkBulkLoader {
         LOGGER.info("Mean time taken per Edge partition for " + noOfEdgePartitions + " partitions = " + totalEgdeDuration);
 
         // Verify edges.
+        spark.sparkContext().setJobGroup("Verify Edges group id", "Verify Edges MapPartition", true);
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             if (ENV.equalsIgnoreCase("aws")) {
                 S3_CLIENT = AmazonS3ClientBuilder.standard().build();

@@ -171,7 +171,7 @@ public class SparkBulkLoader {
         final String finalS3BucketName = s3BucketName;
         final String finalConfigPath = configPath;
 
-        final int threadPoolBuffer = 4;
+        final int threadPoolBufferSize = 4;
         // Vertices
         final AtomicReference<Configuration> localConfig = new AtomicReference<>();
         final Instant startOfVertexMapPartitions = Instant.now();
@@ -195,7 +195,7 @@ public class SparkBulkLoader {
             ThreadFactory threadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Running write operation for VERTICES within partitionId = " + TaskContext.getPartitionId()).build();
 
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer, threadFactory);
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, threadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
@@ -398,7 +398,7 @@ public class SparkBulkLoader {
             ThreadFactory threadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Running write operation for EDGES within partitionId = " + TaskContext.getPartitionId()).build();
 
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBuffer, threadFactory);
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, threadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);

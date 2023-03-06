@@ -28,6 +28,9 @@ jobs:
           # Login to ghcr.io.
           echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Publish Container
         run: |          
           # Strip git ref prefix (refs/tags or ref/heads).
@@ -47,21 +50,9 @@ jobs:
           fi
           DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
-          # Build and tag docker image.
-          echo "Building and tagging docker image"
-          docker build --tag $OUTPUT_IMAGE .
-          
-          # Push Docker tag.
-          echo "Pushing docker tag"
-          docker push $OUTPUT_IMAGE
-          
-          # Build and tag latest docker image.
-          echo "Building and tagging docker image"
-          docker build --tag $DOCKER_IMAGE .
-          
-          # Push latest Docker tag.
-          echo "Pushing docker tag"
-          docker push $DOCKER_IMAGE
+          # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
+          echo "Building and tagging docker image for linux/amd64 and linux/arm64"
+          docker buildx build --push --platform linux/amd64,linux/arm64 --tag $DOCKER_IMAGE --tag $OUTPUT_IMAGE .
 
       - name: Java 11 Install
         uses: actions/setup-java@v3

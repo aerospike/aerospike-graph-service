@@ -1,4 +1,4 @@
-package com.aerospike.firefly.spark.bulkloader.util;
+package com.aerospike.firefly.bulkloader.util;
 
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;

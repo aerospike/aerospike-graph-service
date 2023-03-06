@@ -1,4 +1,4 @@
-package com.aerospike.firefly.spark.bulkloader.integration;
+package com.aerospike.firefly.bulkloader.integration;
 
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getConfig;
 
 public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config.properties";

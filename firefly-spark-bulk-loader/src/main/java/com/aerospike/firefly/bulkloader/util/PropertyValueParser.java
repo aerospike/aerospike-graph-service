@@ -1,4 +1,4 @@
-package com.aerospike.firefly.spark.bulkloader.util;
+package com.aerospike.firefly.bulkloader.util;
 
 public class PropertyValueParser {
     private final String nullValue;

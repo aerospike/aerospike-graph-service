@@ -1,6 +1,6 @@
-package com.aerospike.firefly.spark.bulkloader.integration;
+package com.aerospike.firefly.bulkloader.integration;
 
-import com.aerospike.firefly.spark.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;

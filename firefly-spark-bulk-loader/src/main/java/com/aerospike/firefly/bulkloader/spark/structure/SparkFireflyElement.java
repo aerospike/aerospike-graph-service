@@ -1,6 +1,6 @@
-package com.aerospike.firefly.spark.bulkloader.structure;
+package com.aerospike.firefly.bulkloader.spark.structure;
 
-import com.aerospike.firefly.spark.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;

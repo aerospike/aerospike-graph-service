@@ -1,14 +1,16 @@
-package com.aerospike.firefly.spark.bulkloader;
+package com.aerospike.firefly.bulkloader;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Value;
+import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement;
+import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge;
-import com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyVertex;
-import com.aerospike.firefly.spark.bulkloader.util.EdgeWriteTP;
-import com.aerospike.firefly.spark.bulkloader.util.VertexWriteTP;
+import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
+import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
+import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteThread;
+import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteThread;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -85,27 +87,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
-import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.spark.bulkloader.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getOrDefault;
+import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
+import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
 
 public class SparkBulkLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoader.class);
-    private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{ID_HEADER};
-    private static final String[] REQUIRED_EDGE_HEADERS = new String[]{ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
+    private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{SparkFireflyElement.ID_HEADER};
+    private static final String[] REQUIRED_EDGE_HEADERS = new String[]{SparkFireflyElement.ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
     private static Configuration CONFIG;
     private static String MODE = "cluster";
     private static AmazonS3 S3_CLIENT;
@@ -130,14 +120,14 @@ public class SparkBulkLoader {
                 assert s3BucketName != null;
                 assert configPath != null;
                 CONFIG = loadConfigFromS3(s3BucketName, configPath);
-                vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
-                edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+                vertexDirectories.addAll(getObjectsListFromS3(s3BucketName, BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
+                edgeDirectories.addAll(getObjectsListFromS3(s3BucketName, BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
             } else {
                 final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
                 configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : defaultConfigPath;
                 CONFIG = loadConfiguration(configPath);
-                vertexDirectories.addAll(getElementDirectories(getOrDefault(VERTEX_DIRECTORY_KEY, CONFIG)));
-                edgeDirectories.addAll(getElementDirectories(getOrDefault(EDGE_DIRECTORY_KEY, CONFIG)));
+                vertexDirectories.addAll(getElementDirectories(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
+                edgeDirectories.addAll(getElementDirectories(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
             }
         }
         catch (final IOException ie) {
@@ -149,7 +139,7 @@ public class SparkBulkLoader {
             LOGGER.error("Amazon SDK client error" + awsexception.getMessage());
             System.exit(1);
         }
-        final double sampleFraction = Double.parseDouble(getOrDefault(SAMPLING_PERCENTAGE, CONFIG)) / 100;
+        final double sampleFraction = Double.parseDouble(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SAMPLING_PERCENTAGE, CONFIG)) / 100;
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
@@ -187,10 +177,10 @@ public class SparkBulkLoader {
                 localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, localConfig.get());
 
             ThreadFactory threadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Running write operation for VERTICES within partitionId = " + TaskContext.getPartitionId()).build();
@@ -200,7 +190,7 @@ public class SparkBulkLoader {
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new VertexWriteTP(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
+                    executor.execute(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
                     LOGGER.info(Thread.currentThread().getName() + " for vertex id = " + row.getAs("~id"));
                 }
                 executor.shutdown();
@@ -231,10 +221,10 @@ public class SparkBulkLoader {
                 localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, localConfig.get());
 
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final GraphTraversalSource g = graph.traversal();
@@ -357,7 +347,7 @@ public class SparkBulkLoader {
                             if (++tryCount > RETRY_LIMIT) {
                                 LOGGER.error("Failed to disable edge cache for vertex with ID " + supernodeId +
                                         " after " + tryCount + " attempts.", e);
-                                if (!Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, CONFIG))) {
+                                if (!Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG))) {
                                     throw e;
                                 } else {
                                     break;
@@ -386,14 +376,14 @@ public class SparkBulkLoader {
                 localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, localConfig.get());
 
             ThreadFactory threadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Running write operation for EDGES within partitionId = " + TaskContext.getPartitionId()).build();
@@ -407,7 +397,7 @@ public class SparkBulkLoader {
                 final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new EdgeWriteTP(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
+                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
                             providedIdPropertyName, ignoreElementCreationFailed, nullValue, graph, outEdgeCount,
                             inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
                     LOGGER.info(Thread.currentThread().getName() + " for edge id = " + row.getAs("~id"));
@@ -440,14 +430,14 @@ public class SparkBulkLoader {
                 localConfig.set(loadConfiguration(finalConfigPath));
             }
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
-            final boolean useProvidedId = Boolean.parseBoolean(getOrDefault(USE_PROVIDED_EDGE_ID, localConfig.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, localConfig.get()));
+            final boolean useProvidedId = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID, localConfig.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
-            final String providedIdPropertyName = getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, localConfig.get()));
+            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, localConfig.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(getOrDefault(IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
-            final String nullValue = getOrDefault(NULL_VALUE, localConfig.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, localConfig.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, localConfig.get());
             try (final FireflyGraph graph = FireflyGraph.open(localConfig.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
@@ -530,7 +520,7 @@ public class SparkBulkLoader {
 
     private static Configuration loadConfiguration(String configPath) {
         final Path path = Path.of(configPath);
-        return getConfig(path);
+        return BulkLoaderConfigHelper.getConfig(path);
     }
 
     public static void loadEdgeMap(final FireflyGraph graph, final Set<Long> supernodes, final long vertexId,

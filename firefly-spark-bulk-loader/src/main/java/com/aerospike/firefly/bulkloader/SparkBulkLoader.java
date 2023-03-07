@@ -68,7 +68,7 @@ public class SparkBulkLoader {
             System.exit(1);
         }
         catch (final RuntimeException runtimeException) {
-            LOGGER.error("Amazon SDK client error" + runtimeException.getMessage());
+            LOGGER.error("Amazon SDK client error", runtimeException);
             System.exit(1);
         }
 

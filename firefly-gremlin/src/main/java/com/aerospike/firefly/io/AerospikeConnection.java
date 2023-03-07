@@ -406,11 +406,37 @@ public class AerospikeConnection implements AutoCloseable {
                 r -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, r.getKey(), r.getValue()), type));
     }
 
-    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, String... binNames) {
-        LOG.trace("Scanning all ids in {}:{} with filter {}.", setName, Arrays.toString(binNames), exp);
+    /**
+     * Issue a scan query for all the keys in a set.
+     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
+     *
+     * @param setName Aerospike set name to scan
+     * @param exp     Expression to apply to Scan
+     * @param sendKey Send the original user key
+     * @return Iterator of Map.Entry Key, Record
+     */
+    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, boolean sendKey) {
+        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
-        return scanAllRecordsInSet(setName, exp, policy, binNames);
+        return scanAllRecordsInSet(setName, exp, policy, sendKey);
+    }
+
+    /**
+     * Issue a scan query for all the keys in a set.
+     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
+     *
+     * @param setName Aerospike set name to scan
+     * @param exp     Expression to apply to Scan
+     * @return Iterator of Map.Entry Key, Record
+     */
+    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp) {
+        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
+        ScanPolicy policy = new ScanPolicy();
+        policy.includeBinData = false;
+        return scanAllRecordsInSet(setName, exp, policy);
     }
 
     /**
@@ -424,12 +450,28 @@ public class AerospikeConnection implements AutoCloseable {
      * @param binNames Bin names to read into Records returned
      * @return Iterator of Map.Entry Key, Record
      */
-    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, ScanPolicy policy, String... binNames) {
+    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, String... binNames) {
+        return scanAllRecordsInSet(setName, exp, policy, true, binNames);
+    }
+
+    /**
+     * Issue a scan query for all the records in a set.
+     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
+     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
+     *
+     * @param setName  Aerospike set name to scan
+     * @param exp      Expression to apply to Scan
+     * @param policy   ScanPolicy to use during Scan
+     * @param sendKey  Send the original user key
+     * @param binNames Bin names to read into Records returned
+     * @return Iterator of Map.Entry Key, Record
+     */
+    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
         final Throttles throttles = new Throttles(getEventLoops().getSize(), getCommandsPerLoop());
         final Monitor scanMonitor = new Monitor();
         final int progressFreq = 100;
-        policy.sendKey = true;
+        policy.sendKey = sendKey;
         if (exp != null) policy.filterExp = exp;
 
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(

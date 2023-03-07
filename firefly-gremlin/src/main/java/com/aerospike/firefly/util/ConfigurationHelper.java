@@ -203,7 +203,7 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
-        put(Keys.ENABLE_FAST_COUNT_STRATEGY, "false");
+        put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");

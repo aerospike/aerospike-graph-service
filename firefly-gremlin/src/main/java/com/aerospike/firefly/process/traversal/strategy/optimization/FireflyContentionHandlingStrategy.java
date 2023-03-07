@@ -79,6 +79,8 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Drop step first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
 
+        applyStrategy(traversal, fireflyGraphCountStrategy);
+
         // Steps that are generally applicable to most all traversals.
         applyStrategy(traversal, fireflyGraphStepStrategy);
         applyStrategy(traversal, fireflyReadThroughCacheStrategy);
@@ -89,6 +91,5 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
-        applyStrategy(traversal, fireflyGraphCountStrategy);
     }
 }

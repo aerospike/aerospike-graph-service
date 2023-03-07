@@ -1607,5 +1607,4 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         Assert.assertEquals((Long) 0L, (Long) traversal.next());
     }
-
 }

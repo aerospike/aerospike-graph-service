@@ -30,6 +30,10 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
         S3_CLIENT = AmazonS3ClientBuilder.standard().build();
     }
 
+    /**
+     * Create a singleton instance of S3ObjectLoader to be used across all the distributed compute Spark map transformations
+     * @return
+     */
     public static synchronized S3ObjectLoader getInstance(){
         if (s3ObjectLoader == null) {
             s3ObjectLoader = new S3ObjectLoader();

@@ -19,12 +19,17 @@ public class FileLoader implements ObjectLoader, Serializable {
     private static FileLoader fileLoader;
     private FileLoader() {}
 
+    /**
+     * Obtain singleton instance of FileLoader to be used across all distributed spark map transformations
+     * @return
+     */
     public static synchronized FileLoader getInstance(){
         if (fileLoader == null) {
             fileLoader = new FileLoader();
         }
         return fileLoader;
     }
+
     /**
      * Function to load config file from local/unix FileSystem.
      *

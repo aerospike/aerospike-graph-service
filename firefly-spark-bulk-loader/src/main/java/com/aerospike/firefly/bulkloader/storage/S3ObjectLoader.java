@@ -2,6 +2,7 @@ package com.aerospike.firefly.bulkloader.storage;
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
@@ -12,20 +13,32 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-public class S3ObjectLoader implements ObjectLoader {
-    private final Logger LOGGER = LoggerFactory.getLogger(S3ObjectLoader.class);
-    private final String bucketName;
+public class S3ObjectLoader implements ObjectLoader, Serializable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(S3ObjectLoader.class);
+    private String bucketName;
     private final AmazonS3 S3_CLIENT;
+    private static S3ObjectLoader s3ObjectLoader;
 
-    public S3ObjectLoader(String bucketName, AmazonS3 S3_CLIENT) {
-        this.bucketName = bucketName;
-        this.S3_CLIENT = S3_CLIENT;
+    private S3ObjectLoader(){
+        S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+    }
+
+    public static synchronized S3ObjectLoader getInstance(){
+        if (s3ObjectLoader == null) {
+            s3ObjectLoader = new S3ObjectLoader();
+        }
+        return s3ObjectLoader;
+    }
+
+    public void setBucketName(String bucketName) {
+        s3ObjectLoader.bucketName = bucketName;
     }
 
     /**
@@ -35,7 +48,7 @@ public class S3ObjectLoader implements ObjectLoader {
      * @return Configuration object built from config file.
      */
     @Override
-    public Configuration loadConfigFile(final String configPath) {
+    public Configuration loadConfiguration(final String configPath) {
         try (final S3Object s3Object = this.S3_CLIENT.getObject(bucketName, configPath);
              final InputStream inputStream = s3Object.getObjectContent()) {
             final Properties props = new Properties();
@@ -54,16 +67,17 @@ public class S3ObjectLoader implements ObjectLoader {
     }
 
     /**
-     * Function to get a set of valid sub-directory strings of vertices or edges from the bucket.
+     * Function to load input files from S3.
+     * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
      *
-     * @param directory directory path after bucket name.
-     * @return The set of valid S3 paths for sub-directories within edges/vertices.
+     * @param directory  Folder key string specifying the name of the master directory of vertices or edges.
+     * @return Set of directory path strings containing the csv files in S3.
      */
     @Override
     public Set<String> getObjectList(final String directory) {
         try {
             final Set<String> keys = new HashSet<>();
-            ObjectListing response = S3_CLIENT.listObjects(bucketName, directory);
+            ObjectListing response = this.S3_CLIENT.listObjects(bucketName, directory);
             List<S3ObjectSummary> objects = response.getObjectSummaries();
             for (final S3ObjectSummary object : objects) {
                 keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
@@ -71,7 +85,7 @@ public class S3ObjectLoader implements ObjectLoader {
             // listObjects loads 1000 object keys in one call.
             // If there are multiple directories with more than 1000 files, then need to consume any remaining objects.
             while (response.isTruncated()) {
-                response = S3_CLIENT.listNextBatchOfObjects(response);
+                response = this.S3_CLIENT.listNextBatchOfObjects(response);
                 objects = response.getObjectSummaries();
                 for (S3ObjectSummary object : objects) {
                     keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
@@ -81,32 +95,5 @@ public class S3ObjectLoader implements ObjectLoader {
         } catch (final SdkClientException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * Function to load input files from S3.
-     * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
-     *
-     * @param bucketName Name of the S3 bucket.
-     * @param folderKey  Folder key string specifying the name of the master directory of verticies or edges.
-     * @return Set of directory path strings containing the csv files in S3.
-     */
-    public Set<String> getObjectsListFromS3(final String bucketName, final String folderKey) {
-        final Set<String> keys = new HashSet<>();
-        ObjectListing response = this.S3_CLIENT.listObjects(bucketName, folderKey);
-        List<S3ObjectSummary> objects = response.getObjectSummaries();
-        for (final S3ObjectSummary object : objects) {
-            keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
-        }
-        // listObjects loads 1000 object keys in one call.
-        // If there are multiple directories with more than 1000 files, then need to consume any remaining objects.
-        while (response.isTruncated()) {
-            response = S3_CLIENT.listNextBatchOfObjects(response);
-            objects = response.getObjectSummaries();
-            for (S3ObjectSummary object : objects) {
-                keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
-            }
-        }
-        return keys;
     }
 }

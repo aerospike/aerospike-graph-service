@@ -5,6 +5,7 @@ import org.apache.commons.configuration2.Configuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,7 +14,16 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class FileLoader implements ObjectLoader {
+public class FileLoader implements ObjectLoader, Serializable {
+    private static FileLoader fileLoader;
+    private FileLoader() {}
+
+    public static synchronized FileLoader getInstance(){
+        if (fileLoader == null) {
+            fileLoader = new FileLoader();
+        }
+        return fileLoader;
+    }
     /**
      * Function to load config file from local/unix FileSystem.
      *
@@ -21,7 +31,7 @@ public class FileLoader implements ObjectLoader {
      * @return Configuration object built from config file.
      */
     @Override
-    public Configuration loadConfigFile(final String configPath) {
+    public Configuration loadConfiguration(final String configPath) {
         final Path path = Path.of(configPath);
         return BulkLoaderConfigHelper.getConfig(path);
     }

@@ -3,6 +3,7 @@ package com.aerospike.firefly.bulkloader.spark.executorservice;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -36,7 +37,18 @@ public class EdgeWriteThread implements Runnable {
     private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
     
-    public EdgeWriteThread(Set<Long> supernodes, boolean ignoreFailedProperties, boolean useProvidedId, boolean keepProvidedId, String providedIdPropertyName, boolean ignoreElementCreationFailed, String nullValue, FireflyGraph graph, AtomicInteger outEdgeCount, AtomicInteger inEdgeCount, Map<Long, Map<String, List<Value>>> vertexOutEdgeMap, Map<Long, Map<String, List<Value>>> vertexInEdgeMap, GenericRowWithSchema row) {
+    public EdgeWriteThread(final Set<Long> supernodes,
+                           final boolean ignoreFailedProperties,
+                           final boolean useProvidedId,
+                           final boolean keepProvidedId,
+                           final String providedIdPropertyName,
+                           final boolean ignoreElementCreationFailed,
+                           final String nullValue, FireflyGraph graph,
+                           final AtomicInteger outEdgeCount,
+                           final AtomicInteger inEdgeCount,
+                           final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap,
+                           final Map<Long, Map<String, List<Value>>> vertexInEdgeMap,
+                           final GenericRowWithSchema row) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.useProvidedId = useProvidedId;
@@ -88,11 +100,11 @@ public class EdgeWriteThread implements Runnable {
 
                 // Write edge to vertices' edge caches.
                 if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                    SparkBulkLoader.loadEdgeMap(graph, supernodes, outVertexId,
+                    GraphOperations.loadEdgeMap(graph, supernodes, outVertexId,
                             graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
                             edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
                             ignoreElementCreationFailed);
-                    SparkBulkLoader.loadEdgeMap(graph, supernodes, inVertexId,
+                    GraphOperations.loadEdgeMap(graph, supernodes, inVertexId,
                             graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
                             edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
                             ignoreElementCreationFailed);

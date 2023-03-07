@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +41,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         String label = null;
         String fromVertexId = null;
         String toVertexId = null;
-        final List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        final List<Map.Entry<String, Object>> properties = Collections.synchronizedList(new ArrayList<>());
         for (final String header : headers) {
             if (row.getAs(header) == null) {
                 continue;

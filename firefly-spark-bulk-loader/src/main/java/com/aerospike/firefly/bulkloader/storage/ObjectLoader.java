@@ -6,6 +6,6 @@ import java.io.IOException;
 import java.util.Set;
 
 public interface ObjectLoader {
-    public Configuration loadConfigFile(final String configPath);
-    public Set<String> getObjectList(final String directory) throws RuntimeException, IOException;
+    Configuration loadConfiguration(final String configPath);
+    Set<String> getObjectList(final String directory) throws RuntimeException, IOException;
 }

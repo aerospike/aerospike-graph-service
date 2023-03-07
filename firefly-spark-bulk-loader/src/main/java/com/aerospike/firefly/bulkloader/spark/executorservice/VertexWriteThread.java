@@ -13,14 +13,18 @@ import java.util.Arrays;
 
 public class VertexWriteThread implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(VertexWriteThread.class);
-    private boolean ignoreFailedProperties;
-    private boolean ignoreElementCreationFailed;
-    private String nullValue;
-    private FireflyGraph graph;
-    private GenericRowWithSchema row;
+    private final boolean ignoreFailedProperties;
+    private final boolean ignoreElementCreationFailed;
+    private final String nullValue;
+    private final FireflyGraph graph;
+    private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
 
-    public VertexWriteThread(boolean ignoreFailedProperties, boolean ignoreElementCreationFailed, String nullValue, FireflyGraph graph, GenericRowWithSchema row) {
+    public VertexWriteThread(final boolean ignoreFailedProperties,
+                             final boolean ignoreElementCreationFailed,
+                             final String nullValue,
+                             final FireflyGraph graph,
+                             final GenericRowWithSchema row) {
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.ignoreElementCreationFailed = ignoreElementCreationFailed;
         this.nullValue = nullValue;

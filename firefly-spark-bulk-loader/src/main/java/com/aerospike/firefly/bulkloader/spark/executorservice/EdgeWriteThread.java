@@ -46,8 +46,6 @@ public class EdgeWriteThread implements Runnable {
                            final String providedIdPropertyName,
                            final boolean ignoreElementCreationFailed,
                            final String nullValue, FireflyGraph graph,
-                           final AtomicInteger outEdgeCount,
-                           final AtomicInteger inEdgeCount,
                            final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap,
                            final Map<Long, Map<String, List<Value>>> vertexInEdgeMap,
                            final GenericRowWithSchema row,

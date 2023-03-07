@@ -24,8 +24,8 @@ import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
-import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
@@ -457,7 +457,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
+        return new FireflyBatchReadVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
     }
 
     @Override

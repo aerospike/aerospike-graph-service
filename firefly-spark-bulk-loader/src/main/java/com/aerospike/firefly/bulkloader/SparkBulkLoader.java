@@ -45,7 +45,7 @@ public class SparkBulkLoader {
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-        LOGGER.info("Config path provided = " + configPath + " & job running in " + MODE + "mode");
+        LOGGER.info("Config path provided = {} & job running in {} mode", configPath, MODE);
         try {
             if (ENV.equalsIgnoreCase("aws")) {
                 s3BucketName = cmd.getOptionValue("b");

@@ -313,8 +313,6 @@ public class TestPerformance extends AbstractFireflySuite {
         System.out.println(PerfUtil.runTestBatch(5, () -> {
             g.V().count().next();
         }));
-
-
     }
 
     @Override

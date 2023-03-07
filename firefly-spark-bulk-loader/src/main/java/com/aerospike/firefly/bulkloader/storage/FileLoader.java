@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FileLoader implements ObjectLoader, Serializable {
     private static FileLoader fileLoader;
@@ -37,10 +38,10 @@ public class FileLoader implements ObjectLoader, Serializable {
     }
 
     /**
-     * Function to get a set of valid sub-directory strings of vertices or edges from a master directory.
+     * Function to get a set of valid subdirectory strings of vertices or edges from a master directory.
      *
      * @param directory The master directory.
-     * @return The set of valid sub-directories.
+     * @return The set of valid subdirectories.
      */
     @Override
     public Set<String> getObjectList(final String directory) throws RuntimeException, IOException {
@@ -48,7 +49,9 @@ public class FileLoader implements ObjectLoader, Serializable {
         checkIfDirectoryEmpty(file);
         final File[] directories = file.listFiles(File::isDirectory);
 
-        assert directories != null;
+        if ( directories == null ) {
+            throw new RuntimeException("Failed to start bulk loader due to empty data subdirectories in " + directory);
+        }
         if (directories.length != 0) {
             for (File dir : directories)
                 checkIfDirectoryEmpty(dir);
@@ -58,8 +61,9 @@ public class FileLoader implements ObjectLoader, Serializable {
     }
 
     static private void checkIfDirectoryEmpty(File directory) throws RuntimeException, IOException {
-        if (Files.list(Paths.get(directory.getPath())).findAny().isEmpty()) {
-            throw new IOException("Empty directory found for path: " + directory);
+        try(Stream<Path> path = Files.list(Paths.get(directory.getPath()))) {
+            if (path.findAny().isEmpty())
+                throw new IOException("Empty directory found for path: " + directory);
         }
     }
 }

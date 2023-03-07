@@ -50,7 +50,7 @@ public class SparkBulkLoader {
             if (ENV.equalsIgnoreCase("aws")) {
                 s3BucketName = cmd.getOptionValue("b");
                 if (s3BucketName == null || configPath == null) {
-                    throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ") or configPath (" + configPath + ").");
+                    throw new RuntimeException("Failed to start bulk loader due to empty s3BucketName (" + s3BucketName + ") or configPath (" + configPath + ").");
                 }
                 loader = S3ObjectLoader.getInstance();
                 ((S3ObjectLoader)loader).setBucketName(s3BucketName);
@@ -94,14 +94,13 @@ public class SparkBulkLoader {
         // Write Vertices
         final Instant startOfVertexMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
-
-        List<Long> result = DatasetOperations.vertexWrite(unionVertexDS, finalConfigPath, ENV, finalS3BucketName);
+        final List<Long> vertexResult = DatasetOperations.vertexWrite(unionVertexDS, finalConfigPath, ENV, finalS3BucketName);
         final Instant endOfVertexMapPartitions = Instant.now();
         Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
         LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
 
-        final int totalVertexDuration = result.stream().mapToInt(Math::toIntExact).sum();
-        int noOfVertexPartitions = result.size();
+        final int totalVertexDuration = vertexResult.stream().mapToInt(Math::toIntExact).sum();
+        int noOfVertexPartitions = vertexResult.size();
         LOGGER.info("Mean time taken per Vertex partition for " + noOfVertexPartitions + " partitions = " + totalVertexDuration);
 
         // Verify vertices.
@@ -109,10 +108,10 @@ public class SparkBulkLoader {
         DatasetOperations.verifyVertices(sampledVertexDatasets, finalConfigPath, ENV, finalS3BucketName);
 
         // Load and Merge Edges
-        Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
-        Dataset<Row> persistedEdgeDS = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
+        final Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        final Dataset<Row> persistedEdgeDS = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
         //sample out edge dataset to verify the inserts
-        Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
+        final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
         // If the edge cache is disabled globally we do not need to search for supernodes.
         if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
@@ -124,13 +123,13 @@ public class SparkBulkLoader {
         // Write to edge caches for non-supernodes.
         final Instant startOfEdgeMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
-        result = DatasetOperations.writeEdges(finalConfigPath, persistedEdgeDS, ENV, finalS3BucketName);
+        final List<Long> edgeResult = DatasetOperations.writeEdges(finalConfigPath, persistedEdgeDS, ENV, finalS3BucketName);
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
 
-        final int totalEgdeDuration = result.stream().mapToInt(Math::toIntExact).sum();
-        int noOfEdgePartitions = result.size();
+        final int totalEgdeDuration = edgeResult.stream().mapToInt(Math::toIntExact).sum();
+        int noOfEdgePartitions = edgeResult.size();
         LOGGER.info("Mean time taken per Edge partition for " + noOfEdgePartitions + " partitions = " + totalEgdeDuration);
 
         // Verify edges.

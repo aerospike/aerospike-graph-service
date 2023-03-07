@@ -5,7 +5,6 @@ import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

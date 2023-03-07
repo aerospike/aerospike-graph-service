@@ -58,7 +58,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
@@ -76,7 +75,7 @@ public class DatasetOperations implements Serializable {
      * @param spark Spark session
      * @param directories Set of paths to subdirectories within the parent directory
      * @param REQUIRED_HEADERS required headers for the dataset
-     * @return
+     * @return Merged Dataset<Row> from all the subdirectories
      */
     public static Dataset<Row> loadAndMergeDatasets(final SparkSession spark,
                                                     final Set<String> directories,
@@ -230,9 +229,9 @@ public class DatasetOperations implements Serializable {
                 final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
-                            providedIdPropertyName, ignoreElementCreationFailed, nullValue, graph, outEdgeCount,
-                            inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId()));
+                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId,
+                            keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
+                            graph, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId()));
                 }
                 executor.shutdown();
                 while (!executor.awaitTermination(10, TimeUnit.SECONDS)) {}

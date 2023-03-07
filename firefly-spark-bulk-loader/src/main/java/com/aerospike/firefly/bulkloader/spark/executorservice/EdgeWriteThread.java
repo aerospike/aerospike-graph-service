@@ -9,7 +9,6 @@ import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;

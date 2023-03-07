@@ -47,18 +47,17 @@ public class SparkBulkLoader {
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         LOGGER.info("Config path provided = {} & job running in {} mode", configPath, MODE);
         try {
+            if (configPath == null)
+                throw new RuntimeException("Failed to start bulk loader due to null configPath (" + configPath + ")");
+
             if (ENV.equalsIgnoreCase("aws")) {
                 s3BucketName = cmd.getOptionValue("b");
-                if (s3BucketName == null || configPath == null) {
-                    throw new RuntimeException("Failed to start bulk loader due to empty s3BucketName (" + s3BucketName + ") or configPath (" + configPath + ").");
-                }
+                if (s3BucketName == null)
+                    throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
                 loader = S3ObjectLoader.getInstance();
                 ((S3ObjectLoader)loader).setBucketName(s3BucketName);
-            } else {
-                final String defaultConfigPath = "conf/spark-bulk-loader-conf/config.properties";
-                configPath = configPath == null ? defaultConfigPath : configPath;
-                loader = FileLoader.getInstance();
-            }
+            } else loader = FileLoader.getInstance();
+
             CONFIG = loader.loadConfiguration(configPath);
             vertexDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
             edgeDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));

@@ -71,6 +71,13 @@ public class DatasetOperations implements Serializable {
     private static final Set<Long> supernodes = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
 
+    /**
+     * Function to load datasets from a parent directory and merge/union them
+     * @param spark Spark session
+     * @param directories Set of paths to subdirectories within the parent directory
+     * @param REQUIRED_HEADERS required headers for the dataset
+     * @return
+     */
     public static Dataset<Row> loadAndMergeDatasets(final SparkSession spark,
                                                     final Set<String> directories,
                                                     final String[] REQUIRED_HEADERS) {
@@ -109,16 +116,15 @@ public class DatasetOperations implements Serializable {
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
 
-            ThreadFactory threadFactory =
-                    new ThreadFactoryBuilder().setNameFormat("Running write operation for VERTICES within partitionId = " + TaskContext.getPartitionId()).build();
-
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, threadFactory);
+            ThreadFactory vertexThreadFactory =
+                    new ThreadFactoryBuilder().setNameFormat("Vertex-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, vertexThreadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed, nullValue, graph, row));
-                    LOGGER.info(Thread.currentThread().getName() + " for vertex id = " + row.getAs("~id"));
+                    executor.execute(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed,
+                            nullValue, graph, row, TaskContext.getPartitionId()));
                 }
                 executor.shutdown();
                 while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
@@ -215,10 +221,9 @@ public class DatasetOperations implements Serializable {
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
 
-            ThreadFactory threadFactory =
-                    new ThreadFactoryBuilder().setNameFormat("Running write operation for EDGES within partitionId = " + TaskContext.getPartitionId()).build();
-
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, threadFactory);
+            ThreadFactory edgeThreadFactory =
+                    new ThreadFactoryBuilder().setNameFormat("Edge-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
+            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, edgeThreadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 final AtomicInteger outEdgeCount = new AtomicInteger(0);
@@ -229,8 +234,7 @@ public class DatasetOperations implements Serializable {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId, keepProvidedId,
                             providedIdPropertyName, ignoreElementCreationFailed, nullValue, graph, outEdgeCount,
-                            inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row));
-                    LOGGER.info(Thread.currentThread().getName() + " for edge id = " + row.getAs("~id"));
+                            inEdgeCount, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId()));
                 }
                 executor.shutdown();
                 while (!executor.awaitTermination(10, TimeUnit.SECONDS)) {}

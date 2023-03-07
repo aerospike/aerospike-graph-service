@@ -5,6 +5,7 @@ import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,36 +20,40 @@ public class VertexWriteThread implements Runnable {
     private final FireflyGraph graph;
     private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
+    private final int partitionId;
 
     public VertexWriteThread(final boolean ignoreFailedProperties,
                              final boolean ignoreElementCreationFailed,
                              final String nullValue,
                              final FireflyGraph graph,
-                             final GenericRowWithSchema row) {
+                             final GenericRowWithSchema row,
+                             final int partitionId) {
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.ignoreElementCreationFailed = ignoreElementCreationFailed;
         this.nullValue = nullValue;
         this.graph = graph;
         this.row = row;
+        this.partitionId = partitionId;
     }
 
     @Override
     public void run() {
+        Thread.currentThread().setName("Write-vertex-thread-for-partitionId-" + this.partitionId);
         try {
             final SparkFireflyVertex sparkVertex =
-                    SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
+                    SparkFireflyVertex.createVertex(this.row, this.ignoreFailedProperties, this.nullValue);
             int tryCount = 0;
             boolean succeeded = false;
             while (!succeeded) {
                 try {
-                    graph.writeVertex(sparkVertex.getFireflyId(graph.getBaseGraph().VERTEX_AERO_SET),
+                    this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph().VERTEX_AERO_SET),
                             sparkVertex.getLabel(), sparkVertex.getProperties());
                     succeeded = true;
                 } catch (final AerospikeException e) {
                     if (++tryCount > RETRY_LIMIT) {
                         LOGGER.error("Failed to write vertex with ID " + sparkVertex.getId() + " after "
                                 + tryCount + " attempts.", e);
-                        if (!ignoreElementCreationFailed) {
+                        if (!this.ignoreElementCreationFailed) {
                             throw e;
                         } else {
                             break;
@@ -61,10 +66,11 @@ public class VertexWriteThread implements Runnable {
                 }
             }
         } catch (final FireflyBulkLoaderException e) {
-            LOGGER.error("Failed to load vertex for row: " + Arrays.toString(row.values()), e);
-            if (!ignoreElementCreationFailed) {
+            LOGGER.error("Failed to load vertex for row: " + Arrays.toString(this.row.values()), e);
+            if (!this.ignoreElementCreationFailed) {
                 throw e;
             }
         }
+        LOGGER.info("Finished " + Thread.currentThread().getName() + " for vertex id = " + this.row.getAs("~id"));
     }
 }

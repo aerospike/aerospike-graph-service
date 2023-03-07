@@ -9,6 +9,7 @@ import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ public class EdgeWriteThread implements Runnable {
     private final Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
     private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
+    private final int partitionId;
     
     public EdgeWriteThread(final Set<Long> supernodes,
                            final boolean ignoreFailedProperties,
@@ -48,7 +50,8 @@ public class EdgeWriteThread implements Runnable {
                            final AtomicInteger inEdgeCount,
                            final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap,
                            final Map<Long, Map<String, List<Value>>> vertexInEdgeMap,
-                           final GenericRowWithSchema row) {
+                           final GenericRowWithSchema row,
+                           final int partitionId) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.useProvidedId = useProvidedId;
@@ -62,10 +65,12 @@ public class EdgeWriteThread implements Runnable {
         this.vertexOutEdgeMap = vertexOutEdgeMap;
         this.vertexInEdgeMap = vertexInEdgeMap;
         this.row = row;
+        this.partitionId = partitionId;
     }
 
     @Override
     public void run() {
+        Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
         try {
             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties,
                     this.useProvidedId, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph);
@@ -84,7 +89,7 @@ public class EdgeWriteThread implements Runnable {
                     if (++tryCount > RETRY_LIMIT) {
                         LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                                 inVertexId + " after " + tryCount + " attempts.", e);
-                        if (!ignoreElementCreationFailed) {
+                        if (!this.ignoreElementCreationFailed) {
                             throw e;
                         } else {
                             break;
@@ -99,22 +104,23 @@ public class EdgeWriteThread implements Runnable {
                 }
 
                 // Write edge to vertices' edge caches.
-                if (!graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                    GraphOperations.loadEdgeMap(graph, supernodes, outVertexId,
-                            graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                            edgeLabel, Direction.OUT, outEdgeCount, vertexOutEdgeMap,
-                            ignoreElementCreationFailed);
-                    GraphOperations.loadEdgeMap(graph, supernodes, inVertexId,
-                            graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                            edgeLabel, Direction.IN, inEdgeCount, vertexInEdgeMap,
-                            ignoreElementCreationFailed);
+                if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
+                    GraphOperations.loadEdgeMap(this.graph, this.supernodes, outVertexId,
+                            this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                            edgeLabel, Direction.OUT, this.outEdgeCount, this.vertexOutEdgeMap,
+                            this.ignoreElementCreationFailed);
+                    GraphOperations.loadEdgeMap(this.graph, this.supernodes, inVertexId,
+                            this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                            edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
+                            this.ignoreElementCreationFailed);
                 }
             }
         } catch (final FireflyBulkLoaderException e) {
-            LOGGER.warn("Failed to load edge for row: " + Arrays.toString(row.values()), e);
-            if (!ignoreElementCreationFailed) {
+            LOGGER.warn("Failed to load edge for row: " + Arrays.toString(this.row.values()), e);
+            if (!this.ignoreElementCreationFailed) {
                 throw e;
             }
         }
+        LOGGER.info("Finished " + Thread.currentThread().getName() + " for edge id = " + this.row.getAs("~id"));
     }
 }

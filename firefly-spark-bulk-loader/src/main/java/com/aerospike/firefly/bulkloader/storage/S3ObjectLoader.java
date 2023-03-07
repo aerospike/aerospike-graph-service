@@ -50,7 +50,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
     @Override
     public Configuration loadConfiguration(final String configPath) {
         try (final S3Object s3Object = this.S3_CLIENT.getObject(bucketName, configPath);
-             final InputStream inputStream = s3Object.getObjectContent()) {
+            final InputStream inputStream = s3Object.getObjectContent()) {
             final Properties props = new Properties();
             props.load(inputStream);
             final HashMap<String, Object> configData = new HashMap<>();

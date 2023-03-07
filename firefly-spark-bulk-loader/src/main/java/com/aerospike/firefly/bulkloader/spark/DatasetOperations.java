@@ -226,8 +226,6 @@ public class DatasetOperations implements Serializable {
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, edgeThreadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
-                final AtomicInteger outEdgeCount = new AtomicInteger(0);
-                final AtomicInteger inEdgeCount = new AtomicInteger(0);
                 final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {

@@ -1557,8 +1557,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Edge> bothEdges = traversal.toList();
         List<Edge> inEdges = traversalIn.toList();
         List<Edge> outEdges = traversalOut.toList();
-
-
         Assert.assertEquals(2L, (long) bothEdges.size());
         Assert.assertEquals(bothEdges.get(0), bothEdges.get(1));
     }

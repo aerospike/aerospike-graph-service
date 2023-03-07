@@ -47,9 +47,9 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Warmup(iterations = 1)
 // Takes about 30 minutes to run in GitHub actions.
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
-public class BenchmarkTest {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
-    private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTest.class);
+public class BenchmarkTestFlightsData {
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
+    private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestFlightsData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
     private static final BenchmarkTestUtils.DATASET DATASET_TYPE = BenchmarkTestUtils.DATASET.FLIGHTS;
@@ -140,7 +140,7 @@ public class BenchmarkTest {
     @Test
     public void fireflyBenchmark() throws RunnerException {
         final ChainedOptionsBuilder optBuilder = new OptionsBuilder()
-                .include(BenchmarkTest.class.getSimpleName())
+                .include(BenchmarkTestFlightsData.class.getSimpleName())
                 .detectJvmArgs()
                 .forks(2)
                 .measurementIterations(2)

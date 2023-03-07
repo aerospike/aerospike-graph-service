@@ -1,11 +1,9 @@
 package com.aerospike.firefly.validconnection;
 
-import com.aerospike.firefly.benchmark.BenchmarkTest;
 import com.aerospike.firefly.benchmark.BenchmarkTestUtils;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +12,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 
 public class ValidConnectionTest {
     // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
-    private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ValidConnectionTest.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);

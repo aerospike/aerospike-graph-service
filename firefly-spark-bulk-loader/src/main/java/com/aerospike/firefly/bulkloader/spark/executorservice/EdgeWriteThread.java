@@ -31,8 +31,8 @@ public class EdgeWriteThread implements Runnable {
     private final boolean ignoreElementCreationFailed;
     private final String nullValue;
     private final FireflyGraph graph;
-    private final AtomicInteger outEdgeCount;
-    private final AtomicInteger inEdgeCount;
+    private final AtomicInteger outEdgeCount = new AtomicInteger(0);
+    private final AtomicInteger inEdgeCount = new AtomicInteger(0);
     private final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap;
     private final Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
     private final GenericRowWithSchema row;

@@ -33,6 +33,7 @@ public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
     private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
     private static final int RETRY_LIMIT = 100;
+    
     public static void loadEdgeMap(final FireflyGraph graph,
                                    final Set<Long> supernodes,
                                    final long vertexId,

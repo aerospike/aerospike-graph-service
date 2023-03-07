@@ -290,8 +290,6 @@ public class TestPerformance extends AbstractFireflySuite {
     @Test
     public void testCountStrategy() {
         final long count = 10000;
-
-
         config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "false");
         graph = FireflyGraph.open(config);
         g = graph.traversal();

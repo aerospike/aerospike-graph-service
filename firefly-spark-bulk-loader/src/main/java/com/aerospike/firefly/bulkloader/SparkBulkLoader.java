@@ -63,7 +63,7 @@ public class SparkBulkLoader {
             edgeDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
         }
         catch (final IOException ie) {
-            LOGGER.error("Unable to load config." + ie.getMessage());
+            LOGGER.error("Unable to load config.", ie);
             ie.printStackTrace();
             System.exit(1);
         }

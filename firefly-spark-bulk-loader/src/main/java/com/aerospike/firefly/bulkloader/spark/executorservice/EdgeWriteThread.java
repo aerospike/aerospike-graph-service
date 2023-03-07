@@ -60,8 +60,6 @@ public class EdgeWriteThread implements Runnable {
         this.ignoreElementCreationFailed = ignoreElementCreationFailed;
         this.nullValue = nullValue;
         this.graph = graph;
-        this.outEdgeCount = outEdgeCount;
-        this.inEdgeCount = inEdgeCount;
         this.vertexOutEdgeMap = vertexOutEdgeMap;
         this.vertexInEdgeMap = vertexInEdgeMap;
         this.row = row;

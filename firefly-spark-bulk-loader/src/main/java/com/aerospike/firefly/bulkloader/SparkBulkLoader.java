@@ -43,7 +43,6 @@ public class SparkBulkLoader {
         final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
         // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
-        // TODO: Finalize this number or make it configurable.
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         try {

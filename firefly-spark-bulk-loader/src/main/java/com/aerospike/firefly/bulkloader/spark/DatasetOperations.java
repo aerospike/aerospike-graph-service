@@ -397,5 +397,4 @@ public class DatasetOperations implements Serializable {
         else loader = FileLoader.getInstance();
         config.set(loader.loadConfiguration(configPath));
     }
-
 }

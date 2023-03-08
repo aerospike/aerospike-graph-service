@@ -1,8 +1,11 @@
 package com.aerospike.firefly.performance;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -281,6 +284,34 @@ public class TestPerformance extends AbstractFireflySuite {
                     where(__.otherV().outE().not(__.has("foo"))).profile().next();
         });
         System.out.println(results);
+    }
+
+    @Test
+    public void testCountStrategy() {
+        final long count = 10000;
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "false");
+        graph = FireflyGraph.open(config);
+        g = graph.traversal();
+        graph.getBaseGraph().dropDatabase();
+        for (int i = 0; i < count; i++)
+            graph.addVertex();
+        assertEquals((Long) count, g.V().count().next());
+        System.out.println("=== no fast count ===");
+        System.out.println(PerfUtil.runTestBatch(5, () -> {
+            g.V().count().next();
+        }));
+
+        config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "true");
+        graph = FireflyGraph.open(config);
+        g = graph.traversal();
+        graph.getBaseGraph().dropDatabase();
+        for (int i = 0; i < count; i++)
+            graph.addVertex();
+        assertEquals((Long) count, g.V().count().next());
+        System.out.println("=== with fast count ===");
+        System.out.println(PerfUtil.runTestBatch(5, () -> {
+            g.V().count().next();
+        }));
     }
 
     @Override

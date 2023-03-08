@@ -106,6 +106,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     private static final int MAX_SIZE = 10 * 1000;
     private static final int PROPERTY_COUNT = 1020;
     private static final String RANDOM_STRING;
+
     static {
         final StringBuilder stringBuilder = new StringBuilder();
         while (stringBuilder.length() < STRING_LENGTH) {
@@ -1478,7 +1479,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Traversal<Vertex, Vertex> traversal = noCacheGraph.traversal().V().hasLabel("loops").both("self");
         this.printTraversalForm(traversal);
         List<Vertex> vertices = traversal.toList();
-        Assert.assertEquals(2L, (long)vertices.size());
+        Assert.assertEquals(2L, (long) vertices.size());
         Assert.assertEquals(vertices.get(0), vertices.get(1));
     }
 
@@ -1505,11 +1506,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
         GraphHelper.cloneElements(TinkerFactory.createModern(), noStrategyGraph);
-
-
-
-
-        final Traversal<Vertex, Map<Object, List<String>>> traversal = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph,"marko")).out("created").valueMap();
+        final Traversal<Vertex, Map<Object, List<String>>> traversal = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph, "marko")).out("created").valueMap();
         printTraversalForm(traversal);
         assertTrue(traversal.hasNext());
         List<Map<Object, Object>> totalResults = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph, "marko")).out("created").valueMap().toList();
@@ -1517,7 +1514,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         final Map<Object, List<String>> values = traversal.next();
         Map<Object, List<String>> extraValues;
-        if(traversal.hasNext()) {
+        if (traversal.hasNext()) {
             extraValues = traversal.next();
             LOG.info(extraValues.toString());
         }
@@ -1525,7 +1522,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("java", values.get("lang").get(0));
         assertEquals(2, values.size());
 
-        final Traversal<Vertex, Map<Object, List<String>>> nctraversal = noCacheGraph.traversal().V(convertToVertexId(noCacheGraph,"marko")).out("created").valueMap();
+        final Traversal<Vertex, Map<Object, List<String>>> nctraversal = noCacheGraph.traversal().V(convertToVertexId(noCacheGraph, "marko")).out("created").valueMap();
         printTraversalForm(nctraversal);
         assertTrue(nctraversal.hasNext());
         final Map<Object, List<String>> ncvalues = nctraversal.next();
@@ -1558,11 +1555,10 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Edge> bothEdges = traversal.toList();
         List<Edge> inEdges = traversalIn.toList();
         List<Edge> outEdges = traversalOut.toList();
-
-
-        Assert.assertEquals(2L, (long)bothEdges.size());
+        Assert.assertEquals(2L, (long) bothEdges.size());
         Assert.assertEquals(bothEdges.get(0), bothEdges.get(1));
     }
+
     @Test
     public void g_io_writeXjsonX() throws IOException {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
@@ -1582,13 +1578,29 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public Object convertToEdgeId(final Graph graph, final String outVertexName, String edgeLabel, final String inVertexName) {
         return this.convertToEdge(graph, outVertexName, edgeLabel, inVertexName).id();
     }
+
     @Test
     public void g_EX11X() {
         GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
         Vertex josh = graph.traversal().V().has("name", "josh").next();
         Edge aJoshOutE = graph.traversal().V(josh).outE("created").next();
         List<Vertex> joshOutEInV = graph.traversal().E(aJoshOutE).inV().toList();
-        Object edgeId =  graph.traversal().V(josh).outE("created").as("e").inV().has("name", "lop").<Edge>select("e").toList().get(0);
+        Object edgeId = graph.traversal().V(josh).outE("created").as("e").inV().has("name", "lop").<Edge>select("e").toList().get(0);
+    }
 
+    @Test
+    public void g_V_hasXage_withoutX27X_count() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Traversal<Vertex, Long> traversal = g.V().has("age", P.without(27)).count();
+        this.printTraversalForm(traversal);
+        Assert.assertEquals((Long) 3L, (Long) traversal.next());
+    }
+
+    @Test
+    public void g_V_hasIdXemptyX_count() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        Traversal<Vertex, Long> traversal = g.V().hasId(Collections.emptyList()).count();
+        this.printTraversalForm(traversal);
+        Assert.assertEquals((Long) 0L, (Long) traversal.next());
     }
 }

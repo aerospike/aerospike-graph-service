@@ -1,5 +1,6 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.map.FireflyCountGlobalStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -16,6 +17,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrie
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Element;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -56,11 +58,21 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
 
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;
-        final List<Step> steps = traversal.getSteps();
-        if (steps.size() < 2 ||
-                !(steps.get(0) instanceof GraphStep) ||
-                0 != ((GraphStep) steps.get(0)).getIds().length ||
-                !(steps.get(steps.size() - 1) instanceof CountGlobalStep))
+        final List<Step> steps = new ArrayList<>(traversal.getSteps());
+        steps.removeIf(step -> step.getClass().equals(FireflyCacheGCStep.class));
+        if (steps.size() < 2)
+            return;
+        if (!(steps.get(0) instanceof GraphStep))
+            return;
+        if(((GraphStep) steps.get(0)).getIds() == null)
+            return;
+        try {
+            if (0 != ((GraphStep) steps.get(0)).getIds().length)
+                return;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (!(steps.get(steps.size() - 1) instanceof CountGlobalStep))
             return;
         for (int i = 1; i < steps.size() - 1; i++) {
             final Step current = steps.get(i);

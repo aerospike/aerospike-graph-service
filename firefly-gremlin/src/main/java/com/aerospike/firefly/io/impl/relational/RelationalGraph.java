@@ -450,11 +450,11 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public long getVertexCount() {
-        return AerospikeConnection.InfoOps.getSetSize(db.VERTEX_AERO_SET, db.getNamespace(), db.getClient());
+        return IteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, null, false));
     }
 
     @Override
     public long getEdgeCount() {
-        return AerospikeConnection.InfoOps.getSetSize(db.EDGE_AERO_SET, db.getNamespace(), db.getClient());
+        return IteratorUtils.count(db.scanAllKeysInSet(db.EDGE_AERO_SET, null, false));
     }
 }

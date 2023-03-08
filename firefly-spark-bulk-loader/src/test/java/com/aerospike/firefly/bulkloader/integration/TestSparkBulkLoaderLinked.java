@@ -1,4 +1,4 @@
-package com.aerospike.firefly.spark.bulkloader.integration;
+package com.aerospike.firefly.bulkloader.integration;
 
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 
-import static com.aerospike.firefly.spark.bulkloader.util.BulkLoaderConfigHelper.getConfig;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getConfig;
 
 // TODO: Linked model is deprecated; remove this at a later date.
 @Ignore

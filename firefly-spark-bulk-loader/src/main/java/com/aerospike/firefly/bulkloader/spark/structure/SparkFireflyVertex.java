@@ -1,6 +1,6 @@
-package com.aerospike.firefly.spark.bulkloader.structure;
+package com.aerospike.firefly.bulkloader.spark.structure;
 
-import com.aerospike.firefly.spark.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +27,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         final String[] headers = row.schema().fieldNames();
         String id = null;
         String label = null;
-        final List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        final List<Map.Entry<String, Object>> properties = Collections.synchronizedList(new ArrayList<>());
         for (final String header : headers) {
             if (row.getAs(header) == null) {
                 continue;

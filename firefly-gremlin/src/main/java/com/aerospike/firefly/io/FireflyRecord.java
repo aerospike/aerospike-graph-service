@@ -203,6 +203,7 @@ public class FireflyRecord {
                                     final String set,
                                     final FireflyId id,
                                     final int generation,
+                                    final boolean writeOnly,
                                     final Bin... bins) {
         final Key key = getKey(db, set, id);
         final List<Bin> listOfBins = Arrays.stream(bins).collect(Collectors.toList());
@@ -210,7 +211,23 @@ public class FireflyRecord {
             final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(id.getStorageTypeHint()));
             listOfBins.add(idTypeBin);
         }
-        db.write(key, generation, listOfBins.toArray(new Bin[0]));
+        db.write(key, writeOnly, generation, listOfBins.toArray(new Bin[0]));
+    }
+
+    /**
+     * Write a new FireflyRecord to disk for a TinkerPop Element
+     *
+     * @param db   AerospikeConnection instance
+     * @param set  Aerospike Set to write to
+     * @param id   the ID to use
+     * @param bins Aerospike data bins
+     */
+    public static void writeElement(final AerospikeConnection db,
+                                    final String set,
+                                    final FireflyId id,
+                                    final int generation,
+                                    final Bin... bins) {
+        writeElement(db, set, id, generation, false, bins);
     }
 
     @Override

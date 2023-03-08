@@ -754,7 +754,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                         Value.get(vpPropertiesTypeHints, MapOrder.KEY_ORDERED));
 
                 // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1,
+                // Also set writeOnly=true, if vertex already exists we will fail.
+                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, true,
                         cacheDisabledBin,
                         labelBin,
                         edgeCacheOutBin,

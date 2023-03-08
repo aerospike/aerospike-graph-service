@@ -356,7 +356,7 @@ jobs:
           sleep 30
           
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:

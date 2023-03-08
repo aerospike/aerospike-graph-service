@@ -1,8 +1,10 @@
 package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapReturnType;
@@ -24,8 +26,8 @@ import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
-import com.aerospike.firefly.structure.iterator.FireflyVertexIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
@@ -350,14 +352,27 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (ElementHelper.getIdValue(keyValues).isPresent() && !features.vertex().supportsUserSuppliedIds())
             throw Vertex.Exceptions.userSuppliedIdsNotSupported();
 
+        final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
+        final List<Map.Entry<String, Object>> properties = convertFullyQualified(
+                this.features().vertex().supportsNullPropertyValues(), keyValues);
+
         // Create a new id or use the provided user-supplied id (if present and supported).
         FireflyId idValue;
         if (ElementHelper.getIdValue(keyValues).isEmpty()) {
             idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
-            // TODO: GRAPH-186.
-            while (vertexExists(idValue)) {
-                idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
+            Vertex v = null;
+            while (v == null) {
+                try {
+                    v = writeVertex(idValue, label, properties);
+                } catch (AerospikeException e) {
+                    if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                        idValue = getIdFactory().createFromManager(this, FireflyVertex.class);
+                    } else {
+                        throw e;
+                    }
+                }
             }
+            return v;
         } else {
             try {
                 idValue = getIdFactory().createFromKeyValues(FireflyVertex.class, keyValues);
@@ -365,17 +380,16 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 // Invalid type for id.
                 throw Vertex.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
             }
-            if (vertexExists(idValue)) {
-                throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
+            try {
+                return writeVertex(idValue, label, properties);
+            }  catch (AerospikeException e) {
+                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
+                } else {
+                    throw e;
+                }
             }
         }
-
-        // Get label from key value pairs.
-        final String label = ElementHelper.getLabelValue(keyValues).orElse(Vertex.DEFAULT_LABEL);
-
-        // Write fully qualified Vertex.
-        final List<Map.Entry<String, Object>> properties = convertFullyQualified(this.features().vertex().supportsNullPropertyValues(), keyValues);
-        return writeVertex(idValue, label, properties);
     }
 
     public List<Map.Entry<String, Object>> convertFullyQualified(final boolean supportNullProperties, final Object... propertyKeyValues) {
@@ -457,7 +471,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
+        return new FireflyBatchReadVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
     }
 
     @Override

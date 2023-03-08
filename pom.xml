@@ -147,7 +147,7 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>200m</maxheap>
+                <maxheap>800m</maxheap>
                 <minheap>100m</minheap>
             </properties>
         </profile>

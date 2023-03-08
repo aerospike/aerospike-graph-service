@@ -891,7 +891,7 @@ public class AerospikeConnection implements AutoCloseable {
         } else {
             newBins = bins;
         }
-        write(key, -1, newBins);
+        write(key, false, -1, newBins);
     }
 
     /**
@@ -900,7 +900,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param key  Key to write Bins into
      * @param bins Data Bin(s) to write
      */
-    protected void write(final Key key, final int generation, final Bin... bins) {
+    protected void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
         Bin[] newBins;
         //@todo This is a temporary measure to pack the user key into a bin.
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
@@ -914,6 +914,9 @@ public class AerospikeConnection implements AutoCloseable {
         writeMetric.incrementAndGet();
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
+        if (writeOnly) {
+            writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+        }
         writePolicy.maxRetries = AEROSPIKE_CONNECTION_MAX_RETRY;
         if (generation != -1) {
             // Set generation for write.

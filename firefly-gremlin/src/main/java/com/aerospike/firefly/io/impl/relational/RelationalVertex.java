@@ -565,52 +565,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
     }
 
-    /**
-     * Get property id map and write to vertex property set.
-     *
-     * @param graph      Graph to use.
-     * @param properties Properties.
-     * @param vertexId   Vertex id.
-     * @return Property id map.
-     */
-    private static Map<String, List<FireflyId>> getPropertyIdMapAndWrite(final FireflyGraph graph,
-                                                                         final List<Map.Entry<String, Object>> properties,
-                                                                         final FireflyId vertexId) {
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Loop through properties and populate the vertex property id cache and vertex property label id map.
-        final Map<String, List<FireflyId>> vertexPropertyLabelIdMap = new TreeMap<>();
-        final Map<String, List<Object>> vertexPropertyValueMap = new TreeMap<>();
-        properties.forEach(vp -> {
-            if (!vertexPropertyValueMap.containsKey(vp.getKey())) {
-                vertexPropertyValueMap.put(vp.getKey(), new ArrayList<>());
-            }
-            vertexPropertyValueMap.get(vp.getKey()).add(vp.getValue());
-        });
-        vertexPropertyValueMap.forEach((key, value) -> value.forEach(v -> {
-                    // Get id for vertex property.
-                    final FireflyId vertexPropertyId =
-                            graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
-
-
-                    // Add to vertex property ids to map.
-                    if (!vertexPropertyLabelIdMap.containsKey(key)) {
-                        vertexPropertyLabelIdMap.put(key, new ArrayList<>());
-                    }
-                    vertexPropertyLabelIdMap.get(key).add(vertexPropertyId);
-
-                    // Create a bin for the vertex property name (key) and a bin for the vertex property id.
-                    final Bin vpkBin = new Bin(db.VERTEX_PROPERTY_NAME, key);
-                    final Bin pviBin = new Bin(db.PARENT_VERTEX_ID, vertexId.getStorageId());
-
-                    // Write vertex property with type hint.
-                    db.writeTypeHintedValueToMap(db.VERTEX_PROPERTY_AERO_SET, vertexPropertyId, db.KEY_VALUE, key, v,
-                            db.VP_TYPE_HINTS, vpkBin, pviBin);
-                }
-        ));
-        return vertexPropertyLabelIdMap;
-    }
-
     static class PropertyValueIdMaps {
         public final Map<String, Object> valueMap;
         public final Map<String, FireflyId> idMap;

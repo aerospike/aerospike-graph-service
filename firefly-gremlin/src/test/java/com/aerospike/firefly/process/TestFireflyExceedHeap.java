@@ -35,8 +35,8 @@ public class TestFireflyExceedHeap extends AbstractFireflySuite {
         // mvn test -pl firefly-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
         long heapSize = Runtime.getRuntime().maxMemory();
         long heapSizeMB = heapSize / 1024 / 1024;
-        Assert.assertTrue(heapSizeMB < 820);
-        Assert.assertTrue(heapSizeMB > 780);
+        Assert.assertTrue(heapSizeMB < 1020);
+        Assert.assertTrue(heapSizeMB > 980);
 
 
         // 1000000 vertices @ 16 bytes per entry * 1000 entries = 16 kB per vertex = 16 GB total.

@@ -147,7 +147,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String IN_OUT_SET;
     public final String OUT_IN_SET;
     public final String OUT_OUT_SET;
-    protected final String VERTEX_EDGELIST_AERO_SET;
     public final String VERTEX_PROPERTY_AERO_SET;
     protected final String EDGE_ID_KEY;
     protected final String EDGE_ID_BIN;
@@ -164,13 +163,11 @@ public class AerospikeConnection implements AutoCloseable {
 
     public final String IN_EDGE_COUNTER;
     public final String OUT_EDGE_COUNTER;
-    public final String VP_COUNTER;
     public final long ID_CACHE_SIZE;
     public final String PROPERTIES;
     protected final String VP_PROPERTIES;
     public final String TYPE_HINTS;
     public final String VP_TYPE_HINTS;
-    public final String KEY_VALUE;
     protected final String COUNTER;
     protected final String ID_MANAGER_SET;
     public final String ID_TYPE_BIN;
@@ -231,7 +228,6 @@ public class AerospikeConnection implements AutoCloseable {
         IN_OUT_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_OUT_SET, conf);
         OUT_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_IN_SET, conf);
         OUT_OUT_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_OUT_SET, conf);
-        VERTEX_EDGELIST_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_EDGELIST_AERO_SET, conf);
         VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_PROPERTY_AERO_SET, conf);
         EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
         EDGE_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BIN, conf);
@@ -249,7 +245,6 @@ public class AerospikeConnection implements AutoCloseable {
         VP_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_PROPERTIES, conf);
         TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TYPE_HINTS, conf);
         VP_TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_TYPE_HINTS, conf);
-        KEY_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.KEY_VALUE, conf);
         COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.COUNTER, conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET, conf);
         ID_TYPE_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE_BIN, conf);
@@ -263,7 +258,6 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGE_COUNTER, conf);
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
-        VP_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_COUNTER, conf);
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
         V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
         E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
@@ -1409,7 +1403,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, ID_MANAGER_SET, null);
             client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
             client.truncate(null, namespace, TEST_SET, null);
-            client.truncate(null, namespace, VERTEX_EDGELIST_AERO_SET, null);
             client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
             client.truncate(null, namespace, GRAPH_METADATA_SET, null);
             client.truncate(null, namespace, INDEX_METADATA, null);

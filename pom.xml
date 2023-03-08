@@ -107,7 +107,7 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>
-                       <exclude>**/BenchmarkTest.java</exclude>
+                       <exclude>**/BenchmarkTestFlightsData.java</exclude>
                        <exclude>**/BenchmarkTestSyntheticData.java</exclude>
                        <exclude>**/ValidConnectionTest.java</exclude>
                        <exclude>**/TestMovielens1M.java</exclude>
@@ -147,7 +147,7 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>800m</maxheap>
+                <maxheap>1000m</maxheap>
                 <minheap>100m</minheap>
             </properties>
         </profile>

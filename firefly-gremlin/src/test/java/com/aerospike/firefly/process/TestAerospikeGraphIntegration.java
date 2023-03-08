@@ -1506,8 +1506,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
         GraphHelper.cloneElements(TinkerFactory.createModern(), noStrategyGraph);
-
-
         final Traversal<Vertex, Map<Object, List<String>>> traversal = noStrategyGraph.traversal().V(convertToVertexId(noStrategyGraph, "marko")).out("created").valueMap();
         printTraversalForm(traversal);
         assertTrue(traversal.hasNext());

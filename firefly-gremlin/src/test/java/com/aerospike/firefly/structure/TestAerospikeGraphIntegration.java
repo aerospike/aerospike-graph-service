@@ -1046,13 +1046,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void shouldAllowIdAssignment() {
-        Vertex v = this.graph.addVertex(new Object[0]);
+    public void shouldNotAllowIdAssignment() {
+        Vertex v = graph.addVertex();
         Object id = Long.valueOf(123131231L);
-        v.property(VertexProperty.Cardinality.single, "name", "stephen", new Object[]{T.id, id});
-        this.tryCommit(this.graph, (g) -> {
-            Assert.assertEquals(id, v.property("name").id());
-        });
+        Assert.assertThrows(UnsupportedOperationException.class,
+                () -> v.property(VertexProperty.Cardinality.single, "name", "stephen",
+                        new Object[]{T.id, id}));
     }
 
     @Test

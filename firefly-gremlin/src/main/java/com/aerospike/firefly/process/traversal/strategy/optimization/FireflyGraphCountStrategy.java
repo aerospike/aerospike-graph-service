@@ -53,8 +53,6 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
         // but since there is another known issue with Info lagging, and querying all nodes would produce results
         // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
         final FireflyGraph fireflyGraph = (FireflyGraph) traversal.getGraph().get();
-        if (fireflyGraph.getBaseGraph().getClient().getNodes().length > 1)
-            throw new RuntimeException("fast count not supported for multi node");
 
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;

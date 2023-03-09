@@ -52,7 +52,7 @@ jobs:
           
           # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
           echo "Building and tagging docker image for linux/amd64 and linux/arm64"
-          docker buildx build --push --platform linux/amd64,linux/arm64 --tag $DOCKER_IMAGE --tag $OUTPUT_IMAGE .
+          docker buildx build --build-arg RELEASE_BUILD=1 --push --platform linux/amd64,linux/arm64 --tag $DOCKER_IMAGE --tag $OUTPUT_IMAGE .
 
       - name: Java 11 Install
         uses: actions/setup-java@v3

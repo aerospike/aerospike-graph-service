@@ -1,6 +1,8 @@
 FROM amazoncorretto:11
 
 # Set input arguments.
+ARG RELEASE_BUILD
+ENV RELEASE_BUILD=$RELEASE_BUILD
 ARG AEROSPIKE_HOST
 ENV AEROSPIKE_HOST=$AEROSPIKE_HOST
 ARG ENTRYPOINT
@@ -60,7 +62,12 @@ WORKDIR /opt/aerospike-firefly
 RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
-RUN gremlin-server.sh install 'com.aerospike firefly-gremlin 0.5.0-SNAPSHOT'
+# If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
+RUN \
+    if [[ $RELEASE_BUILD -eq "1" ]] ;  \
+    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0' ;  \
+    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT' ;  \
+    fi
 
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly

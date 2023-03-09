@@ -58,6 +58,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
    - This should build a jar located at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
    - The jar prefixed with `original` can be ignored
 * Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.local.dir=</path/to/local>/work_dir --conf spark.worker.cleanup.enabled=true --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c <absolute/path/to>/config.properties`
+   - Spark uses `/tmp` as default local work/scratch directory. To specify a custom local path on a shared storage, make sure to pass the entire path to `spark.local.dir` conf. Spark will auto create `work_dir`
    - The configuration to achieve maximum parallelism in Spark is achieved by allocating the right number of the number of cores per executor, memory per executor and number of partitions (parallelism) for task creation as defined in the link below when running the bulk-loader in AWS.
 
 #### Running the Bulk Loader in AWS

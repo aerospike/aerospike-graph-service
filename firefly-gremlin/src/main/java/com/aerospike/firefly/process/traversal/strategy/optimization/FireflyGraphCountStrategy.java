@@ -48,12 +48,6 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        // TODO:
-        // this can be supported by querying all nodes and dividing by replication factor,
-        // but since there is another known issue with Info lagging, and querying all nodes would produce results
-        // at different moments in time, perhaps we should wait for another official global countRecords(set_name) api
-        final FireflyGraph fireflyGraph = (FireflyGraph) traversal.getGraph().get();
-
         if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = new ArrayList<>(traversal.getSteps());

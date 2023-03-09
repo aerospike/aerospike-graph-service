@@ -42,14 +42,14 @@ Additional Bulk Loader specific configurations should be added to it to create t
      - Add `%SPARK_HOME%\bin` and `%HADOOP_HOME%\bin` to the `Path` variable
      - Start Master by running `spark-class org.apache.spark.deploy.master.Master` on a terminal
      - Start a Worker by running `spark-class org.apache.spark.deploy.worker.Worker` on a terminal
-     - Starting Master will show you what your Spark URL is in the format of `spark://192.168.1.69:7077`
-     - Starting Master will also give access to a UI located at `localhost:XXXX` to see information such as the Spark URL. The port will be displayed in a message similar to: `Successfully started service 'MasterUI' on port 8080.`
 3. macOS/Linux:
    - Make sure passwordless ssh is enabled on your local mac (run `ssh localhost` to confirm)
    - Create a `$SPARK_HOME` env variable pointing to `bin` directory in the unzipped `apache-spark` directory in your `.bash_profile` script
-   - Run `start-all.sh` located at `%SPARK_HOME%/sbin`
+   - Run `start-all.sh` located at `%SPARK_HOME%/sbin` to start spark master and worker(s)
    - Navigate to `http://localhost:8080` to check if the standalone cluster is up and running
-   - Copy spark master url `spark://...` from the webui to be used with `spark-submit` command
+4. Monitoring spark cluster locally:
+    - Starting Master will provide access to a Spark web UI located at `localhost:8080` to track your cluster details and job runs. The port will be displayed in a message similar to: `Successfully started service 'MasterUI' on port 8080.`
+    - The web UI will also provide spark master URL in the format of `spark://192.168.1.69:7077` to used with spark-submit command to run your bulk loader
 
 #### Running
 

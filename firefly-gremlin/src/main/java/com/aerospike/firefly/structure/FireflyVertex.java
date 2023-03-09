@@ -2,7 +2,6 @@ package com.aerospike.firefly.structure;
 
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -81,7 +80,10 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
      * @return the newly created vertex property
      */
     @Override
-    public <V> VertexProperty<V> property(VertexProperty.Cardinality cardinality, String key, V value, Object... keyValues) {
+    public <V> VertexProperty<V> property(final VertexProperty.Cardinality cardinality,
+                                          final String key,
+                                          final V value,
+                                          final Object... keyValues) {
         if (FireflyHelper.inComputerMode(this.graph)) {
             throw new RuntimeException(UNIMPLEMENTED);
         }
@@ -91,6 +93,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         ElementHelper.validateProperty(key, value);
 
+        // If we do not support null and the value is null, we should return empty.
         if (!allowNullPropertyValues && null == value) {
             final VertexProperty.Cardinality card = null == cardinality ? graph.features().vertex().getCardinality(key) : cardinality;
             if (VertexProperty.Cardinality.single == card)
@@ -99,14 +102,17 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final Optional<VertexProperty<V>> optionalVertexProperty = ElementHelper.stageVertexProperty(this, cardinality, key, value, keyValues);
-        if (optionalVertexProperty.isPresent()) return optionalVertexProperty.get();
-
-        // If we do not support null and the value is null, we should return empty.
-        if (!allowNullPropertyValues && null == value) {
-            return VertexProperty.empty();
+        if (optionalVertexProperty.isPresent()) {
+            return optionalVertexProperty.get();
         }
 
-        // Create Firefly id for vertex property.
+        // Verify if this is a supported configuration.
+        if (!graph.features().vertex().properties().supportsUserSuppliedIds() &&
+                ElementHelper.getIdValue(keyValues).isPresent()) {
+            throw VertexProperty.Exceptions.userSuppliedIdsNotSupported();
+        }
+
+        // Create Firefly id for vertex property. If user id is present then we support it based on above code.
         final FireflyId vertexPropertyId = ElementHelper.getIdValue(keyValues).isPresent() ?
                 graph.getIdFactory().createId(ElementHelper.getIdValue(keyValues).get(), FireflyVertexProperty.class) :
                 graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);

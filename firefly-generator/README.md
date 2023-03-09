@@ -1,7 +1,7 @@
 ## Firefly IdentityGraph Generator
 
 * IdentityGenerator is a Runnable class that spawns multiple independent threads/workers each executing their own IdentityGenerator instance.
-* Given the nature of the underlying graph structure, it is not necessary for the individual workers to have knowledge/reference to the subgraphs of parallel IdentityGenerators. Such a structure allows for an embarrassingly parallel graph generator.
+* Given the nature of the underlying graph structure, it is not necessary for the individual workers to have knowledge/reference to the subgraphs of parallel IdentityGenerators. Such a structure allows for a parallel graph generator.
 
 ## Prerequisites
 

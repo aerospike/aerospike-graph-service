@@ -42,14 +42,13 @@ Additional Bulk Loader specific configurations should be added to it to create t
      - Add `%SPARK_HOME%\bin` and `%HADOOP_HOME%\bin` to the `Path` variable
      - Start Master by running `spark-class org.apache.spark.deploy.master.Master` on a terminal
      - Start a Worker by running `spark-class org.apache.spark.deploy.worker.Worker` on a terminal
-     - Starting Master will show you what your Spark URL is in the format of `spark://192.168.1.69:7077`
-     - Starting Master will also give access to a UI located at `localhost:XXXX` to see information such as the Spark URL. The port will be displayed in a message similar to: `Successfully started service 'MasterUI' on port 8080.`
 3. macOS/Linux:
    - Make sure passwordless ssh is enabled on your local mac (run `ssh localhost` to confirm)
    - Create a `$SPARK_HOME` env variable pointing to `bin` directory in the unzipped `apache-spark` directory in your `.bash_profile` script
-   - Run `start-all.sh` located at `%SPARK_HOME%/sbin`
-   - Navigate to `http://localhost:8080` to check if the standalone cluster is up and running
-   - Copy spark master url `spark://...` from the webui to be used with `spark-submit` command
+   - Run `start-all.sh` located at `%SPARK_HOME%/sbin` to start spark master and worker(s)
+4. Monitoring spark cluster locally:
+    - Starting Master will provide access to a Spark web UI located at `localhost:8080` to track your cluster details and job runs. Navigate to `http://localhost:8080` to check if the standalone cluster is up and running
+    - The web UI will also provide spark master URL in the format of `spark://192.168.1.69:7077` to used with spark-submit command to run your bulk loader
 
 #### Running
 
@@ -58,7 +57,8 @@ Additional Bulk Loader specific configurations should be added to it to create t
 * Build the `firefly-spark-bulk-loader` jar by running `mvn clean install -DskipTests` in the `firefly` root directory
    - This should build a jar located at `firefly/firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar`
    - The jar prefixed with `original` can be ignored
-* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.spark.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c </path/to>/config.properties`
+* Submit a spark job locally with the following command: `spark-submit --master <SPARK_URL> --conf spark.local.dir=</path/to/local>/work_dir --conf spark.worker.cleanup.enabled=true --conf spark.driver.cores=1 --conf spark.driver.memory=1gb --conf spark.executor.cores=2 --conf spark.executor.instances=2 --conf spark.executor.memoryOverhead=1g --conf spark.executor.memory=2g --conf spark.task.cpus=1 --conf spark.shuffle.service.enable=true --conf spark.sql.shuffle.partitions=100 --conf spark.default.parallelism=100 --conf spark.memory.fraction=0.6 --conf spark.locality.wait=0 --class com.aerospike.firefly.bulkloader.SparkBulkLoader </path/to>/firefly-spark-bulk-loader-X.Y.Z-SNAPSHOT.jar -e local -c <absolute/path/to>/config.properties`
+   - Spark uses `/tmp` as default local work/scratch directory. To specify a custom local path on a shared storage, make sure to pass the entire path to `spark.local.dir` conf. Spark will auto create `work_dir`
    - The configuration to achieve maximum parallelism in Spark is achieved by allocating the right number of the number of cores per executor, memory per executor and number of partitions (parallelism) for task creation as defined in the link below when running the bulk-loader in AWS.
 
 #### Running the Bulk Loader in AWS

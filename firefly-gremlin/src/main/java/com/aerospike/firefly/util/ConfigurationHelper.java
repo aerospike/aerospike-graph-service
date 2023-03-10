@@ -135,7 +135,6 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
         public static final String TLS = "TLS";
-
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{

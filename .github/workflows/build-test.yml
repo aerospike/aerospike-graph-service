@@ -479,7 +479,7 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin  -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl firefly-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
   test-docker-with-custom-properties:
     name: Test Docker Image with Custom properties
     timeout-minutes: 30

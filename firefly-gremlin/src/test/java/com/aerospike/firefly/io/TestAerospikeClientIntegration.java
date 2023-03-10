@@ -740,6 +740,4 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(2, hashRecords.length);
     }
 
-
-
 }

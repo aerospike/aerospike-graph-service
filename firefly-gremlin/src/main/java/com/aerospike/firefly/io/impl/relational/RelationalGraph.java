@@ -8,7 +8,6 @@ import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.MapOrder;
-import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
@@ -48,7 +47,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLE
  */
 public abstract class RelationalGraph extends FireflyGraph {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalGraph.class);
-    public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
+
 
     /**
      * Constructor for RelationalGraph.

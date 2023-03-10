@@ -1465,6 +1465,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+
     /**
      * Delete all data from the namespace
      */

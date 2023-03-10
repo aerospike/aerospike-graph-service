@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -16,7 +17,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyVertex.class);
     private static final String DEFAULT_LABEL = "vertex";
 
-    private SparkFireflyVertex(final long id, final String label,
+    private SparkFireflyVertex(final Object id, final String label,
                                  final List<Map.Entry<String, Object>> properties) {
         super(id, label, properties);
     }
@@ -56,7 +57,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
         if (label == null) {
             label = DEFAULT_LABEL;
         }
-        return new SparkFireflyVertex(Long.parseLong(id), label, properties);
+        return new SparkFireflyVertex(PropertyValueParser.parseId(id), label, properties);
     }
 
     @Override

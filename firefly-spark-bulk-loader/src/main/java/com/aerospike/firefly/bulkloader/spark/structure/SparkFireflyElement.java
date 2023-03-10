@@ -14,11 +14,11 @@ public abstract class SparkFireflyElement implements Serializable {
     public static final String ID_HEADER = "~id";
     protected static final String LABEL_HEADER = "~label";
 
-    protected final long id;
+    protected final Object id;
     protected final String label;
     protected final List<Map.Entry<String, Object>> properties;
 
-    protected SparkFireflyElement(final long id, final String label,
+    protected SparkFireflyElement(final Object id, final String label,
                                 final List<Map.Entry<String, Object>> properties) {
         this.id = id;
         this.label = label;
@@ -27,7 +27,7 @@ public abstract class SparkFireflyElement implements Serializable {
 
     public abstract FireflyId getFireflyId(String setName);
 
-    public long getId() {
+    public Object getId() {
         return this.id;
     }
 

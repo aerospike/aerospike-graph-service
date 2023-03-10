@@ -45,4 +45,12 @@ public class PropertyValueParser {
 
         return value;
     }
+
+    public static Object parseId(final String id) {
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException ignored) {
+        }
+        return id;
+    }
 }

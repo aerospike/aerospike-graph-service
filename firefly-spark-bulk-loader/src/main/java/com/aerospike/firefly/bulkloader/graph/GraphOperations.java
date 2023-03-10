@@ -35,13 +35,13 @@ public class GraphOperations {
     private static final int RETRY_LIMIT = 100;
     
     public static void loadEdgeMap(final FireflyGraph graph,
-                                   final Set<Long> supernodes,
-                                   final long vertexId,
+                                   final Set<Object> supernodes,
+                                   final Object vertexId,
                                    final FireflyId cachedEdgeId,
                                    final String edgeLabel,
                                    final Direction direction,
                                    final AtomicInteger edgeCount,
-                                   final Map<Long, Map<String, List<Value>>> edgeMap,
+                                   final Map<Object, Map<String, List<Value>>> edgeMap,
                                    final boolean ignoreElementCreationFailed) {
         synchronized (SparkBulkLoader.class) {
             if (!supernodes.contains(vertexId)) {
@@ -64,7 +64,7 @@ public class GraphOperations {
     }
 
     static private void writeEdgesToFireflyVertex(final FireflyGraph graph,
-                                                  final long vertexId,
+                                                  final Object vertexId,
                                                   final Direction direction,
                                                   final String label,
                                                   final List<Value> edgeIds,
@@ -146,10 +146,10 @@ public class GraphOperations {
 
     public static void flushEdgeMap(final FireflyGraph graph,
                                     final Direction direction,
-                                    final Map<Long, Map<String, List<Value>>> edgeMap,
+                                    final Map<Object, Map<String, List<Value>>> edgeMap,
                                     final boolean ignoreElementCreationFailed) {
-        for (Map.Entry<Long, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
-            final long vertexId = vertexIdToLabelMaps.getKey();
+        for (Map.Entry<Object, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+            final Object vertexId = vertexIdToLabelMaps.getKey();
             final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
                 writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),

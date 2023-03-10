@@ -139,7 +139,7 @@ public abstract class TestSparkBulkLoaderBase {
             final FireflyVertex fireflyVertex = (FireflyVertex) vertex;
 
             // Car models and vertex have <=1 edge in either direction and therefore are not supernodes, all other vertices are.
-            if ("model".equals(vertex.label()) || "vertex".equals(vertex.label())) {
+            if ("model".equals(vertex.label()) || "vertex".equals(vertex.label()) || "modell".equals(vertex.label())) {
                 Assert.assertFalse(fireflyVertex.isEdgeCacheDisabled());
             } else {
                 Assert.assertTrue(fireflyVertex.isEdgeCacheDisabled());
@@ -155,13 +155,13 @@ public abstract class TestSparkBulkLoaderBase {
 
     private void testEdgeCount(final GraphTraversalSource g) {
         long edgeCount = g.E().count().next();
-        Assert.assertEquals(11, edgeCount);
+        Assert.assertEquals(24, edgeCount);
         edgeCount = g.E().hasLabel("drives").count().next();
-        Assert.assertEquals(2, edgeCount);
+        Assert.assertEquals(4, edgeCount);
         edgeCount = g.E().hasLabel("worksWith").count().next();
-        Assert.assertEquals(6, edgeCount);
+        Assert.assertEquals(12, edgeCount);
         edgeCount = g.E().hasLabel("managedBy").count().next();
-        Assert.assertEquals(2, edgeCount);
+        Assert.assertEquals(7, edgeCount);
     }
 
     private void testEdgeLabelAndProperty(final GraphTraversalSource g) {
@@ -195,7 +195,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     private void testVertexCount(final GraphTraversalSource g) {
         long vertexCount = g.V().count().next();
-        Assert.assertEquals(7, vertexCount);
+        Assert.assertEquals(13, vertexCount);
         vertexCount = g.V().hasLabel("person").count().next();
         Assert.assertEquals(4, vertexCount);
         vertexCount = g.V().hasLabel("model").count().next();

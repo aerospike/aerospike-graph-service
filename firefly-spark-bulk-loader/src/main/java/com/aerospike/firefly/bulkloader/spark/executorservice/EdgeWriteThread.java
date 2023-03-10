@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class EdgeWriteThread implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteThread.class);
-    private final Set<Long> supernodes;
+    private final Set<Object> supernodes;
     private final boolean ignoreFailedProperties;
     private final boolean useProvidedId;
     private final boolean keepProvidedId;
@@ -32,21 +32,21 @@ public class EdgeWriteThread implements Runnable {
     private final FireflyGraph graph;
     private final AtomicInteger outEdgeCount = new AtomicInteger(0);
     private final AtomicInteger inEdgeCount = new AtomicInteger(0);
-    private final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap;
-    private final Map<Long, Map<String, List<Value>>> vertexInEdgeMap;
+    private final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap;
+    private final Map<Object, Map<String, List<Value>>> vertexInEdgeMap;
     private final GenericRowWithSchema row;
     private static final int RETRY_LIMIT = 100;
     private final int partitionId;
     
-    public EdgeWriteThread(final Set<Long> supernodes,
+    public EdgeWriteThread(final Set<Object> supernodes,
                            final boolean ignoreFailedProperties,
                            final boolean useProvidedId,
                            final boolean keepProvidedId,
                            final String providedIdPropertyName,
                            final boolean ignoreElementCreationFailed,
                            final String nullValue, FireflyGraph graph,
-                           final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap,
-                           final Map<Long, Map<String, List<Value>>> vertexInEdgeMap,
+                           final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap,
+                           final Map<Object, Map<String, List<Value>>> vertexInEdgeMap,
                            final GenericRowWithSchema row,
                            final int partitionId) {
         this.supernodes = supernodes;
@@ -70,14 +70,14 @@ public class EdgeWriteThread implements Runnable {
             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties,
                     this.useProvidedId, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph);
             final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph().EDGE_AERO_SET);
-            final long inVertexId = sparkEdge.getInVertexId();
-            final long outVertexId = sparkEdge.getOutVertexId();
+            final Object inVertexId = sparkEdge.getInVertexId();
+            final Object outVertexId = sparkEdge.getOutVertexId();
             final String edgeLabel = sparkEdge.getLabel();
             int tryCount = 0;
             boolean succeeded = false;
             while (!succeeded) {
                 try {
-                    this.graph.bulkWriteEdge(sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                    this.graph.bulkWriteEdge((Long) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                             inVertexId, outVertexId);
                     succeeded = true;
                 } catch (final AerospikeException e) {

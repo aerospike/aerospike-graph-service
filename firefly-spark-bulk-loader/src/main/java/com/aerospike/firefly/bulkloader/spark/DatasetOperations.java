@@ -13,6 +13,7 @@ import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
+import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -67,7 +68,7 @@ public class DatasetOperations implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
     private static final int threadPoolBufferSize = 4;
     private static final AtomicReference<Configuration> config = new AtomicReference<>();
-    private static final Set<Long> supernodes = new HashSet<>();
+    private static final Set<Object> supernodes = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
 
     /**
@@ -154,7 +155,7 @@ public class DatasetOperations implements Serializable {
                     final SparkFireflyVertex sparkVertex =
                             SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
 
-                    final long id = sparkVertex.getId();
+                    final Object id = sparkVertex.getId();
                     final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
                     Vertex v = vertexById.next();
                     if (vertexById.hasNext()) {
@@ -225,8 +226,8 @@ public class DatasetOperations implements Serializable {
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, edgeThreadFactory);
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
-                final Map<Long, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
-                final Map<Long, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
+                final Map<Object, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId,
@@ -319,16 +320,17 @@ public class DatasetOperations implements Serializable {
     public static void extractSupernodes(final Dataset<Row> persistedEdgeDS, final Configuration config) {
         final JavaRDD<Row> edgeRDD = persistedEdgeDS.javaRDD();
 
-        // Values in csv for ~from and ~to will return as strings but are longs.
-        final JavaPairRDD<Long, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
-                new Tuple2<>(Long.parseLong(row.getAs("~from")), 1L));
-        final JavaPairRDD<Long, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Long, Long>) row ->
-                new Tuple2<>(Long.parseLong(row.getAs("~to")), 1L));
+        // Values in csv for ~from and ~to will return as strings but can be strings or longs.
+        final JavaPairRDD<Object, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
+                new Tuple2<>(PropertyValueParser.parseId(row.getAs("~from")), 1L));
+
+        final JavaPairRDD<Object, Long> toPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->
+                new Tuple2<>(PropertyValueParser.parseId(row.getAs("~to")), 1L));
 
         // Aggregate together by keys (sum the count of how many times a vertex ID appeared).
-        final JavaPairRDD<Long, Long> fromCountPairRDD =
+        final JavaPairRDD<Object, Long> fromCountPairRDD =
                 fromPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
-        final JavaPairRDD<Long, Long> toCountPairRDD =
+        final JavaPairRDD<Object, Long> toCountPairRDD =
                 toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
         // Get the supernode threshold from Firefly config.
@@ -336,20 +338,20 @@ public class DatasetOperations implements Serializable {
         LOGGER.info("supernodeThreshold: " + supernodeThreshold);
 
         // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
-        final JavaPairRDD<Long, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
-                (Function<Tuple2<Long, Long>, Boolean>)
+        final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
+                (Function<Tuple2<Object, Long>, Boolean>)
                         longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
 
-        final JavaPairRDD<Long, Long> filteredToCountPairRDD = toCountPairRDD.filter(
-                (Function<Tuple2<Long, Long>, Boolean>)
+        final JavaPairRDD<Object, Long> filteredToCountPairRDD = toCountPairRDD.filter(
+                (Function<Tuple2<Object, Long>, Boolean>)
                         longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
 
-        final JavaRDD<Long> fromSupernodes = filteredFromCountPairRDD.keys();
-        final JavaRDD<Long> toSupernodes = filteredToCountPairRDD.keys();
+        final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
+        final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
 
-        final List<Long> fromSuperNodeList = fromSupernodes.collect();
+        final List<Object> fromSuperNodeList = fromSupernodes.collect();
         LOGGER.info("Identified ~from supernodes: " + fromSuperNodeList);
-        final List<Long> toSuperNodeList = toSupernodes.collect();
+        final List<Object> toSuperNodeList = toSupernodes.collect();
         LOGGER.info("Identified ~to supernodes: " + toSuperNodeList);
 
         // Combine into a tracking set.
@@ -359,14 +361,14 @@ public class DatasetOperations implements Serializable {
 
         // Disable edge caches for supernodes.
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            for (final Long supernodeId : supernodes) {
+            for (final Object supernodeId : supernodes) {
                 final AerospikeConnection db = graph.getBaseGraph();
                 final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
                 int tryCount = 0;
                 boolean succeeded = false;
                 while (!succeeded) {
                     try {
-                        db.getClient().put(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, supernodeId),
+                        db.getClient().put(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(supernodeId)),
                                 cacheDisabledBin);
                         succeeded = true;
                     } catch (final AerospikeException e) {

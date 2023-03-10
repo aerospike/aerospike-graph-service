@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
@@ -19,10 +20,10 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     public static final String FROM_VERTEX_HEADER = "~from";
     public static final String TO_VERTEX_HEADER = "~to";
 
-    private final long fromVertexId;
-    private final long toVertexId;
+    private final Object fromVertexId;
+    private final Object toVertexId;
 
-    private SparkFireflyEdge(final long edgeId, final String label, final long fromVertexId, final long toVertexId,
+    private SparkFireflyEdge(final long edgeId, final String label, final Object fromVertexId, final Object toVertexId,
                              final List<Map.Entry<String, Object>> properties) {
         super(edgeId, label, properties);
         this.fromVertexId = fromVertexId;
@@ -87,8 +88,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 properties.add(generateProperty(providedIdPropertyName, id, nullValue));
             }
         }
-        return new SparkFireflyEdge(edgeId, label, Long.parseLong(fromVertexId), Long.parseLong(toVertexId),
-                properties);
+        return new SparkFireflyEdge(edgeId, label, PropertyValueParser.parseId(fromVertexId), PropertyValueParser.parseId(toVertexId), properties);
     }
 
     @Override
@@ -96,11 +96,11 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         return FireflyIdPoly.fromObject(this.id, setName);
     }
 
-    public long getInVertexId() {
+    public Object getInVertexId() {
         return this.toVertexId;
     }
 
-    public long getOutVertexId() {
+    public Object getOutVertexId() {
         return this.fromVertexId;
     }
 }

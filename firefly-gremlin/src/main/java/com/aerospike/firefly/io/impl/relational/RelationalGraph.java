@@ -88,7 +88,7 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public void bulkWriteEdge(final long edgeId, final String label, final List<Map.Entry<String, Object>> properties,
-                              final long inVertexId, final long outVertexId) {
+                              final Object inVertexId, final Object outVertexId) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
         final Map<String, Object> data = new TreeMap<>();

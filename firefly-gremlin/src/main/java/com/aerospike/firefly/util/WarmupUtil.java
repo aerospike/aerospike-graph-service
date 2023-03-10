@@ -76,10 +76,11 @@ public class WarmupUtil {
         synchronized (FireflyGraph.class) {
             GraphTraversalSource g = graph.traversal();
             List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
+            Object[] createdIdAry = createdIds.toArray(new Object[0]);
             try {
-                g.V().has("name", "CANT COME DOWN").outE().inV().count().next();
+                g.V(createdIdAry).has("name", "CANT COME DOWN").outE().inV().count().next();
 
-                g.V().match(
+                g.V(createdIdAry).match(
                                 __.as("a").has("name", "Garcia"),
                                 __.as("a").in("writtenBy").as("b"),
                                 __.as("a").in("sungBy").as("b")).
@@ -88,9 +89,7 @@ public class WarmupUtil {
                 LOG.warn(e.getMessage());
                 e.printStackTrace();
             }
-            createdIds.forEach(id -> {
-                g.V(id).drop().iterate();
-            });
+            g.V(createdIdAry).drop().iterate();
         }
     }
 
@@ -98,21 +97,20 @@ public class WarmupUtil {
         synchronized (FireflyGraph.class) {
             GraphTraversalSource g = graph.traversal();
             List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
+            Object[] createdIdAry = createdIds.toArray(new Object[0]);
             try {
-                g.V().hasLabel("person").as("p1").choose(outE("knows"), out("knows")).as("p2").<String>select("p1", "p2").by("name").toList();
-                g.V().hasLabel("person").choose(values("age")).coin(.4).groupCount().next();
-                final Vertex a = g.V().has("name", "marko").next();
-                final Vertex b = g.V().has("name", "peter").next();
+                g.V(createdIdAry).hasLabel("person").as("p1").choose(outE("knows"), out("knows")).as("p2").<String>select("p1", "p2").by("name").toList();
+                g.V(createdIdAry).hasLabel("person").choose(values("age")).coin(.4).groupCount().next();
+                final Vertex a = g.V(createdIdAry).has("name", "marko").next();
+                final Vertex b = g.V(createdIdAry).has("name", "peter").next();
                 g.withSideEffect("b", b).V(a).addE("knows").to("b").property("weight", 0.5d).toList();
-                g.withSideEffect("sg", () -> TinkerGraph.open()).V().has("name", "marko").outE("knows").subgraph("sg").values("name").cap("sg").toList();
-                g.V().as("a").out().as("b").out().as("c").simplePath().by(T.label).from("b").to("c").path().by("name").toList();
+                g.withSideEffect("sg", () -> TinkerGraph.open()).V(createdIdAry).has("name", "marko").outE("knows").subgraph("sg").values("name").cap("sg").toList();
+                g.V(createdIdAry).as("a").out().as("b").out().as("c").simplePath().by(T.label).from("b").to("c").path().by("name").toList();
             } catch (Exception e) {
                 e.printStackTrace();
                 LOG.warn(e.getMessage());
             }
-            createdIds.forEach(id -> {
-                g.V(id).drop().iterate();
-            });
+            g.V(createdIdAry).drop().iterate();
 
         }
     }

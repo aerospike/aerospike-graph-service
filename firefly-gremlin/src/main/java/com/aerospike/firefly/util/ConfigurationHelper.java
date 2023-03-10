@@ -56,7 +56,6 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
-
         public static final String LOG_LEVEL = "LOG_LEVEL";
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";

@@ -393,7 +393,7 @@ jobs:
       - name: Test with Maven
         run: |
           mvn clean install -DskipTests
-          mvn -pl firefly-spark-bulk-loader  test --no-transfer-progress
+          mvn -pl firefly-spark-bulk-loader test --no-transfer-progress
   benchmark-firefly:
     name: Benchmark Firefly
     timeout-minutes: 240

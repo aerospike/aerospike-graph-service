@@ -263,7 +263,7 @@ jobs:
     runs-on: ${{ needs.start-runner-tls.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -288,7 +288,7 @@ jobs:
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -311,7 +311,7 @@ jobs:
     runs-on: ${{ needs.start-runner-packed-sindex.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -333,7 +333,7 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -355,7 +355,7 @@ jobs:
     runs-on: ${{ needs.start-runner-small-memory-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -378,7 +378,7 @@ jobs:
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -401,7 +401,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -455,7 +455,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
@@ -487,7 +487,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v7
+      - uses: cinterloper/github-action-aerospike@v4
         with:
           server-version: 6.1.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}

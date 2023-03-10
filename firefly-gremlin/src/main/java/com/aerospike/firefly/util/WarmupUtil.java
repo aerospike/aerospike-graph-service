@@ -43,7 +43,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values
 public class WarmupUtil {
     final AerospikeConnection db;
     final FireflyGraph graph;
-    public static final int passes = 24;
+    public static final int passes = 48;
     final Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
 
     private WarmupUtil(Configuration conf) {

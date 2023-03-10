@@ -56,6 +56,7 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
+
         public static final String LOG_LEVEL = "LOG_LEVEL";
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
@@ -135,6 +136,8 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
         public static final String TLS = "TLS";
+        public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
+        public static final String WARMUP_MODE = "WARMUP_MODE";
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -223,6 +226,8 @@ public final class ConfigurationHelper {
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.TLS, "false");
+        put(Keys.AUTO_PRE_HEAT, "false");
+        put(Keys.WARMUP_MODE, "false");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

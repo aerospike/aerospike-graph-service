@@ -68,7 +68,6 @@ RUN \
     then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0' ;  \
     else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT' ;  \
     fi
-
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
@@ -83,6 +82,8 @@ RUN chmod -R 777 $CONF_DIR
 # Add user firefly and set user to firefly.
 RUN useradd -m firefly
 USER firefly
+
+HEALTHCHECK CMD ls /tmp/firefly-ready
 
 # Entry point, run script.
 ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

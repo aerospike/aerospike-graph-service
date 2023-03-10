@@ -100,10 +100,7 @@ public class WarmupUtil {
             List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
             try {
                 g.V().hasLabel("person").as("p1").choose(outE("knows"), out("knows")).as("p2").<String>select("p1", "p2").by("name").toList();
-                g.V().hasLabel("person").choose(values("age"))
-                        .option(27L, org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.constant("young"))
-                        .option(Pick.none, org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.constant("old"))
-                        .groupCount().next();
+                g.V().hasLabel("person").choose(values("age")).coin(.4).groupCount().next();
                 final Vertex a = g.V().has("name", "marko").next();
                 final Vertex b = g.V().has("name", "peter").next();
                 g.withSideEffect("b", b).V(a).addE("knows").to("b").property("weight", 0.5d).toList();

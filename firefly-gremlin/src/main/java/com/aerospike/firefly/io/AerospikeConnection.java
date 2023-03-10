@@ -34,6 +34,7 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
@@ -213,12 +214,15 @@ public class AerospikeConnection implements AutoCloseable {
         this.port = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
         this.namespace = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
 
-        this.eventLoops = initializeEventLoops(EventLoopType.DIRECT_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
+        this.eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
         final Host[] hosts = Host.parseHosts(host, port);
         this.clientPolicy = new ClientPolicy();
         this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
+        String tlsConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TLS, conf);
+        if (Boolean.parseBoolean(tlsConfig))
+            this.clientPolicy.tlsPolicy = new TlsPolicy();
         this.client = new AerospikeClient(clientPolicy, hosts);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);

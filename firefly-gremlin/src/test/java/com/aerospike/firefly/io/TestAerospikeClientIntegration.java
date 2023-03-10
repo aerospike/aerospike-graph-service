@@ -50,8 +50,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_HOST;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.AEROSPIKE_PORT;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.TLS;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -735,5 +739,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Record[] hashRecords = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, new Key[]{keyaHash, keybHash});
         assertEquals(2, hashRecords.length);
     }
+
+
 
 }

@@ -56,6 +56,7 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
+
         public static final String LOG_LEVEL = "LOG_LEVEL";
         public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
         public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
@@ -134,6 +135,8 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
+        public static final String TLS = "TLS";
+
     }
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -221,6 +224,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.LOG_LEVEL, "INFO");
+        put(Keys.TLS, "false");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {

@@ -511,7 +511,7 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin  -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl firefly-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
   stop-runner-movielens-packed:
     name: Stop Movielens Packed Runner
     needs:

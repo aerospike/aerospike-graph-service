@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
+import com.aerospike.client.Log;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
@@ -33,6 +34,7 @@ import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
+import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
@@ -72,7 +74,6 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.impl.relational.RelationalGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -151,6 +152,9 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldCopyFromGraphAToGraphB", reason = "Test enabled by MultiProperties, likely did not work prior")
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
+    public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
+    public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
+
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
     public static String FIREFLY_VERSION = "0.6.0-SNAPSHOT";
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -227,6 +231,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
         try {
             LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf)))
+                WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
@@ -382,7 +388,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             }
             try {
                 return writeVertex(idValue, label, properties);
-            }  catch (AerospikeException e) {
+            } catch (AerospikeException e) {
                 if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
                     throw Graph.Exceptions.vertexWithIdAlreadyExists(idValue.getUserId());
                 } else {
@@ -450,8 +456,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
-        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String && vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
-            return IteratorUtils.of(new FireflyMetadataVertex(this));
+        if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
+            if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
+                return IteratorUtils.of(new FireflyMetadataVertex(this));
+            }
+            if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
+                try {
+                    WarmupUtil.create(configuration).preheat(1);
+                } catch (Exception e) {
+                    LOG.warn("Failed to run warmup routine {}", e.getMessage());
+                }
+                return IteratorUtils.of(new FireflyMetadataVertex(this));
+            }
         }
 
         final List<FireflyId> idList = getIds(Arrays.asList(vertexIdsOrVertices)).stream()
@@ -563,8 +579,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @return Expression.
      */
     private Exp predicateToExpression(final String binName,
-                                             final String mapKey,
-                                             final P<?> predicate) {
+                                      final String mapKey,
+                                      final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
         if (AerospikeConnection.LABEL.equals(binName)) {
             return Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val((String) predicate.getValue()));

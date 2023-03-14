@@ -77,13 +77,14 @@ public class SparkBulkLoader {
         final boolean enableDFCaching = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING,CONFIG));
         if (enableDFCaching) {
             switch (BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE, CONFIG)) {
-                case "memory":
+                case "memory_only":
                     dfStorageLevel = StorageLevel.MEMORY_ONLY();
                     break;
                 case "memory_and_disk":
                     dfStorageLevel = StorageLevel.MEMORY_AND_DISK();
                     break;
                 default:
+                    LOGGER.info("Default Storage Level set for persist operation = {}", dfStorageLevel);
                     dfStorageLevel = StorageLevel.DISK_ONLY();
             }
         }
@@ -101,8 +102,10 @@ public class SparkBulkLoader {
         // sample out vertex dataset for verifying the inserts
         Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
         Dataset<Row> persistedVertexDS;
-        if (dfStorageLevel.isValid())
+        if (dfStorageLevel.isValid()) {
             persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
+            LOGGER.info("Storage Level for vertex dataset = {}", dfStorageLevel);
+        }
         else persistedVertexDS = unionVertexDS;
 
         final String finalS3BucketName = s3BucketName;
@@ -127,8 +130,10 @@ public class SparkBulkLoader {
         final Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
 
         Dataset<Row> persistedEdgeDS;
-        if (dfStorageLevel.isValid())
+        if (dfStorageLevel.isValid()) {
             persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
+            LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
+        }
         else persistedEdgeDS = unionEdgeDS;
 
         //sample out edge dataset to verify the inserts

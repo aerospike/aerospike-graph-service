@@ -40,7 +40,7 @@ public class BulkLoaderConfigHelper {
         put(IGNORE_PARSE_FAILED_PROPERTIES, "true");
         put(SAMPLING_PERCENTAGE, "0.1");
         put(ENABLE_DATAFRAME_CACHING, "false");
-        put(DATAFRAME_STORAGE_TYPE, "disk");
+        put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(NULL_VALUE, "null");
     }};
 

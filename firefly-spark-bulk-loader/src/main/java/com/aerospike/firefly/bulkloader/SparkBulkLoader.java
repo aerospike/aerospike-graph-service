@@ -45,6 +45,7 @@ public class SparkBulkLoader {
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
         final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+        StorageLevel dfStorageLevel = StorageLevel.NONE();
         LOGGER.info("Config path provided = {} & job running in {} mode", configPath, MODE);
         try {
             if (configPath == null)
@@ -73,6 +74,19 @@ public class SparkBulkLoader {
         }
 
         final double sampleFraction = Double.parseDouble(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SAMPLING_PERCENTAGE, CONFIG)) / 100;
+        final boolean enableDFCaching = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING,CONFIG));
+        if (enableDFCaching) {
+            switch (BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE, CONFIG)) {
+                case "memory":
+                    dfStorageLevel = StorageLevel.MEMORY_ONLY();
+                    break;
+                case "memory_and_disk":
+                    dfStorageLevel = StorageLevel.MEMORY_AND_DISK();
+                    break;
+                default:
+                    dfStorageLevel = StorageLevel.DISK_ONLY();
+            }
+        }
 
         // Initialize Spark
         final SparkConf conf = new SparkConf();
@@ -86,14 +100,17 @@ public class SparkBulkLoader {
         Dataset<Row> unionVertexDS = DatasetOperations.loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
         // sample out vertex dataset for verifying the inserts
         Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
+        Dataset<Row> persistedVertexDS;
+        if (dfStorageLevel.isValid())
+            persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
+        else persistedVertexDS = unionVertexDS;
 
-        final String finalConfigPath = configPath;
         final String finalS3BucketName = s3BucketName;
 
         // Write Vertices
         final Instant startOfVertexMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
-        final List<Long> vertexResult = DatasetOperations.vertexWrite(unionVertexDS, finalConfigPath, ENV, finalS3BucketName);
+        final List<Long> vertexResult = DatasetOperations.vertexWrite(persistedVertexDS, configPath, ENV, finalS3BucketName);
         final Instant endOfVertexMapPartitions = Instant.now();
         Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
         LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
@@ -104,11 +121,16 @@ public class SparkBulkLoader {
 
         // Verify vertices.
         spark.sparkContext().setJobGroup("Verify Vertex", "Verify vertex MapPartition", true);
-        DatasetOperations.verifyVertices(sampledVertexDatasets, finalConfigPath, ENV, finalS3BucketName);
+        DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
 
         // Load and Merge Edges
         final Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
-        final Dataset<Row> persistedEdgeDS = unionEdgeDS.persist(StorageLevel.DISK_ONLY());
+
+        Dataset<Row> persistedEdgeDS;
+        if (dfStorageLevel.isValid())
+            persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
+        else persistedEdgeDS = unionEdgeDS;
+
         //sample out edge dataset to verify the inserts
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
@@ -122,7 +144,7 @@ public class SparkBulkLoader {
         // Write to edge caches for non-supernodes.
         final Instant startOfEdgeMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
-        final List<Long> edgeResult = DatasetOperations.writeEdges(finalConfigPath, persistedEdgeDS, ENV, finalS3BucketName);
+        final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);
         final Instant endOfEdgeMapPartitions = Instant.now();
         Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
         LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
@@ -133,7 +155,7 @@ public class SparkBulkLoader {
 
         // Verify edges.
         spark.sparkContext().setJobGroup("Verify Edges", "Verify Edges MapPartition", true);
-        DatasetOperations.verifyEdges(finalConfigPath, edgeDatasetsSample, ENV, finalS3BucketName);
+        DatasetOperations.verifyEdges(configPath, edgeDatasetsSample, ENV, finalS3BucketName);
 
         spark.stop();
     }

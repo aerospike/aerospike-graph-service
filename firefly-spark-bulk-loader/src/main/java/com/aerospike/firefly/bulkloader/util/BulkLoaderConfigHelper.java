@@ -25,6 +25,10 @@ public class BulkLoaderConfigHelper {
     public static final String IGNORE_PARSE_FAILED_PROPERTIES = "ignore_parse_failed_properties";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "sampling_percentage";
+    // Flag to enable/disable to caching of dataframe
+    public static final String ENABLE_DATAFRAME_CACHING = "enable_dataframe_caching";
+    // Storage type for Dataframe persist operation
+    public static final String DATAFRAME_STORAGE_TYPE = "dataframe_storage_type";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "null_value";
 
@@ -35,6 +39,8 @@ public class BulkLoaderConfigHelper {
         put(IGNORE_ELEMENT_CREATION_FAILED, "false");
         put(IGNORE_PARSE_FAILED_PROPERTIES, "true");
         put(SAMPLING_PERCENTAGE, "0.1");
+        put(ENABLE_DATAFRAME_CACHING, "false");
+        put(DATAFRAME_STORAGE_TYPE, "disk");
         put(NULL_VALUE, "null");
     }};
 

@@ -105,9 +105,8 @@ public class SparkBulkLoader {
         if (dfStorageLevel.isValid()) {
             persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for vertex dataset = {}", dfStorageLevel);
-        } else {
+        } else
             persistedVertexDS = unionVertexDS;
-        }
 
         final String finalS3BucketName = s3BucketName;
 
@@ -134,9 +133,8 @@ public class SparkBulkLoader {
         if (dfStorageLevel.isValid()) {
             persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
-        } else {
+        } else
             persistedEdgeDS = unionEdgeDS;
-        }
 
         //sample out edge dataset to verify the inserts
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
@@ -164,6 +162,7 @@ public class SparkBulkLoader {
         spark.sparkContext().setJobGroup("Verify Edges", "Verify Edges MapPartition", true);
         DatasetOperations.verifyEdges(configPath, edgeDatasetsSample, ENV, finalS3BucketName);
 
+        // Stop spark session
         spark.stop();
     }
 

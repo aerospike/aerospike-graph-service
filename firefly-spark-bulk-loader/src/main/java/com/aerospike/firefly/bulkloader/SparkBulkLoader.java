@@ -134,8 +134,9 @@ public class SparkBulkLoader {
         if (dfStorageLevel.isValid()) {
             persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
+        } else {
+            persistedEdgeDS = unionEdgeDS;
         }
-        else persistedEdgeDS = unionEdgeDS;
 
         //sample out edge dataset to verify the inserts
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);

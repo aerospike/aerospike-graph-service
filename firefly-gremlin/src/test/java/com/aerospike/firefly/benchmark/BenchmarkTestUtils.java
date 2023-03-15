@@ -3,6 +3,7 @@ package com.aerospike.firefly.benchmark;
 import com.aerospike.firefly.util.IOUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.IO;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,25 @@ public class BenchmarkTestUtils {
     public static Integer getThreads() {
         final String threads = System.getProperty("benchmark.threads");
         return threads == null ? 1 : Integer.parseInt(threads);
+    }
+
+    public static Mode getMode(final Logger log) {
+        final String mode = System.getProperty("benchmark.mode");
+        final Mode benchmarkMode;
+        if (mode == null) {
+            benchmarkMode = Mode.AverageTime;
+        } else if ("all".equalsIgnoreCase(mode)) {
+            benchmarkMode = Mode.All;
+        } else if ("throughput".equalsIgnoreCase(mode)) {
+            benchmarkMode = Mode.Throughput;
+        } else if ("average".equalsIgnoreCase(mode)) {
+            benchmarkMode = Mode.AverageTime;
+        } else {
+            throw new RuntimeException("Error, could not get mode from system property 'benchmark.mode'. " +
+                    "Valid values are: 'all', 'throughput', 'average'. Value provided: '" + mode + "'.");
+        }
+        log.info("Running benchmark with mode '{}'.", benchmarkMode.longLabel());
+        return benchmarkMode;
     }
 
     private static boolean getFireflyLocal(final String host) {

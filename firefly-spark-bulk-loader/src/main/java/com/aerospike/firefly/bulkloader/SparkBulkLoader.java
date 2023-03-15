@@ -105,8 +105,9 @@ public class SparkBulkLoader {
         if (dfStorageLevel.isValid()) {
             persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for vertex dataset = {}", dfStorageLevel);
+        } else {
+            persistedVertexDS = unionVertexDS;
         }
-        else persistedVertexDS = unionVertexDS;
 
         final String finalS3BucketName = s3BucketName;
 

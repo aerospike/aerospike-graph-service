@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URL;
+import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 
@@ -19,10 +20,12 @@ import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
 public class BenchmarkTestUtils {
     private static final String LOCALHOST = "127.0.0.1";
     private static final String FLIGHTS_DATASET_DOCKER = "/opt/air-routes/air-routes-50k.graphml";
+    private static final String internaldataset = "/opt/internal dataset/internal dataset.graphml";
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestUtils.class);
 
     enum DATASET {
-        FLIGHTS
+        FLIGHTS,
+        internaldataset
     }
 
     public static String getHost() {
@@ -76,11 +79,32 @@ public class BenchmarkTestUtils {
         g.V().drop().iterate();
 
         LOG.info("Loading the graph with " + dataset);
+
+        String ioLocation = null;
+        String urlLocation = null;
+        File tempFile = null;
         if (dataset == DATASET.FLIGHTS) {
-            if (getRunningInDocker()) {
-                g.io(FLIGHTS_DATASET_DOCKER).with(IO.reader, IO.graphml).read().iterate();
-            } else if (getFireflyLocal(getHost())) {
-                final File tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
+            ioLocation = FLIGHTS_DATASET_DOCKER;
+            urlLocation = AIR_ROUTES_50K_URL;
+        } else if (dataset == DATASET.internaldataset) {
+            ioLocation = internaldataset;
+            urlLocation = null;
+            tempFile = Path.of("../data/internal dataset.graphml").toFile();
+        } else {
+            throw new RuntimeException("Dataset not supported: " + dataset + ".");
+        }
+
+        if (getRunningInDocker()) {
+            if (ioLocation == null) {
+                throw new RuntimeException("Failed to find location for " + dataset + " dataset in docker.");
+            }
+            g.io(internaldataset).with(IO.reader, IO.graphml).read().iterate();
+        } else if (getFireflyLocal(getHost())) {
+            if (urlLocation == null && tempFile == null) {
+                throw new RuntimeException("Failed to get url or file location for " + dataset + " dataset.");
+            }
+            if (tempFile == null) {
+                tempFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "air-routes50k.graphml");
                 try {
                     if (!tempFile.exists())
                         IOUtil.downloadFileFromURL(new URL(AIR_ROUTES_50K_URL), tempFile);
@@ -88,12 +112,10 @@ public class BenchmarkTestUtils {
                     LOG.error("Failed to download graphml file", e);
                     throw new RuntimeException(e);
                 }
-                g.io(tempFile.getAbsolutePath()).with(IO.reader, IO.graphml).read().iterate();
-            } else {
-                throw new RuntimeException("Firefly is not running in docker and not running locally, so the " + dataset + " dataset cannot be loaded.");
             }
+            g.io(tempFile.getAbsolutePath()).with(IO.reader, IO.graphml).read().iterate();
         } else {
-            throw new RuntimeException("Dataset not supported: " + dataset);
+            throw new RuntimeException("Firefly is not running in docker and not running locally, so the " + dataset + " dataset cannot be loaded.");
         }
     }
 

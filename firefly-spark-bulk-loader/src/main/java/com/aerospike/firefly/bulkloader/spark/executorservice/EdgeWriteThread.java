@@ -24,7 +24,6 @@ public class EdgeWriteThread implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteThread.class);
     private final Set<Object> supernodes;
     private final boolean ignoreFailedProperties;
-    private final boolean useProvidedId;
     private final boolean keepProvidedId;
     private final String providedIdPropertyName;
     private final boolean ignoreElementCreationFailed;
@@ -40,7 +39,6 @@ public class EdgeWriteThread implements Runnable {
     
     public EdgeWriteThread(final Set<Object> supernodes,
                            final boolean ignoreFailedProperties,
-                           final boolean useProvidedId,
                            final boolean keepProvidedId,
                            final String providedIdPropertyName,
                            final boolean ignoreElementCreationFailed,
@@ -51,7 +49,6 @@ public class EdgeWriteThread implements Runnable {
                            final int partitionId) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;
-        this.useProvidedId = useProvidedId;
         this.keepProvidedId = keepProvidedId;
         this.providedIdPropertyName = providedIdPropertyName;
         this.ignoreElementCreationFailed = ignoreElementCreationFailed;
@@ -67,9 +64,8 @@ public class EdgeWriteThread implements Runnable {
     public void run() {
         Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
         try {
-            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties,
-                    this.useProvidedId, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph);
-            final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph().EDGE_AERO_SET);
+            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
+            final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
             final Object inVertexId = sparkEdge.getInVertexId();
             final Object outVertexId = sparkEdge.getOutVertexId();
             final String edgeLabel = sparkEdge.getLabel();

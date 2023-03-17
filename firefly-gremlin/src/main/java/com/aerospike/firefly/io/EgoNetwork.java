@@ -13,6 +13,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -43,9 +45,9 @@ public class EgoNetwork {
 
         // Almost all instances of (Long) casting to read FireflyIds has been removed, this is one of the last ones.
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
+                getKey(this.db, this.db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
         List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
+                getKey(this.db, this.db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
 
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));

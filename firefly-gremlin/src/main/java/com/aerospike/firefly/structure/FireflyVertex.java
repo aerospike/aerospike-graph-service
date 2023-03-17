@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedElement;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
@@ -27,7 +28,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public abstract class FireflyVertex extends FireflyElement implements Vertex {
+public abstract class FireflyVertex extends FireflyElement implements WrappedElement<Record>, Vertex {
 
     protected FireflyGraph graph;
 
@@ -148,25 +149,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
             throw elementAlreadyRemoved(Vertex.class, this.id);
 
         // Get id for edge.
-        FireflyId edgeId;
-        if (ElementHelper.getIdValue(keyValues).isEmpty()) {
-            edgeId = graph.getIdFactory().createFromManager(graph, FireflyEdge.class);
-
-            // TODO: GRAPH-186.
-            while (graph.edgeExists(edgeId)) {
-                edgeId = graph.getIdFactory().createFromManager(graph, FireflyEdge.class);
-            }
-        } else {
-            try {
-                edgeId = graph.getIdFactory().createFromKeyValues(FireflyEdge.class, keyValues);
-            } catch (IllegalArgumentException ignored) {
-                // Invalid type for id.
-                throw Edge.Exceptions.userSuppliedIdsOfThisTypeNotSupported();
-            }
-            if (graph.edgeExists(edgeId)) {
-                throw Graph.Exceptions.edgeWithIdAlreadyExists(edgeId);
-            }
-        }
+        final FireflyId edgeId = graph.getIdFactory().createFromManager(graph, FireflyEdge.class);
 
         // Write fully qualified edge.
         final List<Map.Entry<String, Object>> properties =

@@ -141,8 +141,19 @@ public class FireflyIdFactory {
         if (!HINT_TO_TYPE.containsKey(typeHint)) {
             // This is just caught and propagated up via a gremlin specific exception.
             throw new IllegalArgumentException("Invalid id type: " + typeHint + ". Id type must be one of " + HINT_TO_TYPE.keySet());
-        }
-        if (Number.class.isAssignableFrom(id.getClass())) {
+        } else if (FireflyEdge.class.isAssignableFrom(type)) {
+            final Long edgeId;
+            if (String.class.isAssignableFrom(id.getClass())) {
+                try {
+                    edgeId = Long.parseLong((String) id);
+                } catch (final NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid id for edge: " + id);
+                }
+            } else {
+                edgeId = ((Number) id).longValue();
+            }
+            return new FireflyPhatEdgeId(edgeId, db.PHAT_EDGE_SIZE, set);
+        } else if (Number.class.isAssignableFrom(id.getClass())) {
             return FireflyIdPoly.fromObject(id, HINT_TO_TYPE.get(typeHint), set);
         } else if (String.class.isAssignableFrom(id.getClass())) {
             try {
@@ -200,10 +211,6 @@ public class FireflyIdFactory {
      */
     public FireflyId createCompositeEdgeId(final FireflyId edgeId, final FireflyId adjacentVertex) {
         return new FireflyIdComposite(db, edgeId, adjacentVertex);
-    }
-
-    public FireflyId createCompositeEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(db, createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
     }
 
     public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {

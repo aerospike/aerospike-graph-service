@@ -10,10 +10,8 @@ import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.getCo
 
 public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String DEFAULT_CONFIG = "src/test/resources/conf/packed/config.properties";
-    static private final String USE_PROVIDED_ID_FALSE_CONFIG = "src/test/resources/conf/packed/use-provided-id-false.properties";
     static private final String KEEP_ID_AS_PROPERTY_CONFIG = "src/test/resources/conf/packed/keep-provided-id-as-property.properties";
     static private final String DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/config-artificial-supernode.properties";
-    static private final String USE_PROVIDED_ID_FALSE_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/use-provided-id-false-artificial-supernode.properties";
     static private final String KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/keep-provided-id-as-property-artificial-supernode.properties";
     static private final String DATA_MODEL = "packed";
 
@@ -33,12 +31,7 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
-    protected String getUseProvidedEdgeIdFalseAndKeepIdFalseConfig() {
-        return USE_PROVIDED_ID_FALSE_CONFIG;
-    }
-
-    @Override
-    protected String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig() {
+    protected String getKeepIdAsPropertyTrueConfig() {
         return KEEP_ID_AS_PROPERTY_CONFIG;
     }
 
@@ -48,12 +41,7 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
-    protected String getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode() {
-        return USE_PROVIDED_ID_FALSE_CONFIG_ARTIFICIAL_SUPERNODE;
-    }
-
-    @Override
-    protected String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode() {
+    protected String getKeepIdAsPropertyTrueConfigArtificialSupernode() {
         return KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE;
     }
 }

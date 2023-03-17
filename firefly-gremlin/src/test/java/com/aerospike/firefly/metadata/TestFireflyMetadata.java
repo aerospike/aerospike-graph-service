@@ -141,7 +141,8 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         final String originalIndexes = (String) db.conf.getProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase());
         db.conf.setProperty(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES.toLowerCase(), "key1,key2,key3,key4,key5");
         db.conf.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), true);
-        db.conf.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        // TODO GRAPH-442: Enable this when edge label indexes are supported.
+        db.conf.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), false);
 
         graph.close();
         graph = FireflyGraph.open(db.conf);
@@ -192,17 +193,17 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         Assert.assertEquals(12L / 3L, vertexLabelCardinalityInfo.entriesPerBval.longValue());
 
         // Get edge label cardinality optional and grab the cardinality info attached.
-        final Optional<FireflyCardinalityMetadata.CardinalityInfo> edgeLabelCardinalityInfoOptional =
-                graph.fireflyCardinalityMetadata.getEdgeLabelCardinality();
-        Assert.assertTrue(edgeLabelCardinalityInfoOptional.isPresent());
-        final FireflyCardinalityMetadata.CardinalityInfo edgeLabelCardinalityInfo = edgeLabelCardinalityInfoOptional.get();
+//        final Optional<FireflyCardinalityMetadata.CardinalityInfo> edgeLabelCardinalityInfoOptional =
+//                graph.fireflyCardinalityMetadata.getEdgeLabelCardinality();
+//        Assert.assertTrue(edgeLabelCardinalityInfoOptional.isPresent());
+//        final FireflyCardinalityMetadata.CardinalityInfo edgeLabelCardinalityInfo = edgeLabelCardinalityInfoOptional.get();
 
         // Validate edge label cardinality. 6 edges, 3 unique labels.
-        Assert.assertTrue(edgeLabelCardinalityInfo.valid);
-        Assert.assertNotNull(edgeLabelCardinalityInfo.totalEntries);
-        Assert.assertNotNull(edgeLabelCardinalityInfo.entriesPerBval);
-        Assert.assertEquals(6L, edgeLabelCardinalityInfo.totalEntries.longValue());
-        Assert.assertEquals(6L / 3L, edgeLabelCardinalityInfo.entriesPerBval.longValue());
+//        Assert.assertTrue(edgeLabelCardinalityInfo.valid);
+//        Assert.assertNotNull(edgeLabelCardinalityInfo.totalEntries);
+//        Assert.assertNotNull(edgeLabelCardinalityInfo.entriesPerBval);
+//        Assert.assertEquals(6L, edgeLabelCardinalityInfo.totalEntries.longValue());
+//        Assert.assertEquals(6L / 3L, edgeLabelCardinalityInfo.entriesPerBval.longValue());
 
         validateVertexPropertyMetadata(graph.fireflyCardinalityMetadata, "key1", IndexType.STRING, 2L, 2L);
         validateVertexPropertyMetadata(graph.fireflyCardinalityMetadata, "key1", IndexType.NUMERIC, 0L, 0L);

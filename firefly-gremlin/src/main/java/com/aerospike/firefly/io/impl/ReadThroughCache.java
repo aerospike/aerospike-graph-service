@@ -4,6 +4,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
@@ -84,7 +85,9 @@ public class ReadThroughCache extends FireflyCache {
             return or;
         } else {
             missCounter.incrementAndGet();
-            final Record record = db.getClient().get(AerospikeConnection.noSendKeyReadPolicy, key);
+            final Policy policy = new Policy();
+            policy.sendKey = false;
+            final Record record = db.getClient().get(policy, key);
             insert(key, record);
             return record;
         }

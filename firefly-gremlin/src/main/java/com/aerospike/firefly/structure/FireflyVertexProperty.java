@@ -1,7 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -108,11 +106,6 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
     @Override
     public boolean equals(final Object object) {
         return ElementHelper.areEqual(this, object);
-    }
-
-    @Override
-    public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_PROPERTY_AERO_SET, id).record();
     }
 }
 

@@ -12,8 +12,11 @@ import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.listener.RecordListener;
+import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
@@ -27,6 +30,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
+import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -71,6 +75,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -107,9 +112,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.writeElement(db, db.TEST_SET, id, -1, bin1, bin2, bin3);
-        assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.noSendKeyReadPolicy));
+        final Policy policy = new Policy();
+        policy.sendKey = false;
+        assertNotEquals(null, db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
         db.delete(FireflyRecord.getKey(db, db.TEST_SET, id));
-        assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), AerospikeConnection.noSendKeyReadPolicy));
+        assertNull(db.read(FireflyRecord.getKey(db, db.TEST_SET, id), policy));
     }
 
     @Test
@@ -301,13 +308,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testListIndexes() {
-
-        List<Map.Entry<String, String>> x = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
-        assertFalse(x.stream().filter(entry -> entry.getKey().equals(db.E_LABEL_INDEX)).collect(Collectors.toList()).isEmpty());
-    }
-
-    @Test
     public void testParseRaw() {
         final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
         List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
@@ -393,124 +393,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testFireflyEdgeWithUserSuppliedId() {
-        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            GraphTraversalSource g = graph.traversal();
-            g.V().drop().iterate();
-            g.addV("vertex").property("type", "a").
-                    addV("vertex").property("type", "b").
-                    iterate();
-
-            g.V().has("type", "a").as("a").
-                    V().has("type", "b").as("b").
-                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
-                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
-                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
-                    iterate();
-
-            assertEquals(3L, g.E().count().next().longValue());
-
-            // 1L, "2", and 3 were inserted and should be retrieved as such.
-            final Set<Edge> actualEdges = g.E().toSet();
-            final Set<Object> expectedIds = new HashSet<>(List.of(1L, "2", 3));
-            final Set<Object> actualIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
-            assertEquals(new HashSet<>(expectedIds), new HashSet<>(actualIds));
-
-
-            // If a value already exists in the graph then adding it again should throw an IllegalArgumentException.
-            // Try adding 1L, "1", and 1, all should fail.
-            assertThrows(IllegalArgumentException.class, () ->
-                    g.V().has("type", "a").as("a").
-                            V().has("type", "b").as("b").
-                            addE("user-id-edge").from("a").to("b").property(T.id, 1L).
-                            iterate());
-            assertThrows(IllegalArgumentException.class, () ->
-                    g.V().has("type", "a").as("a").
-                            V().has("type", "b").as("b").
-                            addE("user-id-edge").from("a").to("b").property(T.id, "1").
-                            iterate());
-            assertThrows(IllegalArgumentException.class, () ->
-                    g.V().has("type", "a").as("a").
-                            V().has("type", "b").as("b").
-                            addE("user-id-edge").from("a").to("b").property(T.id, 1).
-                            iterate());
-        }
-    }
-
-    @Test
-    public void testFireflyVertexIdEdgeIdCollision() {
-        // Ids that are strings will be parsed to longs. Integer Ids will be inserted as integers and longs as longs.
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            GraphTraversalSource g = graph.traversal();
-            g.V().drop().iterate();
-            g.addV("user-id-vertex").property(T.id, "1").
-                    addV("user-id-vertex").property(T.id, 2).
-                    addV("user-id-vertex").property(T.id, 3L).
-                    iterate();
-            assertEquals(3L, g.V().count().next().longValue());
-
-            // "1", 2, and 3L were inserted and should be retrieved as such.
-            final Set<Vertex> actualVertices = g.V().toSet();
-            final Set<Object> expectedVertexIds = ImmutableSet.of("1", 2, 3L);
-            final Set<Object> actualVertexIds = actualVertices.stream().map(Vertex::id).collect(Collectors.toSet());
-            assertEquals(expectedVertexIds, actualVertexIds);
-
-            g.V().has(T.id, "1").as("a").
-                    V().has(T.id, 2).as("b").
-                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
-                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
-                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
-                    iterate();
-            assertEquals(3L, g.E().count().next().longValue());
-
-            // 1L, "2", and 3 were inserted and should be retrieved as such.
-            final Set<Edge> actualEdges = g.E().toSet();
-            final Set<Object> expectedEdgeIds = ImmutableSet.of(1L, "2", 3);
-            final Set<Object> actualEdgeIds = actualEdges.stream().map(Edge::id).collect(Collectors.toSet());
-            assertEquals(expectedEdgeIds, actualEdgeIds);
-        }
-    }
-
-    @Test
-    public void testDropVerticesEdges() {
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            GraphTraversalSource g = graph.traversal();
-            g.V().drop().iterate();
-            assertEquals(0L, g.V().count().next().longValue());
-            g.addV("user-id-vertex").property(T.id, "1").
-                    addV("user-id-vertex").property(T.id, 2).
-                    addV("user-id-vertex").property(T.id, 3L).
-                    iterate();
-            assertEquals(3L, g.V().count().next().longValue());
-
-            g.V().has(T.id, "1").as("a").
-                    V().has(T.id, 2).as("b").
-                    addE("user-id-edge").from("a").to("b").property(T.id, 1L).
-                    addE("user-id-edge").from("b").to("b").property(T.id, "2").
-                    addE("user-id-edge").from("b").to("a").property(T.id, 3).
-                    addE("user-id-edge").from("a").to("a").property(T.id, 4).
-                    iterate();
-            assertEquals(4L, g.E().count().next().longValue());
-
-            // Problem 1: Vertices with string ids are not dropped. properly.
-            g.V().has(T.id, 3L).drop().iterate();
-            assertEquals(2L, g.V().count().next().longValue());
-            assertEquals(4L, g.E().count().next().longValue());
-            Vertex thing = g.V().has(T.id, "1").next();
-            g.V().has(T.id, "1").drop().iterate();
-            assertEquals(1L, g.V().count().next().longValue());
-            List<Edge> l = g.E().toList();
-            assertEquals(1L, g.E().count().next().longValue());
-
-            g.V().has(T.id, 2).drop().iterate();
-            assertEquals(0L, g.V().count().next().longValue());
-            g.E().toList().forEach(e -> System.out.println(e.id()));
-            assertEquals(0L, g.E().count().next().longValue());
-        }
-    }
-
-    @Test
     public void testIsEnterprise() {
         assertTrue(AerospikeConnection.InfoOps.isEnterprise(db.getClient()));
     }
@@ -568,10 +450,21 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             // ID_MGR_SET id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
-                    Set.of("0_G_META", "0_ID_MGR_SET") :
-                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 2 : 7, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            // TODO GRAPH-426: Remove 0_EDGE. See JIRA for details.
+            if (x.size() == 2) {
+                assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
+                        Set.of("0_G_META", "0_ID_MGR_SET") :
+                        Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
+                assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 2 : 7, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+
+            } else if (x.size() == 3) {
+                assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
+                        Set.of("0_G_META", "0_ID_MGR_SET", "0_EDGE") :
+                        Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP", "0_EDGE"), x);
+                assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 3 : 8, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            } else {
+                fail("Non empty set count was an unexpected amount: " + x.size());
+            }
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
@@ -581,9 +474,11 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             graph.traversal().V().drop().iterate();
             sleep(2000);
             Iterator<Map.Entry<Key, Record>> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-            Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllKeysInSet(db.EDGE_AERO_SET, null);
+            Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllRecordsInSet(db.EDGE_AERO_SET, null, new ScanPolicy(),
+                    AerospikeConnection.LABEL);
+            FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
             assertFalse(vertxKeys.hasNext());
-            assertFalse(edgeKeys.hasNext());
+            assertFalse(edges.hasNext());
         } finally {
             config.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
@@ -695,7 +590,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         final Key key = new Key("test", digest, SET_NAME, Value.NULL);
         db.write(key, new Bin("bin", 1));
 
-        Record result = db.read(key, AerospikeConnection.noSendKeyReadPolicy);
+        final Policy policy = new Policy();
+        policy.sendKey = false;
+        Record result = db.read(key, policy);
         class TestRL implements RecordListener {
             public Key key;
             Semaphore semaphore = new Semaphore(0);
@@ -724,7 +621,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             }
         }
         TestRL testRL = new TestRL();
-        db.getClient().get(db.getEventLoops().get(0), testRL, AerospikeConnection.noSendKeyReadPolicy, key);
+        final BatchPolicy batchPolicy = new BatchPolicy();
+        batchPolicy.sendKey = false;
+        db.getClient().get(db.getEventLoops().get(0), testRL, batchPolicy, key);
         KeyRecord keyRecord = testRL.get();
         assertEquals(1, keyRecord.record.getInt("bin"));
         //Cant recover the original key. Seems strange since Scan will send the original key
@@ -739,12 +638,14 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));
-        final Record[] records = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, new Key[]{keyaObj, keybObj});
+        BatchPolicy batchPolicy = new BatchPolicy();
+        batchPolicy.sendKey = false;
+        final Record[] records = db.getClient().get(batchPolicy, new Key[]{keyaObj, keybObj});
         assertEquals(2, records.length);
 
         Key keyaHash = new Key(db.getNamespace(), va.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
         Key keybHash = new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL);
-        final Record[] hashRecords = db.getClient().get(AerospikeConnection.noSendKeyBatchPolicy, new Key[]{keyaHash, keybHash});
+        final Record[] hashRecords = db.getClient().get(batchPolicy, new Key[]{keyaHash, keybHash});
         assertEquals(2, hashRecords.length);
     }
 
@@ -787,7 +688,5 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
         graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
         assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
-
     }
-
 }

@@ -3,9 +3,7 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.Value;
-import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -15,7 +13,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -99,44 +96,5 @@ public class PolyIdTest extends AbstractFireflySuite {
         FireflyId aidRecovered = fidc.getAdjacentId();
         assertEquals(aidRecovered.getUserId(), "A");
         assertArrayEquals(eidRecovered.getKeyHash(), eba.id.getKeyHash());
-    }
-
-    @Test
-    public void testHashRoundTrip() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
-
-        assertEquals("A", va.id.getUserId());
-        assertEquals("B", vb.id.getUserId());
-
-        Record reca = va.getBaseElement();
-        Record recb = vb.getBaseElement();
-
-        assertEquals("A", reca.getString(AerospikeConnection.USER_KEY));
-        assertEquals("B", recb.getString(AerospikeConnection.USER_KEY));
-
-        FireflyEdge eab = (FireflyEdge) va.addEdge("knows", vb);
-        FireflyEdge eba = (FireflyEdge) vb.addEdge("forgot", va);
-
-        Record eaRec = eab.getBaseElement();
-        Record ebRec = eba.getBaseElement();
-        String inHashA = eaRec.getString(Direction.IN.name());
-        String outHashA = eaRec.getString(Direction.OUT.name());
-        String inHashB = ebRec.getString(Direction.IN.name());
-        String outHashB = ebRec.getString(Direction.OUT.name());
-
-        byte[] origVAKeyBytes = va.id.getKeyHash();
-        String origVAKeyHash = Crypto.encodeBase64(origVAKeyBytes);
-        byte[] recoveredVAKeyBytes = Crypto.decodeBase64(outHashA.getBytes(), 0, outHashA.getBytes().length);
-
-        assertArrayEquals(origVAKeyBytes, recoveredVAKeyBytes);
-        Key inHashAKey = new Key(db.getNamespace(), recoveredVAKeyBytes, db.VERTEX_AERO_SET, Value.NULL);
-        Record rawResult = db.getClient().get(null, inHashAKey);
-
-        FireflyIdPoly recoveredFIDAIn = FireflyIdPoly.fromBase64Hash(inHashA, db.VERTEX_AERO_SET);
-        FireflyIdPoly recoveredFIDAOut = FireflyIdPoly.fromBase64Hash(outHashA, db.VERTEX_AERO_SET);
-
-        ((RelationalGraph) graph).readVertex(recoveredFIDAIn);
-        ((RelationalGraph) graph).readVertex(recoveredFIDAOut);
     }
 }

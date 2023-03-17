@@ -45,7 +45,7 @@ public class VertexWriteThread implements Runnable {
             boolean succeeded = false;
             while (!succeeded) {
                 try {
-                    this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph().VERTEX_AERO_SET),
+                    this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
                             sparkVertex.getLabel(), sparkVertex.getProperties());
                     succeeded = true;
                 } catch (final AerospikeException e) {

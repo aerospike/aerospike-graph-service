@@ -89,7 +89,7 @@ public class SparkBulkLoader {
             }
         }
 
-        // Initialize Spark
+        // Initialize Spark.
         final SparkConf conf = new SparkConf();
         setSparkConf(conf);
 
@@ -99,18 +99,18 @@ public class SparkBulkLoader {
                 .getOrCreate();
 
         Dataset<Row> unionVertexDS = DatasetOperations.loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
-        // sample out vertex dataset for verifying the inserts
+        // Sample out vertex dataset for verifying the inserts.
         Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
         Dataset<Row> persistedVertexDS;
         if (dfStorageLevel.isValid()) {
             persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for vertex dataset = {}", dfStorageLevel);
-        } else
+        } else {
             persistedVertexDS = unionVertexDS;
-
+		}
         final String finalS3BucketName = s3BucketName;
 
-        // Write Vertices
+        // Write Vertices.
         final Instant startOfVertexMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
         final List<Long> vertexResult = DatasetOperations.vertexWrite(persistedVertexDS, configPath, ENV, finalS3BucketName);
@@ -126,17 +126,18 @@ public class SparkBulkLoader {
         spark.sparkContext().setJobGroup("Verify Vertex", "Verify vertex MapPartition", true);
         DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
 
-        // Load and Merge Edges
+        // Load and Merge Edges.
         final Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
 
         Dataset<Row> persistedEdgeDS;
         if (dfStorageLevel.isValid()) {
             persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
-        } else
+        } else {
             persistedEdgeDS = unionEdgeDS;
+		}	
 
-        //sample out edge dataset to verify the inserts
+        // Sample out edge dataset to verify the inserts.
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
         // If the edge cache is disabled globally we do not need to search for supernodes.

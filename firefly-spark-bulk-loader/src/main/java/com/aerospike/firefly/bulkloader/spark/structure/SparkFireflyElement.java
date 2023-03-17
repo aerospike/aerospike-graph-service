@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
@@ -25,7 +26,7 @@ public abstract class SparkFireflyElement implements Serializable {
         this.properties = properties;
     }
 
-    public abstract FireflyId getFireflyId(String setName);
+    public abstract FireflyId getFireflyId(final AerospikeConnection db);
 
     public Object getId() {
         return this.id;

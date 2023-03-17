@@ -20,8 +20,7 @@ Additional Bulk Loader specific configurations should be added to it to create t
   - Each type of edge (i.e. the same label and some properties) **must** be in its own sub-directory within `edge_directory`.  
 * `vertex_directory` - `String`: The path to where the CSV files containing the vertices are stored
   - Each type of vertex (i.e. the same label and some properties) **must** also be in its own sub-directory within `vertex_directory`. 
-* The bulk loader loads different edges and vertices from the sub-directories within the parent `edge_directory` and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge` and `vertex` dataset 
-* `use_provided_edge_id` - `Boolean`: If the `~id` of the edges in the CSV file are whole numeric values, this enables them to be stored with the ID provided. Setting this to true will automatically generate valid edge IDs if they are currently not whole numeric values. Vertex IDs **must** be whole numeric values.
+* The bulk loader loads different edges and vertices from the sub-directories within the parent `edge_directory` and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge` and `vertex` dataset
 * `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
 * `ignore_element_creation_failed` - `Boolean`: If there is a row of data in the provided CSV that is insufficient to create an edge or vertex, `true` will allow the bulk loading job to continue. *Setting this to `true` should be used with caution.*
 * `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow the bulk loading job to continue.

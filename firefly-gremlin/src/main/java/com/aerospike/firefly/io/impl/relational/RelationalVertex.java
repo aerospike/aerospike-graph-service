@@ -13,6 +13,7 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListReturnType;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -38,6 +39,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -167,16 +169,8 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     private List<Vertex> verticesFromEdgeIds(final List<FireflyId> edgeIds, final Direction direction,
                                              final String... edgeLabels) {
-        final List<FireflyRecord> edgeRecords = FireflyRecord.batchRead(db, db.EDGE_AERO_SET, edgeIds);
-        if (edgeRecords == null)
-            return new ArrayList<>();
+        final List<FireflyEdge> edges = RelationalEdge.readEdges(this.graph, edgeIds);
 
-        final List<FireflyEdge> edges = new ArrayList<>();
-        for (final FireflyRecord ffr : edgeRecords) {
-            if (ffr == null)
-                continue;
-            edges.add(RelationalEdge.fromRecord(graph, new KeyRecord(ffr.key(), ffr.record)));
-        }
         final Set<String> edgeLabelsSet = Set.of(edgeLabels);
         final List<Vertex> listOfEdges = edges.stream()
                 .filter(edge -> edgeLabelsSet.isEmpty() || edgeLabelsSet.contains(edge.label()))
@@ -230,8 +224,11 @@ public abstract class RelationalVertex extends FireflyVertex {
                 inEdgeIds.values().forEach(data::addAll);
             }
             return data.iterator();
-        } else if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) { // Use index if available and cache is blown
-            return getEdgeIdsFromVertexByIndex(Direction.IN);
+        } else if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) {
+            // Use index if available and cache is blown
+            // TODO GRAPH-412: Phat Edge adjacency indexes
+            // return getEdgeIdsFromVertexByIndex(Direction.IN);
+            return getEdgeIdsFromVertexByScan(Direction.IN);
         } else { // Fall back to scan if no index and cache is blown
             return getEdgeIdsFromVertexByScan(Direction.IN);
         }
@@ -253,8 +250,11 @@ public abstract class RelationalVertex extends FireflyVertex {
                 outEdgeIds.values().forEach(data::addAll);
             }
             return data.iterator();
-        } else if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) { // Use index if available and cache is blown
-            return getEdgeIdsFromVertexByIndex(Direction.OUT);
+        } else if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED) {
+            // Use index if available and cache is blown
+            // TODO GRAPH-412: Phat Edge adjacency indexes
+            // return getEdgeIdsFromVertexByIndex(Direction.OUT);
+            return getEdgeIdsFromVertexByScan(Direction.OUT);
         } else {
             return getEdgeIdsFromVertexByScan(Direction.OUT); // Fall back to scan if no index and cache is blown
         }
@@ -283,19 +283,23 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Expression exp;
         if (direction == Direction.OUT || direction == Direction.IN) {
             // If direction is in or out, get that specific direction.
+            final String binName = direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name();
             exp = Exp.build(
-                    Exp.eq(Exp.stringBin(direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name()),
-                            Exp.val(id.getKeyHashBase64())
+                    Exp.gt(
+                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(binName)),
+                            Exp.val(0)
                     ));
         } else {
             // If direction is both, we need to get in and out.
             exp = Exp.build(
                     Exp.or(
-                            Exp.eq(Exp.stringBin(Direction.IN.name()),
-                                    Exp.val(id.getKeyHashBase64())
+                            Exp.gt(
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.IN.name())),
+                                    Exp.val(0)
                             ),
-                            Exp.eq(Exp.stringBin(Direction.OUT.name()),
-                                    Exp.val(id.getKeyHashBase64())
+                            Exp.gt(
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.OUT.name())),
+                                    Exp.val(0)
                             )
                     ));
         }
@@ -303,14 +307,12 @@ public abstract class RelationalVertex extends FireflyVertex {
         final ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = true;
         final Iterator<Map.Entry<Key, Record>> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-        return IteratorUtils.map(i, keyRecordEntry -> {
-            Object userKey = keyRecordEntry.getValue().getValue(AerospikeConnection.USER_KEY);
-            return graph.getIdFactory().createId(userKey, FireflyEdge.class);
-        });
+        return new FireflyPhatEdgeIdIteratorFromVertex(i, this.db, direction, this.id);
 
     }
 
     protected Iterator<FireflyId> getEdgeIdsFromVertexByIndex(final Direction direction) {
+        // TODO GRAPH-412
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.sendKey = true;
         queryPolicy.includeBinData = false;

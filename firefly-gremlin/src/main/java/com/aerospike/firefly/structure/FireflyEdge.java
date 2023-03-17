@@ -1,8 +1,6 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.Record;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
@@ -183,11 +181,6 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     @Override
     public String toString() {
         return StringFactory.edgeString(this);
-    }
-
-    @Override
-    public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().EDGE_AERO_SET, id).record();
     }
 
     public void removeCachedProperty(String key) {

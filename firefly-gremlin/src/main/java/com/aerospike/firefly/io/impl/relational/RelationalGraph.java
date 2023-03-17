@@ -7,7 +7,10 @@ import com.aerospike.client.Record;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapPolicy;
+import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
@@ -15,6 +18,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -38,6 +42,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
 /**
@@ -106,13 +111,25 @@ public abstract class RelationalGraph extends FireflyGraph {
             }
         });
 
-        final Bin labelBin = new Bin(AerospikeConnection.LABEL, Value.get(label));
-        final Bin inVbin = new Bin(Direction.IN.name(), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        final Bin outVBin = new Bin(Direction.OUT.name(), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        final Bin valueBin = new Bin(this.db.PROPERTIES, Value.get(data, MapOrder.KEY_ORDERED));
-        final Bin typeHintBin = new Bin(this.db.TYPE_HINTS, Value.get(typeHints, MapOrder.KEY_ORDERED));
-        FireflyRecord.writeElement(this.db, this.db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class), -1, labelBin,
-                inVbin, outVBin, valueBin, typeHintBin);
+        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
+        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
+        final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
+                Value.get(edgeId), Value.get(label));
+        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
+                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
+                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
+                Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
+        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
+                Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
+        final Operation incrementEdgeWriteCounter = Operation.add(new Bin(db.PHAT_EDGE_COUNTER, 1));
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.sendKey = true;
+        writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
+        final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
+        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints, incrementEdgeWriteCounter);
     }
 
     /**
@@ -214,7 +231,10 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds) {
-        return RelationalEdge.readEdges(this, hasContainers, edgeIds);
+        if (!hasContainers.isEmpty()) {
+            throw new RuntimeException("Pushdown is not currently supported for Edges.");
+        }
+        return RelationalEdge.readEdges(this, edgeIds);
     }
 
     /**
@@ -228,7 +248,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         // Remove edge.
         LOG.debug("Removing edge {}.", edgeId);
 
-        db.delete(FireflyRecord.getKey(db, db.EDGE_AERO_SET, edgeId));
+        RelationalEdge.removeEdgeById(this, edgeId);
     }
 
     /**
@@ -238,8 +258,8 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @return Edge.
      */
     @Override
-    public FireflyEdge edgeFromRecord(final KeyRecord keyRecord) {
-        return RelationalEdge.fromRecord(this, keyRecord);
+    public FireflyEdge edgeFromRecord(final KeyRecord keyRecord, final FireflyId edgeId) {
+        return RelationalEdge.fromRecord(this, keyRecord, edgeId);
     }
 
     /**
@@ -249,8 +269,8 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @return Edge.
      */
     @Override
-    public FireflyEdge edgeFromRecord(final Map.Entry<Key, Record> keyRecord) {
-        return RelationalEdge.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+    public Iterator<FireflyEdge> edgesFromRecord(final Map.Entry<Key, Record> keyRecord) {
+        return RelationalEdge.allFromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
     }
 
     /**
@@ -286,17 +306,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create vertex from a Key-Record Map.Entry pair.
-     *
-     * @param keyRecord Record to use.
-     * @return Vertex.
-     */
-    @Override
-    public FireflyVertex vertexFromRecord(final Map.Entry<Key, Record> keyRecord) {
-        return RelationalVertex.fromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
-    }
-
-    /**
      * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
      * remove k from the ELEMENT_PROPERTIES map
      *
@@ -305,12 +314,20 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     @Override
     public void removeProperty(final FireflyElement element, final String key) {
-        db.removeTypeHintedValueFromMap(
-                db.setFromElementType(element.getClass()),
-                element.id,
-                db.PROPERTIES,
-                key,
-                db.TYPE_HINTS);
+        if (element instanceof PackedVertexProperty) {
+            ((PackedVertexProperty<?>) element).removeProperty(key);
+        } else if (element instanceof RelationalEdge) {
+            ((RelationalEdge) element).removeProperty(key);
+        } else {
+            // TODO GRAPH-439: This default behaviour can probably be removed given that vertices, edges, and vertex
+            //  properties all now have their own unique logic for their properties.
+            db.removeTypeHintedValueFromMap(
+                    db.setFromElementType(element.getClass()),
+                    element.id,
+                    db.PROPERTIES,
+                    key,
+                    db.TYPE_HINTS);
+        }
     }
 
     /**
@@ -337,26 +354,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     public boolean[] vertexExists(final Expression expression, final List<FireflyId> idValue) {
         LOG.debug("Checking if vertex {} exists.", idValue);
         return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
-    }
-
-    /**
-     * Determine if an edge exists.
-     *
-     * @param expression expression to check.
-     * @param idValue    edge id to check.
-     * @return true if edge exists, false otherwise.
-     */
-    @Override
-    public boolean[] edgeExists(final Expression expression, final List<FireflyId> idValue) {
-        LOG.debug("Checking if edge {} exists.", idValue);
-        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.EDGE_AERO_SET, id)).toArray(Key[]::new));
-    }
-
-    @Override
-    public boolean edgeExists(final FireflyId idValue) {
-        LOG.debug("Checking if edge {} exists.", idValue);
-        final Key key = FireflyRecord.getKey(db, db.EDGE_AERO_SET, idValue);
-        return db.exists(key);
     }
 
     /**
@@ -434,6 +431,13 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
+        FireflyHelper.validatePropertyValue(value);
+        if (element instanceof RelationalEdge) {
+            return ((RelationalEdge) element).writeProperty(key, value);
+        }
+        // TODO GRAPH-439: Refactor property inheritance tree and update/remove this. Since Linked is deprecated writing
+        //                 of properties probably should be delegated to their respective parent classes since they all
+        //                 have differing logic now and this is not used.
         return RelationalProperty.writeProperty(this, element, key, value);
     }
 
@@ -454,6 +458,6 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public long getEdgeCount() {
-        return IteratorUtils.count(db.scanAllKeysInSet(db.EDGE_AERO_SET, null, false));
+        return IteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
     }
 }

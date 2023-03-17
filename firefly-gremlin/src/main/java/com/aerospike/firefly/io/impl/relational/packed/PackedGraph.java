@@ -1,30 +1,18 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.IndexCollectionType;
-import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
-import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyReadThroughCacheStrategy;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -140,27 +128,6 @@ public class PackedGraph extends RelationalGraph {
             return (Property<V>) readProperties(element).get(key);
         } else {
             return super.readProperty(element, key);
-        }
-    }
-
-    @Override
-    public void close() {
-        super.close();
-    }
-
-    /**
-     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
-     * remove k from the ELEMENT_PROPERTIES map
-     *
-     * @param element Element to remove property from
-     * @param key     property key to remove
-     */
-    @Override
-    public void removeProperty(final FireflyElement element, final String key) {
-        if (element instanceof PackedVertexProperty) {
-            ((PackedVertexProperty<?>) element).removeProperty(key);
-        } else {
-            super.removeProperty(element, key);
         }
     }
 }

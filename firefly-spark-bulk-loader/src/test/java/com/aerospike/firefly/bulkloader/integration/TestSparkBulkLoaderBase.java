@@ -38,15 +38,11 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getDefaultConfig();
 
-    protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfig();
-
-    protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig();
+    protected abstract String getKeepIdAsPropertyTrueConfig();
 
     protected abstract String getDefaultConfigArtificialSupernode();
 
-    protected abstract String getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode();
-
-    protected abstract String getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode();
+    protected abstract String getKeepIdAsPropertyTrueConfigArtificialSupernode();
 
     @Test
     public void testDataAccuracy() {
@@ -57,31 +53,19 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @Test
-    public void testUseProvidedEdgeIdTrue() {
+    public void testDefault() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertEquals(11L, e.id());
-        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
-        Assert.assertFalse(providedId.isPresent());
-    }
-
-    @Test
-    public void testUseProvidedEdgeIdFalse() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfig()});
-        final GraphTraversalSource g = graph.traversal();
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertNotEquals(11L, e.id());
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertFalse(providedId.isPresent());
     }
 
     @Test
     public void testProvidedEdgeIdPropertyName() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfig()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertNotEquals(11L, e.id());
         Property providedId = e.property("~providedId");
         Assert.assertFalse(providedId.isPresent());
         providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -98,22 +82,10 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @Test
-    public void testUseProvidedEdgeIdTrueArtificialSupernodes() {
+    public void testArtificialSupernodes() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertEquals(11L, e.id());
-        final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
-        Assert.assertFalse(providedId.isPresent());
-        testSupernodes();
-    }
-
-    @Test
-    public void testUseProvidedEdgeIdFalseArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseAndKeepIdFalseConfigArtificialSupernode()});
-        final GraphTraversalSource g = graph.traversal();
-        final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertNotEquals(11L, e.id());
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
         Assert.assertFalse(providedId.isPresent());
         testSupernodes();
@@ -121,10 +93,9 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getUseProvidedEdgeIdFalseKeepIdAsPropertyTrueConfigArtificialSupernode()});
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
-        Assert.assertNotEquals(11L, e.id());
         Property providedId = e.property("~providedId");
         Assert.assertFalse(providedId.isPresent());
         providedId = e.property(PROVIDED_ID_PROPERTY_NAME);

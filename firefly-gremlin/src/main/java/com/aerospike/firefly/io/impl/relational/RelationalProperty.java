@@ -4,7 +4,6 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
@@ -47,11 +46,6 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
     public void remove() {
         try {
             graph.removeProperty(fireflyElement, key());
-
-            // Need to make sure cached properties are removed from Edge.
-            if (fireflyElement instanceof FireflyEdge) {
-                ((FireflyEdge) fireflyElement).removeCachedProperty(key());
-            }
         } catch (final AerospikeException ae) {
             // Removing a property that is already removed SHOULD NOT yield an error.
             if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
@@ -73,8 +67,7 @@ public class RelationalProperty<V> extends FireflyProperty<V> {
      * @return Property that was written.
      */
     public static <V> Property<V> writeProperty(final FireflyGraph graph, final FireflyElement element, final String key, final V value) {
-        // RelationalProperty property writes are atomic since they only hit 1 record. Generation check within
-        // writeTypeHintedValueToMap ensures correctness.
+        // TODO GRAPH-439
         final AerospikeConnection db = graph.getBaseGraph();
         FireflyHelper.validatePropertyValue(value);
         db.writeTypeHintedValueToMap(

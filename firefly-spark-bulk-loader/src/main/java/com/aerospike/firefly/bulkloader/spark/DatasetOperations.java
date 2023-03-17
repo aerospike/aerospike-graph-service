@@ -213,7 +213,6 @@ public class DatasetOperations implements Serializable {
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
-            final boolean useProvidedId = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID, config.get()));
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config.get()));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config.get());
@@ -230,8 +229,7 @@ public class DatasetOperations implements Serializable {
                 final Map<Object, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, useProvidedId,
-                            keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
+                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
                             graph, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId()));
                 }
                 executor.shutdown();
@@ -254,7 +252,6 @@ public class DatasetOperations implements Serializable {
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
-            final boolean useProvidedId = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.USE_PROVIDED_EDGE_ID, config.get()));
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config.get()));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config.get());
@@ -265,8 +262,7 @@ public class DatasetOperations implements Serializable {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties,
-                            useProvidedId, keepProvidedId, providedIdPropertyName, nullValue, graph);
+                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
 
                     final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
                             .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));

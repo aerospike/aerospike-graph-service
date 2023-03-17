@@ -17,11 +17,11 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -70,7 +70,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();
         final List<FireflyId> fireflyIdList = new ArrayList<>();
         final Set<FireflyId> uniqueIdSet = new HashSet<>();
-        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new TreeMap<>();
+        final Map<FireflyId, FireflyEdge> fireflyEdgeMap = new HashMap<>();
         while (!set.isEmpty()) {
             // Get next input traverser and get the RelationalVertex form of it.
             final Traverser.Admin<Edge> traverser = set.remove();
@@ -121,7 +121,8 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     private List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
         final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
         final Set<String> edgeLabelSet = Set.of(edgeLabels);
-        // Note use aerospikeHasContainers here, those are to be applied on edges, so they are valid.
-        return firefly.readEdges(aerospikeHasContainers, edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
+
+        // TODO: Revisit pushdown feasibility for List.of() -> aerospikeHasContainers
+        return firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(e -> e.id).collect(Collectors.toList());
     }
 }

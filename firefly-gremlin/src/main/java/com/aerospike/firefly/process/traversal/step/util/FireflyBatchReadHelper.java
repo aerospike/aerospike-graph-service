@@ -57,7 +57,7 @@ public class FireflyBatchReadHelper {
                                                                                        final List<HasContainer> fireflyHasContainers,
                                                                                        final TraverserSet<T> output,
                                                                                        final ReadElements<E> readElements) {
-        // Read all vertices in a batch.
+        // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds);
 

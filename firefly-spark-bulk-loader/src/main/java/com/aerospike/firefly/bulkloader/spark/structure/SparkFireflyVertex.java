@@ -2,6 +2,7 @@ package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -61,7 +62,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     }
 
     @Override
-    public FireflyId getFireflyId(final String setName) {
-        return FireflyIdPoly.fromObject(this.id, setName);
+    public FireflyId getFireflyId(final AerospikeConnection db) {
+        return FireflyIdPoly.fromObject(this.id, db.VERTEX_AERO_SET);
     }
 }

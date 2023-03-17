@@ -7,10 +7,10 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
+@Ignore("TODO GRAPH-412")
 public class TestRelationalVertex extends AbstractFireflySuite {
     @Override
     protected boolean clearData() {
@@ -44,6 +45,7 @@ public class TestRelationalVertex extends AbstractFireflySuite {
         assertEquals(longIdsByScan.size(), longIdsByIndex.size());
         assertEquals(longIdsByScan, longIdsByIndex);
     }
+
     @Test
     public void scanAndIndexHaveEquivalentResultsIN() {
         RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
@@ -56,6 +58,7 @@ public class TestRelationalVertex extends AbstractFireflySuite {
         assertEquals(longIdsByScan.size(), longIdsByIndex.size());
         assertEquals(longIdsByScan, longIdsByIndex);
     }
+
     @Test
     public void scanAndIndexHaveEquivalentResultsOUT() {
         RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();

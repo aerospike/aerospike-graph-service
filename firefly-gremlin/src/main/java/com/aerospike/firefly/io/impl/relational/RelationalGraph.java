@@ -123,13 +123,12 @@ public abstract class RelationalGraph extends FireflyGraph {
                 Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
                 Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Operation incrementEdgeWriteCounter = Operation.add(new Bin(db.PHAT_EDGE_COUNTER, 1));
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
-        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints, incrementEdgeWriteCounter);
+        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
     }
 
     /**

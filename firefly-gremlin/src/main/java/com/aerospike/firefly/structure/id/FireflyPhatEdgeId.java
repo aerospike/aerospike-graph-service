@@ -16,12 +16,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
 
     @Override
     public Object getStorageId() {
-        // TODO GRAPH-426: Won't need this. See JIRA for details.
-        // The IdManager always generates the first Id as -1, so offset by 1 in order to ensure that the phat edge 0
-        // has the correct number of edges added to it.
-        // Example: phat edge with capacity 2 would never be properly filled without this logic since it would only
-        // contain edge with Id -1 since the next generated edge with Id -2 will store in phat edge -1.
-        return ((long) this.id + 1) / capacity;
+        return ((long) this.id) / capacity;
     }
 
     /**

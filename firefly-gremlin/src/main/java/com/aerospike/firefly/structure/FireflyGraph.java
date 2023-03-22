@@ -3,7 +3,6 @@ package com.aerospike.firefly.structure;
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
-import com.aerospike.client.Log;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;

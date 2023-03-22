@@ -136,7 +136,6 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
         public static final String PHAT_EDGE_SIZE = "EDGES_PER_RECORD";
-        public static final String PHAT_EDGE_COUNTER = "PHAT_EDGE_COUNTER";
         public static final String TLS = "TLS";
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
@@ -226,8 +225,7 @@ public final class ConfigurationHelper {
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
-		put(Keys.PHAT_EDGE_SIZE, "10");
-        put(Keys.PHAT_EDGE_COUNTER, "E_WRITE_CTR");
+        put(Keys.PHAT_EDGE_SIZE, "10");
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");

@@ -185,7 +185,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
-    public final String PHAT_EDGE_COUNTER;
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
@@ -284,7 +283,6 @@ public class AerospikeConnection implements AutoCloseable {
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
         PHAT_EDGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf));
-        PHAT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PHAT_EDGE_COUNTER, conf);
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
 

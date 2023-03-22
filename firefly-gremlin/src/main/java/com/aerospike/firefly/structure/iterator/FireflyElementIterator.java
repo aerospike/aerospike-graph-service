@@ -6,6 +6,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 /**
@@ -58,5 +59,10 @@ public abstract class FireflyElementIterator<E> implements CloseableIterator<E> 
             // IDs have been exhausted and could not find any more valid elements.
             this.hasNext = false;
         }
+    }
+
+    @Override
+    public void close() {
+        CloseableIterator.closeIterator(idIterator);
     }
 }

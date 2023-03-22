@@ -4,6 +4,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -13,7 +14,7 @@ import java.util.NoSuchElementException;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyBatchReadVertexIterator implements Iterator<Vertex> {
+public class FireflyBatchReadVertexIterator implements CloseableIterator<Vertex> {
     private Iterator<FireflyVertex> vertexIterator;
     private final Iterator<FireflyId> idIterator;
     private final FireflyGraph graph;
@@ -50,5 +51,15 @@ public class FireflyBatchReadVertexIterator implements Iterator<Vertex> {
             throw new NoSuchElementException();
         }
         return vertexIterator.next();
+    }
+
+    @Override
+    public void close() {
+        if (vertexIterator != null) {
+            CloseableIterator.closeIterator(vertexIterator);
+        }
+        if (idIterator != null) {
+            CloseableIterator.closeIterator(idIterator);
+        }
     }
 }

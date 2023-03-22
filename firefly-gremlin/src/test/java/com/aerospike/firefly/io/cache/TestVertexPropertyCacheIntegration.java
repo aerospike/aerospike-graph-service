@@ -7,6 +7,7 @@ import com.aerospike.client.async.Monitor;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -121,10 +122,9 @@ public class TestVertexPropertyCacheIntegration {
         final Monitor scanMonitor = new Monitor();
         final ScanPolicy policy = new ScanPolicy();
         final AerospikeClient client = connection.getClient();
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
-                scanMonitor,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
                 Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)));
         client.scanAll(connection.getEventLoops().next(), listener, policy, connection.getNamespace(), connection.VERTEX_PROPERTY_AERO_SET);
-        return listener.iterator();
+        return new FireflyCloseableIterator<>(listener);
     }
 }

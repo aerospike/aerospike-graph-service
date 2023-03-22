@@ -1,11 +1,11 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,7 +249,7 @@ public class Movielens {
                             STARS, this.rating, TIME, this.timestamp);
             metric.incrementAndGet();
             periodicLog("rating edges", metric.get(), timer);
-            return IteratorUtils.of(e);
+            return FireflyCloseableIteratorUtils.of(e);
         }
     }
 

@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -12,7 +13,6 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedElement;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -161,7 +161,7 @@ public abstract class FireflyVertex extends FireflyElement implements WrappedEle
     public Iterator<Edge> edges(final Direction direction, final String... edgeLabels) {
         final Iterator<Edge> edgeIterator = FireflyHelper.getEdges(graph, this, direction, edgeLabels);
         return FireflyHelper.inComputerMode(this.graph) ?
-                IteratorUtils.filter(edgeIterator,
+                FireflyCloseableIteratorUtils.filter(edgeIterator,
                         edge -> this.graph.graphComputerView.legalEdge(this, edge)) :
                 edgeIterator;
     }
@@ -194,8 +194,7 @@ public abstract class FireflyVertex extends FireflyElement implements WrappedEle
 
         // Return an iterator over the map.
         return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :
-
-                IteratorUtils.map(IteratorUtils.filter(vertexProperties,
+                FireflyCloseableIteratorUtils.map(FireflyCloseableIteratorUtils.filter(vertexProperties,
                                 e -> ElementHelper.keyExists(e.getKey(), propertyKeys)),
                         Map.Entry::getValue);
     }

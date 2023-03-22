@@ -28,7 +28,9 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
+import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
@@ -55,7 +57,6 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -346,7 +347,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
         // Validate key value pairs are valid for Firefly.
-        final Iterator i = IteratorUtils.asIterator(keyValues);
+        final Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             i.next();
             FireflyHelper.validatePropertyValue(i.next());
@@ -456,7 +457,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
-                return IteratorUtils.of(new FireflyMetadataVertex(this));
+                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
                 try {
@@ -464,7 +465,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 } catch (Exception e) {
                     LOG.warn("Failed to run warmup routine {}", e.getMessage());
                 }
-                return IteratorUtils.of(new FireflyMetadataVertex(this));
+                return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
         }
 
@@ -648,7 +649,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
-        return IteratorUtils.map(keyRecordIterator, transform::transform);
+        return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
     }
 
     /**
@@ -705,7 +706,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final Iterator<Map.Entry<Key, Record>> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
 
         // Transform record to correct element.
-        return IteratorUtils.map(keyRecordIterator, kr -> transform.transform(new KeyRecord(kr.getKey(), kr.getValue())));
+        return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(new KeyRecord(kr.getKey(), kr.getValue())));
     }
 
     /**

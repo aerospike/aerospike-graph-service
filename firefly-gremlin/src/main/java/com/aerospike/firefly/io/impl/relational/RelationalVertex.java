@@ -33,18 +33,19 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,7 +178,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 .flatMap(edge -> {
                     if (id().equals(edge.outVertex().id()) && id().equals(edge.inVertex().id()))
                         return Stream.of(this);
-                    return IteratorUtils.stream(IteratorUtils.filter(edge.vertices(direction.opposite()),
+                    return FireflyCloseableIteratorUtils.stream(FireflyCloseableIteratorUtils.filter(edge.vertices(direction.opposite()),
                             vertex -> !vertex.id().equals(id())));
                 }).collect(Collectors.toList());
         return listOfEdges;
@@ -235,7 +236,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     private List<FireflyId> getInEdgeIds() {
-        return IteratorUtils.list(getInEdgeIdsIter());
+        return FireflyCloseableIteratorUtils.list(getInEdgeIdsIter());
     }
 
     /**
@@ -261,7 +262,7 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
     private List<FireflyId> getOutEdgeIds() {
-        return IteratorUtils.list(getOutEdgeIdsIter());
+        return FireflyCloseableIteratorUtils.list(getOutEdgeIdsIter());
     }
 
     /**
@@ -270,7 +271,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @return Iterator of all incoming and outgoing edge ids.
      */
     private List<FireflyId> getBothEdgeIds() {
-        return IteratorUtils.list(IteratorUtils.concat(getOutEdgeIdsIter(), getInEdgeIdsIter()));
+        return FireflyCloseableIteratorUtils.list(FireflyCloseableIteratorUtils.concat(getOutEdgeIdsIter(), getInEdgeIdsIter()));
     }
 
     /**
@@ -324,13 +325,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             iterator = db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(direction.name(),
                     IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy);
         } else {
-            iterator = IteratorUtils.concat(
+            iterator = FireflyCloseableIteratorUtils.concat(
                     db.queryIndex(db.EDGE_AERO_SET, E_IN_INDEX, Filter.contains(Direction.IN.name(),
                             IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy),
                     db.queryIndex(db.EDGE_AERO_SET, E_OUT_INDEX, Filter.contains(Direction.OUT.name(),
                             IndexCollectionType.DEFAULT, id.getKeyHashBase64()), queryPolicy));
         }
-        return IteratorUtils.map(iterator, keyRecordEntry ->
+        return FireflyCloseableIteratorUtils.map(iterator, keyRecordEntry ->
                 graph.getIdFactory().createId(keyRecordEntry.key.userKey.getObject(), FireflyEdge.class));
 
     }
@@ -347,13 +348,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             if (!this.isEdgeCacheDisabled) {
                 return this.inEdgeCount;
             } else {
-                return IteratorUtils.count(getInEdgeIdsIter());
+                return FireflyCloseableIteratorUtils.count(getInEdgeIdsIter());
             }
         } else {
             if (!this.isEdgeCacheDisabled) {
                 return this.outEdgeCount;
             } else {
-                return IteratorUtils.count(getOutEdgeIdsIter());
+                return FireflyCloseableIteratorUtils.count(getOutEdgeIdsIter());
             }
         }
     }
@@ -377,11 +378,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (exp != null)
             policy.filterExp = exp;
         final AerospikeClient client = db.getClient();
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
-                scanMonitor,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
                 Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)));
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
-        return listener.iterator();
+        return new FireflyCloseableIterator<>(listener);
     }
 
     /**

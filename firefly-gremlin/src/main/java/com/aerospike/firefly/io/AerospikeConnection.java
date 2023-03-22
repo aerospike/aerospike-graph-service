@@ -15,7 +15,6 @@ import com.aerospike.client.async.EventPolicy;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
-import com.aerospike.client.async.Throttles;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
@@ -40,9 +39,11 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -50,6 +51,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Tokens;
@@ -59,7 +61,6 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -400,7 +401,7 @@ public class AerospikeConnection implements AutoCloseable {
             return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
         } else {
             final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
-            return IteratorUtils.map(i,
+            return FireflyCloseableIteratorUtils.map(i,
                     r -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, r.getKey(), r.getValue()), type));
         }
     }
@@ -467,17 +468,14 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
-        final Throttles throttles = new Throttles(getEventLoops().getSize(), getCommandsPerLoop());
         final Monitor scanMonitor = new Monitor();
-        final int progressFreq = 100;
         policy.sendKey = sendKey;
         if (exp != null) policy.filterExp = exp;
 
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
-                scanMonitor,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
                 Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
         client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
-        return listener.iterator();
+        return new FireflyCloseableIterator<>(listener);
     }
 
     public EventLoops getEventLoops() {
@@ -1068,7 +1066,8 @@ public class AerospikeConnection implements AutoCloseable {
         stmt.setSetName(setName);
         stmt.setIndexName(indexName);
         stmt.setFilter(filter);
-        return client.query(policy, stmt).iterator();
+        final RecordSet record = client.query(policy, stmt);
+        return new FireflyCloseableIterator(record);
     }
 
     /**

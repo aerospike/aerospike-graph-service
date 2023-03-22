@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.ImmutableList;
@@ -43,7 +44,6 @@ import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedVertex;
 import org.apache.tinkerpop.gremlin.structure.util.reference.ReferenceVertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
@@ -171,9 +171,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("person", stephen.label());
         assertEquals("stephenm", stephen.value("name"));
         assertEquals(2010, Integer.parseInt(stephen.property("name").value("since").toString()));
-        assertEquals(1, IteratorUtils.count(stephen.property("name").properties()));
-        assertEquals(1, IteratorUtils.count(stephen.properties()));
-        assertEquals(7, IteratorUtils.count(g.V()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(stephen.property("name").properties()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(stephen.properties()));
+        assertEquals(7, FireflyCloseableIteratorUtils.count(g.V()));
     }
 
     @Test
@@ -185,8 +185,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertFalse(traversal.hasNext());
         assertEquals("person", stephen.label());
         assertEquals("stephenm", stephen.value("name"));
-        assertEquals(1, IteratorUtils.count(stephen.properties()));
-        assertEquals(7, IteratorUtils.count(g.V()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(stephen.properties()));
+        assertEquals(7, FireflyCloseableIteratorUtils.count(g.V()));
     }
 
     @Test
@@ -201,7 +201,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         } catch (Exception ex) {
             assertThat(ex.getMessage(), endsWith("could not be found and edge could not be created"));
         }
-        assertEquals(0, IteratorUtils.count(g.E()));
+        assertEquals(0, FireflyCloseableIteratorUtils.count(g.E()));
     }
 
     private static void assertId(final Graph g, final boolean lossyForId, final Element e, final Object expected) {
@@ -241,9 +241,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
     private static void assertToyGraph(final Graph g1, final boolean assertDouble, final boolean lossyForId, final boolean assertSpecificLabel) {
-        assertEquals(6, IteratorUtils.count(g1.vertices()));
+        assertEquals(6, FireflyCloseableIteratorUtils.count(g1.vertices()));
         var l = ImmutableList.copyOf(g1.edges());
-        assertEquals(6, IteratorUtils.count(g1.edges()));
+        assertEquals(6, FireflyCloseableIteratorUtils.count(g1.edges()));
         List<Vertex> stuff = g1.traversal().V().toList();
         List<Map<String, Object>> stuff2 = g1.traversal().V().propertyMap().toList();
         final Vertex v1 = g1.traversal().V().has("name", "marko").next();
@@ -252,7 +252,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v1.label());
         assertId(g1, lossyForId, v1, 1);
 
-        final List<Edge> v1Edges = IteratorUtils.list(v1.edges(Direction.BOTH));
+        final List<Edge> v1Edges = FireflyCloseableIteratorUtils.list(v1.edges(Direction.BOTH));
         assertEquals(3, v1Edges.size());
         v1Edges.forEach(e -> {
             if (e.inVertex().value("name").equals("vadas")) {
@@ -290,7 +290,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v2.label());
         assertId(g1, lossyForId, v2, 2);
 
-        final List<Edge> v2Edges = IteratorUtils.list(v2.edges(Direction.BOTH));
+        final List<Edge> v2Edges = FireflyCloseableIteratorUtils.list(v2.edges(Direction.BOTH));
         assertEquals(1, v2Edges.size());
         v2Edges.forEach(e -> {
             if (e.outVertex().value("name").equals("marko")) {
@@ -312,7 +312,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "software" : Vertex.DEFAULT_LABEL, v3.label());
         assertId(g1, lossyForId, v3, 3);
 
-        final List<Edge> v3Edges = IteratorUtils.list(v3.edges(Direction.BOTH));
+        final List<Edge> v3Edges = FireflyCloseableIteratorUtils.list(v3.edges(Direction.BOTH));
         assertEquals(3, v3Edges.size());
         v3Edges.forEach(e -> {
             if (e.outVertex().value("name").equals("peter")) {
@@ -350,7 +350,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v4.label());
         assertId(g1, lossyForId, v4, 4);
 
-        final List<Edge> v4Edges = IteratorUtils.list(v4.edges(Direction.BOTH));
+        final List<Edge> v4Edges = FireflyCloseableIteratorUtils.list(v4.edges(Direction.BOTH));
         assertEquals(3, v4Edges.size());
         v4Edges.forEach(e -> {
             if (e.inVertex().value("name").equals("ripple")) {
@@ -388,7 +388,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "software" : Vertex.DEFAULT_LABEL, v5.label());
         assertId(g1, lossyForId, v5, 5);
 
-        final List<Edge> v5Edges = IteratorUtils.list(v5.edges(Direction.BOTH));
+        final List<Edge> v5Edges = FireflyCloseableIteratorUtils.list(v5.edges(Direction.BOTH));
         assertEquals(1, v5Edges.size());
         v5Edges.forEach(e -> {
             if (e.outVertex().value("name").equals("josh")) {
@@ -410,7 +410,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(assertSpecificLabel ? "person" : Vertex.DEFAULT_LABEL, v6.label());
         assertId(g1, lossyForId, v6, 6);
 
-        final List<Edge> v6Edges = IteratorUtils.list(v6.edges(Direction.BOTH));
+        final List<Edge> v6Edges = FireflyCloseableIteratorUtils.list(v6.edges(Direction.BOTH));
         assertEquals(1, v6Edges.size());
         v6Edges.forEach(e -> {
             if (e.inVertex().value("name").equals("lop")) {
@@ -527,7 +527,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
         tryCommit(graph);
 
-        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(g.V(v).properties()));
         assertThat(triggered.get(), is(true));
     }
 
@@ -562,7 +562,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
         tryCommit(graph);
 
-        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(g.V(v).properties()));
         assertThat(triggered.get(), is(true));
     }
 
@@ -597,7 +597,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         gts.V(v).property(VertexProperty.Cardinality.single, "to-change", "dah").iterate();
         tryCommit(graph);
 
-        assertEquals(1, IteratorUtils.count(g.V(v).properties()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(g.V(v).properties()));
         assertThat(triggered.get(), is(true));
     }
 
@@ -711,7 +711,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(edge.outVertex(), convertToVertex(this.graph, "marko"));
         assertEquals(edge.inVertex(), convertToVertex(this.graph, "peter"));
         assertEquals("knows", edge.label());
-        assertEquals(1L, IteratorUtils.count(edge.properties(new String[0])));
+        assertEquals(1L, FireflyCloseableIteratorUtils.count(edge.properties(new String[0])));
         assertEquals(0.1, (Double) edge.value("weight"), 0.1);
         assertEquals(6L, this.g.V(new Object[0]).count().next().longValue());
         assertEquals(7L, this.g.E(new Object[0]).count().next().longValue());
@@ -785,13 +785,13 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         List<Vertex> things = traversal.toList();
         Vertex vertex = things.iterator().next();
-        List<VertexProperty<Object>> stuff = IteratorUtils.list(vertex.properties());
+        List<VertexProperty<Object>> stuff = FireflyCloseableIteratorUtils.list(vertex.properties());
 
         assertEquals("animal", vertex.label());
         assertEquals(29L, (long) (Integer) vertex.value("age"));
         assertEquals("puppy", vertex.value("name"));
         Assert.assertFalse(traversal.hasNext());
-        assertEquals(7L, IteratorUtils.count(this.g.V(new Object[0])));
+        assertEquals(7L, FireflyCloseableIteratorUtils.count(this.g.V(new Object[0])));
     }
 
     @Test
@@ -826,7 +826,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("marko", vertex.value("name"));
         assertEquals(19L, (long) (Integer) vertex.value("age"));
         Assert.assertFalse(traversal.hasNext());
-        assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
+        assertEquals(6L, FireflyCloseableIteratorUtils.count(this.g.V(new Object[0])));
     }
 
     @Test
@@ -845,7 +845,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("marko", vertex.value("name"));
         assertEquals(19L, (long) (Integer) vertex.value("age"));
         Assert.assertFalse(traversal.hasNext());
-        assertEquals(6L, IteratorUtils.count(this.g.V(new Object[0])));
+        assertEquals(6L, FireflyCloseableIteratorUtils.count(this.g.V(new Object[0])));
     }
 
     static class StubMutationListener implements MutationListener {
@@ -1006,7 +1006,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         GraphTraversalSource gts = create(eventStrategy);
         gts.V().addV().property("any", "thing").property(VertexProperty.Cardinality.single, "this", "thing").next();
         tryCommit(graph, (g) -> {
-            long val = IteratorUtils.count(gts.V(new Object[0]).has("this", "thing"));
+            long val = FireflyCloseableIteratorUtils.count(gts.V(new Object[0]).has("this", "thing"));
             assertEquals(1L, val);
         });
         assertEquals(1L, listener1.addVertexEventRecorded());
@@ -1038,9 +1038,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         mMatch.put("some", "thing");
         gts.V(v).mergeE(m).option(onMatch, mMatch).next();
 
-        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+        tryCommit(graph, g -> assertEquals(1, FireflyCloseableIteratorUtils.count(gts.E().has("some", "thing"))));
 
-        assertEquals(1, IteratorUtils.count(gts.E()));
+        assertEquals(1, FireflyCloseableIteratorUtils.count(gts.E()));
 
         assertEquals(0, listener1.addVertexEventRecorded());
         assertEquals(0, listener2.addVertexEventRecorded());
@@ -1072,7 +1072,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final GraphTraversalSource gts = create(eventStrategy);
         gts.E(e).property("some", "other thing").next();
 
-        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "other thing"))));
+        tryCommit(graph, g -> assertEquals(1, FireflyCloseableIteratorUtils.count(gts.E().has("some", "other thing"))));
 
         assertEquals(0, listener1.addVertexEventRecorded());
         assertEquals(0, listener2.addVertexEventRecorded());
@@ -1103,7 +1103,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         final GraphTraversalSource gts = create(eventStrategy);
         gts.V(v).as("v").addE("self").to("v").property("some", "thing").next();
 
-        tryCommit(graph, g -> assertEquals(1, IteratorUtils.count(gts.E().has("some", "thing"))));
+        tryCommit(graph, g -> assertEquals(1, FireflyCloseableIteratorUtils.count(gts.E().has("some", "thing"))));
 
         assertEquals(0, listener1.addVertexEventRecorded());
         assertEquals(0, listener2.addVertexEventRecorded());
@@ -1344,7 +1344,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals("person", vertex.label());
         assertEquals("marko", vertex.<String>value("name"));
         Assert.assertFalse(traversal.hasNext());
-        assertEquals(6, IteratorUtils.count(g.V()));
+        assertEquals(6, FireflyCloseableIteratorUtils.count(g.V()));
     }
 
     @Test
@@ -1450,7 +1450,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             resultList.forEach(v -> {
                 LOG.info("===============RESULT================");
                 LOG.info((String) v.id());
-                LOG.info(IteratorUtils.list(v.properties()).toString());
+                LOG.info(FireflyCloseableIteratorUtils.list(v.properties()).toString());
                 LOG.info(v.label());
                 noCacheGraph.traversal().V(v).dedup().bothE()
                         .toStream()
@@ -1462,7 +1462,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             referenceList.forEach(v -> {
                 LOG.info("===============REF==================");
                 LOG.info((String) v.id());
-                LOG.info(IteratorUtils.list(v.properties()).toString());
+                LOG.info(FireflyCloseableIteratorUtils.list(v.properties()).toString());
                 LOG.info(v.label());
                 noCacheGraph.traversal().V(v).dedup().bothE()
                         .toStream()

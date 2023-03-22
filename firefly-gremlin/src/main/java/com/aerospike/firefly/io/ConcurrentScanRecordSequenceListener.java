@@ -27,6 +27,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
     private final Semaphore semaphore;
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
+    private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
 
     /**
@@ -54,6 +55,9 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * @throws AerospikeException
      */
     public void onRecord(final Key key, final Record record) throws AerospikeException {
+        if (isClosed.get()) {
+            throw new AerospikeException.ScanTerminated();
+        }
         results.add(new AbstractMap.SimpleEntry<>(key, record));
         semaphore.release();
     }
@@ -82,16 +86,21 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * @return iterator
      */
     public Iterator<Map.Entry<Key, Record>> iterator() {
-        return new Iterator<Map.Entry<Key, Record>>() {
+        return new Iterator<>() {
             @Override
             public boolean hasNext() {
-                if (results.size() > 0) return true;
+                if (results.size() > 0) {
+                    return true;
+                }
 
                 while (!complete.get() && results.size() == 0) {
                     try {
-                        if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS))
+                        if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS)) {
+                            terminateScan();
                             throw new RuntimeException("timeout exceeded waiting for new records");
+                        }
                     } catch (InterruptedException e) {
+                        terminateScan();
                         throw new RuntimeException(e);
                     }
                 }
@@ -102,13 +111,21 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             @Override
             public Map.Entry<Key, Record> next() {
                 try {
-                    if (results.size() == 0)
-                        if (!hasNext()) throw new NoSuchElementException();
+                    if (results.size() == 0) {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+                    }
                     return results.take();
                 } catch (InterruptedException e) {
+                    terminateScan();
                     throw new RuntimeException(e);
                 }
             }
         };
+    }
+
+    public void terminateScan() {
+        isClosed.set(true);
     }
 }

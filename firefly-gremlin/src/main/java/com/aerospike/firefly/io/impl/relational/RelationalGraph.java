@@ -25,12 +25,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -425,7 +425,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     protected Iterator<FireflyId> scanAllVertices() {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
         final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-        return IteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));
+        return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));
     }
 
     @Override
@@ -452,11 +452,11 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     @Override
     public long getVertexCount() {
-        return IteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, null, false));
+        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, null, false));
     }
 
     @Override
     public long getEdgeCount() {
-        return IteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
+        return FireflyCloseableIteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
     }
 }

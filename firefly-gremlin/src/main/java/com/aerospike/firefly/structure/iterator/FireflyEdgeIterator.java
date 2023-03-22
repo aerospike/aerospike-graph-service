@@ -10,7 +10,7 @@ import java.util.Iterator;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyEdgeIterator extends FireflyElementIterator<Edge> {
-    public FireflyEdgeIterator(FireflyGraph graph, Iterator<FireflyId> idIterator) {
+    public FireflyEdgeIterator(final FireflyGraph graph, final Iterator<FireflyId> idIterator) {
         super(graph.getBaseGraph(), idIterator, graph::readEdge);
     }
 }

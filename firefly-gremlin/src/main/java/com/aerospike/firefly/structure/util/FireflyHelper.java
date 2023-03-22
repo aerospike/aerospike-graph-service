@@ -3,15 +3,14 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,7 @@ public final class FireflyHelper {
 
     public static void legalPropertyKeyValueArray(Object... keyValues) {
         ElementHelper.legalPropertyKeyValueArray(keyValues);
-        Iterator i = IteratorUtils.asIterator(keyValues);
+        Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             Object key = i.next();
             if (String.class.equals(key.getClass())) {

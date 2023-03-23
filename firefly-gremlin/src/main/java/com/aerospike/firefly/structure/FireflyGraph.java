@@ -2,8 +2,6 @@ package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
@@ -30,7 +28,6 @@ import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
-import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
@@ -304,7 +301,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyEdge edgeFromRecord(final KeyRecord record, final FireflyId edgeId);
 
-    public abstract Iterator<FireflyEdge> edgesFromRecord(final Map.Entry<Key, Record> record);
+    public abstract Iterator<FireflyEdge> edgesFromRecord(final KeyRecord record);
 
     // Graph variable functions.
     public abstract Set<String> readGraphVariableKeys();
@@ -654,7 +651,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName,
+                predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
@@ -711,10 +709,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         db.getScanHitCounter().increment(mapKey);
 
         final ScanPolicy policy = new ScanPolicy();
-        final Iterator<Map.Entry<Key, Record>> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
+        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
 
         // Transform record to correct element.
-        return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(new KeyRecord(kr.getKey(), kr.getValue())));
+        return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(kr));
     }
 
     /**

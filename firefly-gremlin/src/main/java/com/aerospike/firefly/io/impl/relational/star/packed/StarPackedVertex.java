@@ -108,9 +108,9 @@ public class StarPackedVertex extends PackedVertex {
             vertexPropertyTypeHints = new TreeMap<>();
         } else {
             // Read existing maps.
-            vertexPropertyIds = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
-            vertexPropertyValues = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            vertexPropertyTypeHints = (Map<String, List<Map<String, Long>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            vertexPropertyIds = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            vertexPropertyValues = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+            vertexPropertyTypeHints = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
 
             // If any bins happen to be null, initialize them.
             if (vertexPropertyIds == null) {
@@ -240,7 +240,7 @@ public class StarPackedVertex extends PackedVertex {
                     adjacentVertexEdges = new TreeMap<>();
                 } else {
                     final String adjacentVertexDirBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
-                    adjacentVertexEdges = (Map<String, List<Object>>) adjacentVertexRecord.record.getMap(adjacentVertexDirBin);
+                    adjacentVertexEdges = (Map<String, List<Object>>) adjacentVertexRecord.record().getMap(adjacentVertexDirBin);
 
                     // If the bin is null it must be initialized.
                     if (adjacentVertexEdges == null) {
@@ -269,7 +269,7 @@ public class StarPackedVertex extends PackedVertex {
                     // First entry, generate empty map.
                     adjacentEdges = new TreeMap<>();
                 } else {
-                    adjacentEdges = (Map<String, List<Map<String, List<Object>>>>) adjacentVertexDirDirRecord.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+                    adjacentEdges = (Map<String, List<Map<String, List<Object>>>>) adjacentVertexDirDirRecord.record().getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
 
                     // If the bin is null it must be initialized.
                     if (adjacentEdges == null) {
@@ -429,9 +429,9 @@ public class StarPackedVertex extends PackedVertex {
 
             }
 
-            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
 
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
                     vertexVPTypeHint == null || !vertexVPTypeHint.containsKey(edge.label()) ||
@@ -495,9 +495,9 @@ public class StarPackedVertex extends PackedVertex {
 
             }
 
-            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
 
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
                     vertexVPTypeHint == null || !vertexVPTypeHint.containsKey(edge.label()) ||
@@ -549,7 +549,7 @@ public class StarPackedVertex extends PackedVertex {
         if (record == null) {
             return new TreeMap<>();
         }
-        final Map<K, U> map = (Map<K, U>) record.record.getMap(bin);
+        final Map<K, U> map = (Map<K, U>) record.record().getMap(bin);
         return (map == null) ? new TreeMap<>() : map;
     }
 
@@ -571,9 +571,9 @@ public class StarPackedVertex extends PackedVertex {
         }
 
         //
-        final Map<String, List<Map<String, ?>>> vertexVPValue = (Map<String, List<Map<String, ?>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-        final Map<String, List<Map<String, ?>>> vertexVPTypeHint = (Map<String, List<Map<String, ?>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-        final Map<String, List<Map<String, ?>>> vertexVPId = (Map<String, List<Map<String, ?>>>) record.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+        final Map<String, List<Map<String, ?>>> vertexVPValue = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+        final Map<String, List<Map<String, ?>>> vertexVPTypeHint = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+        final Map<String, List<Map<String, ?>>> vertexVPId = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
 
         // The tricky part is what entry of the list inside the map. Using the edge label we can get the list from the map,
         // but we still need to know the index to remove. To get that we must read the vertex and get the index from the
@@ -586,7 +586,7 @@ public class StarPackedVertex extends PackedVertex {
         }
 
         final String vertexEdgeMapBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
-        final Map<String, List<Object>> vertexEdgeLabelToId = (Map<String, List<Object>>) vertexRecord.record.getMap(vertexEdgeMapBin);
+        final Map<String, List<Object>> vertexEdgeLabelToId = (Map<String, List<Object>>) vertexRecord.record().getMap(vertexEdgeMapBin);
         final List<Object> edgeIds = vertexEdgeLabelToId.get(edge.label());
         final int edgeIndex = findInList(db.getIdFactory(), edgeIds, edge.id.getStorageId(),
                 String.format("Failed to find edge %s in vertex %s when removing adjacent vertex properties.", edge, vertexId));
@@ -686,7 +686,7 @@ public class StarPackedVertex extends PackedVertex {
             // First entry, generate empty map.
             adjacentVertexEdges = new TreeMap<>();
         } else {
-            adjacentVertexEdges = (Map<String, List<Object>>) adjacentVertexRecord.record.getMap(adjacentVertexDirBin);
+            adjacentVertexEdges = (Map<String, List<Object>>) adjacentVertexRecord.record().getMap(adjacentVertexDirBin);
 
             // If the bin is null it must be initialized.
             if (adjacentVertexEdges == null) {
@@ -713,7 +713,7 @@ public class StarPackedVertex extends PackedVertex {
             // First entry, generate empty map.
             adjacentEdges = new TreeMap<>();
         } else {
-            adjacentEdges = (Map<String, List<Map<String, List<Object>>>>) adjacentVertexDirDirRecord.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+            adjacentEdges = (Map<String, List<Map<String, List<Object>>>>) adjacentVertexDirDirRecord.record().getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
 
             // If the bin is null it must be initialized.
             if (adjacentEdges == null) {

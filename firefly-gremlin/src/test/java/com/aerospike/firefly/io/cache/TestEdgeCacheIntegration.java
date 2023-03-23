@@ -8,7 +8,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -35,7 +34,7 @@ public class TestEdgeCacheIntegration {
 
     @BeforeClass
     public static void beforeAll() {
-        SETUP_GRAPH = CacheTestsUtils.getCacheDefaultFirefly(CONFIG);
+        SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase();
     }
 
@@ -45,8 +44,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheEnabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+    public void testCacheEnabledAdjacencyDisabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -64,8 +63,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getEdgeCacheDisabledFirefly(CONFIG)) {
+    public void testCacheDisabledAdjacencyEnabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -89,7 +88,7 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testCacheAndAdjacencyIndexDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getEdgeAdjacencyIndexDisabledFirefly(CONFIG)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyDisabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -131,7 +130,7 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testEdgeCacheStorageOnRecord() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
             final FireflyIdFactory idFactory = graph.getIdFactory();
             final FireflyVertex v1 = (FireflyVertex) g.addV("v1").next();

@@ -5,12 +5,11 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.listener.RecordSequenceListener;
+import com.aerospike.client.query.KeyRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.AbstractMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
@@ -23,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final Monitor scanMonitor;
-    private final LinkedBlockingQueue<Map.Entry<Key, Record>> results = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<KeyRecord> results = new LinkedBlockingQueue<>();
     private final Semaphore semaphore;
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
@@ -58,7 +57,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         if (isClosed.get()) {
             throw new AerospikeException.ScanTerminated();
         }
-        results.add(new AbstractMap.SimpleEntry<>(key, record));
+        results.add(new KeyRecord(key, record));
         semaphore.release();
     }
 
@@ -85,7 +84,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * Returns a concurrent Iterator that blocks on hasNext if no results are available
      * @return iterator
      */
-    public Iterator<Map.Entry<Key, Record>> iterator() {
+    public Iterator<KeyRecord> iterator() {
         return new Iterator<>() {
             @Override
             public boolean hasNext() {
@@ -109,7 +108,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             }
 
             @Override
-            public Map.Entry<Key, Record> next() {
+            public KeyRecord next() {
                 try {
                     if (results.size() == 0) {
                         if (!hasNext()) {

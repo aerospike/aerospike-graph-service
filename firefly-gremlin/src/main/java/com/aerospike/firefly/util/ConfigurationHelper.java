@@ -218,7 +218,7 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
-        put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.ADJACENCY_INDEX_ENABLED, "false");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");

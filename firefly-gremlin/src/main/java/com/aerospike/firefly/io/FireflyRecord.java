@@ -8,6 +8,7 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;
@@ -40,8 +41,8 @@ public class FireflyRecord {
         put(Double.class, 3L);
         put(String.class, 5L);
     }};
-    protected final Key key;
-    public final Record record;
+    private final Key key;
+    private final Record record;
     private static final WritePolicy sendKeyWritePolicy = new WritePolicy();
 
     static {
@@ -235,18 +236,17 @@ public class FireflyRecord {
     }
 
     /**
-     * Construct a FireflyRecord from an Aerospike Record and Key
+     * Construct a FireflyRecord from an Aerospike KeyRecord
      *
-     * @param db     AerospikeConnection instance
-     * @param key    Aerospike Key
-     * @param record Aerospike Record
+     * @param db            AerospikeConnection instance
+     * @param keyRecord     Aerospike KeyRecord
      * @return FireflyRecord
      */
-    public static FireflyRecord fromRecord(final AerospikeConnection db, final Key key, final Record record) {
-        if (record == null)
+    public static FireflyRecord fromRecord(final AerospikeConnection db, final KeyRecord keyRecord) {
+        if (keyRecord.record == null)
             return null;
 
-        return new FireflyRecord(db, key, record);
+        return new FireflyRecord(db, keyRecord.key, keyRecord.record);
     }
 
     /**

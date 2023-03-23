@@ -100,7 +100,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         Bin bin2 = new Bin("age", 32);
         Bin bin3 = new Bin("greeting", "Hello World!");
         FireflyRecord.writeElement(db, db.TEST_SET, FireflyIdPoly.fromObject((String) id, db.TEST_SET), -1, bin1, bin2, bin3);
-        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyIdPoly.fromObject((String) id, db.TEST_SET))).record.getInt("age"), 32);
+        assertEquals(Objects.requireNonNull(FireflyRecord.read(db, db.TEST_SET, FireflyIdPoly.fromObject((String) id, db.TEST_SET))).record().getInt("age"), 32);
     }
 
     @Test
@@ -460,8 +460,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            Iterator<Map.Entry<Key, Record>> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-            Iterator<Map.Entry<Key, Record>> edgeKeys = db.scanAllRecordsInSet(db.EDGE_AERO_SET, null, new ScanPolicy(),
+            Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+            Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(db.EDGE_AERO_SET, null, new ScanPolicy(),
                     AerospikeConnection.LABEL);
             FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
             assertFalse(vertxKeys.hasNext());

@@ -397,13 +397,13 @@ public class AerospikeConnection implements AutoCloseable {
 
         LOG.trace("Scanning {} ids.", setName);
         if (setName.equals(EDGE_AERO_SET)) {
-            final Iterator<Map.Entry<Key, Record>> keyRecordIter = scanAllRecordsInSet(setName, null, new ScanPolicy(),
+            final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(setName, null, new ScanPolicy(),
                     AerospikeConnection.LABEL);
             return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
         } else {
-            final Iterator<Map.Entry<Key, Record>> i = scanAllKeysInSet(setName, null);
+            final Iterator<KeyRecord> i = scanAllKeysInSet(setName, null);
             return FireflyCloseableIteratorUtils.map(i,
-                    r -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, r.getKey(), r.getValue()), type));
+                    keyRecord -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, keyRecord), type));
         }
     }
 
@@ -415,9 +415,9 @@ public class AerospikeConnection implements AutoCloseable {
      * @param setName Aerospike set name to scan
      * @param exp     Expression to apply to Scan
      * @param sendKey Send the original user key
-     * @return Iterator of Map.Entry Key, Record
+     * @return Iterator of KeyRecord
      */
-    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp, boolean sendKey) {
+    public Iterator<KeyRecord> scanAllKeysInSet(final String setName, final Expression exp, boolean sendKey) {
         LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
@@ -431,9 +431,9 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param setName Aerospike set name to scan
      * @param exp     Expression to apply to Scan
-     * @return Iterator of Map.Entry Key, Record
+     * @return Iterator of KeyRecord
      */
-    public Iterator<Map.Entry<Key, Record>> scanAllKeysInSet(final String setName, final Expression exp) {
+    public Iterator<KeyRecord> scanAllKeysInSet(final String setName, final Expression exp) {
         LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
@@ -449,9 +449,9 @@ public class AerospikeConnection implements AutoCloseable {
      * @param exp      Expression to apply to Scan
      * @param policy   ScanPolicy to use during Scan
      * @param binNames Bin names to read into Records returned
-     * @return Iterator of Map.Entry Key, Record
+     * @return Iterator of KeyRecord
      */
-    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, String... binNames) {
+    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, String... binNames) {
         return scanAllRecordsInSet(setName, exp, policy, true, binNames);
     }
 
@@ -465,9 +465,9 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy   ScanPolicy to use during Scan
      * @param sendKey  Send the original user key
      * @param binNames Bin names to read into Records returned
-     * @return Iterator of Map.Entry Key, Record
+     * @return Iterator of KeyRecord
      */
-    public Iterator<Map.Entry<Key, Record>> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
+    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
@@ -492,7 +492,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param edgeRecords array of Edge Records
      * @param direction   the other end we should be retrieving
-     * @return an array of Vertex records
+     * @return an array of Vertex KeyRecord
      */
     public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
         List<Key> vertexKeys = Arrays.stream(edgeRecords)
@@ -786,10 +786,10 @@ public class AerospikeConnection implements AutoCloseable {
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_IN_INDEX, Direction.IN.name(),
-                    IndexType.STRING, IndexCollectionType.DEFAULT);
+                    IndexType.STRING, IndexCollectionType.MAPVALUES);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_OUT_INDEX, Direction.OUT.name(),
-                    IndexType.STRING, IndexCollectionType.DEFAULT);
+                    IndexType.STRING, IndexCollectionType.MAPVALUES);
         }
 
         if (V_LABEL_INDEX_ENABLED) {
@@ -1142,12 +1142,12 @@ public class AerospikeConnection implements AutoCloseable {
                                             final String mapKey,
                                             final String typeHintBin) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || fireflyRecord.record == null ||
-                fireflyRecord.record.getMap(mapName) == null ||
-                !fireflyRecord.record.getMap(mapName).containsKey(mapKey))
+        if (fireflyRecord == null || fireflyRecord.record() == null ||
+                fireflyRecord.record().getMap(mapName) == null ||
+                !fireflyRecord.record().getMap(mapName).containsKey(mapKey))
             return null;
-        final Object value = fireflyRecord.record.getMap(mapName).get(mapKey);
-        final Long typeHint = (Long) fireflyRecord.record.getMap(typeHintBin).get(mapKey);
+        final Object value = fireflyRecord.record().getMap(mapName).get(mapKey);
+        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
         final Class valueClass = SupportedTypeValues.get(typeHint);
         return (V) typeCast(valueClass, value);
     }
@@ -1167,13 +1167,13 @@ public class AerospikeConnection implements AutoCloseable {
                                                                           final String mapName,
                                                                           final String typeHintBin) {
         final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || fireflyRecord.record == null || fireflyRecord.record.getMap(mapName).size() == 0)
+        if (fireflyRecord == null || fireflyRecord.record() == null || fireflyRecord.record().getMap(mapName).size() == 0)
             return null;
-        final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record.getMap(mapName));
+        final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record().getMap(mapName));
         if (!map.isPresent())
             return null;
         final String mapKey = (String) map.get().keySet().iterator().next();
-        final Long typeHint = (Long) fireflyRecord.record.getMap(typeHintBin).get(mapKey);
+        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
         final Object val = map.get().values().iterator().next();
 
         if (val == null)

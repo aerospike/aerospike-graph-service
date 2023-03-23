@@ -1,7 +1,6 @@
 package com.aerospike.firefly.structure.iterator;
 
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
@@ -17,15 +16,15 @@ import java.util.Map;
  */
 public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     final protected AerospikeConnection db;
-    final protected Iterator<Map.Entry<Key, Record>> keyRecords;
+    final protected Iterator<KeyRecord> keyRecords;
     protected Iterator<Long> currentRecordEdgeIds = Collections.emptyIterator();
     /**
      * Wrapper iterator for converting key records of Phat Edges into all of its contained edges' FireflyIds.
      *
-     * @param keyRecordIterator Key record iterator to wrap.
+     * @param keyRecordIterator KeyRecord iterator to wrap.
      * @param db                AerospikeConnection instance.
      */
-    public FireflyPhatEdgeIdIterator(final Iterator<Map.Entry<Key, Record>> keyRecordIterator,
+    public FireflyPhatEdgeIdIterator(final Iterator<KeyRecord> keyRecordIterator,
                                      final AerospikeConnection db) {
         this.db = db;
         this.keyRecords = keyRecordIterator;
@@ -53,6 +52,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
         }
     }
     protected void getNextKeyRecords() {
-        this.currentRecordEdgeIds = ((Map<Long, String>) this.keyRecords.next().getValue().getMap(AerospikeConnection.LABEL)).keySet().iterator();
+        this.currentRecordEdgeIds = ((Map<Long, String>) this.keyRecords.next().record.getMap(AerospikeConnection.LABEL))
+                .keySet().iterator();
     }
 }

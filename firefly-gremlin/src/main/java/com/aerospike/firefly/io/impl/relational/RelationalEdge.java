@@ -175,7 +175,7 @@ public class RelationalEdge extends FireflyEdge {
         if (keyRecord == null) {
             return null;
         }
-        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, keyRecord.record);
+        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord);
         return RelationalEdgeFactory.create(edgeId, fireflyRecord, graph);
     }
 
@@ -198,7 +198,7 @@ public class RelationalEdge extends FireflyEdge {
             final FireflyId fireflyEdgeId = new FireflyPhatEdgeId(edgeId, graph.getBaseGraph().PHAT_EDGE_SIZE,
                     graph.getBaseGraph().EDGE_AERO_SET);
             final FireflyEdge edge = RelationalEdgeFactory.create(fireflyEdgeId,
-                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, keyRecord.record), graph);
+                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord), graph);
             edges.add(edge);
         }
 
@@ -337,11 +337,11 @@ public class RelationalEdge extends FireflyEdge {
 
         private static RelationalEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,
                                              final FireflyGraph graph) {
-            if (fireflyRecord == null || fireflyRecord.record == null) {
+            if (fireflyRecord == null || fireflyRecord.record() == null) {
                 return null;
             }
             final AerospikeConnection db = graph.getBaseGraph();
-            final Record record = fireflyRecord.record;
+            final Record record = fireflyRecord.record();
             final long edgeIdMapKey = (long) edgeId.getUserId();
             final Map<Long, String> labels = (Map<Long, String>) record.getMap(AerospikeConnection.LABEL);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the

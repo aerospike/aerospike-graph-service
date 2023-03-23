@@ -251,9 +251,9 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create edge from a record.
+     * Function to create edge from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Edge.
      */
     @Override
@@ -262,14 +262,14 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create edge from a Key-Record Map.Entry pair.
+     * Function to create edge from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Edge.
      */
     @Override
-    public Iterator<FireflyEdge> edgesFromRecord(final Map.Entry<Key, Record> keyRecord) {
-        return RelationalEdge.allFromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+    public Iterator<FireflyEdge> edgesFromRecord(final KeyRecord keyRecord) {
+        return RelationalEdge.allFromRecord(this, keyRecord);
     }
 
     /**
@@ -296,7 +296,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     /**
      * Function to create vertex from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Vertex.
      */
     @Override
@@ -386,7 +386,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 db.GRAPH_VARIABLES_SET,
                 FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET));
         if (fireflyRecord == null) return new HashSet<>();
-        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(db.GRAPH_VARIABLES_MAP);
+        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.GRAPH_VARIABLES_MAP);
         return m.keySet();
     }
 
@@ -424,8 +424,8 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     protected Iterator<FireflyId> scanAllVertices() {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-        return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));
+        final Iterator<KeyRecord> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+        return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
     }
 
     @Override

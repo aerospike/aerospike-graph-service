@@ -327,7 +327,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
 
     // Counting functions.
-    public abstract long getVertexCount();
+    public abstract long getVertexCount(final Expression expression);
 
     public abstract long getEdgeCount();
 
@@ -516,7 +516,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @param indexInfo Index info to use.
      * @return
      */
-    private Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
+    public Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
         final String name;
         if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
             name = AerospikeConnection.LABEL;
@@ -545,8 +545,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (predicate.getBiPredicate().equals(Compare.eq)) {
                 return Filter.equal(name, casted, CTX.mapKey(Value.get(indexInfo.key)));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
+                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(indexInfo.key)));
+            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
                 return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(indexInfo.key)));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
+            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
                 return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
@@ -592,8 +596,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.lt)) {
                 return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
+                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else if (predicate.getBiPredicate().equals(Compare.gt)) {
                 return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
+            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
+                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
             } else {
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }

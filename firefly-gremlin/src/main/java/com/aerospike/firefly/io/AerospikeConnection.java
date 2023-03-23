@@ -46,6 +46,7 @@ import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -804,12 +805,15 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Drop indices for Firefly
      */
-    public void dropGraphIndices() {
+    public void dropGraphIndices(final FireflyGraph graph) {
         LOG.debug("Dropping graph indices.");
         dropIndex(setFromElementType(FireflyVertex.class), E_IN_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX);
+        if (graph != null) {
+            graph.fireflyIndexMetadata.getPropertyIndexInfos().forEach(index -> dropIndex(index.setName, index.indexName));
+        }
     }
 
     /**
@@ -1435,7 +1439,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param dropIndices drop graph indices
      */
-    public void dropDatabase(boolean dropIndices) {
+    public void dropDatabase(final FireflyGraph graph, final boolean dropIndices) {
         LOG.info("Dropping database.");
         try {
             // If using the client APIs to perform the truncate command on a single-threaded application it is
@@ -1459,7 +1463,7 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, IN_OUT_SET, null);
             client.truncate(null, namespace, IN_IN_SET, null);
             if (dropIndices)
-                dropGraphIndices();
+                dropGraphIndices(graph);
             Thread.sleep(1);
         } catch (final InterruptedException e) {
             // Why would anyone invoke this method in a runner thread that can also have interrupt() called on it? Who
@@ -1487,7 +1491,7 @@ public class AerospikeConnection implements AutoCloseable {
      * Drop database by truncate, do not drop indices
      */
     public void dropDatabase() {
-        dropDatabase(false);
+        dropDatabase(null, false);
     }
 
     /**

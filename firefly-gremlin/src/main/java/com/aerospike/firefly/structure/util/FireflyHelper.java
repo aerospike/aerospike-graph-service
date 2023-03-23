@@ -1,8 +1,11 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.client.policy.QueryPolicy;
+import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -19,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -79,8 +83,34 @@ public final class FireflyHelper {
         return getEdgeList(graph, vertex, direction, labels).iterator();
     }
 
-    public static long countVertices(FireflyGraph graph) {
-        return graph.getVertexCount();
+    public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers) {
+        if (hasContainers.isEmpty()) {
+            return graph.getVertexCount(null);
+        }
+
+        final Optional<FireflyIndexMetadata.IndexInfo> info = graph.fireflyIndexMetadata.getPropertyIndexInfo(
+                FireflyVertex.class, hasContainers.get(0).getKey(), hasContainers.get(0).getValue());
+        if (info.isPresent()) {
+            final HasContainer topHasContainer = hasContainers.remove(0);
+
+            // Create query policy with expressions.
+            final QueryPolicy queryPolicy = new QueryPolicy();
+            queryPolicy.filterExp = graph.hasContainerListToExpression(hasContainers, FireflyVertex.class);
+            queryPolicy.includeBinData = false;
+
+            // Query index.
+            final Iterator<KeyRecord> keyRecordIterator = graph.getBaseGraph().queryIndex(
+                    info.get().setName,
+                    info.get().indexName,
+                    graph.predicateToFilter(topHasContainer.getPredicate(), info.get()),
+                    queryPolicy);
+
+            // Transform record to correct element.
+            return FireflyCloseableIteratorUtils.count(keyRecordIterator);
+        } else {
+            // Get vertex count.
+            return graph.getVertexCount(graph.hasContainerListToExpression(hasContainers, FireflyVertex.class));
+        }
     }
 
     public static long countEdges(FireflyGraph graph) {

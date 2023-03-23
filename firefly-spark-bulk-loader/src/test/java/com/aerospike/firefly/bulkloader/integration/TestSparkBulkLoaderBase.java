@@ -30,7 +30,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @After
     public void afterEach() {
-        graph.getBaseGraph().dropDatabase(true);
+        graph.getBaseGraph().dropDatabase(graph, true);
         graph.close();
     }
 

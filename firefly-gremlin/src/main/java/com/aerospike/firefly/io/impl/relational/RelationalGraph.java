@@ -451,8 +451,8 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     @Override
-    public long getVertexCount() {
-        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, null, false));
+    public long getVertexCount(final Expression expression) {
+        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, expression, false));
     }
 
     @Override

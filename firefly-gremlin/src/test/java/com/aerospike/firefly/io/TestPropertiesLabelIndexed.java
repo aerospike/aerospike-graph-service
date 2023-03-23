@@ -20,13 +20,13 @@ public class TestPropertiesLabelIndexed extends TestProperties {
     static public void beforeAll() {
         CONFIG.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), true);
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }
 
     @AfterClass
     static public void afterAll() {
         CONFIG.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase());
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
 

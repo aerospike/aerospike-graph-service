@@ -207,22 +207,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to read edge from Aerospike.
-     *
-     * @param edgeId Edge id.
-     * @return Edge.
-     */
-    @Override
-    public FireflyEdge readEdge(final FireflyId edgeId) {
-        final List<FireflyEdge> edges = readEdges(List.of(), List.of(edgeId));
-        if (edges.isEmpty()) {
-            return null;
-        } else {
-            return edges.get(0);
-        }
-    }
-
-    /**
      * Function to read edges from Aerospike.
      *
      * @param edgeIds Edge ids.
@@ -248,28 +232,6 @@ public abstract class RelationalGraph extends FireflyGraph {
         LOG.debug("Removing edge {}.", edgeId);
 
         RelationalEdge.removeEdgeById(this, edgeId);
-    }
-
-    /**
-     * Function to create edge from a KeyRecord.
-     *
-     * @param keyRecord KeyRecord to use.
-     * @return Edge.
-     */
-    @Override
-    public FireflyEdge edgeFromRecord(final KeyRecord keyRecord, final FireflyId edgeId) {
-        return RelationalEdge.fromRecord(this, keyRecord, edgeId);
-    }
-
-    /**
-     * Function to create edge from a KeyRecord.
-     *
-     * @param keyRecord KeyRecord to use.
-     * @return Edge.
-     */
-    @Override
-    public Iterator<FireflyEdge> edgesFromRecord(final KeyRecord keyRecord) {
-        return RelationalEdge.allFromRecord(this, keyRecord);
     }
 
     /**
@@ -327,32 +289,6 @@ public abstract class RelationalGraph extends FireflyGraph {
                     key,
                     db.TYPE_HINTS);
         }
-    }
-
-    /**
-     * Determine if a vertex exists.
-     *
-     * @param idValue vertex id to check.
-     * @return true if vertex exists, false otherwise.
-     */
-    @Override
-    public boolean vertexExists(final FireflyId idValue) {
-        LOG.debug("Checking if vertex {} exists.", idValue);
-        final Key key = FireflyRecord.getKey(db, db.VERTEX_AERO_SET, idValue);
-        return db.exists(key);
-    }
-
-    /**
-     * Determine vertices in a list exist.
-     *
-     * @param expression expression to check.
-     * @param idValue    vertex id to check.
-     * @return true if vertex exists, false otherwise.
-     */
-    @Override
-    public boolean[] vertexExists(final Expression expression, final List<FireflyId> idValue) {
-        LOG.debug("Checking if vertex {} exists.", idValue);
-        return db.exists(expression, idValue.stream().map(id -> FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id)).toArray(Key[]::new));
     }
 
     /**

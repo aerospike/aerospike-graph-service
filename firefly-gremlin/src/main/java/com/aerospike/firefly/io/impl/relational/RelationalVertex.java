@@ -813,9 +813,9 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Get inEdgeIds and outEdgeIds. If the cache is disabled default to an empty map.
         final Map<String, List<Object>> inEdgeIds = edgeCacheDisabled ?
-                new TreeMap<>() : (Map<String, List<Object>>) record.getMap(db.IN_EDGES);
+                new HashMap<>() : new HashMap<>((Map<String, List<Object>>)record.getMap(db.IN_EDGES));
         final Map<String, List<Object>> outEdgeIds = edgeCacheDisabled ?
-                new TreeMap<>() : (Map<String, List<Object>>) record.getMap(db.OUT_EDGES);
+                new HashMap<>() : new HashMap<>((Map<String, List<Object>>)record.getMap(db.OUT_EDGES));
         final Map<String, List<FireflyId>> fireflyInEdgeIds =
                 graph.getIdFactory().convertMapListObjectToFireflyIdMap(inEdgeIds);
         final Map<String, List<FireflyId>> fireflyOutEdgeIds =

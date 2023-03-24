@@ -779,6 +779,8 @@ public class AerospikeConnection implements AutoCloseable {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
+        if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE,conf)))
+            return;
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()

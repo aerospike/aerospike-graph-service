@@ -25,12 +25,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,13 +123,12 @@ public abstract class RelationalGraph extends FireflyGraph {
                 Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
                 Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Operation incrementEdgeWriteCounter = Operation.add(new Bin(db.PHAT_EDGE_COUNTER, 1));
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
-        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints, incrementEdgeWriteCounter);
+        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
     }
 
     /**
@@ -252,9 +251,9 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create edge from a record.
+     * Function to create edge from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Edge.
      */
     @Override
@@ -263,14 +262,14 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Function to create edge from a Key-Record Map.Entry pair.
+     * Function to create edge from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Edge.
      */
     @Override
-    public Iterator<FireflyEdge> edgesFromRecord(final Map.Entry<Key, Record> keyRecord) {
-        return RelationalEdge.allFromRecord(this, new KeyRecord(keyRecord.getKey(), keyRecord.getValue()));
+    public Iterator<FireflyEdge> edgesFromRecord(final KeyRecord keyRecord) {
+        return RelationalEdge.allFromRecord(this, keyRecord);
     }
 
     /**
@@ -297,7 +296,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     /**
      * Function to create vertex from a KeyRecord.
      *
-     * @param keyRecord Record to use.
+     * @param keyRecord KeyRecord to use.
      * @return Vertex.
      */
     @Override
@@ -387,7 +386,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 db.GRAPH_VARIABLES_SET,
                 FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET));
         if (fireflyRecord == null) return new HashSet<>();
-        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record.getMap(db.GRAPH_VARIABLES_MAP);
+        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.GRAPH_VARIABLES_MAP);
         return m.keySet();
     }
 
@@ -425,8 +424,8 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     protected Iterator<FireflyId> scanAllVertices() {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<Map.Entry<Key, Record>> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-        return IteratorUtils.map(i, r -> getIdFactory().createId(r.getKey().userKey.getObject(), FireflyVertex.class));
+        final Iterator<KeyRecord> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+        return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
     }
 
     @Override
@@ -452,12 +451,12 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     @Override
-    public long getVertexCount() {
-        return IteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, null, false));
+    public long getVertexCount(final Expression expression) {
+        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, expression, false));
     }
 
     @Override
     public long getEdgeCount() {
-        return IteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
+        return FireflyCloseableIteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
     }
 }

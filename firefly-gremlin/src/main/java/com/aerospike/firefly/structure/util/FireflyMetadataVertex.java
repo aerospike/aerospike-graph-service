@@ -1,9 +1,9 @@
 package com.aerospike.firefly.structure.util;
 
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.*;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -66,7 +66,7 @@ public class FireflyMetadataVertex implements Vertex {
 
     @Override
     public <V> Iterator<VertexProperty<V>> properties(final String... propertyKeys) {
-        List<String> keyList = IteratorUtils.list(config.getKeys());
+        List<String> keyList = FireflyCloseableIteratorUtils.list(config.getKeys());
         keyList.add(graph.getBaseGraph().DATA_MODEL_NAME);
         keyList.add(graph.getBaseGraph().DATA_MODEL_VER);
         for (String key : propertyKeys) {

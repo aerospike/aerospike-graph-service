@@ -1,12 +1,12 @@
 package com.aerospike.firefly.io.cache;
 
 import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.policy.ScanPolicy;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -18,7 +18,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Iterator;
-import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -28,7 +27,7 @@ public class TestVertexPropertyCacheIntegration {
 
     @BeforeClass
     public static void beforeAll() {
-        SETUP_GRAPH = CacheTestsUtils.getCacheDefaultFirefly(CONFIG);
+        SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase();
     }
 
@@ -43,17 +42,16 @@ public class TestVertexPropertyCacheIntegration {
     }
 
     @Test
-    public void testCacheEnabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+    public void testCacheEnabledAdjacencyDisabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             assertAddAndDropVertexProperties(graph);
             assertDropVertexDropsProperties(graph);
         }
     }
 
     @Test
-    public void testEdgeCacheDisabled() {
-        // Technically this doesn't do anything since
-        try (final FireflyGraph graph = CacheTestsUtils.getEdgeCacheDisabledFirefly(CONFIG)) {
+    public void testEdgeCacheDisabledAdjacencyEnabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
             assertAddAndDropVertexProperties(graph);
             assertDropVertexDropsProperties(graph);
         }
@@ -113,18 +111,17 @@ public class TestVertexPropertyCacheIntegration {
         g.V().hasLabel("cat").drop().iterate();
 
         final AerospikeConnection connection = graph.getBaseGraph();
-        final Iterator<Map.Entry<Key, Record>> properties = scanVPSet(connection);
+        final Iterator<KeyRecord> properties = scanVPSet(connection);
         Assert.assertFalse(properties.hasNext());
     }
 
-    private Iterator<Map.Entry<Key, Record>> scanVPSet(final AerospikeConnection connection) {
+    private Iterator<KeyRecord> scanVPSet(final AerospikeConnection connection) {
         final Monitor scanMonitor = new Monitor();
         final ScanPolicy policy = new ScanPolicy();
         final AerospikeClient client = connection.getClient();
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(
-                scanMonitor,
+        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
                 Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)));
         client.scanAll(connection.getEventLoops().next(), listener, policy, connection.getNamespace(), connection.VERTEX_PROPERTY_AERO_SET);
-        return listener.iterator();
+        return new FireflyCloseableIterator<>(listener);
     }
 }

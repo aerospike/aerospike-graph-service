@@ -8,14 +8,13 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -35,7 +34,7 @@ public class TestEdgeCacheIntegration {
 
     @BeforeClass
     public static void beforeAll() {
-        SETUP_GRAPH = CacheTestsUtils.getCacheDefaultFirefly(CONFIG);
+        SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase();
     }
 
@@ -45,8 +44,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheEnabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+    public void testCacheEnabledAdjacencyDisabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -64,8 +63,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getEdgeCacheDisabledFirefly(CONFIG)) {
+    public void testCacheDisabledAdjacencyEnabled() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -89,7 +88,7 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testCacheAndAdjacencyIndexDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getEdgeAdjacencyIndexDisabledFirefly(CONFIG)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyDisabledFirefly(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -131,7 +130,7 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testEdgeCacheStorageOnRecord() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDefaultFirefly(CONFIG)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
             final FireflyIdFactory idFactory = graph.getIdFactory();
             final FireflyVertex v1 = (FireflyVertex) g.addV("v1").next();
@@ -230,18 +229,18 @@ public class TestEdgeCacheIntegration {
         g.addE("v1Out3").from(v1).to(v2).next();
         Assert.assertFalse(v1.isEdgeCacheDisabled());
         Assert.assertFalse(v2.isEdgeCacheDisabled());
-        Assert.assertEquals(3, IteratorUtils.count(v1.edges(Direction.OUT)));
-        Assert.assertEquals(0, IteratorUtils.count(v1.edges(Direction.IN)));
-        Assert.assertEquals(0, IteratorUtils.count(v2.edges(Direction.OUT)));
-        Assert.assertEquals(3, IteratorUtils.count(v2.edges(Direction.IN)));
+        Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
+        Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v2.edges(Direction.IN)));
 
         // Ensure OUT and IN counts (4 total) are separate for triggering cache disable.
         g.addE("v1In1").from(v3).to(v1).next();
-        Assert.assertEquals(3, IteratorUtils.count(v1.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v1.edges(Direction.IN)));
+        Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
         Assert.assertFalse(v1.isEdgeCacheDisabled());
-        Assert.assertEquals(1, IteratorUtils.count(v3.edges(Direction.OUT)));
-        Assert.assertEquals(0, IteratorUtils.count(v3.edges(Direction.IN)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v3.edges(Direction.OUT)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v3.edges(Direction.IN)));
         Assert.assertFalse(v3.isEdgeCacheDisabled());
 
         // Check edge removal when cache is enabled still.
@@ -251,11 +250,11 @@ public class TestEdgeCacheIntegration {
         // Need to grab the vertexes again to refresh its state in the JVM cache
         v1 = (FireflyVertex) g.V().hasLabel("v1").next();
         v2 = (FireflyVertex) g.V().hasLabel("v2").next();
-        Assert.assertEquals(2, IteratorUtils.count(v1.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v1.edges(Direction.IN)));
+        Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
         Assert.assertFalse(v1.isEdgeCacheDisabled());
-        Assert.assertEquals(0, IteratorUtils.count(v2.edges(Direction.OUT)));
-        Assert.assertEquals(2, IteratorUtils.count(v2.edges(Direction.IN)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
+        Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v2.edges(Direction.IN)));
         Assert.assertFalse(v2.isEdgeCacheDisabled());
         Assert.assertFalse(g.V().hasLabel("v1").outE("v1Out3").hasNext());
         Assert.assertFalse(g.V().hasLabel("v2").inE("v1Out3").hasNext());
@@ -275,12 +274,12 @@ public class TestEdgeCacheIntegration {
         Assert.assertTrue(v1.isEdgeCacheDisabled());
         Assert.assertFalse(v2.isEdgeCacheDisabled());
         Assert.assertFalse(v3.isEdgeCacheDisabled());
-        Assert.assertEquals(4, IteratorUtils.count(v1.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v1.edges(Direction.IN)));
-        Assert.assertEquals(0, IteratorUtils.count(v2.edges(Direction.OUT)));
-        Assert.assertEquals(3, IteratorUtils.count(v2.edges(Direction.IN)));
-        Assert.assertEquals(1, IteratorUtils.count(v3.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v3.edges(Direction.IN)));
+        Assert.assertEquals(4, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
+        Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v2.edges(Direction.IN)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v3.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v3.edges(Direction.IN)));
 
         // Check removals on a cache disabled vertex.
         g.E().hasLabel("v1Out2").drop().iterate();
@@ -290,10 +289,10 @@ public class TestEdgeCacheIntegration {
         // Ensure caches don't somehow re-enable.
         Assert.assertTrue(v1.isEdgeCacheDisabled());
         Assert.assertFalse(v2.isEdgeCacheDisabled());
-        Assert.assertEquals(2, IteratorUtils.count(v1.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v1.edges(Direction.IN)));
-        Assert.assertEquals(0, IteratorUtils.count(v2.edges(Direction.OUT)));
-        Assert.assertEquals(1, IteratorUtils.count(v2.edges(Direction.IN)));
+        Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
+        Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
+        Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v2.edges(Direction.IN)));
         // v1.
         Assert.assertTrue(g.V().hasLabel("v1").outE("v1Out1").hasNext());
         Assert.assertFalse(g.V().hasLabel("v1").outE("v1Out2").hasNext());

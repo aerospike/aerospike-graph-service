@@ -1,12 +1,12 @@
 package com.aerospike.firefly.structure;
 
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
 
@@ -84,13 +84,13 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
                     (!graph.features().vertex().properties().supportsNullPropertyValues() && property.value() == null)) {
                 return Collections.emptyIterator();
             }
-            return IteratorUtils.of(property);
+            return FireflyCloseableIteratorUtils.of(property);
         } else {
             final Iterator<Map.Entry<String, Property<Object>>> properties = graph.readProperties(this).entrySet().iterator();
-            return IteratorUtils.map(
-                    IteratorUtils.filter(
-                            IteratorUtils.filter(
-                                    IteratorUtils.asIterator(properties),
+            return FireflyCloseableIteratorUtils.map(
+                    FireflyCloseableIteratorUtils.filter(
+                            FireflyCloseableIteratorUtils.filter(
+                                    FireflyCloseableIteratorUtils.asIterator(properties),
                                     entry -> !(!graph.features().vertex().properties().supportsNullPropertyValues() &&
                                             ((AbstractMap.Entry) entry).getValue() == null)),
                     entry -> ElementHelper.keyExists((String) ((AbstractMap.Entry) entry).getKey(), propertyKeys)),

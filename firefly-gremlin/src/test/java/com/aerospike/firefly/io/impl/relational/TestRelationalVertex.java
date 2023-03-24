@@ -1,43 +1,53 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.assertEquals;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-@Ignore("TODO GRAPH-412")
-public class TestRelationalVertex extends AbstractFireflySuite {
-    @Override
-    protected boolean clearData() {
-        return false;
+public class TestRelationalVertex {
+    static private final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+
+    static {
+        CONFIG.setProperty(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED.toLowerCase(), true);
+    }
+
+    static private final FireflyGraph GRAPH = FireflyGraph.open(CONFIG);
+
+    @AfterClass
+    static public void afterAll() {
+        GRAPH.getBaseGraph().clearNamespace();
+        GRAPH.close();
     }
 
     @Before
-    public void beforeEachTest() {
-        // Use this to clear data here because we haven't solidified our deletes yet.
-        graph.getBaseGraph().dropDatabase();
-        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
+    public void beforeEach() {
+        GRAPH.getBaseGraph().dropDatabase();
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), GRAPH);
     }
 
     @Test
     public void scanAndIndexHaveEquivalentResultsBoth() {
-        RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.BOTH));
-        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.BOTH));
+        RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
+        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.BOTH));
+        List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.BOTH));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         Collections.sort(longIdsByIndex);
@@ -48,9 +58,9 @@ public class TestRelationalVertex extends AbstractFireflySuite {
 
     @Test
     public void scanAndIndexHaveEquivalentResultsIN() {
-        RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.IN));
-        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.IN));
+        RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
+        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.IN));
+        List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.IN));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         Collections.sort(longIdsByIndex);
@@ -61,9 +71,9 @@ public class TestRelationalVertex extends AbstractFireflySuite {
 
     @Test
     public void scanAndIndexHaveEquivalentResultsOUT() {
-        RelationalVertex aRelationalVertex = (RelationalVertex) graph.traversal().V().next();
-        List<FireflyId> idsByIndex = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.OUT));
-        List<FireflyId> idsByScan = IteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.OUT));
+        RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
+        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.OUT));
+        List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.OUT));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         Collections.sort(longIdsByIndex);

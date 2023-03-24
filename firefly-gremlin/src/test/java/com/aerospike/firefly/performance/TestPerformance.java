@@ -4,6 +4,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -17,7 +18,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -102,9 +102,9 @@ public class TestPerformance extends AbstractFireflySuite {
             }
         }
         long addElementsTime = stopTimer(ADD_ELEMENTS);
-        assertEquals(0L, IteratorUtils.count(start.edges(Direction.IN, new String[0])));
-        assertEquals((long) branchSize, IteratorUtils.count(start.edges(Direction.OUT, new String[0])));
-        Iterator var9 = IteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
+        assertEquals(0L, FireflyCloseableIteratorUtils.count(start.edges(Direction.IN, new String[0])));
+        assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(start.edges(Direction.OUT, new String[0])));
+        Iterator var9 = FireflyCloseableIteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
         AtomicLong iterCtr = new AtomicLong(0);
         startTimer(ITERATE_ELEMENTS);
         while (var9.hasNext()) {
@@ -112,24 +112,24 @@ public class TestPerformance extends AbstractFireflySuite {
             Edge a = (Edge) var9.next();
             Assert.assertEquals("test1", a.label());
 
-            Assert.assertEquals((long) branchSize, IteratorUtils.count(a.inVertex().vertices(Direction.OUT, new String[0])));
-            Assert.assertEquals(1L, IteratorUtils.count(a.inVertex().vertices(Direction.IN, new String[0])));
-            Iterator var12 = IteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
+            Assert.assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.OUT, new String[0])));
+            Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.IN, new String[0])));
+            Iterator var12 = FireflyCloseableIteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
 
             while (var12.hasNext()) {
                 iterCtr.incrementAndGet();
                 Edge b = (Edge) var12.next();
                 Assert.assertEquals("test2", b.label());
-                Assert.assertEquals((long) branchSize, IteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
-                Assert.assertEquals(1L, IteratorUtils.count(b.inVertex().vertices(Direction.IN, new String[0])));
-                Iterator var14 = IteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
+                Assert.assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
+                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.IN, new String[0])));
+                Iterator var14 = FireflyCloseableIteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
 
                 while (var14.hasNext()) {
                     iterCtr.incrementAndGet();
                     Edge c = (Edge) var14.next();
                     Assert.assertEquals("test3", c.label());
-                    Assert.assertEquals(0L, IteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
-                    Assert.assertEquals(1L, IteratorUtils.count(c.inVertex().vertices(Direction.IN, new String[0])));
+                    Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
+                    Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.IN, new String[0])));
                 }
             }
         }

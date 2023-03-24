@@ -8,21 +8,21 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DIS
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
 
 public class CacheTestsUtils {
-    static FireflyGraph getCacheDefaultFirefly(final Configuration config) {
+    static FireflyGraph getCacheEnabledAdjacencyDisabledFirefly(final Configuration config) {
         config.clearProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase());
         config.clearProperty(ADJACENCY_INDEX_ENABLED.toLowerCase());
         config.clearProperty(ID_CACHE_SIZE.toLowerCase());
         return FireflyGraph.open(config);
     }
 
-    static FireflyGraph getEdgeCacheDisabledFirefly(final Configuration config) {
+    static FireflyGraph getCacheDisabledAdjacencyEnabledFirefly(final Configuration config) {
         config.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
-        config.clearProperty(ADJACENCY_INDEX_ENABLED.toLowerCase());
+        config.setProperty(ADJACENCY_INDEX_ENABLED.toLowerCase(), true);
         config.clearProperty(ID_CACHE_SIZE.toLowerCase());
         return FireflyGraph.open(config);
     }
 
-    static FireflyGraph getEdgeAdjacencyIndexDisabledFirefly(final Configuration config) {
+    static FireflyGraph getCacheDisabledAdjacencyDisabledFirefly(final Configuration config) {
         config.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
         config.setProperty(ADJACENCY_INDEX_ENABLED.toLowerCase(), false);
         config.clearProperty(ID_CACHE_SIZE.toLowerCase());
@@ -31,7 +31,7 @@ public class CacheTestsUtils {
 
     static FireflyGraph getCacheWithSizeFirefly(final Configuration config, final int cacheSize) {
         config.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "false");
-        config.clearProperty(ADJACENCY_INDEX_ENABLED.toLowerCase());
+        config.setProperty(ADJACENCY_INDEX_ENABLED.toLowerCase(), true);
         config.setProperty(ID_CACHE_SIZE.toLowerCase(), cacheSize);
         return FireflyGraph.open(config);
     }

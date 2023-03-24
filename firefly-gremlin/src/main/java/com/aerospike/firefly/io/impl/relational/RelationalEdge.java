@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -13,6 +12,11 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.exp.Exp;
+import com.aerospike.client.exp.ExpOperation;
+import com.aerospike.client.exp.ExpWriteFlags;
+import com.aerospike.client.exp.Expression;
+import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
@@ -42,7 +46,6 @@ import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIndex;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -121,13 +124,12 @@ public class RelationalEdge extends FireflyEdge {
                 Value.get(edgeId.getUserId()), Value.get(data, MapOrder.KEY_ORDERED));
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
                 Value.get(edgeId.getUserId()), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        final Operation incrementEdgeWriteCounter = Operation.add(new Bin(db.PHAT_EDGE_COUNTER, 1));
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
-        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints, incrementEdgeWriteCounter);
+        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
         return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
     }
 
@@ -173,7 +175,7 @@ public class RelationalEdge extends FireflyEdge {
         if (keyRecord == null) {
             return null;
         }
-        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, keyRecord.record);
+        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord);
         return RelationalEdgeFactory.create(edgeId, fireflyRecord, graph);
     }
 
@@ -196,7 +198,7 @@ public class RelationalEdge extends FireflyEdge {
             final FireflyId fireflyEdgeId = new FireflyPhatEdgeId(edgeId, graph.getBaseGraph().PHAT_EDGE_SIZE,
                     graph.getBaseGraph().EDGE_AERO_SET);
             final FireflyEdge edge = RelationalEdgeFactory.create(fireflyEdgeId,
-                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord.key, keyRecord.record), graph);
+                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord), graph);
             edges.add(edge);
         }
 
@@ -227,21 +229,30 @@ public class RelationalEdge extends FireflyEdge {
         final Operation removeOut = MapOperation.removeByKey(Direction.OUT.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeProperties = MapOperation.removeByKey(db.PROPERTIES, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeTypeHints = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(edgeId.getUserId()), MapReturnType.NONE);
-        final Operation getMapSize = MapOperation.size(AerospikeConnection.LABEL);
-        final Operation getWriteCount = Operation.get(db.PHAT_EDGE_COUNTER);
+
+        // Logic for deleting the entire phat edge record if it no longer contains individual edges.
+        final Expression removeEmptyPhatEdgeExp = Exp.build(
+                // If the size of the label map, which implicitly is the amount of edges in the phat edge, is 0, write
+                // null. Otherwise, fail.
+                Exp.cond(
+                        Exp.eq(MapExp.size(Exp.mapBin(AerospikeConnection.LABEL)), Exp.val(0)),
+                        Exp.nil(),
+                        Exp.unknown()
+                )
+        );
+        // If all bins in a record contain null, the record is implicitly deleted.
+        final int deletePhatEdgeWriteFlags = ExpWriteFlags.EVAL_NO_FAIL | ExpWriteFlags.ALLOW_DELETE;
+        final Operation removeInBin = ExpOperation.write(Direction.IN.name(), removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removeOutBin = ExpOperation.write(Direction.OUT.name(), removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removePropertiesBin = ExpOperation.write(db.PROPERTIES, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removeTypeHintsBin = ExpOperation.write(db.TYPE_HINTS, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        
+        // This operation must be last since the expression checks the map in the label bin.
+        final Operation removeLabelBin = ExpOperation.write(AerospikeConnection.LABEL, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         try {
-            final Record result = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties,
-                    removeTypeHints, getMapSize, getWriteCount);
-            final long phatEdgeCount = (long) getValueAtIndex(result, AerospikeConnection.LABEL, 1);
-            final long writeCount = result.getLong(db.PHAT_EDGE_COUNTER);
-
-            // If after removal the size of the map is 0 and the write count is equal to the size of the phat edge, it means
-            // no more edges will ever be written to this phat edge and thus it can be deleted.
-            if (phatEdgeCount == 0 && writeCount >= db.PHAT_EDGE_SIZE) {
-                // TODO GRAPH-426: See JIRA for details.
-                db.delete(key);
-            }
+            db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
+                    removeInBin, removeOutBin, removePropertiesBin, removeTypeHintsBin, removeLabelBin);
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
@@ -326,11 +337,11 @@ public class RelationalEdge extends FireflyEdge {
 
         private static RelationalEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,
                                              final FireflyGraph graph) {
-            if (fireflyRecord == null || fireflyRecord.record == null) {
+            if (fireflyRecord == null || fireflyRecord.record() == null) {
                 return null;
             }
             final AerospikeConnection db = graph.getBaseGraph();
-            final Record record = fireflyRecord.record;
+            final Record record = fireflyRecord.record();
             final long edgeIdMapKey = (long) edgeId.getUserId();
             final Map<Long, String> labels = (Map<Long, String>) record.getMap(AerospikeConnection.LABEL);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the

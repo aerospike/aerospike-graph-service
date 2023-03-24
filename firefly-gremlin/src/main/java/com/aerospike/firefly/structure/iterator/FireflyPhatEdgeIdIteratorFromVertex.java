@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure.iterator;
 
-import com.aerospike.client.Key;
 import com.aerospike.client.Record;
+import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -19,15 +19,15 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     private final FireflyId vertexId;
 
     /**
-     * Wrapper iterator for converting key records of Phat Edges into all of its contained edges' FireflyIds that are
+     * Wrapper iterator for converting KeyRecord of Phat Edges into all of its contained edges' FireflyIds that are
      * attached to a specified Vertex.
      *
-     * @param keyRecordIterator Key record iterator to wrap.
+     * @param keyRecordIterator KeyRecord iterator to wrap.
      * @param db                AerospikeConnection instance.
      * @param direction         The Direction from the Vertex.
      * @param vertexId          The ID of the Vertex.
      */
-    public FireflyPhatEdgeIdIteratorFromVertex(final Iterator<Map.Entry<Key, Record>> keyRecordIterator,
+    public FireflyPhatEdgeIdIteratorFromVertex(final Iterator<KeyRecord> keyRecordIterator,
                                                final AerospikeConnection db, final Direction direction,
                                                final FireflyId vertexId) {
         super(keyRecordIterator, db);
@@ -38,7 +38,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     @Override
     protected void getNextKeyRecords() {
         final Set<Long> edgeIds = new HashSet<>();
-        final Record record = this.keyRecords.next().getValue();
+        final Record record = this.keyRecords.next().record;
         if (this.direction == Direction.BOTH || this.direction == Direction.OUT) {
             final Map<Long, String> edgeIdToOutVertexId = (Map<Long, String>) record.getMap(Direction.OUT.name());
             for (final Map.Entry<Long, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {

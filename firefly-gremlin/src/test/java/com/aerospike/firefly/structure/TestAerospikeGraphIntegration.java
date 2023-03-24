@@ -6,7 +6,7 @@ import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
+import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -149,7 +149,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             graph.writeVertex(next, "aVertexLabel", new ArrayList<>());
         });
         final AtomicLong ctr = new AtomicLong(0);
-        new FireflyBatchReadVertexIterator(graph, usedIds.iterator()).forEachRemaining(v -> {
+        new FireflyBatchElementIterator<>(graph, usedIds.iterator(), List.of(), graph::readVertices).forEachRemaining(v -> {
             ctr.addAndGet(1);
             assertEquals("aVertexLabel", v.label());
         });

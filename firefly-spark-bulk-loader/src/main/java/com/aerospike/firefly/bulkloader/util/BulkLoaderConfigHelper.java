@@ -27,6 +27,7 @@ public class BulkLoaderConfigHelper {
     public static final String ENABLE_DATAFRAME_CACHING = "enable_dataframe_caching";
     // Storage type for Dataframe persist operation
     public static final String DATAFRAME_STORAGE_TYPE = "dataframe_storage_type";
+    public static final String SPARK_LOG_LEVEL = "spark_log_level";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "null_value";
 
@@ -38,6 +39,7 @@ public class BulkLoaderConfigHelper {
         put(SAMPLING_PERCENTAGE, "0.1");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
+        put(SPARK_LOG_LEVEL, "INFO");
         put(NULL_VALUE, "null");
     }};
 

@@ -89,6 +89,8 @@ public class SparkBulkLoader {
             }
         }
 
+        final String SPARK_LOG_LEVEL = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SPARK_LOG_LEVEL, CONFIG).toUpperCase();
+
         // Initialize Spark.
         final SparkConf conf = new SparkConf();
         setSparkConf(conf);
@@ -97,6 +99,8 @@ public class SparkBulkLoader {
                 .builder()
                 .config(conf)
                 .getOrCreate();
+        // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
+        spark.sparkContext().setLogLevel(SPARK_LOG_LEVEL);
 
         Dataset<Row> unionVertexDS = DatasetOperations.loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
         // Sample out vertex dataset for verifying the inserts.

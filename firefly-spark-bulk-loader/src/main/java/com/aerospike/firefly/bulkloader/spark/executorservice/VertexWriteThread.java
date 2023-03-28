@@ -70,6 +70,5 @@ public class VertexWriteThread implements Runnable {
                 throw e;
             }
         }
-        LOGGER.info("Finished " + Thread.currentThread().getName() + " for vertex id = " + this.row.getAs("~id"));
     }
 }

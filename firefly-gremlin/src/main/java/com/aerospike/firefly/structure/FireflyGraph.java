@@ -25,9 +25,8 @@ import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
-import com.aerospike.firefly.structure.iterator.FireflyBatchReadVertexIterator;
+import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.iterator.FireflyEdgeIterator;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
@@ -282,10 +281,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex vertexFromRecord(final KeyRecord record);
 
-    public abstract boolean vertexExists(final FireflyId idValue);
-
-    public abstract boolean[] vertexExists(final Expression exp, final List<FireflyId> idValues);
-
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
 
@@ -293,15 +288,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
                                        final Object outVertexId);
 
-    public abstract FireflyEdge readEdge(final FireflyId edgeId);
-
     public abstract void removeEdgeById(final FireflyId edgeId);
 
     public abstract List<FireflyEdge> readEdges(final List<HasContainer> hasContainers, final List<FireflyId> edgeIds);
-
-    public abstract FireflyEdge edgeFromRecord(final KeyRecord record, final FireflyId edgeId);
-
-    public abstract Iterator<FireflyEdge> edgesFromRecord(final KeyRecord record);
 
     // Graph variable functions.
     public abstract Set<String> readGraphVariableKeys();
@@ -470,20 +459,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 .map(id -> getIdFactory().createId(id, FireflyVertex.class))
                 .collect(Collectors.toList());
 
-        if (!idList.isEmpty()) {
-            final List<FireflyId> idsDoNotExist = new ArrayList<>();
-            final boolean[] results = vertexExists(hasContainerListToExpression(filters, FireflyVertex.class), idList);
-            for (int i = 0; i < results.length; i++)
-                if (!results[i])
-                    idsDoNotExist.add(idList.get(i));
-            if (idsDoNotExist.size() == idList.size())
-                return Collections.emptyIterator();
-            idList.removeAll(idsDoNotExist);
-        }
-
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchReadVertexIterator(this, idList.isEmpty() ? scanAllVertices() : idList.iterator());
+        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? scanAllVertices() : idList.iterator(), filters, this::readVertices);
     }
 
     @Override
@@ -500,7 +478,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 .collect(Collectors.toList());
 
         if (idList.isEmpty()) {
-            return new FireflyEdgeIterator(this, this.db.readElementIds(FireflyEdge.class));
+            return new FireflyBatchElementIterator<>(this, this.db.readElementIds(FireflyEdge.class), filters, this::readEdges);
         } else {
             return RelationalEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }

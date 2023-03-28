@@ -112,6 +112,5 @@ public class EdgeWriteThread implements Runnable {
                 throw e;
             }
         }
-        LOGGER.info("Finished " + Thread.currentThread().getName() + " for edge id = " + this.row.getAs("~id"));
     }
 }

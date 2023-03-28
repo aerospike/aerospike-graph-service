@@ -1,9 +1,9 @@
 package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
@@ -14,20 +14,28 @@ import java.util.NoSuchElementException;
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyBatchReadVertexIterator implements CloseableIterator<Vertex> {
-    private Iterator<FireflyVertex> vertexIterator;
+public class FireflyBatchElementIterator<E extends Element, F extends E> implements CloseableIterator<E> {
+    private Iterator<F> elementIterator;
     private final Iterator<FireflyId> idIterator;
     private final FireflyGraph graph;
+    private final ReadElements<F> readElements;
+    private final List<HasContainer> hasContainers;
 
-    public FireflyBatchReadVertexIterator(final FireflyGraph graph, final Iterator<FireflyId> ids) {
+    public interface ReadElements<G> {
+        List<G> readElements(List<HasContainer> hasContainers, List<FireflyId> ids);
+    }
+
+    public FireflyBatchElementIterator(final FireflyGraph graph, final Iterator<FireflyId> ids, final List<HasContainer> filters, final ReadElements<F> readElements) {
         this.idIterator = ids;
         this.graph = graph;
-        this.vertexIterator = null;
+        this.elementIterator = null;
+        this.readElements = readElements;
+        this.hasContainers = filters;
     }
 
     @Override
     public boolean hasNext() {
-        if (vertexIterator == null || !vertexIterator.hasNext()) {
+        if (elementIterator == null || !elementIterator.hasNext()) {
             if (!idIterator.hasNext()) {
                 return false;
             }
@@ -35,10 +43,10 @@ public class FireflyBatchReadVertexIterator implements CloseableIterator<Vertex>
             while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
                 fireflyIdList.add(idIterator.next());
             }
-            vertexIterator = graph.readVertices(List.of(), fireflyIdList).iterator();
+            elementIterator = readElements.readElements(hasContainers, fireflyIdList).iterator();
 
             // Just in case the ids we go to read have been removed we should not straight up return true.
-            return vertexIterator.hasNext();
+            return elementIterator.hasNext();
         }
 
         // We still have data to return.
@@ -46,17 +54,17 @@ public class FireflyBatchReadVertexIterator implements CloseableIterator<Vertex>
     }
 
     @Override
-    public Vertex next() {
+    public E next() {
         if (!hasNext()) {
             throw new NoSuchElementException();
         }
-        return vertexIterator.next();
+        return elementIterator.next();
     }
 
     @Override
     public void close() {
-        if (vertexIterator != null) {
-            CloseableIterator.closeIterator(vertexIterator);
+        if (elementIterator != null) {
+            CloseableIterator.closeIterator(elementIterator);
         }
         if (idIterator != null) {
             CloseableIterator.closeIterator(idIterator);

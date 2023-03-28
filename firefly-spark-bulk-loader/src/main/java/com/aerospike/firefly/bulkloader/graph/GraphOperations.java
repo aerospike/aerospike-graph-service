@@ -2,7 +2,6 @@ package com.aerospike.firefly.bulkloader.graph;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
-import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -43,7 +42,7 @@ public class GraphOperations {
                                    final AtomicInteger edgeCount,
                                    final Map<Object, Map<String, List<Value>>> edgeMap,
                                    final boolean ignoreElementCreationFailed) {
-        synchronized (SparkBulkLoader.class) {
+        synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
                 if (!edgeMap.containsKey(vertexId)) {
                     edgeMap.put(vertexId, new ConcurrentHashMap<>());

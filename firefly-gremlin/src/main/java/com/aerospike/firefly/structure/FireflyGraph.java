@@ -143,10 +143,6 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 // TinkerPop bug
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest", method = "shouldTriggerAddVertexViaMergeV", reason = "Cardinality cannot be determined by key without id")
 
-// @TODO
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.detached.DetachedGraphTest", method = "testAttachableCreateMethod", reason = "Test enabled by MultiProperties, likely did not work prior")
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldAttachWithCreateMethod", reason = "Test enabled by MultiProperties, likely did not work prior")
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldCopyFromGraphAToGraphB", reason = "Test enabled by MultiProperties, likely did not work prior")
 
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";

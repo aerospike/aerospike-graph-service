@@ -217,7 +217,16 @@ public class AerospikeConnection implements AutoCloseable {
         this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
-        String tlsConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TLS, conf);
+
+        // If username and password are not null or empty strings, then set the user and password on the client policy.
+        final String user = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
+        final String password = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
+        if (user != null && !"".equals(user) && password != null && !"".equals(password)) {
+            LOG.info("Setting Aerospike user and password.");
+            this.clientPolicy.user = user;
+            this.clientPolicy.password = password;
+        }
+        final String tlsConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TLS, conf);
         if (Boolean.parseBoolean(tlsConfig))
             this.clientPolicy.tlsPolicy = new TlsPolicy();
         this.client = new AerospikeClient(clientPolicy, hosts);
@@ -1472,6 +1481,11 @@ public class AerospikeConnection implements AutoCloseable {
             // knows - just be amazed that they did it with 1ms precision and handle it anyway.
             LOG.warn("InterruptedException caught during database truncate: ", e);
             Thread.currentThread().interrupt();
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
+            throw e;
         }
     }
 
@@ -1510,6 +1524,9 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
             task.waitTillComplete(1);
         } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
             if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
                 throw new RuntimeException(ae);
             }

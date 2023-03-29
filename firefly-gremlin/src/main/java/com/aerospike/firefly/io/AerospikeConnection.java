@@ -247,7 +247,7 @@ public class AerospikeConnection implements AutoCloseable {
         VP_TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_TYPE_HINTS, conf);
         COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.COUNTER, conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET, conf);
-        ID_TYPE_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE_BIN, conf);
+        ID_TYPE_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_TYPE, conf);
         GLOBAL = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL, conf);
         TEST_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.TEST_SET, conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET, conf);
@@ -257,7 +257,7 @@ public class AerospikeConnection implements AutoCloseable {
         GRAPH_VARIABLES_MAP = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_VARIABLES_MAP, conf);
         IN_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGE_COUNTER, conf);
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
-        ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ID_CACHE_SIZE, conf));
+        ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
         INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
         V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
         E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
@@ -269,7 +269,7 @@ public class AerospikeConnection implements AutoCloseable {
         OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
         EDGE_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED, conf);
         VP_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_CACHE_DISABLED, conf);
-        INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA, conf);
+        INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_META, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
         CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));

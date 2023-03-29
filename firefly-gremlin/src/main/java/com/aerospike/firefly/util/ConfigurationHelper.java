@@ -35,7 +35,7 @@ public final class ConfigurationHelper {
 
     private static List PREFIX_MASK = new ArrayList() {{
         add(Keys.GRAPH_ID);
-        add(Keys.ID_CACHE_SIZE);
+        add(Keys.ON_RECORD_ID_LIMIT);
     }};
 
     public static class Keys {
@@ -85,11 +85,11 @@ public final class ConfigurationHelper {
         public static final String TYPE_HINTS = "TYPE_HINTS";
         public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
         public static final String COUNTER = "COUNTER";
-        public static final String ID_TYPE_BIN = "ID_TYPE";
+        public static final String ID_TYPE = "ID_TYPE";
         public static final String GLOBAL = "GLOBAL";
         public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
-        public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
+        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String GRAPH_ID = "GRAPH_ID";
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
@@ -98,7 +98,7 @@ public final class ConfigurationHelper {
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
 
-        public static final String INDEX_METADATA = "INDEX_META";
+        public static final String INDEX_META = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
         public static final String INDEXED_BINS = "INDEXED_BINS";
         public static final String LABEL = "LABEL";
@@ -175,19 +175,19 @@ public final class ConfigurationHelper {
         put(Keys.VP_TYPE_HINTS, "VP_TYPE_HINTS");
         put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
-        put(Keys.ID_TYPE_BIN, "ID_TYPE");
+        put(Keys.ID_TYPE, "ID_TYPE");
         put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
         put(Keys.Sets.TEST_SET, "TEST_SET");
         put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
         put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
-        put(Keys.ID_CACHE_SIZE, "100000");
+        put(Keys.ON_RECORD_ID_LIMIT, "100000");
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
         put(Keys.EDGE_CACHE_DISABLED, "CACHE_DISABLED");
         put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
-        put(Keys.INDEX_METADATA, "INDEX_META");
+        put(Keys.INDEX_META, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
         put(Keys.INDEXED_BINS, "indexedBins");
         put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");

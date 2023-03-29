@@ -136,11 +136,6 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
 
-// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
-
-
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";

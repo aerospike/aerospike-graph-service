@@ -56,6 +56,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Tokens;
+import com.aerospike.firefly.util.WarmupUtil;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
@@ -779,7 +780,8 @@ public class AerospikeConnection implements AutoCloseable {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
-        if(Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE,conf)))
+        final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE, conf));
+        if(warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =

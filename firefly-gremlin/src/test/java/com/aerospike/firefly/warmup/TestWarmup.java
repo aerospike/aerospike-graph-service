@@ -105,6 +105,7 @@ public class TestWarmup extends AbstractFireflySuite {
     public void testWarmupDoesNotCreateIndex() {
         Configuration wc = ConfigurationUtils.cloneConfiguration(config);
         wc.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), "true");
+        graph.getBaseGraph().dropDatabase(graph,true);
         graph = FireflyGraph.open(wc);
         WarmupUtil w = WarmupUtil.create(wc);
         w.preheat(2);

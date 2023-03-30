@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -20,7 +21,12 @@ public class FireflyAerospikeVersionCheck {
     private final int revision;
     private final int extension;
 
-    private FireflyAerospikeVersionCheck(final String version) {
+    FireflyAerospikeVersionCheck(final String version) {
+        int extension1;
+        if (version == null) {
+            throw new IllegalArgumentException("Aerospike version cannot be null");
+        }
+
         int begin = 0;
         int i = begin;
         int max = version.length();
@@ -54,7 +60,19 @@ public class FireflyAerospikeVersionCheck {
 
         revision = (i > begin)? Integer.parseInt(version.substring(begin, i)) : 0;
         begin = i;
-        extension = (begin < max)? Integer.parseInt(version.substring(begin + 1)) : 0;
+        final String extensionString = version.substring(begin + 1);
+        if (extensionString.contains("-")) {
+            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("-")));
+        } else if (extensionString.contains("_")) {
+            extension1 = Integer.parseInt(extensionString.substring(0, extensionString.indexOf("_")));
+        } else {
+            try {
+                extension1 = Integer.parseInt(extensionString);
+            } catch (final NumberFormatException e) {
+                extension1 = 0;
+            }
+        }
+        extension = extension1;
     }
 
     public static void validateVersion(final AerospikeClient client) {
@@ -67,7 +85,7 @@ public class FireflyAerospikeVersionCheck {
         }
     }
 
-    private static boolean validateVersion(final FireflyAerospikeVersionCheck version) {
+    static boolean validateVersion(final FireflyAerospikeVersionCheck version) {
         return version.major > MAJOR_MINIMUM ||
                 (version.major == MAJOR_MINIMUM && (version.minor > MINOR_MINIMUM ||
                         (version.minor == MINOR_MINIMUM && (version.revision > REVISION_MINIMUM ||

@@ -24,6 +24,12 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
         return true;
     }
 
+    @Override
+    protected boolean runTest() {
+        // This test is only valid on one node clusters due to how the calculations for cardinality work.
+        return db.getClient().getNodes().length == 1;
+    }
+
     @Before
     public void setup() {
         graph.getBaseGraph().clearNamespace();

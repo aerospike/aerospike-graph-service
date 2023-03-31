@@ -19,9 +19,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -64,6 +66,8 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_TIMEOUT = "AEROSPIKE_TIMEOUT";
+        public static final String AEROSPIKE_USER = "AEROSPIKE_USER";
+        public static final String AEROSPIKE_PASSWORD = "AEROSPIKE_PASSWORD";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
         public static final String MAX_CONNECTIONS_PER_NODE = "MAX_CONNECTIONS_PER_NODE";
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
@@ -141,9 +145,16 @@ public final class ConfigurationHelper {
         public static final String WARMUP_MODE = "WARMUP_MODE";
     }
 
+    private static final Set<String> environmentVariables = new HashSet<>() {{
+        add(Keys.AEROSPIKE_USER);
+        add(Keys.AEROSPIKE_PASSWORD);
+    }};
+
     private static final Map<String, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
         put(Keys.AEROSPIKE_NAMESPACE, "test");
+        put(Keys.AEROSPIKE_USER, "");
+        put(Keys.AEROSPIKE_PASSWORD, "");
         put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
@@ -297,8 +308,15 @@ public final class ConfigurationHelper {
 
     public static String getOrDefault(final String key, Configuration config) {
         final String lowerKey = key.toLowerCase();
-        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key))
+        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
+        } else if (environmentVariables.contains(key.toUpperCase())) {
+            // Allow username and password to come from environment variables.
+            final String environment = System.getenv(key.toLowerCase());
+            if (environment != null && !environment.isEmpty()) {
+                return environment;
+            }
+        }
         try {
             Keys.Sets.class.getField(key);
         } catch (NoSuchFieldException e) {

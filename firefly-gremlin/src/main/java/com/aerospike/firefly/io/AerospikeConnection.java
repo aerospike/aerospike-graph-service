@@ -1461,7 +1461,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, EDGE_AERO_SET, null);
             client.truncate(null, namespace, VERTEX_AERO_SET, null);
             client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
-            client.truncate(null, namespace, ID_MANAGER_SET, null);
             client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
             client.truncate(null, namespace, TEST_SET, null);
             client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
@@ -1473,6 +1472,11 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, OUT_IN_SET, null);
             client.truncate(null, namespace, IN_OUT_SET, null);
             client.truncate(null, namespace, IN_IN_SET, null);
+
+            // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
+            // id manager set and if we delete it here, they will likely insert a record with the same id as the one
+            // we will eventually reach as we wrap around.
+
             if (dropIndices)
                 dropGraphIndices(graph);
             Thread.sleep(1);

@@ -7,7 +7,7 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class NumericIdManager implements IdManager<Long> {
+public abstract class NumericIdManager implements IdManager<Long> {
     /**
      * Manages identifiers of type {@code Long}. Will convert any class that extends from {@link Number} to a
      * {@link Long} and will also attempt to convert {@code String} values

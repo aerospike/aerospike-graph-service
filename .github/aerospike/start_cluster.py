@@ -90,6 +90,9 @@ def shutdown(ctr_id: str, docker_client: DockerClient):
 
 
 def start_aerospike_cluster(config, docker_client):
+    image = config.aerospike_image.split(':')[0]
+    tag = config.aerospike_image.split(':')[1]
+    docker_client.images.pull(repository=image, tag=tag)
     ctr_id_0: str = start_aerospike_node(0, config, docker_client)
     logger.info(f"started aerospike container {ctr_id_0}")
     ctr_id_1: str = start_aerospike_node(1, config, docker_client)

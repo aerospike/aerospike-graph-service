@@ -21,6 +21,7 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.cluster.Node;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -708,13 +709,17 @@ public class AerospikeConnection implements AutoCloseable {
          * @return Set of namespaces
          */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
-            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            return parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
-                        Map<String, String> map = entry.getValue();
-                        return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
-                    })
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
-                    .keySet();
+            final Set<String> allSets = new HashSet<>();
+            for (Node node: client.getNodes()) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
+                allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
+                            Map<String, String> map = entry.getValue();
+                            return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
+                        .keySet());
+            }
+            return allSets;
         }
     }
 

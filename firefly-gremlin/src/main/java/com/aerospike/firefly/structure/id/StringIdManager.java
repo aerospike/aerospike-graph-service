@@ -49,7 +49,4 @@ public class StringIdManager implements IdManager<String> {
     public boolean allow(final Class<?> id) {
         return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
-
-
-
 }

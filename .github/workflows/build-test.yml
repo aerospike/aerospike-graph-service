@@ -403,7 +403,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.6
+          server-version: ee-6.2.0.6
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'

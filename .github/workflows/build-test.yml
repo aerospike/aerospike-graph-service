@@ -287,9 +287,9 @@ jobs:
     runs-on: ${{ needs.start-runner-tls.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -311,9 +311,9 @@ jobs:
     runs-on: ${{ needs.start-runner-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -334,9 +334,9 @@ jobs:
     runs-on: ${{ needs.start-runner-packed-sindex.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -356,9 +356,9 @@ jobs:
     runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -378,9 +378,9 @@ jobs:
     runs-on: ${{ needs.start-runner-small-memory-packed.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -401,9 +401,9 @@ jobs:
     runs-on: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.6
+          server-version: ee-6.2.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -424,9 +424,9 @@ jobs:
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -447,9 +447,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -502,9 +502,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -556,9 +556,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -586,9 +586,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v4
+      - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: 6.2.0.7
+          server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'

@@ -26,13 +26,11 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.api.java.function.PairFunction;
-import static org.apache.spark.sql.functions.input_file_name;
-import static org.apache.spark.sql.functions.lit;
-import static org.apache.spark.sql.functions.monotonically_increasing_id;
-
-import org.apache.spark.sql.*;
-import static org.apache.spark.sql.functions.col;
-
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -43,7 +41,6 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -51,7 +48,15 @@ import scala.Tuple2;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,10 +65,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import org.apache.spark.sql.Row;
-
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.input_file_name;
+import static org.apache.spark.sql.functions.lit;
+import static org.apache.spark.sql.functions.monotonically_increasing_id;
 
 public class DatasetOperations implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
@@ -72,13 +79,10 @@ public class DatasetOperations implements Serializable {
     private static final Set<Object> supernodes = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
 
-    private static  final String DIRECTORY_COLUMN ="directory";
-    private static  final String FILENAME_COLUMN = "fileName";
-    private static  final String LINENUMBER_COLUMN = "line";
-
-    private static final String[] COLUMNS_TO_REMOVE= {DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN};
-
-    public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(COLUMNS_TO_REMOVE)));
+    private static final String DIRECTORY_COLUMN ="~directory";
+    private static final String FILENAME_COLUMN = "~fileName";
+    private static final String LINENUMBER_COLUMN = "~line";
+    public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));
 
     /**
      * Function to load datasets from a parent directory and merge/union them

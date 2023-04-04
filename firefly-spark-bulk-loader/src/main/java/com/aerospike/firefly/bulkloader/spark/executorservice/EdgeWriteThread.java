@@ -6,7 +6,6 @@ import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -35,7 +34,8 @@ public class EdgeWriteThread implements Callable<Boolean> {
     private final AtomicInteger inEdgeCount = new AtomicInteger(0);
     private final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap;
     private final Map<Object, Map<String, List<Value>>> vertexInEdgeMap;
-    private final GenericRowWithSchema row;
+    private final GenericRowWithSchema fireflyRow;
+    private final GenericRowWithSchema fireflyMetadataRow;
     private static final int RETRY_LIMIT = 100;
     private final int partitionId;
     
@@ -47,8 +47,9 @@ public class EdgeWriteThread implements Callable<Boolean> {
                            final String nullValue, FireflyGraph graph,
                            final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap,
                            final Map<Object, Map<String, List<Value>>> vertexInEdgeMap,
-                           final GenericRowWithSchema row,
-                           final int partitionId) {
+                           final GenericRowWithSchema rowForFirefly,
+                           final int partitionId,
+                           final GenericRowWithSchema fireflyMetadataRow) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.keepProvidedId = keepProvidedId;
@@ -58,8 +59,9 @@ public class EdgeWriteThread implements Callable<Boolean> {
         this.graph = graph;
         this.vertexOutEdgeMap = vertexOutEdgeMap;
         this.vertexInEdgeMap = vertexInEdgeMap;
-        this.row = row;
+        this.fireflyRow = rowForFirefly;
         this.partitionId = partitionId;
+        this.fireflyMetadataRow = fireflyMetadataRow;
     }
 
     /**
@@ -71,7 +73,7 @@ public class EdgeWriteThread implements Callable<Boolean> {
     public Boolean call() {
         Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
         try {
-            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
+            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
             final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
             final Object inVertexId = sparkEdge.getInVertexId();
             final Object outVertexId = sparkEdge.getOutVertexId();
@@ -84,8 +86,8 @@ public class EdgeWriteThread implements Callable<Boolean> {
                 } catch (final AerospikeException e) {
                     if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
                         // No point in retrying this kind of error.
-                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. Row value: '{}'.",
-                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(row.values()));
+                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
+                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
                         // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
                         // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
                         return !this.ignoreElementCreationFailed;
@@ -121,7 +123,7 @@ public class EdgeWriteThread implements Callable<Boolean> {
                 return false;
             }
         } catch (final RuntimeException e) {
-            LOGGER.error("Failed to load edge for row: {}.", Arrays.toString(row.values()), e);
+            LOGGER.error("Failed to load edge for fireflyrow: " + fireflyMetadataRow  + " metadataRow: "  + fireflyMetadataRow, e);
             // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
             // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
             return !this.ignoreElementCreationFailed;

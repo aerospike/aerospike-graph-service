@@ -105,7 +105,6 @@ public class DatasetOperations implements Serializable {
                         .select(input_file_name().as(FILENAME_COLUMN), col("*"))
                         .withColumn(DIRECTORY_COLUMN, lit(directory))
                         .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
-
             else unionDS = unionDS.unionByName(spark.read().options(options).csv(directory)
                     .select(input_file_name().as(FILENAME_COLUMN), col("*"))
                     .withColumn(DIRECTORY_COLUMN, lit(directory))

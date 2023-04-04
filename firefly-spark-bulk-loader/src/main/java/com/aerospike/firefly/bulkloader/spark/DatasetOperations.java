@@ -79,7 +79,7 @@ public class DatasetOperations implements Serializable {
     private static final Set<Object> supernodes = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
 
-    private static final String DIRECTORY_COLUMN ="~directory";
+    private static final String DIRECTORY_COLUMN = "~directory";
     private static final String FILENAME_COLUMN = "~fileName";
     private static final String LINENUMBER_COLUMN = "~line";
     public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));

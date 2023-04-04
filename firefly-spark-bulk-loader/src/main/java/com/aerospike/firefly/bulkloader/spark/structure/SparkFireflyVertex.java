@@ -43,12 +43,13 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 continue;
             }
             try {
-                final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
+                final String value = row.getAs(header);
+                final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
                 LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
                 if (!ignoreParseFailedProperties) {
-                    throw new FireflyBulkLoaderException(e);
+                    throw e;
                 }
             }
         }

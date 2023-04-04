@@ -151,8 +151,14 @@ public class GraphOperations {
             final Object vertexId = vertexIdToLabelMaps.getKey();
             final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
-                writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
-                        labelToEdgeIds.getValue(), ignoreElementCreationFailed);
+                try {
+                    writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
+                            labelToEdgeIds.getValue(), ignoreElementCreationFailed);
+                } catch (final RuntimeException e) {
+                    LOGGER.error("Exception occurred while loading edges '{}' into vertex with id '{}'. Error message '{}'.",
+                            labelToEdgeIds.getValue(), vertexId, e.getMessage(), e);
+                    throw e;
+                }
             }
         }
         edgeMap.clear();

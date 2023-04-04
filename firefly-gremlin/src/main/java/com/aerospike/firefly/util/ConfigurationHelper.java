@@ -192,7 +192,7 @@ public final class ConfigurationHelper {
         put(Keys.Sets.TEST_SET, "TEST_SET");
         put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
         put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
-        put(Keys.ID_CACHE_SIZE, "100000");
+        put(Keys.ID_CACHE_SIZE, "10000");
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");

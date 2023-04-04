@@ -198,6 +198,12 @@ public abstract class RelationalGraph extends FireflyGraph {
                 LOG.error("RECORD_TO_BIG error on in bulk cache update operation " +
                                 "vertexId: {} direction: {} edgeIds: {} edgeLabel: {}",
                         vertexId, direction, edgeIds, edgeLabel);
+                try {
+                    final Record r = db.getClient().get(null, key);
+                    LOG.error("Record which received RECORD_TOO_BIG: '{}'", r);
+                } catch (final RuntimeException ignored) {
+                    LOG.error("Failed to read back vertex that received RECORD_TOO_BIG.");
+                }
             }
             throw ae;
         }

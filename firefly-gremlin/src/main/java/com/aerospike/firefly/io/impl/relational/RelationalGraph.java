@@ -1,9 +1,11 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
@@ -19,6 +21,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
+import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -43,6 +46,8 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
+import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
 /**
@@ -174,18 +179,33 @@ public abstract class RelationalGraph extends FireflyGraph {
         final boolean isCacheDisabled = results.getBoolean(this.db.EDGE_CACHE_DISABLED);
         final long edgeCount = results.getLong(counterBinName);
 
-        if (isCacheDisabled) {
-            // Cache was already disabled so wipe the write we just did to prevent memory leak.
-            final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-            final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.operate(writePolicy, key, wipeCache);
-        } else if (edgeCount > this.db.ID_CACHE_SIZE) {
-            // Disable the edge cache for this vertex and clear the cache.
-            final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
-            final Operation disableCache = Operation.put(disabledCacheBin);
-            final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-            final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.operate(writePolicy, key, disableCache, wipeCache);
+        try {
+            if (isCacheDisabled) {
+                // Cache was already disabled so wipe the write we just did to prevent memory leak.
+                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
+                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
+                this.db.operate(writePolicy, key, wipeCache);
+            } else if (edgeCount > this.db.ID_CACHE_SIZE) {
+                // Disable the edge cache for this vertex and clear the cache.
+                final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
+                final Operation disableCache = Operation.put(disabledCacheBin);
+                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
+                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
+                this.db.operate(writePolicy, key, disableCache, wipeCache);
+            }
+        } catch (final AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                LOG.error("RECORD_TO_BIG error on in bulk cache update operation " +
+                                "vertexId: {} direction: {} edgeIds: {} edgeLabel: {}",
+                        vertexId, direction, edgeIds, edgeLabel);
+                try {
+                    final Record r = db.getClient().get(null, key);
+                    LOG.error("Record which received RECORD_TOO_BIG: '{}'", r);
+                } catch (final RuntimeException ignored) {
+                    LOG.error("Failed to read back vertex that received RECORD_TOO_BIG.");
+                }
+            }
+            throw ae;
         }
     }
 

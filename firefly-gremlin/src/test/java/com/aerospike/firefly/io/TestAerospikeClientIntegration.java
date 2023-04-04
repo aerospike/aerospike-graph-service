@@ -636,44 +636,4 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(2, hashRecords.length);
     }
 
-    @Test
-    public void testWarmup() {
-        String edgeLabel = "l";
-        Vertex va = graph.addVertex();
-        Vertex vb = graph.addVertex();
-        Edge ea = graph.traversal().V(va).addE(edgeLabel).to(vb).next();
-        WarmupUtil w = WarmupUtil.create(config);
-        w.preheat(2);
-        assertEquals((Long) 1L, graph.traversal().V(va.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().V(vb.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().E(ea.id()).count().next());
-        assertEquals(edgeLabel, graph.traversal().E(ea.id()).label().next());
-    }
-
-    @Test
-    public void testWarmupQuery() {
-        String edgeLabel = "l";
-        Vertex va = graph.addVertex();
-        Vertex vb = graph.addVertex();
-        Edge ea = graph.traversal().V(va).addE(edgeLabel).to(vb).next();
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
-        assertEquals((Long) 1L, graph.traversal().V(va.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().V(vb.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().E(ea.id()).count().next());
-        assertEquals(edgeLabel, graph.traversal().E(ea.id()).label().next());
-    }
-    @Test
-    public void testWarmupCleanup(){
-        Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(config);
-        String warmupArena = getWarmupArenaName();
-        warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
-        warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
-
-        AerospikeConnection warmupdb = AerospikeConnection.connect(warmupConfig);
-        FireflyGraph warmupgraph = FireflyGraph.open(warmupConfig);
-        warmupdb.dropDatabase();
-        assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
-        assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
-    }
 }

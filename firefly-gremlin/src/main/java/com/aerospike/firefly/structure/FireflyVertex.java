@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;

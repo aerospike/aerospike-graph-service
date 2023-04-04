@@ -1564,6 +1564,8 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
+        if(set.contains(WarmupUtil.getWarmupArenaName()))
+            return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);
             return;
@@ -1611,6 +1613,8 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
+        if(set.contains(WarmupUtil.getWarmupArenaName()))
+            return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);
             return;

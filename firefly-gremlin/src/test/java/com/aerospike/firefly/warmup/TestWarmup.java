@@ -35,6 +35,7 @@ public class TestWarmup extends AbstractFireflySuite {
     protected boolean clearData() {
         return false;
     }
+
     private TestLoggerUtil.MemoryAppender memoryAppender;
 
     // https://www.baeldung.com/junit-asserting-logs
@@ -105,12 +106,16 @@ public class TestWarmup extends AbstractFireflySuite {
     public void testWarmupDoesNotCreateIndex() {
         Configuration wc = ConfigurationUtils.cloneConfiguration(config);
         wc.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), "true");
-        graph.getBaseGraph().dropDatabase(graph,true);
+        graph.getBaseGraph().dropDatabase(graph, true);
+        List<Map.Entry<String, String>> indexesA = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        assertEquals(0, indexesA.stream().filter(it ->
+                it.getKey().contains(WarmupUtil.getWarmupArenaName()) || it.getValue().contains(WarmupUtil.getWarmupArenaName())).count());
+
         graph = FireflyGraph.open(wc);
         WarmupUtil w = WarmupUtil.create(wc);
         w.preheat(2);
-        List<Map.Entry<String, String>> indexes = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
-        assertEquals(0, indexes.stream().filter(it ->
+        List<Map.Entry<String, String>> indexesB = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
+        assertEquals(0, indexesB.stream().filter(it ->
                 it.getKey().contains(WarmupUtil.getWarmupArenaName()) || it.getValue().contains(WarmupUtil.getWarmupArenaName())).count());
     }
 
@@ -141,7 +146,9 @@ public class TestWarmup extends AbstractFireflySuite {
         graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
         assertEquals((Long) 0L, warmupgraph.traversal().V().count().next());
     }
-    @Test public void testWarmupSuppressesLogOutput(){
+
+    @Test
+    public void testWarmupSuppressesLogOutput() {
 
 
         WarmupUtil w = WarmupUtil.create(config);

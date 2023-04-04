@@ -149,10 +149,10 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testSyntheticSupernode() {
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase(), "5");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "5");
 
         try (FireflyGraph graph = FireflyGraph.open(config)) {
-            config.clearProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase());
             graph.traversal().V().drop().iterate();
             Vertex root = graph.addVertex("root");
             IntStream.range(0, 6).forEach(i -> {
@@ -171,9 +171,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testSyntheticSupernodeCompositeId() {
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase(), "5");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "5");
         try (FireflyGraph graph = FireflyGraph.open(config)) {
-            config.clearProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase());
             final GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             final Vertex root = g.addV("root").next();

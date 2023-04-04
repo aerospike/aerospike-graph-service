@@ -21,6 +21,7 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.cluster.Node;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -54,6 +55,7 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
+import com.aerospike.firefly.structure.util.FireflyAerospikeVersionCheck;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Tokens;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -217,10 +219,20 @@ public class AerospikeConnection implements AutoCloseable {
         this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
-        String tlsConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TLS, conf);
+
+        // If username and password are not null or empty strings, then set the user and password on the client policy.
+        final String user = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
+        final String password = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
+        if (user != null && !"".equals(user) && password != null && !"".equals(password)) {
+            LOG.info("Setting Aerospike user and password.");
+            this.clientPolicy.user = user;
+            this.clientPolicy.password = password;
+        }
+        final String tlsConfig = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TLS, conf);
         if (Boolean.parseBoolean(tlsConfig))
             this.clientPolicy.tlsPolicy = new TlsPolicy();
         this.client = new AerospikeClient(clientPolicy, hosts);
+        FireflyAerospikeVersionCheck.validateVersion(client);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
         IN_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_VP_SET, conf);
@@ -698,13 +710,17 @@ public class AerospikeConnection implements AutoCloseable {
          * @return Set of namespaces
          */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
-            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            return parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
-                        Map<String, String> map = entry.getValue();
-                        return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
-                    })
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
-                    .keySet();
+            final Set<String> allSets = new HashSet<>();
+            for (Node node: client.getNodes()) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
+                allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
+                            Map<String, String> map = entry.getValue();
+                            return Integer.parseInt(map.get(Keys.OBJECTS)) > 0;
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, LinkedHashMap::new))
+                        .keySet());
+            }
+            return allSets;
         }
     }
 
@@ -1454,7 +1470,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, EDGE_AERO_SET, null);
             client.truncate(null, namespace, VERTEX_AERO_SET, null);
             client.truncate(null, namespace, VERTEX_PROPERTY_AERO_SET, null);
-            client.truncate(null, namespace, ID_MANAGER_SET, null);
             client.truncate(null, namespace, USER_SUPPLIED_ID_CACHE_SET, null);
             client.truncate(null, namespace, TEST_SET, null);
             client.truncate(null, namespace, GRAPH_VARIABLES_SET, null);
@@ -1466,6 +1481,11 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, OUT_IN_SET, null);
             client.truncate(null, namespace, IN_OUT_SET, null);
             client.truncate(null, namespace, IN_IN_SET, null);
+
+            // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
+            // id manager set and if we delete it here, they will likely insert a record with the same id as the one
+            // we will eventually reach as we wrap around.
+
             if (dropIndices)
                 dropGraphIndices(graph);
             Thread.sleep(1);
@@ -1474,6 +1494,11 @@ public class AerospikeConnection implements AutoCloseable {
             // knows - just be amazed that they did it with 1ms precision and handle it anyway.
             LOG.warn("InterruptedException caught during database truncate: ", e);
             Thread.currentThread().interrupt();
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
+            throw e;
         }
     }
 
@@ -1512,6 +1537,9 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexTask task = client.dropIndex(policy, namespace, set, indexName);
             task.waitTillComplete(1);
         } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
             if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
                 throw new RuntimeException(ae);
             }
@@ -1664,8 +1692,9 @@ public class AerospikeConnection implements AutoCloseable {
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:
+                    LOG.error("RECORD_TO_BIG error on key {}", key);
                     LOG.error(RECORD_TOO_BIG, ae);
-                    throw new RuntimeException(RECORD_TOO_BIG, ae);
+                    throw ae;
                 case ResultCode.KEY_NOT_FOUND_ERROR:
                     LOG.debug(ELEMENT_NOT_FOUND, ae);
                     throw new ElementNotFoundException(ae);

@@ -21,7 +21,7 @@ public class TestTLSIntegration {
         Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(TLS.toLowerCase(), "true");
         config.setProperty(AEROSPIKE_HOST.toLowerCase(), "aerospike.test.aerospike.dev");
-        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4333);
+        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
         AerospikeConnection db = AerospikeConnection.connect(config);
         FireflyGraph graph = FireflyGraph.open(config);
         Vertex v = graph.addVertex();

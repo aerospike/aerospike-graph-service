@@ -35,6 +35,12 @@ public class TestFireflyMetadata extends AbstractFireflySuite {
         }
     }
 
+    @Override
+    protected boolean runTest() {
+        // This test is only valid on one node clusters due to how the calculations for cardinality work.
+        return db.getClient().getNodes().length == 1;
+    }
+
     @Before
     public void clearIndexes() {
         db.clearNamespace();

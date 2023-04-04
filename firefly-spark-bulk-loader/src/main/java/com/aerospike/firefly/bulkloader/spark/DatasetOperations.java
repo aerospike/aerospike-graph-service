@@ -57,9 +57,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
@@ -73,8 +74,9 @@ public class DatasetOperations implements Serializable {
 
     /**
      * Function to load datasets from a parent directory and merge/union them
-     * @param spark Spark session
-     * @param directories Set of paths to subdirectories within the parent directory
+     *
+     * @param spark            Spark session
+     * @param directories      Set of paths to subdirectories within the parent directory
      * @param REQUIRED_HEADERS required headers for the dataset
      * @return Merged Dataset<Row> from all the subdirectories
      */
@@ -119,18 +121,39 @@ public class DatasetOperations implements Serializable {
             ThreadFactory vertexThreadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Vertex-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, vertexThreadFactory);
+            final List<Future<Boolean>> futures = new ArrayList<>();
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed,
-                            nullValue, graph, row, TaskContext.getPartitionId()));
+                    futures.add(executor.submit(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed,
+                            nullValue, graph, row, TaskContext.getPartitionId())));
+                }
+                boolean error = false;
+                while (!futures.isEmpty()) {
+                    final List<Future<Boolean>> toRemove = futures.stream().filter(Future::isDone).collect(Collectors.toList());
+                    boolean errorOccurred = toRemove.stream().anyMatch(f -> {
+                        try {
+                            return f.get();
+                        } catch (Exception e) {
+                            return true;
+                        }
+                    });
+                    error = error || errorOccurred;
+                    futures.removeAll(toRemove);
+
+                    // Wait for a second before checking again.
+                    if (!futures.isEmpty()) {
+                        Thread.sleep(1000);
+                    }
                 }
                 executor.shutdown();
-                while(!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
                 final Instant endOfGraphOperations = Instant.now();
                 final Duration interval = Duration.between(startOfGraphOperations, endOfGraphOperations);
                 cumulativeTime.add(interval.getSeconds());
+                if (error) {
+                    throw new RuntimeException("Error occurred while writing vertices, see logs for more details.");
+                }
             }
             return cumulativeTime.iterator();
         }, Encoders.LONG()).collectAsList();
@@ -223,19 +246,47 @@ public class DatasetOperations implements Serializable {
             ThreadFactory edgeThreadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Edge-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
             final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, edgeThreadFactory);
+            final List<Future<Boolean>> futures = new ArrayList<>();
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final Map<Object, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    executor.execute(new EdgeWriteThread(supernodes, ignoreFailedProperties, keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
-                            graph, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId()));
+                    futures.add(executor.submit(
+                            new EdgeWriteThread(supernodes,
+                                    ignoreFailedProperties, keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
+                                    graph, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId())));
+                }
+                boolean error = false;
+                while (!futures.isEmpty()) {
+                    final List<Future<Boolean>> toRemove = futures.stream().filter(Future::isDone).collect(Collectors.toList());
+                    boolean errorOccurred = toRemove.stream().anyMatch(f -> {
+                        try {
+                            return f.get();
+                        } catch (Exception e) {
+                            return true;
+                        }
+                    });
+                    error = error || errorOccurred;
+                    futures.removeAll(toRemove);
+
+                    // Wait for a second before checking again.
+                    if (!futures.isEmpty()) {
+                        Thread.sleep(1000);
+                    }
                 }
                 executor.shutdown();
-                while (!executor.awaitTermination(10, TimeUnit.SECONDS)) {}
-                GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
-                GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                if (error) {
+                    throw new RuntimeException("Error occurred while writing edges, see logs for more details");
+                }
+                try {
+                    GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
+                    GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                } catch (RuntimeException e) {
+                    LOGGER.error("Failed to flush edge maps", e);
+                    throw e;
+                }
                 final Instant endOfGraphOperations = Instant.now();
                 final Duration interval = Duration.between(startOfGraphOperations, endOfGraphOperations);
                 cumulativeTime.add(interval.getSeconds());
@@ -392,8 +443,7 @@ public class DatasetOperations implements Serializable {
         if (env.equalsIgnoreCase("aws")) {
             loader = S3ObjectLoader.getInstance();
             ((S3ObjectLoader) loader).setBucketName(bucketName);
-        }
-        else loader = FileLoader.getInstance();
+        } else loader = FileLoader.getInstance();
         config.set(loader.loadConfiguration(configPath));
     }
 }

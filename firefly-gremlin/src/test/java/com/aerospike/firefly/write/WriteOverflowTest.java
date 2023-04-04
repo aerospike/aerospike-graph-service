@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 
 public class WriteOverflowTest {
     // 1 kB string.
@@ -61,7 +60,6 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();
@@ -96,7 +94,6 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();

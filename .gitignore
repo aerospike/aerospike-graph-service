@@ -1,3 +1,7 @@
+#venv for python cluster runner
+.github/aerospike/venv
+#features file for ci
+.github/aerospike/features.conf
 
 #project build artifacts
 **/target/

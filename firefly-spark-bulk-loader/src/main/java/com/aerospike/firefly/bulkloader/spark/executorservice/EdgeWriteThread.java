@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark.executorservice;
 
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
@@ -18,9 +19,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class EdgeWriteThread implements Runnable {
+public class EdgeWriteThread implements Callable<Boolean> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteThread.class);
     private final Set<Object> supernodes;
     private final boolean ignoreFailedProperties;
@@ -60,8 +62,13 @@ public class EdgeWriteThread implements Runnable {
         this.partitionId = partitionId;
     }
 
+    /**
+     * Function to write edge to Aerospike.
+     *
+     * @return true if error occurred while writing edge, false otherwise.
+     */
     @Override
-    public void run() {
+    public Boolean call() {
         Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
         try {
             final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
@@ -70,21 +77,25 @@ public class EdgeWriteThread implements Runnable {
             final Object outVertexId = sparkEdge.getOutVertexId();
             final String edgeLabel = sparkEdge.getLabel();
             int tryCount = 0;
-            boolean succeeded = false;
-            while (!succeeded) {
+            while (true) {
                 try {
                     this.graph.bulkWriteEdge((Long) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                             inVertexId, outVertexId);
-                    succeeded = true;
                 } catch (final AerospikeException e) {
+                    if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                        // No point in retrying this kind of error.
+                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. Row value: '{}'.",
+                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(row.values()));
+                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                        return !this.ignoreElementCreationFailed;
+                    }
                     if (++tryCount > RETRY_LIMIT) {
                         LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                                 inVertexId + " after " + tryCount + " attempts.", e);
-                        if (!this.ignoreElementCreationFailed) {
-                            throw e;
-                        } else {
-                            break;
-                        }
+                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                        return !this.ignoreElementCreationFailed;
                     } else {
                         LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                                 inVertexId + ". Attempting to write edge again. Attempt count: "
@@ -105,12 +116,15 @@ public class EdgeWriteThread implements Runnable {
                             edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
                             this.ignoreElementCreationFailed);
                 }
+
+                // Everything succeeded, return false.
+                return false;
             }
-        } catch (final FireflyBulkLoaderException e) {
-            LOGGER.warn("Failed to load edge for row: " + Arrays.toString(this.row.values()), e);
-            if (!this.ignoreElementCreationFailed) {
-                throw e;
-            }
+        } catch (final RuntimeException e) {
+            LOGGER.error("Failed to load edge for row: {}.", Arrays.toString(row.values()), e);
+            // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+            // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+            return !this.ignoreElementCreationFailed;
         }
     }
 }

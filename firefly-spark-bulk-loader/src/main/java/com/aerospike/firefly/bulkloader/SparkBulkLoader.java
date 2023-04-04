@@ -62,14 +62,10 @@ public class SparkBulkLoader {
             CONFIG = loader.loadConfiguration(configPath);
             vertexDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
             edgeDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
+            LOGGER.info("Vertex directories provided = {} and Edge directories provided = {}", vertexDirectories, edgeDirectories);
         }
-        catch (final IOException ie) {
-            LOGGER.error("Unable to load config.", ie);
-            ie.printStackTrace();
-            System.exit(1);
-        }
-        catch (final RuntimeException runtimeException) {
-            LOGGER.error("Amazon SDK client error", runtimeException);
+        catch (final IOException | RuntimeException e) {
+            LOGGER.error("Failed to load the input files '{}'", e.getMessage(), e);
             System.exit(1);
         }
 

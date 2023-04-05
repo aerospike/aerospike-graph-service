@@ -279,7 +279,7 @@ jobs:
       - name: Build Docker Image
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
-          docker build -t aerospike/firefly .
+          docker build --build-arg RELEASE_BUILD=1 -t aerospike/firefly .
   test-firefly-tls:
     name: Test TLS integration
     timeout-minutes: 12
@@ -471,7 +471,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0'
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -526,7 +526,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -571,7 +571,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          docker build --build-arg RELEASE_BUILD=1 -t firefly .
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -601,7 +601,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          docker build --build-arg RELEASE_BUILD=1 -t firefly .
           
           echo "Running docker image with custom properties file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &

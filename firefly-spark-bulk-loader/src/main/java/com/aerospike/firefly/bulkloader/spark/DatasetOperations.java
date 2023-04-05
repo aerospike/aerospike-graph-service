@@ -32,6 +32,8 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -47,6 +49,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -64,6 +67,11 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.input_file_name;
+import static org.apache.spark.sql.functions.lit;
+import static org.apache.spark.sql.functions.monotonically_increasing_id;
+
 
 public class DatasetOperations implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
@@ -71,6 +79,11 @@ public class DatasetOperations implements Serializable {
     private static final AtomicReference<Configuration> config = new AtomicReference<>();
     private static final Set<Object> supernodes = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
+
+    private static final String DIRECTORY_COLUMN = "~directory";
+    private static final String FILENAME_COLUMN = "~fileName";
+    private static final String LINENUMBER_COLUMN = "~line";
+    public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));
 
     /**
      * Function to load datasets from a parent directory and merge/union them
@@ -84,13 +97,22 @@ public class DatasetOperations implements Serializable {
                                                     final Set<String> directories,
                                                     final String[] REQUIRED_HEADERS) {
         Dataset<Row> unionDS = spark.emptyDataFrame();
+        final Map<String, String> options = new HashMap<>();
+        options.put("header", "true");
+
         for (final String directory : directories) {
-            final Map<String, String> options = new HashMap<>();
-            options.put("header", "true");
             if (unionDS.isEmpty())
-                unionDS = spark.read().options(options).csv(directory);
-            else
-                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory), true);
+                unionDS = spark.read().options(options).csv(directory)
+                        .select(input_file_name().as(FILENAME_COLUMN), col("*"))
+                        .withColumn(DIRECTORY_COLUMN, lit(directory))
+                        .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
+            else {
+                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory)
+                    .select(input_file_name().as(FILENAME_COLUMN), col("*"))
+                    .withColumn(DIRECTORY_COLUMN, lit(directory))
+                    .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id()), true);
+            }
+
         }
         Set<String> headers = new HashSet<>();
         for (final String header : unionDS.columns())
@@ -125,9 +147,11 @@ public class DatasetOperations implements Serializable {
             final Instant startOfGraphOperations = Instant.now();
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 while (rowIterator.hasNext()) {
-                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
+
                     futures.add(executor.submit(new VertexWriteThread(ignoreFailedProperties, ignoreElementCreationFailed,
-                            nullValue, graph, row, TaskContext.getPartitionId())));
+                            nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow)));
                 }
                 boolean error = false;
                 while (!futures.isEmpty()) {
@@ -174,9 +198,10 @@ public class DatasetOperations implements Serializable {
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
-                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema fireflyRow = removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
                     final SparkFireflyVertex sparkVertex =
-                            SparkFireflyVertex.createVertex(row, ignoreFailedProperties, nullValue);
+                            SparkFireflyVertex.createVertex(fireflyRow, ignoreFailedProperties, nullValue);
 
                     final Object id = sparkVertex.getId();
                     final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
@@ -252,11 +277,12 @@ public class DatasetOperations implements Serializable {
                 final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final Map<Object, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
-                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
                     futures.add(executor.submit(
                             new EdgeWriteThread(supernodes,
                                     ignoreFailedProperties, keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
-                                    graph, vertexOutEdgeMap, vertexInEdgeMap, row, TaskContext.getPartitionId())));
+                                    graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow, TaskContext.getPartitionId(), metadataRow)));
                 }
                 boolean error = false;
                 while (!futures.isEmpty()) {
@@ -312,8 +338,9 @@ public class DatasetOperations implements Serializable {
             try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
-                    final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
-                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(row, ignoreFailedProperties, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
+                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
+                    final GenericRowWithSchema fireflyRow = removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
+                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, ignoreFailedProperties, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
 
                     final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
                             .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
@@ -445,5 +472,21 @@ public class DatasetOperations implements Serializable {
             ((S3ObjectLoader) loader).setBucketName(bucketName);
         } else loader = FileLoader.getInstance();
         config.set(loader.loadConfiguration(configPath));
+    }
+
+    public static GenericRowWithSchema removeColumns(GenericRowWithSchema row, Set<String> columnsToRemove) {
+        Object[] values = new Object[row.size() - columnsToRemove.size()];
+        StructType oldSchema = row.schema();
+        StructType newSchema = new StructType(Arrays.stream(oldSchema.fields())
+                .filter(field -> !columnsToRemove.contains(field.name()))
+                .toArray(StructField[]::new));
+        int index = 0;
+        for (int i = 0; i < row.size(); i++) {
+            if (!columnsToRemove.contains(row.schema().fields()[i].name())) {
+                values[index] = row.get(i);
+                index++;
+            }
+        }
+        return new GenericRowWithSchema(values, newSchema);
     }
 }

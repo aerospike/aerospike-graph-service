@@ -141,8 +141,19 @@ public class FireflyIdFactory {
         if (!HINT_TO_TYPE.containsKey(typeHint)) {
             // This is just caught and propagated up via a gremlin specific exception.
             throw new IllegalArgumentException("Invalid id type: " + typeHint + ". Id type must be one of " + HINT_TO_TYPE.keySet());
-        }
-        if (Number.class.isAssignableFrom(id.getClass())) {
+        } else if (FireflyEdge.class.isAssignableFrom(type)) {
+            final Long edgeId;
+            if (String.class.isAssignableFrom(id.getClass())) {
+                try {
+                    edgeId = Long.parseLong((String) id);
+                } catch (final NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid id for edge: " + id);
+                }
+            } else {
+                edgeId = ((Number) id).longValue();
+            }
+            return new FireflyPhatEdgeId(edgeId, db.PHAT_EDGE_SIZE, set);
+        } else if (Number.class.isAssignableFrom(id.getClass())) {
             return FireflyIdPoly.fromObject(id, HINT_TO_TYPE.get(typeHint), set);
         } else if (String.class.isAssignableFrom(id.getClass())) {
             try {
@@ -202,10 +213,6 @@ public class FireflyIdFactory {
         return new FireflyIdComposite(db, edgeId, adjacentVertex);
     }
 
-    public FireflyId createCompositeEdgeIdFromManager(final FireflyGraph graph, final FireflyId adjacentVertex) {
-        return new FireflyIdComposite(db, createId(graph.edgeIdManager.getNextId(graph), null), adjacentVertex);
-    }
-
     public FireflyId createFromKeyValues(final Class<? extends FireflyElement> type, final Object... keyValues) {
         final Optional<Object> id = ElementHelper.getIdValue(keyValues);
         if (id.isEmpty()) {
@@ -237,20 +244,20 @@ public class FireflyIdFactory {
         final long typeHint;
         if (record.key().userKey.getObject() != null) {
             origId = record.key().userKey.getObject();
-        } else if (record.record.getValue(AerospikeConnection.USER_KEY) != null) {
-            origId = record.record.getValue(AerospikeConnection.USER_KEY);
+        } else if (record.record().getValue(AerospikeConnection.USER_KEY) != null) {
+            origId = record.record().getValue(AerospikeConnection.USER_KEY);
         } else { //@todo list of cases
             throw new RuntimeException("no key available"); //maybe a pure hash id
         }
-        typeHint = record.record.getLong(db.ID_TYPE_BIN) == 0 ? FireflyIdPoly.STORAGE_TYPE_HINTS.get(origId.getClass()) : record.record.getLong(db.ID_TYPE_BIN);
+        typeHint = record.record().getLong(db.ID_TYPE_BIN) == 0 ? FireflyIdPoly.STORAGE_TYPE_HINTS.get(origId.getClass()) : record.record().getLong(db.ID_TYPE_BIN);
         return createId(origId, typeHint, type);
     }
 
     public Map<String, List<FireflyId>> convertMapListObjectToFireflyIdMap(final Map<String, List<Object>> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
-            return new TreeMap<>();
+            return new HashMap<>();
         }
-        final Map<String, List<FireflyId>> labelEdgeIds = new TreeMap<>();
+        final Map<String, List<FireflyId>> labelEdgeIds = new HashMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final List<FireflyId> fireflyIds = new ArrayList<>();
             for (final Object edge : fireflyObjectIds.get(label)) {

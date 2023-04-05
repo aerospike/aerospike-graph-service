@@ -43,17 +43,4 @@ public abstract class FireflyId implements Comparable {
             throw new IllegalArgumentException("Cannot compare FireflyId to " + o.getClass().getName());
         }
     }
-
-    /**
-     * Uses the Aerospike Client Crypto routines to produce a RIPEMD160 hash of the string capable of retrieving the record by digest.
-     *
-     * @param id      the user provided string id
-     * @param setName the Aerospike namespace
-     * @return the digest of the string
-     */
-    public static byte[] getIdHash(Object id, String setName) {
-        final Value keyValue = Value.get(id);
-        byte[] hash = Crypto.computeDigest(setName, keyValue);
-        return hash;
-    }
 }

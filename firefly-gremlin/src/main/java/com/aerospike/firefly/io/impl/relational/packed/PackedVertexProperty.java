@@ -18,6 +18,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalProperty;
+import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -34,7 +35,6 @@ import java.util.TreeMap;
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedTypeValues;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -96,9 +96,9 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                                                           final FireflyRecord fireflyRecord,
                                                           final FireflyId parentId) {
         final AerospikeConnection db = graph.getBaseGraph();
-        final Map<String, Object> propertyValueMap = (Map<String, Object>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-        final Map<String, Long> propertyValueTypeHintsMap = (Map<String, Long>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-        final Map<String, Long> propertyIdMap = (Map<String, Long>) fireflyRecord.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+        final Map<String, Object> propertyValueMap = (Map<String, Object>) fireflyRecord.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+        final Map<String, Long> propertyValueTypeHintsMap = (Map<String, Long>) fireflyRecord.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+        final Map<String, Long> propertyIdMap = (Map<String, Long>) fireflyRecord.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
         propertyValueMap.replaceAll((k, v) -> db.convertValuetoTypeUsingHint(v, propertyValueTypeHintsMap.get(k)));
         final Object property = propertyValueMap.get(key);
         if (property == null) {
@@ -212,7 +212,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.
-                throw new RuntimeException(ELEMENT_NOT_FOUND, ae);
+                throw new ElementNotFoundException(this, ae);
             } else {
                 throw ae;
             }
@@ -265,7 +265,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             return returnedProperties;
         }
 
-        final Record r = fireflyRecord.record;
+        final Record r = fireflyRecord.record();
         final Map<Object, Map<String, Object>> properties =
                 (Map<Object, Map<String, Object>>) Optional.ofNullable(r.getMap(db.PROPERTIES)).orElse(new TreeMap<>());
         final Map<Object, Map<String, Object>> typeHints =

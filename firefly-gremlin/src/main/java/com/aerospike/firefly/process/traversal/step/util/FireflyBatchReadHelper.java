@@ -26,6 +26,9 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class FireflyBatchReadHelper {
 
     public static class ReadStepInfo<E extends Element> {
@@ -57,7 +60,7 @@ public class FireflyBatchReadHelper {
                                                                                        final List<HasContainer> fireflyHasContainers,
                                                                                        final TraverserSet<T> output,
                                                                                        final ReadElements<E> readElements) {
-        // Read all vertices in a batch.
+        // Read all IDs in a batch.
         final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
         final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds);
 
@@ -121,6 +124,9 @@ public class FireflyBatchReadHelper {
             add(Compare.eq);
             add(Compare.lt);
             add(Compare.gt);
+            // add(Compare.neq); Can't support this since sindexes do not.
+            add(Compare.lte);
+            add(Compare.gte);
         }};
         final ArrayList<BiPredicate> supportedStringPredicates = new ArrayList<>() {{
             add(Compare.eq);

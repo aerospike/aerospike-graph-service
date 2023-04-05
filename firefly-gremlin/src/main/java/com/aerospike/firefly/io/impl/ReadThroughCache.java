@@ -4,6 +4,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
+import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
@@ -43,15 +44,23 @@ public class ReadThroughCache extends FireflyCache {
 
             // Simple weight function.
             if (record.bins.containsKey(db.OUT_EDGE_COUNTER)) {
+                // Add 1 to weight for every out edge.
                 size += (int) record.getLong(db.OUT_EDGE_COUNTER);
             }
 
             if (record.bins.containsKey(db.IN_EDGE_COUNTER)) {
+                // Add 1 to weight for every in edge.
                 size += (int) record.getLong(db.IN_EDGE_COUNTER);
             }
 
-            if (record.bins.containsKey(db.VP_COUNTER)) {
-                size += (int) record.getLong(db.VP_COUNTER);
+            if (record.bins.containsKey(db.PROPERTIES)) {
+                // Add 3 to weight for every property.
+                size += 3 * record.getMap(db.PROPERTIES).size();
+            }
+
+            if (record.bins.containsKey(db.VERTEX_PROPERTY_NAME_TO_VALUE)) {
+                // Add 3 to weight for every vertex property.
+                size += 3 * record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE).size();
             }
 
             return size;
@@ -76,7 +85,9 @@ public class ReadThroughCache extends FireflyCache {
             return or;
         } else {
             missCounter.incrementAndGet();
-            final Record record = db.getClient().get(AerospikeConnection.noSendKeyReadPolicy, key);
+            final Policy policy = new Policy();
+            policy.sendKey = false;
+            final Record record = db.getClient().get(policy, key);
             insert(key, record);
             return record;
         }

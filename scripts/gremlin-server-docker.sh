@@ -34,6 +34,7 @@ stop_gremlin_server() {
   fi
 ) <&0 &
 child_pid=$!
-
+gremlin.sh -e scripts/warmup.groovy
+touch /tmp/firefly-ready
 # Sit here until we get a signal at which point we go to stop_gremlin_server().
 until wait; do :; done

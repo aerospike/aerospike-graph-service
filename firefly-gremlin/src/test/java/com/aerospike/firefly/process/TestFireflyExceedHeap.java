@@ -9,8 +9,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Random;
-
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
@@ -19,20 +17,6 @@ public class TestFireflyExceedHeap extends AbstractFireflySuite {
     @Override
     protected boolean clearData() {
         return true;
-    }
-
-    // 1 kB string.
-    private static final int STRING_LENGTH = 1000;
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final Random RANDOM = new Random();
-    private static final String RANDOM_STRING;
-    static {
-        final StringBuilder stringBuilder = new StringBuilder();
-        while (stringBuilder.length() < STRING_LENGTH) {
-            int idx = (int) (RANDOM.nextFloat() * CHARACTERS.length());
-            stringBuilder.append(CHARACTERS.charAt(idx));
-        }
-        RANDOM_STRING = stringBuilder.toString();
     }
 
     @Test
@@ -47,32 +31,28 @@ public class TestFireflyExceedHeap extends AbstractFireflySuite {
 
         final GraphTraversalSource g = graph.traversal();
 
-        // Ensure heap size is ~100 MB. This is done by setting
-        // -Djvmheapsize=small when calling maven. For example:
+        // Must set -Djvmheapsize=small when calling maven. For example:
         // mvn test -pl firefly-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
         long heapSize = Runtime.getRuntime().maxMemory();
         long heapSizeMB = heapSize / 1024 / 1024;
-        Assert.assertTrue(heapSizeMB < 220);
-        Assert.assertTrue(heapSizeMB > 180);
+        Assert.assertTrue(heapSizeMB < 1020);
+        Assert.assertTrue(heapSizeMB > 980);
 
 
-        // 2000 vertices @ 200 kB per vertex = 400 MB.
-        for (int i = 0; i < 2000; i++) {
+        // 1000000 vertices @ 16 bytes per entry * 1000 entries = 16 kB per vertex = 16 GB total.
+        for (int i = 0; i < 100000; i++) {
             if (i != 0 && ((i + 1) % 250) == 0) {
                 System.out.println("Adding vertex " + (i + 1));
             }
             GraphTraversal t = g.addV("person");
-            // ~200 kB per vertex.
             for (int j = 0; j < 100; j++) {
-                t = t.property(RANDOM_STRING + j, RANDOM_STRING + j);
+                t = t.property(String.valueOf(j), j);
             }
             t.next();
         }
 
-        System.out.println("Heap size: " + heapSizeMB + " MB");
-        System.out.println("Available size: " + Runtime.getRuntime().freeMemory() / (1024 * 1024) + " MB");
-
-        // g.V().count().
+        // With vertex batch reading iterator, we should only materialize 5000 @ 50 kB each = 250 MB.
+        // This should not exceed the heap size of 1 GB.
         g.V().count().next();
     }
 }

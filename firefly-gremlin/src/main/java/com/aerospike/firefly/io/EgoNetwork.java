@@ -6,12 +6,14 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -43,9 +45,9 @@ public class EgoNetwork {
 
         // Almost all instances of (Long) casting to read FireflyIds has been removed, this is one of the last ones.
         List<Key> outEdgeKeys = outEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
+                getKey(this.db, this.db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
         List<Key> inEdgeKeys = inEdgeIds.stream().map(edgeId ->
-                new Key(db.getNamespace(), edgeId.getKeyHash(), db.EDGE_AERO_SET, null)).collect(Collectors.toList());
+                getKey(this.db, this.db.EDGE_AERO_SET, edgeId)).collect(Collectors.toList());
 
 
         Record[] outEdgeRecords = db.read(outEdgeKeys.toArray(new Key[]{}));
@@ -90,6 +92,6 @@ public class EgoNetwork {
      * @return Iterator of all Records in the ego network
      */
     public Iterator<KeyRecord> records() {
-        return IteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator());
+        return FireflyCloseableIteratorUtils.concat(vertexRecords.iterator(), edgeRecords.iterator(), propertyRecords.iterator());
     }
 }

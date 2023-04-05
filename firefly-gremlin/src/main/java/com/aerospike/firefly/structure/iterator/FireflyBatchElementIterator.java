@@ -1,0 +1,73 @@
+package com.aerospike.firefly.structure.iterator;
+
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
+public class FireflyBatchElementIterator<E extends Element, F extends E> implements CloseableIterator<E> {
+    private Iterator<F> elementIterator;
+    private final Iterator<FireflyId> idIterator;
+    private final FireflyGraph graph;
+    private final ReadElements<F> readElements;
+    private final List<HasContainer> hasContainers;
+
+    public interface ReadElements<G> {
+        List<G> readElements(List<HasContainer> hasContainers, List<FireflyId> ids);
+    }
+
+    public FireflyBatchElementIterator(final FireflyGraph graph, final Iterator<FireflyId> ids, final List<HasContainer> filters, final ReadElements<F> readElements) {
+        this.idIterator = ids;
+        this.graph = graph;
+        this.elementIterator = null;
+        this.readElements = readElements;
+        this.hasContainers = filters;
+    }
+
+    @Override
+    public boolean hasNext() {
+        if (elementIterator == null || !elementIterator.hasNext()) {
+            if (!idIterator.hasNext()) {
+                return false;
+            }
+            final List<FireflyId> fireflyIdList = new ArrayList<>();
+            while (idIterator.hasNext() && fireflyIdList.size() < graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
+                fireflyIdList.add(idIterator.next());
+            }
+            elementIterator = readElements.readElements(hasContainers, fireflyIdList).iterator();
+
+            // Just in case the ids we go to read have been removed we should not straight up return true.
+            return elementIterator.hasNext();
+        }
+
+        // We still have data to return.
+        return true;
+    }
+
+    @Override
+    public E next() {
+        if (!hasNext()) {
+            throw new NoSuchElementException();
+        }
+        return elementIterator.next();
+    }
+
+    @Override
+    public void close() {
+        if (elementIterator != null) {
+            CloseableIterator.closeIterator(elementIterator);
+        }
+        if (idIterator != null) {
+            CloseableIterator.closeIterator(idIterator);
+        }
+    }
+}

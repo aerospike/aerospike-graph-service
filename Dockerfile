@@ -1,6 +1,8 @@
-FROM openjdk:11
+FROM amazoncorretto:11
 
 # Set input arguments.
+ARG RELEASE_BUILD
+ENV RELEASE_BUILD=$RELEASE_BUILD
 ARG AEROSPIKE_HOST
 ENV AEROSPIKE_HOST=$AEROSPIKE_HOST
 ARG ENTRYPOINT
@@ -18,12 +20,22 @@ LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
 ENV TINKERPOP_VERSION='3.6.1'
-ENV MAVEN_VERSION='3.8.7'
+ENV MAVEN_VERSION='3.8.8'
+ENV JANSI_VERSION='2.4.0'
 ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
+ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 ENV AIR_ROUTES_50K_URL="https://raw.githubusercontent.com/krlawrence/graph/master/sample-data/air-routes-latest.graphml"
 ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
+
+# Install things required to create image.
+RUN yum -y update &&\
+    yum -y install xz &&\
+    yum -y install tar &&\
+    yum -y install python3 &&\
+    yum -y install unzip &&\
+    yum -y install util-linux
 
 # Download air-routes, maven, gremlin-console, gremlin-server, and move/unzip/untar them.
 RUN cd /tmp &&\
@@ -31,11 +43,13 @@ RUN cd /tmp &&\
   curl -L -o maven.tar.gz $MAVEN_URL &&\
   curl -L -o gremlin-console.zip $GREMLIN_CONSOLE_URL &&\
   curl -L -o gremlin-server.zip $GREMLIN_SERVER_URL &&\
+  curl -L -o jansi-$JANSI_VERSION.jar $JANSI_URL &&\
   mkdir /opt/air-routes &&\
   mv air-routes-50k.graphml /opt/air-routes/ &&\
   tar -zxvf maven.tar.gz -C /opt/ &&\
   unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
-  unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server
+  unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server &&\
+  mv jansi-$JANSI_VERSION.jar /opt/gremlin-console/lib
 
 # Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
@@ -44,19 +58,16 @@ ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/o
 ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
-# Install vi and python interpretter.
-RUN apt-get update
-RUN apt-get install -y vim
-RUN apt-get install -y python3
-
 # Build Firefly.
-RUN mvn -DskipTests clean install --no-transfer-progress
+RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
-RUN gremlin.sh -e scripts/console-setup.groovy &&\
-    gremlin.sh -e scripts/console-plugin-enable.groovy &&\
-    gremlin-server.sh install 'com.aerospike firefly-gremlin 0.5.0-SNAPSHOT'
-
+# If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
+RUN \
+    if [[ $RELEASE_BUILD -eq "1" ]] ;  \
+    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0' ;  \
+    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT' ;  \
+    fi
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
@@ -71,6 +82,8 @@ RUN chmod -R 777 $CONF_DIR
 # Add user firefly and set user to firefly.
 RUN useradd -m firefly
 USER firefly
+
+HEALTHCHECK CMD ls /tmp/firefly-ready
 
 # Entry point, run script.
 ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

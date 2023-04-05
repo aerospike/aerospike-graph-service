@@ -39,12 +39,12 @@ public class TestProperties {
     @BeforeClass
     static public void beforeAll() {
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }
 
     @AfterClass
     static public void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(true);
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }
 

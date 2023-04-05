@@ -76,8 +76,9 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // TinkerPop conveniently has a strategy for this.
         applyTinkerPopStrategy(traversal, LambdaRestrictionStrategy.instance());
 
-        // Drop step first.
+        // Steps that override the entire step list first.
         applyStrategy(traversal, fireflyGraphDropStrategy);
+        applyStrategy(traversal, fireflyGraphCountStrategy);
 
         // Steps that are generally applicable to most all traversals.
         applyStrategy(traversal, fireflyGraphStepStrategy);
@@ -89,6 +90,5 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
-        applyStrategy(traversal, fireflyGraphCountStrategy);
     }
 }

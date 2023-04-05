@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -43,8 +43,8 @@
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>0.5.0-SNAPSHOT</firefly.version>
-        <aerospike.version>6.1.6</aerospike.version>
+        <firefly.version>0.6.0-SNAPSHOT</firefly.version>
+        <aerospike.version>6.1.7</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -71,39 +71,7 @@
             <id>central</id>
             <url>https://repo1.maven.org/maven2</url>
         </repository>
-        <repository>
-            <id>mvn.phaseshift.internal/releases</id>
-            <url>http://mvn.phaseshift.internal/releases</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </repository>
-        <repository>
-            <id>mvn.phaseshift.internal/snapshots</id>
-            <url>http://mvn.phaseshift.internal/snapshots</url>
-            <layout>default</layout>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
     </repositories>
-    <distributionManagement>
-        <repository>
-            <id>mvn.phaseshift.internal/releases</id>
-            <url>http://mvn.phaseshift.internal/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>mvn.phaseshift.internal/snapshots</id>
-            <url>http://mvn.phaseshift.internal/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
     <!-- BUILD/DOC INFRASTRUCTURE -->
     <build>
         <directory>${basedir}/target</directory>
@@ -127,7 +95,6 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>${maven-resources-plugin.version}</version>
             </plugin>
-
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
@@ -140,11 +107,13 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                    <excludes>
-                       <exclude>**/BenchmarkTest.java</exclude>
+                       <exclude>**/BenchmarkTestFlightsData.java</exclude>
                        <exclude>**/BenchmarkTestSyntheticData.java</exclude>
                        <exclude>**/ValidConnectionTest.java</exclude>
                        <exclude>**/TestMovielens1M.java</exclude>
                        <exclude>**/TestFireflyExceedHeap.java</exclude>
+                       <exclude>**/FireflyAerospikeVersionCheckTest.java</exclude>
+		       <exclude>**/TestTLSIntegration.java</exclude>
                    </excludes>
                 </configuration>
             </plugin>
@@ -180,7 +149,7 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>200m</maxheap>
+                <maxheap>1000m</maxheap>
                 <minheap>100m</minheap>
             </properties>
         </profile>

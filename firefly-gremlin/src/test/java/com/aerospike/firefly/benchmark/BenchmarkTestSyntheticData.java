@@ -34,18 +34,18 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
-@BenchmarkMode({Mode.AverageTime})
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
 @Warmup(iterations = 1)
 // Takes about 30 minutes to run in GitHub actions.
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestSyntheticData {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Ddocker.benchmark=1 -Dtest=BenchmarkTestSyntheticData -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Dtest=BenchmarkTestSyntheticData -DfailIfNoTests=false --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestSyntheticData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
     private static final Integer THREADS = BenchmarkTestUtils.getThreads();
+    private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
     private List<Object> deviceIds = null;
@@ -100,6 +100,7 @@ public class BenchmarkTestSyntheticData {
                 .detectJvmArgs()
                 .forks(4)
                 .threads(THREADS)
+                .mode(MODE)
                 .timeout(TimeValue.minutes(2)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();

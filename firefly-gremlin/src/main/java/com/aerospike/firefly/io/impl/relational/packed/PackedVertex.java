@@ -19,9 +19,9 @@ import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import groovy.util.MapEntry;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +123,7 @@ public class PackedVertex extends RelationalVertex {
             vertexPropertyList.add(new MapEntry(vertexProperty.getKey(), property));
         }
 
-        return IteratorUtils.asIterator(vertexPropertyList);
+        return FireflyCloseableIteratorUtils.asIterator(vertexPropertyList);
     }
 
     /**
@@ -152,7 +152,7 @@ public class PackedVertex extends RelationalVertex {
                         this,
                         key,
                         vertexProperty));
-        return IteratorUtils.asIterator(vertexProperties);
+        return FireflyCloseableIteratorUtils.asIterator(vertexProperties);
     }
 
     /**

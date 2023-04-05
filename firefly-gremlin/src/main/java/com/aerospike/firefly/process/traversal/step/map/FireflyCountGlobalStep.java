@@ -1,30 +1,38 @@
 package com.aerospike.firefly.process.traversal.step.map;
 
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, Long> {
 
     private final Class<S> elementClass;
+    private final List<HasContainer> aerospikeHasContainers;
     private boolean done = false;
 
-    public FireflyCountGlobalStep(final Traversal.Admin traversal, final Class<S> elementClass) {
+    public FireflyCountGlobalStep(final Traversal.Admin traversal, final Class<S> elementClass,
+                                  final List<HasContainer> aerospikeHasContainers) {
         super(traversal);
         this.elementClass = elementClass;
+        this.aerospikeHasContainers = aerospikeHasContainers;
     }
 
     @Override
@@ -33,7 +41,7 @@ public class FireflyCountGlobalStep<S extends Element> extends AbstractStep<S, L
             this.done = true;
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
             return this.getTraversal().getTraverserGenerator().generate(Vertex.class.isAssignableFrom(this.elementClass) ?
-                            FireflyHelper.countVertices(graph) : FireflyHelper.countEdges(graph),
+                            FireflyHelper.countVertices(graph, aerospikeHasContainers) : FireflyHelper.countEdges(graph),
                     (Step) this, 1L);
         } else
             throw FastNoSuchElementException.instance();

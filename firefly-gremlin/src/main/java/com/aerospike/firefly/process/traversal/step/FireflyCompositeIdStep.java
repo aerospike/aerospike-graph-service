@@ -30,7 +30,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     private final Direction direction;
     private final String[] edgeLabels;
 
-    // Set max barrier size so that if we get a really long running traversal that has output limit
+    // Set max barrier size so that if we get a really long-running traversal that has output limit
     // the semi-lazy execution will allow the traversal to exit early.
     private static final int MAX_BARRIER_SIZE = 1000;
 

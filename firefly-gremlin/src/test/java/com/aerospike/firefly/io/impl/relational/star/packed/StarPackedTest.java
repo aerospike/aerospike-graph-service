@@ -485,7 +485,7 @@ public class StarPackedTest {
         if (ffr == null) {
             return null;
         } else {
-            final Map<String, List<Map<String, List<Object>>>> compoundEdgeMap = (Map<String, List<Map<String, List<Object>>>>) ffr.record.getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
+            final Map<String, List<Map<String, List<Object>>>> compoundEdgeMap = (Map<String, List<Map<String, List<Object>>>>) ffr.record().getMap(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
             final Map<String, List<Map<String, List<Long>>>> compoundEdgeMapLong = new HashMap<>();
             compoundEdgeMap.forEach((k, v) -> {
                 final List<Map<String, List<Long>>> longList = new ArrayList<>();
@@ -509,9 +509,9 @@ public class StarPackedTest {
                                 final Vertex vertex) {
         FireflyRecord ffr = FireflyRecord.read(db, set, FireflyIdPoly.fromObject(vertex.id(), set));
         if (ffr != null) {
-            final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
-            final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vpTypeHintMap = (Map<String, List<Map<String, Long>>>) ffr.record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
+            final Map<String, List<Map<String, Long>>> vpTypeHintMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
             final Map<String, List<Map<String, Long>>> vpIdMapExpected = new HashMap<>();
             final Map<String, List<Map<String, Object>>> vpValueMapExpected = new HashMap<>();
             final Map<String, List<Map<String, Long>>> vpTypeHintMapExpected = new HashMap<>();
@@ -1205,32 +1205,32 @@ public class StarPackedTest {
         final FireflyRecord outProperties = FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdPoly.fromObject(vertex.id(), db.OUT_VP_SET));
         System.out.println("\tOut Properties:");
         if (outProperties != null) {
-            System.out.println("\t\t " + outProperties.record.getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
+            System.out.println("\t\t " + outProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
         }
         final FireflyRecord inProperties = FireflyRecord.read(db, db.IN_VP_SET, FireflyIdPoly.fromObject(vertex.id(), db.IN_VP_SET));
         System.out.println("\tIn Properties:");
         if (inProperties != null) {
-            System.out.println("\t\t " + inProperties.record.getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
+            System.out.println("\t\t " + inProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
         }
         final FireflyRecord inIn = FireflyRecord.read(db, db.IN_IN_SET, FireflyIdPoly.fromObject(vertex.id(), db.IN_IN_SET));
         System.out.println("\tIn in:");
         if (inIn != null) {
-            System.out.println("\t\t " + inIn.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
+            System.out.println("\t\t " + inIn.record().getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
         final FireflyRecord outOut = FireflyRecord.read(db, db.OUT_OUT_SET, FireflyIdPoly.fromObject(vertex.id(), db.OUT_OUT_SET));
         System.out.println("\tOut out:");
         if (outOut != null) {
-            System.out.println("\t\t " + outOut.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
+            System.out.println("\t\t " + outOut.record().getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
         final FireflyRecord inOut = FireflyRecord.read(db, db.IN_OUT_SET, FireflyIdPoly.fromObject(vertex.id(), db.IN_OUT_SET));
         System.out.println("\tIn out:");
         if (inOut != null) {
-            System.out.println("\t\t " + inOut.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
+            System.out.println("\t\t " + inOut.record().getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
         final FireflyRecord outIn = FireflyRecord.read(db, db.OUT_IN_SET, FireflyIdPoly.fromObject(vertex.id(), db.OUT_IN_SET));
         System.out.println("\tOut in:");
         if (outIn != null) {
-            System.out.println("\t\t " + outIn.record.getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
+            System.out.println("\t\t " + outIn.record().getValue(db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN));
         }
     }
 }

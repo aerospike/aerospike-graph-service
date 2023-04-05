@@ -5,7 +5,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Merge;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -32,7 +32,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,7 +202,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     new Key(graph.getBaseGraph().getNamespace(),
                             graph.getBaseGraph().VERTEX_AERO_SET,
                             lid)))
-                return IteratorUtils.stream(graph.vertices(search.get(T.id)));
+                return FireflyCloseableIteratorUtils.stream(graph.vertices(search.get(T.id)));
             else
                 stream = Stream.empty();
         } else {
@@ -249,7 +248,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                 }
             });
             // Use the index if possible otherwise just in memory filter
-            stream = IteratorUtils.stream(IteratorUtils.concat(results.toArray(new Iterator[0])));
+            stream = FireflyCloseableIteratorUtils.stream(FireflyCloseableIteratorUtils.concat(results.toArray(new Iterator[0])));
         }
 
         stream = stream.filter(v -> {
@@ -303,7 +302,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     // Try to detect proper cardinality for the key according to the graph
                     final Graph graph = this.getTraversal().getGraph().get();
                     VertexProperty.Cardinality effectiveCard;
-                    if(IteratorUtils.count(v.properties(key)) <= 1)
+                    if(FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
                         effectiveCard  = VertexProperty.Cardinality.single;
                     else effectiveCard = VertexProperty.Cardinality.list;
                     v.property(effectiveCard, key, value);
@@ -345,7 +344,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     this.callbackRegistry.getCallbacks().forEach(c -> c.accept(vae));
                 }
 
-                return IteratorUtils.of(vertex);
+                return FireflyCloseableIteratorUtils.of(vertex);
             } else {
                 return Collections.emptyIterator();
             }

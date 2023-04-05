@@ -74,8 +74,8 @@ public class WriteFailureTest {
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
             a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
-            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class), "fail");
-            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class), "fail", new ArrayList<>(), a, b);
+            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
+            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail", new ArrayList<>(), a, b);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);

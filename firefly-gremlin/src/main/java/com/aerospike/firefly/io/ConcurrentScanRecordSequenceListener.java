@@ -5,12 +5,11 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.listener.RecordSequenceListener;
+import com.aerospike.client.query.KeyRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.AbstractMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
@@ -23,10 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConcurrentScanRecordSequenceListener implements RecordSequenceListener {
     private final Monitor scanMonitor;
-    private final LinkedBlockingQueue<Map.Entry<Key, Record>> results = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<KeyRecord> results = new LinkedBlockingQueue<>();
     private final Semaphore semaphore;
     private final AtomicBoolean complete = new AtomicBoolean(false);
     private final int maxWaitMs;
+    private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
 
     /**
@@ -54,7 +54,10 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * @throws AerospikeException
      */
     public void onRecord(final Key key, final Record record) throws AerospikeException {
-        results.add(new AbstractMap.SimpleEntry<>(key, record));
+        if (isClosed.get()) {
+            throw new AerospikeException.ScanTerminated();
+        }
+        results.add(new KeyRecord(key, record));
         semaphore.release();
     }
 
@@ -71,7 +74,10 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * Triggered when scan fails
      */
     public void onFailure(final AerospikeException e) {
-        LOG.error("Error: scan failed with exception", e);
+        // Only log an error if the scan listener was not already closed.
+        if (!isClosed.get()) {
+            LOG.error("Error: scan failed with exception", e);
+        }
         this.complete.set(true);
         semaphore.release();
         scanMonitor.notifyComplete();
@@ -81,17 +87,22 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * Returns a concurrent Iterator that blocks on hasNext if no results are available
      * @return iterator
      */
-    public Iterator<Map.Entry<Key, Record>> iterator() {
-        return new Iterator<Map.Entry<Key, Record>>() {
+    public Iterator<KeyRecord> iterator() {
+        return new Iterator<>() {
             @Override
             public boolean hasNext() {
-                if (results.size() > 0) return true;
+                if (results.size() > 0) {
+                    return true;
+                }
 
                 while (!complete.get() && results.size() == 0) {
                     try {
-                        if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS))
+                        if (!semaphore.tryAcquire(maxWaitMs, TimeUnit.MILLISECONDS)) {
+                            terminateScan();
                             throw new RuntimeException("timeout exceeded waiting for new records");
+                        }
                     } catch (InterruptedException e) {
+                        terminateScan();
                         throw new RuntimeException(e);
                     }
                 }
@@ -100,15 +111,23 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             }
 
             @Override
-            public Map.Entry<Key, Record> next() {
+            public KeyRecord next() {
                 try {
-                    if (results.size() == 0)
-                        if (!hasNext()) throw new NoSuchElementException();
+                    if (results.size() == 0) {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+                    }
                     return results.take();
                 } catch (InterruptedException e) {
+                    terminateScan();
                     throw new RuntimeException(e);
                 }
             }
         };
+    }
+
+    public void terminateScan() {
+        isClosed.set(true);
     }
 }

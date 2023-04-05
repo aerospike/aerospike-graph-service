@@ -4,7 +4,6 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -28,7 +27,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 /**
@@ -59,24 +57,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
 
         // Grab all Edges for iterator.
-        final Iterator<? extends Edge> iterator = elements(
-                graph,
-                graph.getBaseGraph().EDGE_AERO_SET,
-                graph.getBaseGraph().PROPERTIES,
-                FireflyEdge.class,
-                new FireflyGraph.GetElements<Edge>() {
-                    @Override
-                    public Iterator<Edge> getFiltered(final List<HasContainer> hasContainers, final Object... ids) {
-                        return graph.edges(hasContainers, ids);
-                    }
-
-                    @Override
-                    public Iterator<Edge> getUnfiltered(final Object... ids) {
-                        return graph.edges(ids);
-                    }
-                },
-                graph::edgeFromRecord,
-                graph::edgeFromRecord);
+        final Iterator<? extends Edge> iterator = phatEdges(graph);
 
         // Return base iterator.
         return iterator;
@@ -109,7 +90,6 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         return graph.vertices(ids);
                     }
                 },
-                graph::vertexFromRecord,
                 graph::vertexFromRecord);
 
         // Return base iterator.
@@ -121,8 +101,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                                                      final String binName,
                                                      final Class<? extends FireflyElement> elementClass,
                                                      final FireflyGraph.GetElements<R> getElements,
-                                                     final FireflyGraph.TransformKeyRecord<R> transformKeyRecord,
-                                                     final FireflyGraph.TransformMapEntryKeyRecord<R> transformMapEntryKeyRecord) {
+                                                     final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         Iterator<R> iterator;
         final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
         final List<HasContainer> aerospikeSideHasContainers = FireflyBatchReadHelper.getAerospikeHasContainers(sortedHasContainers);
@@ -180,10 +159,9 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                         setName,
                         topContainer.getKey().equals("~label") ? AerospikeConnection.LABEL : binName,
                         topContainer.getPredicate(),
-                        transformMapEntryKeyRecord,
+                        transformKeyRecord,
                         aerospikeSideHasContainers,
                         elementClass);
-
             }
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
@@ -194,6 +172,21 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
             iterators.add(iterator);
             return iterator;
         }
+    }
+
+    private <R extends Element> Iterator<R> phatEdges(final FireflyGraph graph) {
+        Iterator<R> iterator;
+        final List<HasContainerWithCardinality> sortedHasContainers = FireflyBatchReadHelper.getHasContainersWithCardinalityOrder(graph, returnClass, hasContainers);
+        final List<HasContainer> fireflySideHasContainers = sortedHasContainers.stream().map(hasContainerWithCardinality -> hasContainerWithCardinality.hasContainer).collect(Collectors.toList());
+
+        if (null == this.ids) {
+            iterator = Collections.emptyIterator();
+        } else {
+            iterator = (Iterator<R>) graph.edges(this.ids);
+            iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);
+        }
+        iterators.add(iterator);
+        return iterator;
     }
 
     /**
@@ -311,8 +304,59 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         }
     }
 
+    static class HasContainerIteratorIterator<E extends Element> implements Iterator<E>, AutoCloseable {
+        private final Iterator<Iterator<E>> i;
+        private final List<HasContainer> hasContainers;
+        private HasContainerIterator<E> currentIterator;
+
+        public HasContainerIteratorIterator(final Iterator<Iterator<E>> iterator, final List<HasContainer> hasContainers) {
+            this.i = iterator;
+            this.hasContainers = hasContainers;
+            if (iterator.hasNext()) {
+                this.currentIterator = new HasContainerIterator<>(iterator.next(), hasContainers);
+            } else {
+                this.currentIterator = new HasContainerIterator<>(Collections.emptyIterator(), hasContainers);
+            }
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (this.currentIterator.hasNext()) {
+                return true;
+            } else {
+                if (this.i.hasNext()) {
+                    this.currentIterator = new HasContainerIterator<>(this.i.next(), this.hasContainers);
+                    return this.hasNext();
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        @Override
+        public E next() {
+            if (this.hasNext()) {
+                return this.currentIterator.next();
+            } else {
+                throw FastNoSuchElementException.instance();
+            }
+        }
+
+        @Override
+        public void close() {
+            CloseableIterator.closeIterator(this.currentIterator);
+            while (this.i.hasNext()) {
+                CloseableIterator.closeIterator(this.i.next());
+            }
+        }
+    }
+
     private <E extends Element> Iterator<E> hasContainerCheckedIterator(final Iterator<E> iterator, final List<HasContainer> minimalHasContainers) {
         return new HasContainerIterator<>(iterator, minimalHasContainers);
+    }
+
+    private <E extends Element> Iterator<E> hasContainerCheckedIteratorIterator(final Iterator<Iterator<E>> iterator, final List<HasContainer> minimalHasContainers) {
+        return new HasContainerIteratorIterator<>(iterator, minimalHasContainers);
     }
 
     @Override

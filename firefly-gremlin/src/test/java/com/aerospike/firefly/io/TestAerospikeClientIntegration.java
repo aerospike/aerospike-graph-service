@@ -34,11 +34,9 @@ import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
-import com.aerospike.firefly.util.WarmupUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -66,7 +64,6 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
-import static com.aerospike.firefly.util.WarmupUtil.getWarmupArenaName;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -149,10 +146,10 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testSyntheticSupernode() {
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase(), "5");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "5");
 
         try (FireflyGraph graph = FireflyGraph.open(config)) {
-            config.clearProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase());
             graph.traversal().V().drop().iterate();
             Vertex root = graph.addVertex("root");
             IntStream.range(0, 6).forEach(i -> {
@@ -171,9 +168,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testSyntheticSupernodeCompositeId() {
-        config.setProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase(), "5");
+        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "5");
         try (FireflyGraph graph = FireflyGraph.open(config)) {
-            config.clearProperty(ConfigurationHelper.Keys.ID_CACHE_SIZE.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase());
             final GraphTraversalSource g = graph.traversal();
             g.V().drop().iterate();
             final Vertex root = g.addV("root").next();
@@ -636,44 +633,4 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(2, hashRecords.length);
     }
 
-    @Test
-    public void testWarmup() {
-        String edgeLabel = "l";
-        Vertex va = graph.addVertex();
-        Vertex vb = graph.addVertex();
-        Edge ea = graph.traversal().V(va).addE(edgeLabel).to(vb).next();
-        WarmupUtil w = WarmupUtil.create(config);
-        w.preheat(2);
-        assertEquals((Long) 1L, graph.traversal().V(va.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().V(vb.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().E(ea.id()).count().next());
-        assertEquals(edgeLabel, graph.traversal().E(ea.id()).label().next());
-    }
-
-    @Test
-    public void testWarmupQuery() {
-        String edgeLabel = "l";
-        Vertex va = graph.addVertex();
-        Vertex vb = graph.addVertex();
-        Edge ea = graph.traversal().V(va).addE(edgeLabel).to(vb).next();
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
-        assertEquals((Long) 1L, graph.traversal().V(va.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().V(vb.id()).count().next());
-        assertEquals((Long) 1L, graph.traversal().E(ea.id()).count().next());
-        assertEquals(edgeLabel, graph.traversal().E(ea.id()).label().next());
-    }
-    @Test
-    public void testWarmupCleanup(){
-        Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(config);
-        String warmupArena = getWarmupArenaName();
-        warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
-        warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
-
-        AerospikeConnection warmupdb = AerospikeConnection.connect(warmupConfig);
-        FireflyGraph warmupgraph = FireflyGraph.open(warmupConfig);
-        warmupdb.dropDatabase();
-        assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
-        assertEquals((Long)0L,warmupgraph.traversal().V().count().next());
-    }
 }

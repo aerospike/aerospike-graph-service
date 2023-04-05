@@ -5,7 +5,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.__;
-import org.apache.tinkerpop.gremlin.process.traversal.Pick;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -18,20 +17,10 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.NetworkInterface;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
@@ -51,7 +40,7 @@ public class WarmupUtil {
         String warmupArena = getWarmupArenaName();
         warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
         warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
-
+        warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
         db = AerospikeConnection.connect(warmupConfig);
         graph = FireflyGraph.open(warmupConfig);
     }
@@ -87,7 +76,6 @@ public class WarmupUtil {
                         select("b").values("name").toList();
             } catch (Exception e) {
                 LOG.warn(e.getMessage());
-                e.printStackTrace();
             }
             g.V(createdIdAry).drop().iterate();
         }
@@ -107,7 +95,6 @@ public class WarmupUtil {
                 g.withSideEffect("sg", () -> TinkerGraph.open()).V(createdIdAry).has("name", "marko").outE("knows").subgraph("sg").values("name").cap("sg").toList();
                 g.V(createdIdAry).as("a").out().as("b").out().as("c").simplePath().by(T.label).from("b").to("c").path().by("name").toList();
             } catch (Exception e) {
-                e.printStackTrace();
                 LOG.warn(e.getMessage());
             }
             g.V(createdIdAry).drop().iterate();

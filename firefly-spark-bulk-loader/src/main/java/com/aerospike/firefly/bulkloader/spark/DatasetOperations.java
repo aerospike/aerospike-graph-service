@@ -66,11 +66,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.monotonically_increasing_id;
+
 
 public class DatasetOperations implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
@@ -407,7 +408,7 @@ public class DatasetOperations implements Serializable {
                 toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
         // Get the supernode threshold from Firefly config.
-        final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ID_CACHE_SIZE, config));
+        final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, config));
         LOGGER.info("supernodeThreshold: " + supernodeThreshold);
 
         // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.

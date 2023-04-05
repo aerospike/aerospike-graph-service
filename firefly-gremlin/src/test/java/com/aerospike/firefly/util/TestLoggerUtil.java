@@ -25,7 +25,7 @@ public class TestLoggerUtil {
     private MemoryAppender memoryAppender;
 
     // https://www.baeldung.com/junit-asserting-logs
-    private class MemoryAppender extends ListAppender<ILoggingEvent> {
+    public static class MemoryAppender extends ListAppender<ILoggingEvent> {
         public void reset() {
             this.list.clear();
         }

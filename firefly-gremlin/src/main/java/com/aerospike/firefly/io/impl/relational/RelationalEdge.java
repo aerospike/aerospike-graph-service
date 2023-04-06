@@ -42,7 +42,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
@@ -127,9 +129,10 @@ public class RelationalEdge extends FireflyEdge {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
+        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
+        graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
         return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
     }
 
@@ -296,7 +299,7 @@ public class RelationalEdge extends FireflyEdge {
                 throw ae;
             }
         }
-
+        graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(label, Set.of(propertyKey));
         return new RelationalProperty<>(graph, this, propertyKey, value);
     }
 

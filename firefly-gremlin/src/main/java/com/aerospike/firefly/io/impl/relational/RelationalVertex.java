@@ -714,6 +714,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                         typeHint,
                         vpPropertiesBin,
                         vpPropertiesTypeHintsBin);
+                graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
                 return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
                         0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
                         vertexPropertyTypeHintMap, isEdgeCacheDisabled, db);
@@ -721,30 +722,6 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
         }
-    }
-
-    /**
-     * Read and construct a FireflyVertex using the FireflyId.
-     * This function is static because it is used by the LinkedGraph
-     * to write a new FireflyVertex.
-     *
-     * @param graph    FireflyGraph to use.
-     * @param vertexId FireflyId to use.
-     * @return FireflyVertex.
-     */
-    public static FireflyVertex readVertex(final FireflyGraph graph, final FireflyId vertexId) {
-        LOG.debug("Reading vertex {}.", vertexId);
-
-        // Get database connection.
-        final AerospikeConnection db = graph.getBaseGraph();
-
-        // Read the vertex's firefly record from the database
-        final FireflyRecord record = FireflyRecord.read(db, db.VERTEX_AERO_SET, vertexId);
-        if (record == null) {
-            return null;
-        }
-
-        return fromRecord(graph, new KeyRecord(record.key(), record.record()));
     }
 
     /**

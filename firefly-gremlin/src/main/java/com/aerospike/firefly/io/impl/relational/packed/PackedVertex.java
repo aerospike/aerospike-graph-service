@@ -257,6 +257,7 @@ public class PackedVertex extends RelationalVertex {
                 .convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints);
+        graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
     }
 
     /**

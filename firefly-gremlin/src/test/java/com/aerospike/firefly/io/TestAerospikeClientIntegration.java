@@ -157,7 +157,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 graph.traversal().V(root).addE("edge").to(nu).next();
             });
             FireflyVertex x = (FireflyVertex) graph.traversal().V(root).next();
-            Record br = x.getBaseElement();
             long val = graph.traversal().V(root).bothE().count().next().longValue();
             assertEquals(6L, val);
             IntStream.range(0, 2).forEach(i -> graph.traversal().E().limit(1).drop().iterate());

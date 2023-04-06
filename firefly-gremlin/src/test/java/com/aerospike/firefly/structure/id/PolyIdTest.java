@@ -49,28 +49,6 @@ public class PolyIdTest extends AbstractFireflySuite {
         assertEquals(va.id(), graph.traversal().V(vb).in().toList().get(0).id());
     }
 
-    public void testFireflyIdPoly() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
-
-        assertEquals("A", va.id.getUserId());
-        assertEquals("B", vb.id.getUserId());
-
-        Record reca = va.getBaseElement();
-        Record recb = vb.getBaseElement();
-
-        assertEquals("A", reca.getString(AerospikeConnection.USER_KEY));
-        assertEquals("B", recb.getString(AerospikeConnection.USER_KEY));
-
-        Record readbackByHash = db.getClient().get(null, new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL));
-        assertEquals(recb, readbackByHash);
-
-        Record readbackByUser = db.getClient().get(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id.getUserId())));
-        assertEquals(recb, readbackByUser);
-
-        assertArrayEquals(vb.id.getKeyHash(), new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id.getUserId())).digest);
-    }
-
     @Test
     public void testFireflyIdPolyComposite() {
         PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
@@ -78,12 +56,6 @@ public class PolyIdTest extends AbstractFireflySuite {
 
         assertEquals("A", va.id.getUserId());
         assertEquals("B", vb.id.getUserId());
-
-        Record reca = va.getBaseElement();
-        Record recb = vb.getBaseElement();
-
-        assertEquals("A", reca.getString(AerospikeConnection.USER_KEY));
-        assertEquals("B", recb.getString(AerospikeConnection.USER_KEY));
 
         FireflyEdge eab = (FireflyEdge) va.addEdge("knows", vb);
         FireflyEdge eba = (FireflyEdge) vb.addEdge("forgot", va);

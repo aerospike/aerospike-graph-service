@@ -130,9 +130,9 @@ public abstract class TestSparkBulkLoaderBase {
 
             // Car models and vertex have <=1 edge in either direction and therefore are not supernodes, all other vertices are.
             if ("model".equals(vertex.label()) || "vertex".equals(vertex.label()) || "modell".equals(vertex.label())) {
-                Assert.assertFalse(fireflyVertex.isEdgeCacheDisabled());
+                Assert.assertFalse(fireflyVertex.isEdgeCacheOverflowed());
             } else {
-                Assert.assertTrue(fireflyVertex.isEdgeCacheDisabled());
+                Assert.assertTrue(fireflyVertex.isEdgeCacheOverflowed());
             }
         }
     }

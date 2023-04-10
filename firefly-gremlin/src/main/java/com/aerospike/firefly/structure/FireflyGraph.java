@@ -291,7 +291,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void bulkWriteEdge(final long edgeId, final String label,
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
-                                       final Object outVertexId);
+                                       final Object outVertexId, final boolean inVSupernode, final boolean outVSupernode);
 
     public abstract void removeEdgeById(final FireflyId edgeId);
 

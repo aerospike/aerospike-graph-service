@@ -102,7 +102,8 @@ public final class ConfigurationHelper {
         public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
-
+        public static final String SUPERNODES_IN = "SUPERNODES_IN";
+        public static final String SUPERNODES_OUT = "SUPERNODES_OUT";
         public static final String INDEX_META = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
         public static final String INDEXED_BINS = "INDEXED_BINS";
@@ -232,7 +233,9 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
-        put(Keys.ADJACENCY_INDEX_ENABLED, "false");
+        put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.SUPERNODES_IN, "SUPERNODES_IN");
+        put(Keys.SUPERNODES_OUT, "SUPERNODES_OUT");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");

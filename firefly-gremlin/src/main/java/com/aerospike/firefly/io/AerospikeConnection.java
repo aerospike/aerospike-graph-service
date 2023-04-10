@@ -101,6 +101,10 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
 
+    static {
+        Value.UseBoolBin = true;
+    }
+
     public static final String USER_KEY = "USER_KEY";
     public static final String LABEL = "label";
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
@@ -184,15 +188,15 @@ public class AerospikeConnection implements AutoCloseable {
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final boolean ADJACENCY_INDEX_ENABLED;
+    public final String SUPERNODES_IN;
+    public final String SUPERNODES_OUT;
     public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
     public final List<String> OPTIMIZED_TWO_HOP_STEPS; // Optionally: ["out_out", "out_in", "in_out", "in_in"].
     public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
-
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
-
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
     private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60, 100, 10, (entry) -> {
@@ -298,6 +302,8 @@ public class AerospikeConnection implements AutoCloseable {
         OPTIMIZED_TWO_HOP_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_TWO_HOP_STEPS, conf);
         OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);
         ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
+        SUPERNODES_IN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_IN, conf);
+        SUPERNODES_OUT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_OUT, conf);
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -809,10 +815,10 @@ public class AerospikeConnection implements AutoCloseable {
                         .map(Map.Entry::getKey).collect(Collectors.toList());
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_IN_INDEX, Direction.IN.name(),
+                    E_IN_INDEX, SUPERNODES_IN,
                     IndexType.STRING, IndexCollectionType.MAPVALUES);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_OUT_INDEX, Direction.OUT.name(),
+                    E_OUT_INDEX, SUPERNODES_OUT,
                     IndexType.STRING, IndexCollectionType.MAPVALUES);
         }
 

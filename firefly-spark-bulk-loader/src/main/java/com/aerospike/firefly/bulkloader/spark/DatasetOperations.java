@@ -3,6 +3,7 @@ package com.aerospike.firefly.bulkloader.spark;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteThread;
@@ -16,6 +17,8 @@ import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.configuration2.Configuration;
@@ -66,20 +69,19 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.monotonically_increasing_id;
 
-
 public class DatasetOperations implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
-    private static final int threadPoolBufferSize = 4;
-    private static final AtomicReference<Configuration> config = new AtomicReference<>();
-    private static final Set<Object> supernodes = new HashSet<>();
+    private static final int THREAD_POOL_BUFFER_SIZE = 4;
+    private static final AtomicReference<Configuration> CONFIG = new AtomicReference<>();
+    private static final Set<Object> SUPERNODES = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
-
     private static final String DIRECTORY_COLUMN = "~directory";
     private static final String FILENAME_COLUMN = "~fileName";
     private static final String LINENUMBER_COLUMN = "~line";
@@ -90,12 +92,12 @@ public class DatasetOperations implements Serializable {
      *
      * @param spark            Spark session
      * @param directories      Set of paths to subdirectories within the parent directory
-     * @param REQUIRED_HEADERS required headers for the dataset
+     * @param requiredHeaders  required headers for the dataset
      * @return Merged Dataset<Row> from all the subdirectories
      */
     public static Dataset<Row> loadAndMergeDatasets(final SparkSession spark,
                                                     final Set<String> directories,
-                                                    final String[] REQUIRED_HEADERS) {
+                                                    final String[] requiredHeaders) {
         Dataset<Row> unionDS = spark.emptyDataFrame();
         final Map<String, String> options = new HashMap<>();
         options.put("header", "true");
@@ -117,7 +119,7 @@ public class DatasetOperations implements Serializable {
         Set<String> headers = new HashSet<>();
         for (final String header : unionDS.columns())
             headers.add(header.toLowerCase());
-        for (final String requiredHeader : REQUIRED_HEADERS) {
+        for (final String requiredHeader : requiredHeaders) {
             if (!headers.contains(requiredHeader)) {
                 throw new IllegalArgumentException("Unable to find all required column header values in source dataset: " +
                         directories);
@@ -135,17 +137,17 @@ public class DatasetOperations implements Serializable {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, CONFIG.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
             ThreadFactory vertexThreadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Vertex-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, vertexThreadFactory);
+            final ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_BUFFER_SIZE, vertexThreadFactory);
             final List<Future<Boolean>> futures = new ArrayList<>();
             final Instant startOfGraphOperations = Instant.now();
-            try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
+            try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
@@ -190,12 +192,12 @@ public class DatasetOperations implements Serializable {
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, CONFIG.get()));
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
-            try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
+            try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
@@ -260,27 +262,27 @@ public class DatasetOperations implements Serializable {
             LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, CONFIG.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config.get()));
-            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, CONFIG.get()));
+            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, CONFIG.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
             ThreadFactory edgeThreadFactory =
                     new ThreadFactoryBuilder().setNameFormat("Edge-write-thread-for-partition-id-" + TaskContext.getPartitionId()).build();
-            final ExecutorService executor = Executors.newFixedThreadPool(threadPoolBufferSize, edgeThreadFactory);
+            final ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_BUFFER_SIZE, edgeThreadFactory);
             final List<Future<Boolean>> futures = new ArrayList<>();
             final Instant startOfGraphOperations = Instant.now();
-            try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
+            try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
                 final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final Map<Object, Map<String, List<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
                     futures.add(executor.submit(
-                            new EdgeWriteThread(supernodes,
+                            new EdgeWriteThread(SUPERNODES,
                                     ignoreFailedProperties, keepProvidedId, providedIdPropertyName, ignoreElementCreationFailed, nullValue,
                                     graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow, TaskContext.getPartitionId(), metadataRow)));
                 }
@@ -328,14 +330,14 @@ public class DatasetOperations implements Serializable {
         edgeDatasetsSample.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             setConfig(configPath, env, bucketName);
             final boolean ignoreFailedProperties =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, config.get()));
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_PARSE_FAILED_PROPERTIES, CONFIG.get()));
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config.get()));
-            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config.get());
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, CONFIG.get()));
+            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, CONFIG.get());
             final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config.get()));
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config.get());
-            try (final FireflyGraph graph = FireflyGraph.open(config.get())) {
+                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
+            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
+            try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
@@ -429,21 +431,23 @@ public class DatasetOperations implements Serializable {
         LOGGER.info("Identified ~to supernodes: " + toSuperNodeList);
 
         // Combine into a tracking set.
-        supernodes.addAll(fromSuperNodeList);
-        supernodes.addAll(toSuperNodeList);
-        LOGGER.info("Final supernodes set: " + supernodes);
+        SUPERNODES.addAll(fromSuperNodeList);
+        SUPERNODES.addAll(toSuperNodeList);
+        LOGGER.info("Final supernodes set: " + SUPERNODES);
 
         // Disable edge caches for supernodes.
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            for (final Object supernodeId : supernodes) {
+            for (final Object supernodeId : SUPERNODES) {
                 final AerospikeConnection db = graph.getBaseGraph();
+                final FireflyId vertexId = graph.getIdFactory().createId(supernodeId, FireflyVertex.class);
+                final Key key = getKey(db, db.VERTEX_AERO_SET, vertexId);
                 final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
+                final Operation disableEdgeCache = Operation.put(cacheDisabledBin);
                 int tryCount = 0;
                 boolean succeeded = false;
                 while (!succeeded) {
                     try {
-                        db.getClient().put(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(supernodeId)),
-                                cacheDisabledBin);
+                        db.operate(null, key, disableEdgeCache);
                         succeeded = true;
                     } catch (final AerospikeException e) {
                         if (++tryCount > RETRY_LIMIT) {
@@ -471,7 +475,7 @@ public class DatasetOperations implements Serializable {
             loader = S3ObjectLoader.getInstance();
             ((S3ObjectLoader) loader).setBucketName(bucketName);
         } else loader = FileLoader.getInstance();
-        config.set(loader.loadConfiguration(configPath));
+        CONFIG.set(loader.loadConfiguration(configPath));
     }
 
     public static GenericRowWithSchema removeColumns(GenericRowWithSchema row, Set<String> columnsToRemove) {

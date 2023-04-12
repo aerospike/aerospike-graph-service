@@ -50,7 +50,7 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
             this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
         });
         shc.getScanTimings().entrySet().forEach((entry) -> {
-            this.metrics.setAnnotation(String.format(" %s scan time ",entry.getKey().toString().split("-")[0]), String.format("%s ms",TimeUnit.NANOSECONDS.toMillis(entry.getValue().get())));
+            this.metrics.setAnnotation(String.format(" %s scan time ",entry.getKey().toString().split("-")[0]), String.format(" %s ms",TimeUnit.NANOSECONDS.toMillis(entry.getValue().get())));
         });
 
         this.metrics.setDuration(0, TimeUnit.NANOSECONDS);

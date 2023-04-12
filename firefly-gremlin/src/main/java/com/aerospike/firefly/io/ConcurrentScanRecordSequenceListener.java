@@ -60,6 +60,9 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         }
     }
 
+    /**
+     * Sets the start time of the scan
+     */
     public void setStartTime() {
         if (this.startTime != -1) throw new RuntimeException("already started");
         this.startTime = System.nanoTime();

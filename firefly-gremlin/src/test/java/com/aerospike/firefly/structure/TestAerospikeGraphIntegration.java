@@ -543,7 +543,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         GraphTraversal<Vertex, Object> traversal = g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name");
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), tgtraversal);
         checkResults(Arrays.asList("lop", "ripple", "josh", "vadas", "vadas"), traversal);
-        System.out.println(g.V().choose(hasLabel("person").and().out("created"), out("knows"), identity()).values("name").profile().next());
     }
 
     @Test
@@ -560,8 +559,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(
                 g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
                 g.V().has("name", "CANT COME DOWN").outE().inV().count().next());
-        System.out.println(g.V().has("name", "CANT COME DOWN").outE().count().profile().next());
-
     }
 
     @Test

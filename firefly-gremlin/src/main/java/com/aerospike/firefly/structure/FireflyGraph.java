@@ -683,7 +683,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             expression = Exp.build(exp);
         }
 
-
         db.getScanHitCounter().increment(mapKey);
 
         final ScanPolicy policy = new ScanPolicy();

@@ -187,16 +187,14 @@ public class AerospikeConnection implements AutoCloseable {
     public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
 
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
+    public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60, 100, 10, (entry) -> {
-        LOG.warn("WARNING: Scan triggered on {} has been hit {} times within 60 seconds, consider adding an index.", entry.getKey(), entry.getValue());
-        return null;
-    });
+
     private final FireflyIdFactory idFactory;
 
     /**
@@ -343,7 +341,9 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Scan hit counter
      */
     public ScanHitCounter getScanHitCounter() {
-        return scanHitCounter;
+        if (scanHitCounterThreadLocal.get() == null)
+            scanHitCounterThreadLocal.set(ScanHitCounter.create());
+        return scanHitCounterThreadLocal.get();
     }
 
     /**
@@ -711,7 +711,7 @@ public class AerospikeConnection implements AutoCloseable {
          */
         public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
-            for (Node node: client.getNodes()) {
+            for (Node node : client.getNodes()) {
                 final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
                 allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
                             Map<String, String> map = entry.getValue();
@@ -797,7 +797,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void createGraphIndexes() {
         final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE, conf));
-        if(warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
+        if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
@@ -1564,7 +1564,7 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        if(set.contains(WarmupUtil.getWarmupArenaName()))
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
             return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);
@@ -1613,7 +1613,7 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        if(set.contains(WarmupUtil.getWarmupArenaName()))
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
             return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);

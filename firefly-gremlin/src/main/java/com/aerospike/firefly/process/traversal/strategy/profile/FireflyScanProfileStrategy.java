@@ -1,0 +1,54 @@
+package com.aerospike.firefly.process.traversal.strategy.profile;
+
+import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.FireflyCache;
+import com.aerospike.firefly.io.impl.ReadThroughCache;
+import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.traversal.step.FireflyProfileStep;
+import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.ProfileSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ */
+public class FireflyScanProfileStrategy extends FireflyStrategyBase {
+    public FireflyScanProfileStrategy(){
+        System.out.println("hello");
+    }
+    @Override
+    protected String getStrategyEnabledKey() {
+        return ConfigurationHelper.Keys.ENABLE_CUSTOM_PROFILE;
+    }
+
+    @Override
+    public void apply(final Traversal.Admin<?, ?> traversal) {
+        final Optional<Graph> graphOptional = traversal.getGraph();
+        if (graphOptional.isEmpty()) {
+            return;
+        }
+        if (!(graphOptional.get() instanceof FireflyGraph)) {
+            return;
+        }
+        if (!(traversal.getStartStep() instanceof GraphStep)) {
+            return;
+        }
+
+        // Tack on the step that will remove the cache when it's finished.
+        final FireflyProfileStep profileStep = new FireflyProfileStep(traversal);
+        // Profile must be last if it exists.
+        if (TraversalHelper.hasStepOfClass(ProfileSideEffectStep.class, traversal)) {
+            // FireflyProfileStep carries custom metrics
+            traversal.addStep(traversal.getSteps().size() - 2, profileStep);
+        }
+    }
+}

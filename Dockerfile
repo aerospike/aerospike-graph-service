@@ -65,8 +65,8 @@ RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0' ;  \
-    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
+    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0-SNAPSHOT' ;  \
     fi
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly

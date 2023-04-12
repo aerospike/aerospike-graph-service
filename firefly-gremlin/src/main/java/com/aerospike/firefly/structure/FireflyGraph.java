@@ -156,7 +156,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    public static String FIREFLY_VERSION = "0.6.0";
+    public static String FIREFLY_VERSION = "0.7.0-SNAPSHOT";
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);

@@ -485,10 +485,21 @@ public class AerospikeConnection implements AutoCloseable {
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
         if (exp != null) policy.filterExp = exp;
-
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
+        final UUID scanId = UUID.randomUUID();
+        ScanHitCounter shc = this.getScanHitCounter();
+        final ConcurrentScanRecordSequenceListener listener =
+                new ConcurrentScanRecordSequenceListener(
+                        scanMonitor,
+                        Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)),
+                        scanId,
+                        (start, stop) -> {
+                            shc.setScanTimings(scanId, start, stop);
+                            return null;
+                        }
+                );
+        listener.setStartTime();
         client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
+
         return new FireflyCloseableIterator<>(listener);
     }
 

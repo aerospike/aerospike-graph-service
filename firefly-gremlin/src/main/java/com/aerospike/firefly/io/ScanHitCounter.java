@@ -1,27 +1,32 @@
 package com.aerospike.firefly.io;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class ScanHitCounter {
-    final Map<String, AtomicLong> stats;
+    final Map<String, AtomicLong> hitCount;
+    final Map<UUID, String> scansByKey;
+    final Map<UUID, AtomicLong> scanTimings;
 
 
     private ScanHitCounter() {
-        this.stats = new HashMap<>();
+        this.hitCount = new ConcurrentHashMap<>();
+        this.scansByKey = new ConcurrentHashMap<>();
+        this.scanTimings = new ConcurrentHashMap<>();
+    }
+
+    public void associateUUID(final UUID uuid, final String key) {
+        this.scansByKey.put(uuid, key);
+    }
+
+    public void setScanTimings(final UUID uuid, final long startTime, final long stopTime) {
+        this.scanTimings.computeIfAbsent(uuid, k -> new AtomicLong(0)).set(stopTime - startTime);
     }
 
     public static ScanHitCounter create() {
@@ -32,10 +37,18 @@ public class ScanHitCounter {
         if (key == null) {
             return 0;
         }
-        return stats.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
+        return hitCount.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
     }
 
     public long get(String key) {
-        return stats.getOrDefault(key, new AtomicLong(0)).get();
+        return hitCount.getOrDefault(key, new AtomicLong(0)).get();
+    }
+
+    public Map<String, AtomicLong> stats() {
+        return hitCount;
+    }
+
+    public Map<UUID, AtomicLong>  getScanTimings() {
+        return scanTimings;
     }
 }

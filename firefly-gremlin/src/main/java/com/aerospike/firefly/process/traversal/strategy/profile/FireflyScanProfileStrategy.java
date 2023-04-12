@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 public class FireflyScanProfileStrategy extends FireflyStrategyBase {
     public FireflyScanProfileStrategy(){
-        System.out.println("hello");
+
     }
     @Override
     protected String getStrategyEnabledKey() {

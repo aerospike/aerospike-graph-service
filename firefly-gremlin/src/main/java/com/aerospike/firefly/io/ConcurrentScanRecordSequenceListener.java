@@ -11,10 +11,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -28,15 +32,24 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
     private final int maxWaitMs;
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
+    private final UUID scanId;
+    private final BiFunction<Long, Long, Void> metricsCallback;
+    private long startTime = -1;
+    private long stopTime = -1;
 
     /**
      * ConcurrentScanRecordSequenceListener will return an iterator immediately, while still receiving results.
      * The iterator will block on hasNext if no results are available until something comes in, or the query is finished.
+     *
      * @param scanMonitor Aerospike scanMonitor
-     * @param maxWaitMs max time to block waiting for new events
+     * @param maxWaitMs   max time to block waiting for new events
      */
     public ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
-                                                final int maxWaitMs) {
+                                                final int maxWaitMs,
+                                                final UUID scanId,
+                                                final BiFunction<Long, Long, Void> metricsCallback) {
+        this.metricsCallback = metricsCallback;
+        this.scanId = scanId;
         this.scanMonitor = scanMonitor;
         this.semaphore = new Semaphore(1);
         this.maxWaitMs = maxWaitMs;
@@ -47,10 +60,16 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         }
     }
 
+    public void setStartTime() {
+        if (this.startTime != -1) throw new RuntimeException("already started");
+        this.startTime = System.nanoTime();
+    }
+
     /**
      * Will be called automatically by Aerospike as results come in
-     * @param key					unique record identifier
-     * @param record				record instance, will be null if the key is not found
+     *
+     * @param key    unique record identifier
+     * @param record record instance, will be null if the key is not found
      * @throws AerospikeException
      */
     public void onRecord(final Key key, final Record record) throws AerospikeException {
@@ -85,6 +104,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
 
     /**
      * Returns a concurrent Iterator that blocks on hasNext if no results are available
+     *
      * @return iterator
      */
     public Iterator<KeyRecord> iterator() {
@@ -118,6 +138,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
                             throw new NoSuchElementException();
                         }
                     }
+                    metricsCallback.apply(startTime, System.nanoTime());
                     return results.take();
                 } catch (InterruptedException e) {
                     terminateScan();
@@ -126,6 +147,8 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             }
         };
     }
+
+
 
     public void terminateScan() {
         isClosed.set(true);

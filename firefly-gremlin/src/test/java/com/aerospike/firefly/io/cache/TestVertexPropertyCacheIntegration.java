@@ -18,6 +18,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Iterator;
+import java.util.UUID;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -119,8 +120,12 @@ public class TestVertexPropertyCacheIntegration {
         final Monitor scanMonitor = new Monitor();
         final ScanPolicy policy = new ScanPolicy();
         final AerospikeClient client = connection.getClient();
+        final UUID scanId = UUID.randomUUID();
+
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)));
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)), scanId, (x,y) -> {
+            return null;
+        });
         client.scanAll(connection.getEventLoops().next(), listener, policy, connection.getNamespace(), connection.VERTEX_PROPERTY_AERO_SET);
         return new FireflyCloseableIterator<>(listener);
     }

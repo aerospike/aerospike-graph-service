@@ -80,6 +80,13 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         });
         System.out.println("Air routes 50k Query Latency:");
         System.out.println(results);
+        System.out.println(g.withSack(0).
+                V().has("code", "SAF").
+                repeat(outE().sack(sum).by("dist").inV()).times(2).limit(10).
+                order().by(sack()).
+                local(union(path().by("code").by("dist"),
+                        sack()).fold()).
+                local(unfold().unfold().fold()).profile().next());
     }
 
     /**

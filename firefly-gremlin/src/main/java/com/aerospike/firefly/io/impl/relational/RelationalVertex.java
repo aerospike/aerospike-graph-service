@@ -31,6 +31,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.ScanHitCounter;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -371,8 +373,16 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (exp != null)
             policy.filterExp = exp;
         final AerospikeClient client = db.getClient();
+        final ScanHitCounter shc = db.getScanHitCounter();
+        final UUID scanId = UUID.randomUUID();
         final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)));
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)),
+                scanId,
+                (start,stop) -> {
+                    shc.setScanTimings(scanId, start, stop);
+                    return null;
+                });
+        listener.setStartTime();
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
         return new FireflyCloseableIterator<>(listener);
     }
@@ -813,9 +823,9 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Get inEdgeIds and outEdgeIds. If the cache is disabled default to an empty map.
         final Map<String, List<Object>> inEdgeIds = edgeCacheDisabled ?
-                new HashMap<>() : new HashMap<>((Map<String, List<Object>>)record.getMap(db.IN_EDGES));
+                new HashMap<>() : new HashMap<>((Map<String, List<Object>>) record.getMap(db.IN_EDGES));
         final Map<String, List<Object>> outEdgeIds = edgeCacheDisabled ?
-                new HashMap<>() : new HashMap<>((Map<String, List<Object>>)record.getMap(db.OUT_EDGES));
+                new HashMap<>() : new HashMap<>((Map<String, List<Object>>) record.getMap(db.OUT_EDGES));
         final Map<String, List<FireflyId>> fireflyInEdgeIds =
                 graph.getIdFactory().convertMapListObjectToFireflyIdMap(inEdgeIds);
         final Map<String, List<FireflyId>> fireflyOutEdgeIds =

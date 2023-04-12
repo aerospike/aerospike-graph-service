@@ -40,7 +40,8 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         final Set<Long> edgeIds = new HashSet<>();
         final Record record = this.keyRecords.next().record;
         if (this.direction == Direction.BOTH || this.direction == Direction.OUT) {
-            final Map<Long, String> edgeIdToOutVertexId = (Map<Long, String>) record.getMap(Direction.OUT.name());
+            final String binName = getOutVBinName();
+            final Map<Long, String> edgeIdToOutVertexId = (Map<Long, String>) record.getMap(binName);
             for (final Map.Entry<Long, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64())) {
                     edgeIds.add(edgeIdToVertexId.getKey());
@@ -48,7 +49,8 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
             }
         }
         if (this.direction == Direction.BOTH || this.direction == Direction.IN) {
-            final Map<Long, String> edgeIdToInVertexId = (Map<Long, String>) record.getMap(Direction.IN.name());
+            final String binName = getInVBinName();
+            final Map<Long, String> edgeIdToInVertexId = (Map<Long, String>) record.getMap(binName);
             for (final Map.Entry<Long, String> edgeIdToVertexId : edgeIdToInVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64())) {
                     edgeIds.add(edgeIdToVertexId.getKey());
@@ -56,5 +58,13 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
             }
         }
         this.currentRecordEdgeIds = edgeIds.iterator();
+    }
+
+    protected String getInVBinName() {
+        return Direction.IN.name();
+    }
+
+    protected String getOutVBinName() {
+        return Direction.OUT.name();
     }
 }

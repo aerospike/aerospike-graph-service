@@ -26,6 +26,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 
 public class SparkBulkLoader {
@@ -63,8 +64,7 @@ public class SparkBulkLoader {
             vertexDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
             edgeDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
             LOGGER.info("Vertex directories provided = {} and Edge directories provided = {}", vertexDirectories, edgeDirectories);
-        }
-        catch (final IOException | RuntimeException e) {
+        } catch (final IOException | RuntimeException e) {
             LOGGER.error("Failed to load the input files '{}'", e.getMessage(), e);
             System.exit(1);
         }
@@ -140,14 +140,15 @@ public class SparkBulkLoader {
         // Sample out edge dataset to verify the inserts.
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
-        // If the edge cache is disabled globally we do not need to search for supernodes.
-        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
+        // If edge caches or adjacency indexes are enabled need to identify supernodes.
+        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG)) ||
+                Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, CONFIG))) {
             spark.sparkContext().setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
             // Csv format is: ~id, ~from, ~to, ...
             DatasetOperations.extractSupernodes(persistedEdgeDS, CONFIG);
         }
 
-        // Write to edge caches for non-supernodes.
+        // Write edges and to edge cache of non-supernodes.
         final Instant startOfEdgeMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
         final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);

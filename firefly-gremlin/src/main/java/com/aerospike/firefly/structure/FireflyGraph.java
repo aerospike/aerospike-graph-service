@@ -27,9 +27,11 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
+import com.aerospike.firefly.structure.util.FireflySummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -71,6 +73,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
+import static com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex.FIREFLY_STATISTICS_APPROXIMATE;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -170,6 +173,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
     public FireflyIndexMetadata fireflyIndexMetadata = null;
+    public FireflySummaryUpdater fireflySummaryUpdater = null;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -221,6 +225,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+        fireflySummaryUpdater = new FireflySummaryUpdater(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -286,7 +291,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void bulkWriteEdge(final long edgeId, final String label,
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
-                                       final Object outVertexId);
+                                       final Object outVertexId, final boolean inVSupernode, final boolean outVSupernode);
 
     public abstract void removeEdgeById(final FireflyId edgeId);
 
@@ -444,6 +449,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
+            }
+            if (vertexIdsOrVertices[0].equals(FIREFLY_STATISTICS_APPROXIMATE)) {
+                return FireflyCloseableIteratorUtils.of(new FireflyApproximateStatisticsVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
                 try {
@@ -629,8 +637,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName,
-                predicateToFilter(predicate, indexInfo), queryPolicy);
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
@@ -759,8 +766,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
-        fireflyCardinalityMetadataTask.cancel();
-        fireflyIndexMetadataTask.cancel();
+        this.fireflyCardinalityMetadataTask.cancel();
+        this.fireflyIndexMetadataTask.cancel();
+        this.fireflySummaryUpdater.close();
         this.db.close();
     }
 

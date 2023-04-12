@@ -64,7 +64,7 @@ public class PackedVertex extends RelationalVertex {
      * @param vertexPropertyIds             vertex property ids.
      * @param vertexPropertyValues          vertex property values.
      * @param vertexPropertyValuesTypeHints vertex property value type hints.
-     * @param isEdgeCacheDisabled           is edge cache disabled.
+     * @param isEdgeCacheOverflowed         is the edge cache overflowed.
      * @param db                            Aerospike connection.
      */
     protected PackedVertex(final FireflyId fid,
@@ -77,9 +77,9 @@ public class PackedVertex extends RelationalVertex {
                            final Map<String, FireflyId> vertexPropertyIds,
                            final Map<String, Object> vertexPropertyValues,
                            final Map<String, Long> vertexPropertyValuesTypeHints,
-                           final boolean isEdgeCacheDisabled,
+                           final boolean isEdgeCacheOverflowed,
                            final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheDisabled, db);
+        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheOverflowed, db);
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {
@@ -257,6 +257,7 @@ public class PackedVertex extends RelationalVertex {
                 .convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
         // Update this PackedVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints);
+        graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
     }
 
     /**
@@ -280,14 +281,14 @@ public class PackedVertex extends RelationalVertex {
                                           final Map<String, FireflyId> vertexPropertyIds,
                                           final Map<String, Object> vertexPropertyValues,
                                           final Map<String, Long> vertexPropertyValuesTypeHints,
-                                          final boolean isEdgeCacheDisabled,
+                                          final boolean isEdgeCacheOverflowed,
                                           final AerospikeConnection db) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheDisabled, db);
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheOverflowed, db);
             } else {
                 return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheDisabled, db);
+                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, isEdgeCacheOverflowed, db);
             }
         }
     }

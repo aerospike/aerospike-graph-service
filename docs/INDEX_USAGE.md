@@ -53,7 +53,7 @@ label: "knows"
 A sindex on name and age can be created by adding the following line to the firefly-graph.properties file:
 ```
 vertex_property_indexes=name,age
-vertex_label_indexes=true
+v_label_index_enabled=true
 ```
 
 #### Impact on Traversals

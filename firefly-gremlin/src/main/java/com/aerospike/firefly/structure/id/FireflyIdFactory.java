@@ -66,21 +66,6 @@ public class FireflyIdFactory {
     /**
      * Create an id for a specific FireflyElement type.
      *
-     * @param id             Id to use for element.
-     * @param adjacentVertex Id of adjacent vertex.
-     * @return FireflyId.
-     */
-    public FireflyId createEdgeIdFromUser(final Object id, final FireflyId adjacentVertex) {
-        // Generate edge id.
-        final FireflyId edgeId = createFromUser(FireflyEdge.class, id);
-
-        // Generate composite id.
-        return new FireflyIdComposite(db, edgeId, adjacentVertex);
-    }
-
-    /**
-     * Create an id for a specific FireflyElement type.
-     *
      * @param type Type to create element for.
      * @param id   Id to use for element.
      * @return FireflyId.
@@ -222,15 +207,6 @@ public class FireflyIdFactory {
         }
     }
 
-    public FireflyId createEdgeIdFromKeyValues(final FireflyId adjacentVertexId, final Object... keyValues) {
-        final Optional<Object> id = ElementHelper.getIdValue(keyValues);
-        if (id.isEmpty()) {
-            throw new IllegalArgumentException("Id not found in keyValues");
-        } else {
-            return createEdgeIdFromUser(id.get(), adjacentVertexId);
-        }
-    }
-
     /**
      * Create a FireflyId from an Aerospike Record and Firefly Element class
      * @param db the AerospikeConnection
@@ -272,38 +248,6 @@ public class FireflyIdFactory {
         return labelEdgeIds;
     }
 
-    public Map<String, List<Object>> convertMapListToStorage(final Map<String, List<FireflyId>> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new TreeMap<>();
-        }
-
-        final Map<String, List<Object>> labelEdgeIds = new TreeMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final List<Object> ids = new ArrayList<>();
-            for (final FireflyId id : fireflyObjectIds.get(label)) {
-                ids.add(id.getStorageId());
-            }
-            labelEdgeIds.put(label, ids);
-        }
-        return labelEdgeIds;
-    }
-
-    public Map<String, List<Object>> convertMapListToCache(final Map<String, List<FireflyId>> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new TreeMap<>();
-        }
-
-        final Map<String, List<Object>> labelEdgeIds = new TreeMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final List<Object> ids = new ArrayList<>();
-            for (final FireflyId id : fireflyObjectIds.get(label)) {
-                ids.add(id.getCachedId());
-            }
-            labelEdgeIds.put(label, ids);
-        }
-        return labelEdgeIds;
-    }
-
     public Map<String, Object> convertMapToStorage(final Map<String, FireflyId> fireflyObjectIds) {
         if (fireflyObjectIds == null) {
             return new TreeMap<>();
@@ -311,18 +255,6 @@ public class FireflyIdFactory {
         final Map<String, Object> labelEdgeIds = new TreeMap<>();
         for (final String label : fireflyObjectIds.keySet()) {
             final Object id = fireflyObjectIds.get(label).getStorageId();
-            labelEdgeIds.put(label, id);
-        }
-        return labelEdgeIds;
-    }
-
-    public Map<String, Object> convertMapToCache(final Map<String, FireflyId> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new TreeMap<>();
-        }
-        final Map<String, Object> labelEdgeIds = new TreeMap<>();
-        for (final String label : fireflyObjectIds.keySet()) {
-            final Object id = fireflyObjectIds.get(label).getCachedId();
             labelEdgeIds.put(label, id);
         }
         return labelEdgeIds;
@@ -337,16 +269,5 @@ public class FireflyIdFactory {
             edgeIdMap.put(label, createId(fireflyObjectIds.get(label), type));
         }
         return edgeIdMap;
-    }
-
-    public List<FireflyId> convertObjectListToFireflyIdList(final List<Object> fireflyObjectIds) {
-        if (fireflyObjectIds == null) {
-            return new ArrayList<>();
-        }
-        List<FireflyId> fireflyIds = new ArrayList<>();
-        for (final Object edge : fireflyObjectIds) {
-            fireflyIds.add(createId(edge, FireflyEdge.class));
-        }
-        return fireflyIds;
     }
 }

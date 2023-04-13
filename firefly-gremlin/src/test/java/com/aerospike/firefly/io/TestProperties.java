@@ -3,12 +3,15 @@ package com.aerospike.firefly.io;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -25,6 +28,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.__.unfold;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -69,6 +74,35 @@ public class TestProperties {
     public void afterEach() {
         System.out.println("===> Completed " + testName.getMethodName() + " <===");
         graph.getBaseGraph().dropDatabase();
+    }
+
+    @Test
+    public void testPropertiesWeight() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+
+        g.addV("person").property("name", "Lyndon").iterate();
+        g.addV("person").property("name", "Simon").iterate();
+        g.addE("knows").property("weight", 0.5).
+                from(__.V().has("name", "Lyndon")).
+                to(__.V().has("name", "Simon")).iterate();
+        List<Vertex> v = g.V().has("name", "Lyndon").toList();
+        List<Edge> e = g.V().has("name", "Lyndon").outE("knows").toList();
+        Traversal<Vertex, Vertex> traversal = g.V().
+                has("name", "Lyndon").
+                property("weight",
+                        __.outE("knows").
+                                values("weight").sum(),
+                        "acl", "private");
+
+        Vertex lyndon = traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals("person", lyndon.label());
+        Assert.assertEquals("Lyndon", lyndon.value("name"));
+        Assert.assertEquals(0.5, lyndon.value("weight"), 0.01);
+        Assert.assertEquals("private", lyndon.property("weight").value("acl"));
+        Assert.assertEquals(2L, IteratorUtils.count(lyndon.properties()));
+        Assert.assertEquals(1L, IteratorUtils.count(lyndon.property("weight").properties()));
     }
 
     @Test
@@ -170,7 +204,7 @@ public class TestProperties {
         Assert.assertEquals("simon", name.value());
         Assert.assertFalse(names.hasNext());
 
-        // Test adding a property to a now empty vertex property's property map
+        // Test adding a property to a now empty vertex property"s property map
         g.V().hasLabel("person").properties("name").property("length", 5).iterate();
         var vpsWithLength5 = g.V().properties().has("length", 5);
         name = vpsWithLength5.next();
@@ -190,6 +224,18 @@ public class TestProperties {
         Assert.assertEquals("age", ageVp.key());
         Assert.assertEquals("trente", ageVp.value());
         Assert.assertFalse(ageVps.hasNext());
+    }
+
+    @Test
+    public void testResiliency() throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        g.addV("person").iterate();
+        System.out.println("Sleep 15 seconds");
+        Thread.sleep(1000 * 15);
+        System.out.println("Wake up");
+        List<Vertex> vs = g.V().hasLabel("person").toList();
+        Assert.assertEquals(1, vs.size());
     }
 
     @Test

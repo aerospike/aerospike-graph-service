@@ -42,10 +42,13 @@ public class StarPackedVertex extends PackedVertex {
                             final Map<String, FireflyId> vertexPropertyIds,
                             final Map<String, Object> vertexPropertyValues,
                             final Map<String, Long> vertexPropertyValuesTypeHints,
+                            final Map<Object, Map<String, Object>> vertexPropertyIdToProperty,
+                            final Map<Object, Map<String, Long>> vertexPropertyIdToTypeHint,
                             final boolean isCacheDisabled,
                             final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds,
-                vertexPropertyValues, vertexPropertyValuesTypeHints, isCacheDisabled, db);
+                vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyIdToProperty,
+                vertexPropertyIdToTypeHint, isCacheDisabled, db);
     }
 
     /**

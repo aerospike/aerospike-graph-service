@@ -16,7 +16,7 @@ public abstract class FireflyProperty<V> implements Property<V> {
     private final String key;
     private final V value;
 
-    public FireflyProperty(FireflyElement element, String key, V value) {
+    public FireflyProperty(final FireflyElement element, final String key, final V value) {
         this.element = element;
         this.key = key;
         this.value = value;

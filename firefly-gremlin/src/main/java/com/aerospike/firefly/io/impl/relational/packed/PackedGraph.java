@@ -2,18 +2,22 @@ package com.aerospike.firefly.io.impl.relational.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.io.impl.relational.RelationalProperty;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -48,6 +52,7 @@ public class PackedGraph extends RelationalGraph {
         return getDataModelName();
     }
 
+    // This function is used via reflection in Upgrade.java. Removing will cause issues.
     public static String getDataModelName() {
         return DATA_MODEL;
     }
@@ -66,68 +71,33 @@ public class PackedGraph extends RelationalGraph {
     public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue,
                                                             final FireflyVertex vertex,
                                                             final String key,
-                                                            final V value) {
+                                                            final V value,
+                                                            final Object... keyValues) {
+        final Map<String, Object> properties = new TreeMap<>();
+        final Map<String, Long> typeHints = new TreeMap<>();
+        final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
+
+        for (int i = 0; i < keyValues.length; i = i + 2) {
+            if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
+                if (keyValues[i + 1] != null) {
+                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1].getClass()));
+                } else if (allowNullProperties) {
+                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(String.class));
+                }
+                // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
+                // properties to remove, so just ignore.
+        }
+
         // Write vertex property to Aerospike.
-        final FireflyVertexProperty<V> fireflyVertexProperty = PackedVertexProperty.writeVertexProperty(this, vertex, idValue, key, value);
+        final FireflyVertexProperty<V> fireflyVertexProperty = new PackedVertexProperty<>(
+                this, idValue, (PackedVertex) vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.
         vertex.writeVertexProperty(fireflyVertexProperty);
 
         // Return FireflyVertexProperty.
         return fireflyVertexProperty;
-    }
-
-
-    /**
-     * Write a property to an element in this graph. Contains specific logic to handle packed vertex properties.
-     *
-     * @param element The element that the property is applied to.
-     * @param key     The property key.
-     * @param value   The property value.
-     * @param <V>     Value type of the property.
-     * @return The newly written property.
-     */
-    @Override
-    public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
-        if (element instanceof PackedVertexProperty<?>) {
-            FireflyHelper.validatePropertyValue(value);
-            ((PackedVertexProperty<?>) element).writeProperty(key, value);
-            return new RelationalProperty<>(this, element, key, value);
-        } else {
-            return super.writeProperty(element, key, value);
-        }
-    }
-
-    /**
-     * Read the properties on an element.
-     *
-     * @param element The element to read the properties of.
-     * @param <V>     Value type of the property.
-     * @return The properties on the element.
-     */
-    @Override
-    public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
-        if (element instanceof PackedVertexProperty<?>) {
-            return ((PackedVertexProperty<?>) element).readProperties();
-        } else {
-            return super.readProperties(element);
-        }
-    }
-
-    /**
-     * Read a property on an element.
-     *
-     * @param element The element to read the properties of.
-     * @param key     The key of the property to read.
-     * @param <V>     Value type of the property.
-     * @return The property on the element with the specified key.
-     */
-    @Override
-    public <V> Property<V> readProperty(final FireflyElement element, final String key) {
-        if (element instanceof PackedVertexProperty<?>) {
-            return (Property<V>) readProperties(element).get(key);
-        } else {
-            return super.readProperty(element, key);
-        }
     }
 }

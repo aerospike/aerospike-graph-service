@@ -506,10 +506,6 @@ public class AerospikeConnection implements AutoCloseable {
         return eventLoops;
     }
 
-    public int getCommandsPerLoop() {
-        return commandsPerLoop;
-    }
-
     /**
      * Given an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
      *
@@ -770,8 +766,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
-    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
-    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * Return the name of the set associated with the FireflyElement class
@@ -1123,39 +1117,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Increment the generation check retry count
-     */
-    public static void incrementGenerationCheckRetryMetric() {
-        generationCheckRetryMetric.incrementAndGet();
-    }
-
-    /**
-     * Return the generation check retry count
-     *
-     * @return generation check retry count
-     */
-    public static long getGenerationCheckRetryMetric() {
-        return generationCheckRetryMetric.get();
-    }
-
-
-    /**
-     * Set the generation check high-water mark
-     */
-    public static void setGenerationCheckHighWaterMark(final long value) {
-        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
-    }
-
-    /**
-     * Return the high-water mark for generation check retries
-     *
-     * @return number of retries
-     */
-    public static long getGenerationCheckHighWaterMark() {
-        return generationCheckHighWaterMark.get();
-    }
-
-    /**
      * Return a named key-value from a map
      * read its associated type-hint and reconstruct the correct JVM type for the value
      *
@@ -1180,36 +1141,6 @@ public class AerospikeConnection implements AutoCloseable {
         final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
         final Class valueClass = SupportedTypeValues.get(typeHint);
         return (V) typeCast(valueClass, value);
-    }
-
-    /**
-     * Return the first key-value from a map
-     * read its associated type-hint and reconstruct the correct JVM type for the value
-     *
-     * @param aeroSet
-     * @param fid
-     * @param mapName
-     * @param <V>
-     * @return
-     */
-    public <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
-                                                                          final FireflyId fid,
-                                                                          final String mapName,
-                                                                          final String typeHintBin) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || fireflyRecord.record() == null || fireflyRecord.record().getMap(mapName).size() == 0)
-            return null;
-        final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record().getMap(mapName));
-        if (!map.isPresent())
-            return null;
-        final String mapKey = (String) map.get().keySet().iterator().next();
-        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
-        final Object val = map.get().values().iterator().next();
-
-        if (val == null)
-            return null;
-        final Class clazz = SupportedTypeValues.get(typeHint);
-        return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
     }
 
     public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {

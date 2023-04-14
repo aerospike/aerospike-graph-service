@@ -396,8 +396,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Iterator of raw Ids
      */
     public Iterator<FireflyId> readElementIds(final Class<? extends FireflyElement> type) {
-        final AerospikeConnection.IdConfig cfg = new AerospikeConnection.IdConfig(this, type);
-        return scanAllIdsInSet(cfg.getAeroSet());
+        return scanAllIdsInSet(setFromElementType(type));
     }
 
     /**
@@ -558,43 +557,6 @@ public class AerospikeConnection implements AutoCloseable {
         write(k, b);
     }
 
-
-    /**
-     * manage the set names for an element type
-     */
-    public static class IdConfig {
-        private final Class<? extends FireflyElement> type;
-        private final String AERO_SET;
-        private final String ID_KEY;
-        private final String ID_BIN;
-
-        public IdConfig(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
-            this.type = type;
-            if (type == FireflyVertex.class) {
-                AERO_SET = ac.VERTEX_AERO_SET;
-                ID_KEY = ac.VERTEX_ID_KEY;
-                ID_BIN = ac.VERTEX_ID_BIN;
-            } else if (type == FireflyEdge.class) {
-                AERO_SET = ac.EDGE_AERO_SET;
-                ID_KEY = ac.EDGE_ID_KEY;
-                ID_BIN = ac.EDGE_ID_BIN;
-            } else
-                throw new RuntimeException("Unknown ID type: " + type);
-        }
-
-        String getIdKey() {
-            return ID_KEY;
-        }
-
-        public String getAeroSet() {
-            return AERO_SET;
-        }
-
-        String getIdBin() {
-            return ID_BIN;
-        }
-    }
-
     public static class InfoOps {
         protected static class Keys {
             public static final String SET = "set";
@@ -655,13 +617,13 @@ public class AerospikeConnection implements AutoCloseable {
          * Second item of map entry is set the index belongs to
          */
         public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+            // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
-            List<Map<String, String>> res = parseRaw(infoResponse);
-            return res.stream()
+            return parseRaw(infoResponse).stream()
                     .filter(m -> m.get(Keys.NS).equals(namespace))
-                    .map(m -> {
-                        return (Map.Entry<String, String>) new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET));
-                    }).collect(Collectors.toList());
+                    .map(m -> (Map.Entry<String, String>)
+                            new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                    .collect(Collectors.toList());
         }
 
         /**
@@ -670,42 +632,10 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client AerospikeClient connection instance
          * @return enterprise or not
          */
-        public static boolean isEnterprise(AerospikeClient client) {
+        public static boolean isEnterprise(final AerospikeClient client) {
+            // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
-        }
-
-        /**
-         * Get the number of Records in a Set for a particular namespace
-         *
-         * @param setName   Name of set to query for number of records
-         * @param namespace Namespace containing set
-         * @param client    AerospikeClient instance
-         * @return Number of Records in set
-         */
-        public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
-            if (client.getNodes().length > 1)
-                throw new RuntimeException("getSetSize not supported for multi node");
-            final String infoQuery = "sets/" + namespace + "/" + setName;
-            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-            final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
-                    .filter(str -> str.startsWith("objects"))
-                    .map(str -> Long.valueOf(str.split("=")[1]))
-                    .collect(Collectors.toList());
-            return setSize.isEmpty() ? 0 : setSize.get(0);
-        }
-
-        /**
-         * Get a list of all the Sets in a namespace
-         *
-         * @param namespace namespace to query
-         * @param client    AerospikeClient instance
-         * @return Set of namespaces
-         */
-        public static Set<String> getSetList(String namespace, AerospikeClient client) {
-            String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            final Set<String> allSets = parseBySet(infoResponse, namespace).keySet();
-            return allSets;
         }
 
         /**
@@ -715,9 +645,10 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
-        public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
+        public static Set<String> getNonEmptySetList(final String namespace, final AerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
-            for (Node node: client.getNodes()) {
+            // Need to loop all nodes here in case one of the sets only has data on a single node.
+            for (final Node node: client.getNodes()) {
                 final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
                 allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
                             Map<String, String> map = entry.getValue();
@@ -730,13 +661,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
-        put(Long.class, Long.class);
-        put(Integer.class, Long.class);
-        put(Double.class, Double.class);
-        put(byte[].class, byte[].class);
-        put(String.class, String.class);
-    }};
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> IdToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
         put(Integer.class, Long.class);
@@ -762,7 +686,6 @@ public class AerospikeConnection implements AutoCloseable {
         put(7L, ArrayList.class);
     }};
 
-    private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);

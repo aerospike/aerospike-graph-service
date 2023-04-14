@@ -57,7 +57,6 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 public class RelationalEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
     protected final AerospikeConnection db;
-    // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
     /**
      * Constructor for RelationalEdge.
@@ -77,6 +76,16 @@ public class RelationalEdge extends FireflyEdge {
                              final Map<String, Long> typeHints) {
         super(fid, label, graph, inVertex, outVertex, properties, typeHints);
         this.db = graph.getBaseGraph();
+    }
+
+    /**
+     * Remove property from edge property cache.
+     *
+     * @param key Key to remove.
+     */
+    public void removePropertyFromCache(final String key) {
+        properties.remove(key);
+        typeHints.remove(key);
     }
 
     /**
@@ -176,48 +185,6 @@ public class RelationalEdge extends FireflyEdge {
     }
 
     /**
-     * Construct edge from record.
-     *
-     * @param graph     Graph handle.
-     * @param keyRecord Record to construct from.
-     * @return Edge.
-     */
-    public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord, final FireflyId edgeId) {
-        LOG.trace("Constructing edge from record.");
-        if (keyRecord == null) {
-            return null;
-        }
-        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord);
-        return RelationalEdgeFactory.create(edgeId, fireflyRecord, graph);
-    }
-
-    /**
-     * Construct edges from phat edge record.
-     *
-     * @param graph     Graph handle.
-     * @param keyRecord Record to construct from.
-     * @return Iterator of FireflyEdge.
-     */
-    public static Iterator<FireflyEdge> allFromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
-        LOG.trace("Constructing edges from phat edge record.");
-        if (keyRecord == null || keyRecord.record == null) {
-            return Collections.emptyIterator();
-        }
-
-        final List<FireflyEdge> edges = new ArrayList<>();
-        final Map<Long, String> labelMap = (TreeMap<Long, String>) keyRecord.record.getMap(AerospikeConnection.LABEL);
-        for (final Long edgeId : labelMap.keySet()) {
-            final FireflyId fireflyEdgeId = new FireflyPhatEdgeId(edgeId, graph.getBaseGraph().PHAT_EDGE_SIZE,
-                    graph.getBaseGraph().EDGE_AERO_SET);
-            final FireflyEdge edge = RelationalEdgeFactory.create(fireflyEdgeId,
-                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord), graph);
-            edges.add(edge);
-        }
-
-        return edges.iterator();
-    }
-
-    /**
      * Remove edge from Aerospike.
      */
     @Override
@@ -262,7 +229,7 @@ public class RelationalEdge extends FireflyEdge {
         final Operation removeTypeHintsBin = ExpOperation.write(db.TYPE_HINTS, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        
+
         // This operation must be last since the expression checks the map in the label bin.
         final Operation removeLabelBin = ExpOperation.write(AerospikeConnection.LABEL, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
@@ -274,70 +241,6 @@ public class RelationalEdge extends FireflyEdge {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
             LOG.info("Ignoring exception when deleting Edge with id " + edgeId.getUserId() + " since it was not found.");
-        }
-    }
-
-    public <V> Property<V> writeProperty(final String propertyKey, final V value) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Key key = getKey(db, db.EDGE_AERO_SET, this.id);
-        final Value edgeIdMapKey = Value.get(this.id.getUserId());
-
-        final Operation valueOp;
-        final Operation typeHintOp;
-
-        // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
-        // the property key if a null value is given.
-        if (value == null) {
-            valueOp = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
-        } else {
-            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            valueOp = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
-                    Value.get(getSupportedType(value.getClass())), CTX.mapKey(edgeIdMapKey));
-        }
-
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        try {
-            db.operate(writePolicy, key, valueOp, typeHintOp);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
-                // Special logic to handle when Edge has been removed from the Phat Edge since in this case
-                // the key is the Phat Edge key and thus the key still exists.
-                throw new ElementNotFoundException(this, ae);
-            } else {
-                throw ae;
-            }
-        }
-        graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(label, Set.of(propertyKey));
-        return new RelationalProperty<>(graph, this, propertyKey, value);
-    }
-
-    public void removeProperty(final String propertyKey) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Key key = getKey(db, db.EDGE_AERO_SET, this.id);
-        final Value edgeIdMapKey = Value.get(this.id.getUserId());
-
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-
-        try {
-            this.properties.remove(propertyKey);
-            db.operate(null, key, removeProperty, removeTypeHint);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
-                // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is
-                // the Phat Edge key and thus the key still exists.
-                LOG.debug("Ignored exception removing an already-removed property {}", this, ae);
-            } else {
-                throw ae;
-            }
         }
     }
 

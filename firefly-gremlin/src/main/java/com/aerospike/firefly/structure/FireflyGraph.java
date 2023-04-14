@@ -306,16 +306,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void removeGraphVariable(final String key);
 
-    // Vertex property and property functions.
-    public abstract void removeProperty(final FireflyElement element, final String key);
-
-    public abstract <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value);
-
-    public abstract <V> Map<String, Property<V>> readProperties(final FireflyElement element);
-
-    public abstract <V> Property<V> readProperty(final FireflyElement element, final String key);
-
-    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
+    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(
+            final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value, final Object... keyValues);
 
     // Counting functions.
     public abstract long getVertexCount(final Expression expression);

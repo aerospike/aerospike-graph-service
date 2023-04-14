@@ -122,7 +122,7 @@ public class IdentityGenerator implements Runnable {
     private static AmazonS3 S3_CLIENT;
     private static final AtomicLong i = new AtomicLong(0);
 
-    private static final HashMap<String, MutablePair<ByteArrayOutputStream, OutputStreamWriter>> streamMap = new HashMap<>();
+    private final HashMap<String, MutablePair<ByteArrayOutputStream, OutputStreamWriter>> streamMap = new HashMap<>();
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
@@ -343,7 +343,7 @@ public class IdentityGenerator implements Runnable {
         }
     }
 
-    public synchronized Integer populateGraphMap(String dir, String fileName, MutablePair<String[], String[]> pair, int fileCount) throws IOException {
+    public synchronized Integer populateGraphMap(final String dir, final String fileName, final MutablePair<String[], String[]> pair, final int fileCount) throws IOException {
         HashMap<String, Object> objectPropertyMap;
         if (!graphMap.containsKey(fileName)) {
             objectPropertyMap = new HashMap<>();

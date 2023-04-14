@@ -204,11 +204,7 @@ public class IdentityGenerator implements Runnable {
                                     final Vertex subAccount,
                                     String dir,
                                     String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(SUB_ACCOUNT);
-        edge.setFrom(account.getId());
-        edge.setTo(subAccount.getId());
+        final Edge edge = new Edge(i.getAndIncrement(), SUB_ACCOUNT, account.getId(), subAccount.getId());
         generateAndWriteEdgeData(account, subAccount, edge, dir, fileName);
     }
 
@@ -216,11 +212,7 @@ public class IdentityGenerator implements Runnable {
                                final Vertex account,
                                String dir,
                                String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(HOLDS);
-        edge.setFrom(person.getId());
-        edge.setTo(account.getId());
+        final Edge edge = new Edge(i.getAndIncrement(), HOLDS, person.getId(), account.getId());
         generateAndWriteEdgeData(person, account, edge, dir, fileName);
     }
 
@@ -228,11 +220,7 @@ public class IdentityGenerator implements Runnable {
                               final Vertex device,
                               String dir,
                               String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(OWNS);
-        edge.setFrom(person.getId());
-        edge.setTo(device.getId());
+        final Edge edge = new Edge(i.getAndIncrement(), OWNS, person.getId(), device.getId());
         generateAndWriteEdgeData(person, device, edge, dir, fileName);
     }
 
@@ -240,11 +228,7 @@ public class IdentityGenerator implements Runnable {
                                 final Vertex household,
                                 String dir,
                                 String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(PART_OF);
-        edge.setFrom(person.getId());
-        edge.setTo(household.getId());
+        final Edge edge = new Edge(i.getAndIncrement(), PART_OF, person.getId(), household.getId());
         generateAndWriteEdgeData(person, household, edge, dir, fileName);
     }
 

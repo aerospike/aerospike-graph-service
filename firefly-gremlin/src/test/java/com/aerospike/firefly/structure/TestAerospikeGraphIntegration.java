@@ -559,6 +559,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertEquals(
                 g2.V().has("name", "CANT COME DOWN").outE().inV().count().next(),
                 g.V().has("name", "CANT COME DOWN").outE().inV().count().next());
+
+
     }
 
     @Test

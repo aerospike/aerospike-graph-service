@@ -356,6 +356,10 @@ public class AerospikeConnection implements AutoCloseable {
         return scanHitCounterThreadLocal.get();
     }
 
+    public void resetScanHitCounter() {
+        this.scanHitCounterThreadLocal.set(null);
+    }
+
     /**
      * Run a traversal prefetch task
      *

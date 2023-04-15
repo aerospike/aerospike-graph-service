@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -34,6 +35,7 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
             parentMetrics.addNested(this.metrics);
         }
     }
+
     public static long percentile(List<Long> latencies, double percentile) {
         int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
         return latencies.get(index - 1);
@@ -49,11 +51,17 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
         shc.stats().forEach((key, value) -> {
             this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
         });
-        shc.getScanTimings().entrySet().forEach((entry) -> {
-            this.metrics.setAnnotation(String.format(" %s scan time ",entry.getKey().toString().split("-")[0]), String.format(" %s ms",TimeUnit.NANOSECONDS.toMillis(entry.getValue().get())));
-        });
+        long sum = 0;
+        for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
+            final long msTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().get());
+            this.metrics.setAnnotation(String.format(" %s scan time ", entry.getKey().toString().split("-")[0]), String.format(" %s ms", msTime));
+            sum += msTime;
+        }
 
-        this.metrics.setDuration(0, TimeUnit.NANOSECONDS);
+        System.out.println("Total scan time: " + sum + " ms");
+        if(sum>0)
+            this.metrics.setDuration(sum, TimeUnit.MILLISECONDS);
+        ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
         if (this.starts.hasNext()) {
             return this.starts.next();
         } else {

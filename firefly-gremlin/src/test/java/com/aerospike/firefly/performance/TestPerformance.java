@@ -283,6 +283,7 @@ public class TestPerformance extends AbstractFireflySuite {
                     bothE().
                     where(__.otherV().outE().not(__.has("foo"))).profile().next();
         });
+
         System.out.println(results);
     }
 

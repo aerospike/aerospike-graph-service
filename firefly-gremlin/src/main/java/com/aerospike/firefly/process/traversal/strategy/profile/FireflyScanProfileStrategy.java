@@ -50,5 +50,6 @@ public class FireflyScanProfileStrategy extends FireflyStrategyBase {
             // FireflyProfileStep carries custom metrics
             traversal.addStep(traversal.getSteps().size() - 2, profileStep);
         }
+        ((FireflyGraph) graphOptional.get()).getBaseGraph().resetScanHitCounter();
     }
 }

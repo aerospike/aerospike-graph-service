@@ -47,25 +47,44 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
 
     @Override
     protected Traverser.Admin<S> processNextStart() throws NoSuchElementException {
-        ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
-        shc.stats().forEach((key, value) -> {
-            this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
-        });
-        long sum = 0;
-        for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
-            final long msTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().get());
-            this.metrics.setAnnotation(String.format(" %s scan time ", entry.getKey().toString().split("-")[0]), String.format(" %s ms", msTime));
-            sum += msTime;
-        }
-
-        System.out.println("Total scan time: " + sum + " ms");
-        if(sum>0)
-            this.metrics.setDuration(sum, TimeUnit.MILLISECONDS);
-        ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
+//        ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
+//        shc.stats().forEach((key, value) -> {
+//            this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
+//        });
+//        long sum = this.metrics.getDuration(TimeUnit.MILLISECONDS);
+//        for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
+//            final long msTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().get());
+//            this.metrics.setAnnotation(String.format(" %s scan time ", entry.getKey().toString().split("-")[0]), String.format(" %s ms", msTime));
+//            sum += msTime;
+//        }
+//        if (sum > 0)
+//            this.metrics.setDuration(sum, TimeUnit.MILLISECONDS);
+//        ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
         if (this.starts.hasNext()) {
             return this.starts.next();
         } else {
             throw FastNoSuchElementException.instance();
         }
+    }
+
+    @Override
+    public boolean hasNext() {
+        boolean res = super.hasNext();
+        if (!res) {
+            ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
+            shc.stats().forEach((key, value) -> {
+                this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
+            });
+            long sum = this.metrics.getDuration(TimeUnit.MILLISECONDS);
+            for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
+                final long msTime = TimeUnit.NANOSECONDS.toMillis(entry.getValue().get());
+                this.metrics.setAnnotation(String.format(" %s scan time ", entry.getKey().toString().split("-")[0]), String.format(" %s ms", msTime));
+                sum += msTime;
+            }
+            if (sum > 0)
+                this.metrics.setDuration(sum, TimeUnit.MILLISECONDS);
+            ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
+        }
+        return res;
     }
 }

@@ -229,6 +229,11 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         List<Edge> things = g.E().has("a", "b").toList();
         assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+
+        System.out.println(g.V()
+                .has("type", "taxonomy").as("a")
+                .V().has("type", "plant").as("b")
+                .addE("IsA").from("b").to("a").property("a", "b").profile().next());
     }
 
     @Test

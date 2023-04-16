@@ -224,7 +224,6 @@ public class TestProperties {
         Assert.assertEquals("age", ageVp.key());
         Assert.assertEquals("trente", ageVp.value());
         Assert.assertFalse(ageVps.hasNext());
-        System.out.println( g.V().hasLabel("person").properties("name").profile().next());
     }
 
     @Test

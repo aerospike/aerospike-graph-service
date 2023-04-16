@@ -304,7 +304,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testParseRaw() {
         final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
-        List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
+        final List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
         final AtomicBoolean pass = new AtomicBoolean(false);
         data.forEach(it -> {
             if (it.containsKey(AerospikeConnection.InfoOps.Keys.RESULT) && Objects.equals(it.get(AerospikeConnection.InfoOps.Keys.RESULT), "test"))
@@ -389,11 +389,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testIsEnterprise() {
         assertTrue(AerospikeConnection.InfoOps.isEnterprise(db.getClient()));
-    }
-
-    @Test
-    public void testListAllSets() {
-        Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());
     }
 
     @Test

@@ -39,7 +39,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     protected abstract <V> Iterator<VertexProperty<V>> readVertexProperty(final String key);
 
-    public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperties);
+    public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperty);
 
     public abstract void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId);
 
@@ -116,8 +116,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                 graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
-        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
-        ElementHelper.attachProperties(vertexProperty, keyValues);
+
+        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value, keyValues);
 
         // Return vertex property.
         return vertexProperty;

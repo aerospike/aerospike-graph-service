@@ -118,8 +118,9 @@ public class TestDataModelVersioning {
         public static String getDataModelName() {
             return DATA_MODEL;
         }
+
         @Override
-        public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value) {
+        public <V> FireflyVertexProperty<V> writeVertexProperty(FireflyId vertexPropertyId, FireflyVertex vertex, String key, V value, Object... args) {
             return null;
         }
     }

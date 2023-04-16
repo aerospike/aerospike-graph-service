@@ -83,31 +83,6 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
     }
 
     /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be used to search for vertices.
-     * This {@code Map} also will be used as the default data set to be used to create a vertex if the search is not
-     * successful.
-     */
-    public Traversal.Admin<S, Map<Object, Object>> getSearchCreateTraversal() {
-        return searchCreateTraversal;
-    }
-
-    /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be the override to the one provided
-     * by the {@link #getSearchCreateTraversal()} for vertex creation events.
-     */
-    public Traversal.Admin<S, Map<Object, Object>> getOnCreateTraversal() {
-        return onCreateTraversal;
-    }
-
-    /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be used to modify vertices that
-     * match the search criteria of {@link #getSearchCreateTraversal()}.
-     */
-    public Traversal.Admin<S, Map<String, Object>> getOnMatchTraversal() {
-        return onMatchTraversal;
-    }
-
-    /**
      * Determines if this is a start step.
      */
     public boolean isStart() {
@@ -119,10 +94,6 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
      */
     public boolean isFirst() {
         return first;
-    }
-
-    public CallbackRegistry<Event> getCallbackRegistry() {
-        return callbackRegistry;
     }
 
     @Override

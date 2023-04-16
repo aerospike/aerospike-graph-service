@@ -21,7 +21,6 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -294,31 +293,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
-     * remove k from the ELEMENT_PROPERTIES map
-     *
-     * @param element Element to remove property from
-     * @param key     property key to remove
-     */
-    @Override
-    public void removeProperty(final FireflyElement element, final String key) {
-        if (element instanceof PackedVertexProperty) {
-            ((PackedVertexProperty<?>) element).removeProperty(key);
-        } else if (element instanceof RelationalEdge) {
-            ((RelationalEdge) element).removeProperty(key);
-        } else {
-            // TODO GRAPH-439: This default behaviour can probably be removed given that vertices, edges, and vertex
-            //  properties all now have their own unique logic for their properties.
-            db.removeTypeHintedValueFromMap(
-                    db.setFromElementType(element.getClass()),
-                    element.id,
-                    db.PROPERTIES,
-                    key,
-                    db.TYPE_HINTS);
-        }
-    }
-
-    /**
      * Return a Graph variable value by name
      *
      * @param key Graph variable key
@@ -389,28 +363,6 @@ public abstract class RelationalGraph extends FireflyGraph {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
         final Iterator<KeyRecord> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
         return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
-    }
-
-    @Override
-    public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
-        FireflyHelper.validatePropertyValue(value);
-        if (element instanceof RelationalEdge) {
-            return ((RelationalEdge) element).writeProperty(key, value);
-        }
-        // TODO GRAPH-439: Refactor property inheritance tree and update/remove this. Since Linked is deprecated writing
-        //                 of properties probably should be delegated to their respective parent classes since they all
-        //                 have differing logic now and this is not used.
-        return RelationalProperty.writeProperty(this, element, key, value);
-    }
-
-    @Override
-    public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
-        return RelationalProperty.readProperties(this, element);
-    }
-
-    @Override
-    public <V> Property<V> readProperty(final FireflyElement element, final String key) {
-        return RelationalProperty.readProperty(this, element, key);
     }
 
     @Override

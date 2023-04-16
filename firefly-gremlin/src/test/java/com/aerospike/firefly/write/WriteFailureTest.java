@@ -2,6 +2,7 @@ package com.aerospike.firefly.write;
 
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -21,6 +22,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeMap;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
@@ -111,7 +113,7 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyId id = fireflyGraph.getIdFactory().createId(1, FireflyVertexProperty.class);
 
-            final FireflyVertexProperty fireflyVertexProperty = PackedVertexProperty.writeVertexProperty(fireflyGraph, a, id, "key", "value");
+            final FireflyVertexProperty fireflyVertexProperty = new PackedVertexProperty<>(fireflyGraph, id, (PackedVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 

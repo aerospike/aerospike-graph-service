@@ -18,10 +18,6 @@ public abstract class NumericIdManager implements IdManager<Long> {
         this.counterName = counterName;
     }
 
-    private static String createErrorMessage(final Class<?> expectedType, final Object id) {
-        return String.format("Expected an id that is convertible to %s but received %s - [%s]", expectedType, id.getClass(), id);
-    }
-
     @Override
     public Long getNextId(final FireflyGraph graph) {
         return graph.getBaseGraph().decrementIdCounter(this.counterName);

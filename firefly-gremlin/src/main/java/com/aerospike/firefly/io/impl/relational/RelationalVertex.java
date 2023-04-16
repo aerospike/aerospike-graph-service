@@ -32,13 +32,13 @@ import com.aerospike.firefly.io.ScanHitCounter;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
@@ -409,7 +409,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Get bin names for edge direction.
         final String counterBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER : db.OUT_EDGE_COUNTER;
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES : db.OUT_EDGES;
-        
+
         // Update the JVM cache of this.
         final Map<String, List<FireflyId>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
 
@@ -500,7 +500,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param direction Direction of edge.
      * @param edgeId    Id of edge.
      * @param edgeLabel Label of edge.
-     * @return  was the edge written to this vertex's edge cache.
+     * @return was the edge written to this vertex's edge cache.
      */
     @Override
     public boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
@@ -700,7 +700,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // The existence of the Vertex Property ID as a key in this map is what is used to determine whether the
                 // Vertex Property currently exists, and thus instantiating it here is necessary.
                 final Map<Object, Map<String, Object>> vpProperties = new TreeMap<>();
-                final Map<Object, Map<String, Object>> vpPropertiesTypeHints = new TreeMap<>();
+                final Map<Object, Map<String, Long>> vpPropertiesTypeHints = new TreeMap<>();
                 for (final FireflyId id : ((Map<String, FireflyId>) vertexPropertyIds).values()) {
                     vpProperties.put(id.getStorageId(), new TreeMap<>());
                     vpPropertiesTypeHints.put(id.getStorageId(), new TreeMap<>());
@@ -725,7 +725,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
                 return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
                         0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
-                        vertexPropertyTypeHintMap, isEdgeCacheOverflowed, db);
+                        vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints, isEdgeCacheOverflowed, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);
@@ -804,6 +804,11 @@ public abstract class RelationalVertex extends FireflyVertex {
                 graph.getIdFactory().convertMapListObjectToFireflyIdMap(inEdgeIds);
         final Map<String, List<FireflyId>> fireflyOutEdgeIds =
                 graph.getIdFactory().convertMapListObjectToFireflyIdMap(outEdgeIds);
+        final Map<Object, Map<String, Object>> vertexPropertyProperties =
+                new HashMap<>((Map<Object, Map<String, Object>>) record.getMap(db.PROPERTIES));
+        final Map<Object, Map<String, Long>> vertexPropertyPropertiesTypeHints =
+                new HashMap<>((Map<Object, Map<String, Long>>) record.getMap(db.TYPE_HINTS));
+
 
         // Create vertex based on type hint.
         switch (vertexTypeHint) {
@@ -821,7 +826,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                         graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
                 return PackedVertex.PackedVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
                         inEdgeCount, outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues,
-                        vertexPropertyTypeHints, edgeCacheOverflowed, db);
+                        vertexPropertyTypeHints, vertexPropertyProperties, vertexPropertyPropertiesTypeHints,
+                        edgeCacheOverflowed, db);
             default:
                 // Should never happen.
                 throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);

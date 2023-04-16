@@ -89,6 +89,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
     public void onSuccess() {
         this.complete.set(true);
         semaphore.release();
+        metricsCallback.apply(startTime, System.nanoTime());
         scanMonitor.notifyComplete();
     }
 
@@ -102,6 +103,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         }
         this.complete.set(true);
         semaphore.release();
+        metricsCallback.apply(startTime, System.nanoTime());
         scanMonitor.notifyComplete();
     }
 
@@ -153,6 +155,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
 
 
     public void terminateScan() {
+        metricsCallback.apply(startTime, System.nanoTime());
         isClosed.set(true);
     }
 }

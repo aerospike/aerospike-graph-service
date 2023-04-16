@@ -58,7 +58,8 @@ public class ScanHitCounter {
         return hitCount.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
     }
 
-    /** Get the hit count for a key.
+    /**
+     * Get the hit count for a key.
      *
      * @param key the key to get the hit count for
      * @return the hit count
@@ -79,5 +80,9 @@ public class ScanHitCounter {
      */
     public Map<UUID, AtomicLong> getScanTimings() {
         return scanTimings;
+    }
+
+    public Object getKeyForUUID(UUID key) {
+        return scansByKey.getOrDefault(key, "NO KEY");
     }
 }

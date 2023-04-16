@@ -78,6 +78,7 @@ public class TestScanHitCounter extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("a", "b").profile().next();
         Metrics fm = (Metrics) prof.getMetrics().toArray()[4];
         assertEquals(3, fm.getNested("FireflyMetrics").getAnnotations().size());
+        System.out.println(prof);
     }
 
     @Override

@@ -20,6 +20,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -361,13 +362,13 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     protected Iterator<FireflyId> scanAllVertices() {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<KeyRecord> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+        final Iterator<KeyRecord> i = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
         return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
     }
 
     @Override
     public long getVertexCount(final Expression expression) {
-        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, expression, false));
+        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), expression, false));
     }
 
     @Override

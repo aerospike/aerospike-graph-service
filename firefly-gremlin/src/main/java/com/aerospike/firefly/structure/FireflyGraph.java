@@ -17,6 +17,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
@@ -685,7 +686,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         db.getScanHitCounter().increment(mapKey);
 
         final ScanPolicy policy = new ScanPolicy();
-        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
+        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(ReadContext.create(setName, binName, mapKey), expression, policy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(kr));

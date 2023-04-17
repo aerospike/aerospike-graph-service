@@ -29,7 +29,6 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
 
     @Override
     public void setMetrics(final MutableMetrics parentMetrics) {
-
         this.metrics = new MutableMetrics("FireflyMetrics", "FireflyScanTime");
         if (parentMetrics != null) {
             parentMetrics.addNested(this.metrics);

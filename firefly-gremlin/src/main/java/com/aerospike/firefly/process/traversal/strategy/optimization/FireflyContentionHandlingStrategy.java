@@ -93,7 +93,6 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
         applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
-
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }
 }

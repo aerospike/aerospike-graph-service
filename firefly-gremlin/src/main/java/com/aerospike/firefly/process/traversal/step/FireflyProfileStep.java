@@ -41,7 +41,7 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
         return latencies.get(index - 1);
     }
 
-    public static double nsToMs(long ns) {
+    public static double nsToMs(final long ns) {
         return ns / 1_000_000.;
     }
 

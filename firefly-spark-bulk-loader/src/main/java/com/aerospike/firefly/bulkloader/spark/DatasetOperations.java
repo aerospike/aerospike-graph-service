@@ -54,7 +54,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,50 +81,56 @@ public class DatasetOperations implements Serializable {
     private static final AtomicReference<Configuration> CONFIG = new AtomicReference<>();
     private static final Set<Object> SUPERNODES = new HashSet<>();
     private static final int RETRY_LIMIT = 100;
-    private static final String DIRECTORY_COLUMN = "~directory";
     private static final String FILENAME_COLUMN = "~fileName";
     private static final String LINENUMBER_COLUMN = "~line";
-    public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));
+    private static final String DIRECTORY_COLUMN = "~directory";
+    private static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));
 
     /**
-     * Function to load datasets from a parent directory and merge/union them
+     * Function to merge Datasets.
      *
-     * @param spark            Spark session
-     * @param directories      Set of paths to subdirectories within the parent directory
-     * @param requiredHeaders  required headers for the dataset
-     * @return Merged Dataset<Row> from all the subdirectories
+     * @param spark     Spark session
+     * @param datasets  List of Datasets to merge
+     * @return Merged Dataset<Row> from all the given Datasets
      */
-    public static Dataset<Row> loadAndMergeDatasets(final SparkSession spark,
-                                                    final Set<String> directories,
-                                                    final String[] requiredHeaders) {
-        Dataset<Row> unionDS = spark.emptyDataFrame();
-        final Map<String, String> options = new HashMap<>();
-        options.put("header", "true");
-
-        for (final String directory : directories) {
-            if (unionDS.isEmpty())
-                unionDS = spark.read().options(options).csv(directory)
-                        .select(input_file_name().as(FILENAME_COLUMN), col("*"))
-                        .withColumn(DIRECTORY_COLUMN, lit(directory))
+    public static Dataset<Row> mergeDatasets(final SparkSession spark,
+                                             final List<Dataset<Row>> datasets) {
+        Dataset<Row> unionDs = spark.emptyDataFrame();
+        for (final Dataset<Row> dataset : datasets) {
+            if (unionDs.isEmpty()) {
+                unionDs = dataset.select(input_file_name().as(FILENAME_COLUMN), col("*"))
                         .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
-            else {
-                unionDS = unionDS.unionByName(spark.read().options(options).csv(directory)
-                    .select(input_file_name().as(FILENAME_COLUMN), col("*"))
-                    .withColumn(DIRECTORY_COLUMN, lit(directory))
-                    .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id()), true);
+            } else {
+                unionDs = unionDs.unionByName(dataset.select(input_file_name().as(FILENAME_COLUMN), col("*"))
+                        .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id()), true);
             }
+        }
+        return unionDs;
+    }
 
-        }
-        Set<String> headers = new HashSet<>();
-        for (final String header : unionDS.columns())
-            headers.add(header.toLowerCase());
-        for (final String requiredHeader : requiredHeaders) {
-            if (!headers.contains(requiredHeader)) {
-                throw new IllegalArgumentException("Unable to find all required column header values in source dataset: " +
-                        directories);
+    /**
+     * Convert csv files to a list of Datasets.
+     * @param spark             Spark session
+     * @param csvPaths          List of paths to csv files to convert to Datasets
+     * @param requiredHeaders   List of required headers in the csv files
+     * @return  List of Dataset<Row> from the list of csv files
+     */
+    public static List<Dataset<Row>> createDatasets(final SparkSession spark, final List<String> csvPaths,
+                                                    final List<String> requiredHeaders) {
+        final List<Dataset<Row>> datasets = new ArrayList<>();
+        for (final String csv : csvPaths) {
+            final Dataset<Row> dataset = spark.read().option("header", "true").csv(csv)
+                    .withColumn(DIRECTORY_COLUMN, lit(csv));
+            final Set<String> headers = Set.of(dataset.columns());
+            for (final String requiredHeader : requiredHeaders) {
+                if (!headers.contains(requiredHeader)) {
+                    throw new RuntimeException("Unable to find the required column header values '" +
+                            requiredHeaders + "' in source file '" + csv + "'.");
+                }
             }
+            datasets.add(dataset);
         }
-        return unionDS;
+        return datasets;
     }
 
     public static List<Long> vertexWrite(final Dataset<Row> unionVertexDS,

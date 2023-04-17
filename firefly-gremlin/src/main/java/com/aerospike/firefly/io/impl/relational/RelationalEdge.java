@@ -73,7 +73,7 @@ public class RelationalEdge extends FireflyEdge {
                              final FireflyId outVertex,
                              final FireflyId inVertex,
                              final Map<String, Object> properties,
-                             final Map<String, Long> typeHints) {
+                             final Map<String, Object> typeHints) {
         super(fid, label, graph, inVertex, outVertex, properties, typeHints);
         this.db = graph.getBaseGraph();
     }
@@ -112,7 +112,7 @@ public class RelationalEdge extends FireflyEdge {
 
         final AerospikeConnection db = graph.getBaseGraph();
         final Map<String, Object> data = new TreeMap<>();
-        final Map<String, Long> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -122,7 +122,7 @@ public class RelationalEdge extends FireflyEdge {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value.getClass()));
+                typeHints.put(key, getSupportedType(value));
                 data.put(key, value);
             }
         });
@@ -247,7 +247,7 @@ public class RelationalEdge extends FireflyEdge {
     private static class RelationalEdgeFactory {
         private static RelationalEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
                                              final FireflyId outVertex, final FireflyId inVertex,
-                                             final Map<String, Object> properties, final Map<String, Long> typeHints) {
+                                             final Map<String, Object> properties, final Map<String, Object> typeHints) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
             } else {
@@ -298,7 +298,7 @@ public class RelationalEdge extends FireflyEdge {
             final FireflyId inVertex = FireflyIdPoly.fromBase64Hash((String) inVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
 
             final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES).get(edgeIdMapKey);
-            final Map<String, Long> typeHints = (Map<String, Long>) record.getMap(db.TYPE_HINTS).get(edgeIdMapKey);
+            final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS).get(edgeIdMapKey);
 
             return RelationalEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }

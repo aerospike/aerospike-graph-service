@@ -3,7 +3,6 @@ package com.aerospike.firefly.io.impl.relational.packed;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
-import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
@@ -16,11 +15,8 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -28,8 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.TreeMap;
 
+import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 
@@ -57,7 +53,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                                 final String key,
                                 final Object value,
                                 final Map<String, Object> properties,
-                                final Map<String, Long> typeHints) {
+                                final Map<String, Object> typeHints) {
         super(graph, id, vertex.id, key, (V) value, properties, typeHints);
         this.vertex = vertex;
     }
@@ -109,7 +105,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             writeValue = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(propertyValue),
                     CTX.mapKey(Value.get(id.getStorageId())));
             writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
-                    Value.get(getSupportedType(propertyValue.getClass())),
+                    Value.get(getSupportedType(propertyValue)),
                     CTX.mapKey(Value.get(id.getStorageId())));
         }
 
@@ -131,7 +127,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
             }
         }
         this.properties.put(propertyKey, propertyValue);
-        this.typeHints.put(propertyKey, getSupportedType(propertyValue != null ? propertyValue.getClass() : String.class));
+        this.typeHints.put(propertyKey, propertyValue != null ? getSupportedType(propertyValue) : SupportedValueTypes.get(String.class));
         return new PackedVertexPropertyProperty<>(graph, this, propertyKey, propertyValue);
     }
 }

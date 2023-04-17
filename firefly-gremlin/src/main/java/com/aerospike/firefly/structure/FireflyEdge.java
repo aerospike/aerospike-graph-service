@@ -50,7 +50,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     protected final FireflyId inVid;
     protected final FireflyId outVid;
     protected final Map<String, Object> properties;
-    protected final Map<String, Long> typeHints;
+    protected final Map<String, Object> typeHints;
 
     public abstract void removeEdge();
 
@@ -62,7 +62,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
                        final FireflyId inVid,
                        final FireflyId outVid,
                        final Map<String, Object> properties,
-                       final Map<String, Long> typeHints) {
+                       final Map<String, Object> typeHints) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;
@@ -142,7 +142,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         FireflyHelper.validatePropertyValue(value);
         final Property<V> property = writeProperty(graph, this, key, value);
         properties.put(key, value);
-        typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
+        typeHints.put(key, AerospikeConnection.getSupportedType(value));
         return property;
     }
 
@@ -219,7 +219,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             valueOp = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(value),
                     CTX.mapKey(edgeIdMapKey));
             typeHintOp = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
-                    Value.get(getSupportedType(value.getClass())), CTX.mapKey(edgeIdMapKey));
+                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey));
         }
 
         final WritePolicy writePolicy = new WritePolicy();

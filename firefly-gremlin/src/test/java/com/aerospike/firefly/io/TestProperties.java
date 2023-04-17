@@ -28,8 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.__.unfold;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -395,7 +393,6 @@ public class TestProperties {
         g.V().hasLabel("person").property("notExistingKey", null).iterate();
         Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
 
-
         // Test null in a list
         final List<String> names = new ArrayList<>();
         names.add("simon");
@@ -441,7 +438,6 @@ public class TestProperties {
         g.V().hasLabel("person").properties("name").property("notExistingKey", null).iterate();
         Assert.assertFalse(g.V().hasLabel("person").properties("name").has("notExistingKey").hasNext());
 
-
         // Test null in a list
         final List<String> languages = new ArrayList<>();
         languages.add("english");
@@ -459,6 +455,58 @@ public class TestProperties {
         assertCollectionEquals(new ArrayList<>(languages), (List<Object>) property.value());
     }
 
+    @Test
+    public void testListPropertyValue() {
+        final GraphTraversalSource g = graph.traversal();
+
+        final List<Object> listValue = new ArrayList<>();
+        // String
+        listValue.add("hello world");
+        // Boolean
+        listValue.add(true);
+        // Int
+        listValue.add(1);
+        // Long
+        listValue.add(23L);
+        // Double
+        listValue.add(456.78);
+        // byte[]
+        listValue.add(new byte[]{ 1, 2, 3 });
+        // Byte[]
+        listValue.add(new Byte[]{ 4, 5, 6});
+
+        // Vertex Property
+        g.V().hasLabel("person").property("listProperty", listValue).iterate();
+        List<Object> returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.V().hasLabel("person").property("listProperty", "notAList").iterate();
+        g.V().hasLabel("person").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+
+        // Vertex Property Property
+        g.V().hasLabel("person").property("vpp", "vpp").iterate();
+        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.V().hasLabel("person").properties("vpp").property("listProperty", "notAList").iterate();
+        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+
+        // Edge Property
+        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.E().hasLabel("bought").property("listProperty", "notAList").iterate();
+        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+    }
+
     private static void assertCollectionEquals(final Collection<Object> expected, final Collection<Object> actual) {
         final List<Object> expectedClone = new LinkedList<>(expected);
         for (final Object item : actual) {
@@ -470,6 +518,24 @@ public class TestProperties {
         }
         if (!expectedClone.isEmpty()) {
             Assert.fail("Expected list has additional values compared to actual list.");
+        }
+    }
+
+    private static void assertListPropertyValue(final List<Object> expected, final List<Object> actual) {
+        // This helper assertion function should only be used by testListPropertyValue
+        Assert.assertEquals(expected.size(), actual.size());
+        for (int i = 0; i < 5; i++) {
+            Assert.assertEquals(expected.get(i), actual.get(i));
+        }
+        final byte[] expectedByte = (byte[]) expected.get(5);
+        final byte[] actualByte = (byte[]) actual.get(5);
+        for (int i = 0; i < expectedByte.length; i++) {
+            Assert.assertEquals(expectedByte[i], actualByte[i]);
+        }
+        final Byte[] expectedByteObj = (Byte[]) expected.get(6);
+        final Byte[] actualByteObj = (Byte[]) actual.get(6);
+        for (int i = 0; i < expectedByteObj.length; i++) {
+            Assert.assertEquals(expectedByteObj[i], actualByteObj[i]);
         }
     }
 }

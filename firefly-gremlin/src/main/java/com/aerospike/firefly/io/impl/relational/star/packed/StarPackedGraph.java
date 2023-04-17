@@ -200,7 +200,7 @@ public class StarPackedGraph extends PackedGraph {
                                                             final V value,
                                                             final Object... keyValues) {
         final Map<String, Object> properties = new TreeMap<>();
-        final Map<String, Long> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
 
         for (int i = 0; i < keyValues.length; i = i + 2) {
@@ -208,7 +208,7 @@ public class StarPackedGraph extends PackedGraph {
                 if (!allowNullProperties && null == keyValues[i + 1]) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
                     if (keyValues[i + 1] != null) {
-                        typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1].getClass()));
+                        typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1]));
                     }
                 }
         }

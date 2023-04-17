@@ -19,7 +19,7 @@ public class StarPackedEdge extends RelationalEdge {
                            final FireflyId outVertex,
                            final FireflyId inVertex,
                            final Map<String, Object> data,
-                           final Map<String, Long> typeHints) {
+                           final Map<String, Object> typeHints) {
         super(fid, label, graph, outVertex, inVertex, data, typeHints);
     }
 

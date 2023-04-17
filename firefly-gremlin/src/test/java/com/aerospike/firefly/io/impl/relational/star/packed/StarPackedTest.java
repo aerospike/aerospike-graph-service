@@ -511,23 +511,23 @@ public class StarPackedTest {
         if (ffr != null) {
             final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
             final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vpTypeHintMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Object>>> vpTypeHintMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
             final Map<String, List<Map<String, Long>>> vpIdMapExpected = new HashMap<>();
             final Map<String, List<Map<String, Object>>> vpValueMapExpected = new HashMap<>();
-            final Map<String, List<Map<String, Long>>> vpTypeHintMapExpected = new HashMap<>();
+            final Map<String, List<Map<String, Object>>> vpTypeHintMapExpected = new HashMap<>();
 
             expectedProperties.forEach((key, value) -> {
                 final List<Map<String, Long>> vpIdList = new ArrayList<>();
                 final List<Map<String, Object>> vpValueList = new ArrayList<>();
-                final List<Map<String, Long>> vpTypeHintList = new ArrayList<>();
+                final List<Map<String, Object>> vpTypeHintList = new ArrayList<>();
                 value.forEach(setOfVPs -> {
                     final Map<String, Long> vpIdMapInner = new HashMap<>();
                     final Map<String, Object> vpValueMapInner = new HashMap<>();
-                    final Map<String, Long> vpTypeHintMapInner = new HashMap<>();
+                    final Map<String, Object> vpTypeHintMapInner = new HashMap<>();
                     setOfVPs.forEach(vp -> {
                         vpIdMapInner.put(vp.key(), (Long) vp.id());
                         vpValueMapInner.put(vp.key(), vp.value());
-                        vpTypeHintMapInner.put(vp.key(), db.getSupportedType(vp.value().getClass()));
+                        vpTypeHintMapInner.put(vp.key(), db.getSupportedType(vp.value()));
                     });
                     vpIdList.add(vpIdMapInner);
                     vpValueList.add(vpValueMapInner);

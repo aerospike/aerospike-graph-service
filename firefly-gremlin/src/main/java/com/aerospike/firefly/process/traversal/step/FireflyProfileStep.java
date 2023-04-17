@@ -57,21 +57,21 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
     @Override
     public boolean hasNext() {
         boolean res = super.hasNext();
-        if (!res) {
-            ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
-            shc.stats().forEach((key, value) -> {
-                this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
-            });
-            long sum = this.metrics.getDuration(TimeUnit.NANOSECONDS);
-            for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
-                final long nsTime = entry.getValue().get();
-                this.metrics.setAnnotation(String.format(" %s : %s ", entry.getKey().toString().split("-")[0], shc.getKeyForUUID(entry.getKey())), String.format(" %.3f ms", nsTime / 1_000_000.));
-                sum += nsTime;
-            }
-            if (sum > 0)
-                this.metrics.setDuration(sum, TimeUnit.NANOSECONDS);
-            ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
+        if (res)
+            return true;
+        ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
+        shc.stats().forEach((key, value) -> {
+            this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
+        });
+        long sum = this.metrics.getDuration(TimeUnit.NANOSECONDS);
+        for (Map.Entry<UUID, AtomicLong> entry : shc.getScanTimings().entrySet()) {
+            final long nsTime = entry.getValue().get();
+            this.metrics.setAnnotation(String.format(" %s : %s ", entry.getKey().toString().split("-")[0], shc.getKeyForUUID(entry.getKey())), String.format(" %.3f ms", nsTime / 1_000_000.));
+            sum += nsTime;
         }
+        if (sum > 0)
+            this.metrics.setDuration(sum, TimeUnit.NANOSECONDS);
+        ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().resetScanHitCounter();
         return res;
     }
 }

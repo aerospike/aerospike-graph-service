@@ -48,7 +48,7 @@ import java.util.stream.IntStream;
  * IdentityGenerator is Runnable and multiple independent threads/workers can be spawned each executing their own IdentityGenerator instance.
  * Given the nature of the underlying graph structure, it is not necessary for the individual workers to have knowledge/reference to
  * the subgraphs of parallel IdentityGenerators. Such a structure allows for an embarrassingly parallel graph generator.
- * <p>
+ * 
  * IdentityGenerator.Builder is used to create the Runnable.
  *
  * <pre><code>

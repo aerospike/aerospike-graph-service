@@ -383,15 +383,9 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (exp != null)
             policy.filterExp = exp;
         final AerospikeClient client = db.getClient();
-        final ScanHitCounter shc = db.getScanHitCounter();
         final UUID scanId = UUID.randomUUID();
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)),
-                scanId,
-                (start,stop) -> {
-                    shc.setScanTimings(scanId, start, stop);
-                    return null;
-                });
+        final ConcurrentScanRecordSequenceListener listener =
+                ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
         listener.setStartTime();
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
         return new FireflyCloseableIterator<>(listener);

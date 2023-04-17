@@ -121,10 +121,15 @@ public class TestVertexPropertyCacheIntegration {
         final ScanPolicy policy = new ScanPolicy();
         final AerospikeClient client = connection.getClient();
         final UUID scanId = UUID.randomUUID();
+        final ConcurrentScanRecordSequenceListener listener =
+                ConcurrentScanRecordSequenceListener.create(SETUP_GRAPH.getBaseGraph(), scanMonitor, scanId);
 
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, connection.conf)), scanId, (x,y) -> null);
-        client.scanAll(connection.getEventLoops().next(), listener, policy, connection.getNamespace(), connection.VERTEX_PROPERTY_AERO_SET);
+        client.scanAll(connection.getEventLoops().next(),
+                listener,
+                policy,
+                connection.getNamespace(),
+                connection.VERTEX_PROPERTY_AERO_SET);
+
         return new FireflyCloseableIterator<>(listener);
     }
 }

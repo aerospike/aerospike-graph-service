@@ -352,7 +352,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public ScanHitCounter getScanHitCounter() {
         if (scanHitCounterThreadLocal.get() == null)
-            scanHitCounterThreadLocal.set(ScanHitCounter.create());
+            scanHitCounterThreadLocal.set(new ScanHitCounter());
         return scanHitCounterThreadLocal.get();
     }
 
@@ -400,7 +400,6 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Iterator of raw Ids
      */
     public Iterator<FireflyId> readElementIds(final Class<? extends FireflyElement> type) {
-
         return scanAllIdsInSet(ReadContext.create(setFromElementType(type)));
     }
 
@@ -441,8 +440,8 @@ public class AerospikeConnection implements AutoCloseable {
      * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
      * @param context read context
-     * @param exp         Expression to apply to Scan
-     * @param sendKey     Send the original user key
+     * @param exp     Expression to apply to Scan
+     * @param sendKey Send the original user key
      * @return Iterator of KeyRecord
      */
     public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp, boolean sendKey) {
@@ -504,19 +503,11 @@ public class AerospikeConnection implements AutoCloseable {
         policy.sendKey = sendKey;
         if (exp != null) policy.filterExp = exp;
         final UUID scanId = UUID.randomUUID();
-        ScanHitCounter shc = this.getScanHitCounter();
+        final ScanHitCounter shc = this.getScanHitCounter();
         if (context.getKeyName().isPresent())
             shc.associateUUID(scanId, context.getKeyName().get());
         final ConcurrentScanRecordSequenceListener listener =
-                new ConcurrentScanRecordSequenceListener(
-                        scanMonitor,
-                        Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)),
-                        scanId,
-                        (start, stop) -> {
-                            shc.setScanTimings(scanId, start, stop);
-                            return null;
-                        }
-                );
+                ConcurrentScanRecordSequenceListener.create(this, scanMonitor, scanId);
         listener.setStartTime();
         client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
 

@@ -31,7 +31,7 @@ public class TestScanHitCounter extends AbstractFireflySuite {
     }
     @Test
     public void testScanHitCounter() {
-        ScanHitCounter shc = ScanHitCounter.create();
+        ScanHitCounter shc = new ScanHitCounter();
         shc.increment("a");
         shc.increment("a");
         shc.increment("b");

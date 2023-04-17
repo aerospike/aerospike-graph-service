@@ -6,6 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +33,8 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
     private final int maxWaitMs;
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final Logger LOG = LoggerFactory.getLogger(ConcurrentScanRecordSequenceListener.class);
-    private final UUID scanId;
     private final BiFunction<Long, Long, Void> metricsCallback;
     private long startTime = -1;
-    private long stopTime = -1;
 
     /**
      * ConcurrentScanRecordSequenceListener will return an iterator immediately, while still receiving results.
@@ -44,12 +43,10 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
      * @param scanMonitor Aerospike scanMonitor
      * @param maxWaitMs   max time to block waiting for new events
      */
-    public ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
-                                                final int maxWaitMs,
-                                                final UUID scanId,
-                                                final BiFunction<Long, Long, Void> metricsCallback) {
+    private ConcurrentScanRecordSequenceListener(final Monitor scanMonitor,
+                                                 final int maxWaitMs,
+                                                 final BiFunction<Long, Long, Void> metricsCallback) {
         this.metricsCallback = metricsCallback;
-        this.scanId = scanId;
         this.scanMonitor = scanMonitor;
         this.semaphore = new Semaphore(1);
         this.maxWaitMs = maxWaitMs;
@@ -58,6 +55,25 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * create new ConcurrentScanRecordSequenceListener
+     * @param db AerospikeConnection instance
+     * @param scanMonitor Aerospike scanMonitor
+     * @param scanId scanId
+     * @return new ConcurrentScanRecordSequenceListener
+     */
+    public static ConcurrentScanRecordSequenceListener create(final AerospikeConnection db,
+                                                              final Monitor scanMonitor,
+                                                              final UUID scanId) {
+        final BiFunction<Long, Long, Void> metricsCallback = (start, stop) -> {
+            db.getScanHitCounter().setScanTimings(scanId, start, stop);
+            return null;
+        };
+        return new ConcurrentScanRecordSequenceListener(scanMonitor,
+                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)),
+                metricsCallback);
     }
 
     /**
@@ -152,7 +168,6 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             }
         };
     }
-
 
     public void terminateScan() {
         metricsCallback.apply(startTime, System.nanoTime());

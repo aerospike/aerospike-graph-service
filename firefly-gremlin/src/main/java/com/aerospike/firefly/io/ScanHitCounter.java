@@ -15,7 +15,7 @@ public class ScanHitCounter {
     final Map<UUID, AtomicLong> scanTimings;
 
 
-    private ScanHitCounter() {
+    public ScanHitCounter() {
         this.hitCount = new ConcurrentHashMap<>();
         this.scansByKey = new ConcurrentHashMap<>();
         this.scanTimings = new ConcurrentHashMap<>();
@@ -39,10 +39,6 @@ public class ScanHitCounter {
      */
     public void setScanTimings(final UUID uuid, final long startTime, final long stopTime) {
         this.scanTimings.computeIfAbsent(uuid, k -> new AtomicLong(0)).set(stopTime - startTime);
-    }
-
-    public static ScanHitCounter create() {
-        return new ScanHitCounter();
     }
 
     /**
@@ -82,7 +78,12 @@ public class ScanHitCounter {
         return scanTimings;
     }
 
-    public Object getKeyForUUID(UUID key) {
-        return scansByKey.getOrDefault(key, "NO KEY");
+    /**
+     * Get the key that triggered a scan.
+     * @param scanId
+     * @return the key that triggered the scan
+     */
+    public Object getKeyForUUID(UUID scanId) {
+        return scansByKey.getOrDefault(scanId, "NO KEY");
     }
 }

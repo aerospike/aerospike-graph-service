@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -24,6 +25,10 @@ import static org.junit.Assert.assertTrue;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class TestScanHitCounter extends AbstractFireflySuite {
+    @Before
+    public void clear(){
+        graph.getBaseGraph().dropDatabase();
+    }
     @Test
     public void testScanHitCounter() {
         ScanHitCounter shc = ScanHitCounter.create();

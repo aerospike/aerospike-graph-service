@@ -25,7 +25,7 @@ public class ReadContext {
     }
 
     public static ReadContext create(final String set, final String bin, final String key) {
-        return new ReadContext(set, Optional.of(bin), Optional.of(key));
+        return new ReadContext(set, Optional.ofNullable(bin), Optional.ofNullable(key));
     }
 
 

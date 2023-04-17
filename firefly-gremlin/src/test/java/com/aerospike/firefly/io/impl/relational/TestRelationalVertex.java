@@ -43,7 +43,7 @@ public class TestRelationalVertex {
 
     @Before
     public void beforeEach() {
-        GRAPH.getBaseGraph().dropDatabase();
+        GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), GRAPH);
     }
 

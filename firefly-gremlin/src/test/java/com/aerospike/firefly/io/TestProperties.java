@@ -73,7 +73,7 @@ public class TestProperties {
     @After
     public void afterEach() {
         System.out.println("===> Completed " + testName.getMethodName() + " <===");
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
 
     @Test

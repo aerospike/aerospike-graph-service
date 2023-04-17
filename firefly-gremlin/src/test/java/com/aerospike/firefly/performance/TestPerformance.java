@@ -292,7 +292,7 @@ public class TestPerformance extends AbstractFireflySuite {
         config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "false");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         for (int i = 0; i < count; i++)
             graph.addVertex();
         assertEquals((Long) count, g.V().count().next());
@@ -304,7 +304,7 @@ public class TestPerformance extends AbstractFireflySuite {
         config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "true");
         graph = FireflyGraph.open(config);
         g = graph.traversal();
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         for (int i = 0; i < count; i++)
             graph.addVertex();
         assertEquals((Long) count, g.V().count().next());

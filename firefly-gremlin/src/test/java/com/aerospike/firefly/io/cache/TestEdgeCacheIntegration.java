@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import groovy.transform.builder.InitializerStrategy;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -35,12 +36,12 @@ public class TestEdgeCacheIntegration {
     @BeforeClass
     public static void beforeAll() {
         SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @Test
@@ -211,7 +212,7 @@ public class TestEdgeCacheIntegration {
     }
 
     private void testAddAndRemoveEdges(final FireflyGraph graph) {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
 
         // This tests adding and removal of edges, in states where the cache overflow is enabled and disabled, as well
         // as the cache state being triggered to change.
@@ -324,7 +325,7 @@ public class TestEdgeCacheIntegration {
     }
 
     private FireflyTestVertexes setupTest(final FireflyGraph graph, final boolean returnSnapshot) {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         final GraphTraversalSource g = graph.traversal();
         final FireflyVertex threeOutTwoInSnapshot = (FireflyVertex) g.addV("threeOutTwoIn").next();
         final FireflyVertex oneOutTwoInSnapshot = (FireflyVertex) g.addV("oneOutTwoIn").next();

@@ -35,13 +35,13 @@ public class TestFireflyDropStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         SETUP_GRAPH.close();
     }
 
     @Before
     public void beforeEach() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
         final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(1, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));

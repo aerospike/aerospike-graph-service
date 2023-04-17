@@ -9,6 +9,7 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import groovy.transform.builder.InitializerStrategy;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
@@ -28,17 +29,17 @@ public class TestVertexPropertyCacheIntegration {
     @BeforeClass
     public static void beforeAll() {
         SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @Before
     public void beforeEach() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @Test
@@ -100,7 +101,7 @@ public class TestVertexPropertyCacheIntegration {
     }
 
     private void assertDropVertexDropsProperties(final FireflyGraph graph) {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         final GraphTraversalSource g = graph.traversal();
 
         g.addV("cat").property("name", "Vincent").iterate();

@@ -423,7 +423,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldRemoveAllData() throws InterruptedException {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
         });
@@ -476,7 +476,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void updateListByOperation() {
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         final String edgeLabel = "testLabel";
         final String edgeDirection = "OUT";
         final long edgeRawId = 3L;
@@ -512,7 +512,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void createListByOperation() {
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         final String edgeLabel = "testLabel";
         final String edgeDirection = "OUT";
         final long edgeRawId = 3L;

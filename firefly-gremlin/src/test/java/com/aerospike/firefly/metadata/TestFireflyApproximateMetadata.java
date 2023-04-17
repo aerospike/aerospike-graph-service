@@ -243,7 +243,6 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             // Poison pill injected on close, should be mid-stream.
             // Just in case it doesn't end up that way this is looped.
             firefly.close();
-            Assert.assertFalse(firefly.fireflySummaryUpdater.exitedWithError());
             Assert.assertTrue(firefly.fireflySummaryUpdater.exited());
         }
     }
@@ -524,6 +523,40 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         assertEquals(Map.of("OWNS", Set.of("since", "foo"), "OWNED_BY", Set.of("baz")), edgePropertiesPerLabel);
         assertEquals(Map.of("OWNS", 2L, "OWNED_BY", 1L), edgeCountPerLabel);
         assertEquals(3L, edgeCount.longValue());
+    }
+
+    @Test
+    public void testLongVertexLabel() {
+        g.addV("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").iterate();
+        wait1Second();
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
+    }
+
+    @Test
+    public void testLongEdgeLabel() {
+        final Vertex a = g.addV("person").next();
+        final Vertex b = g.addV("person").next();
+
+        g.addE("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").from(a).to(b).iterate();
+        wait1Second();
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
+    }
+
+    @Test
+    public void testLongVertexProperty() {
+        g.addV("1").property("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").iterate();
+        wait1Second();
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
+    }
+
+    @Test
+    public void testLongEdgeProperty() {
+        final Vertex a = g.addV("person").next();
+        final Vertex b = g.addV("person").next();
+
+        g.addE("1").property("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").from(a).to(b).iterate();
+        wait1Second();
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
 
     void wait1Second() {

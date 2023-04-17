@@ -47,13 +47,13 @@ public class StarPackedTest {
     boolean outIn = true;
     boolean inOut = true;
     boolean inIn = true;
-    FireflyGraph graph;
+    static FireflyGraph graph;
     AerospikeConnection db;
 
     public static void clearDatabase() {
         try (final AerospikeConnection db = AerospikeConnection.connect(
                 ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            db.dropDatabase();
+            db.dropDatabase(graph, false);
         }
     }
 
@@ -83,7 +83,7 @@ public class StarPackedTest {
                 inIn = ((StarPackedGraph) graph).enableInIn;
                 testStarPackedGraphWrite();
             }
-            db.dropDatabase();
+            db.dropDatabase(graph, false);
         }
     }
 
@@ -103,7 +103,7 @@ public class StarPackedTest {
                 inIn = ((StarPackedGraph) graph).enableInIn;
                 testStarPackedGraphRemoveThreePerson();
             }
-            db.dropDatabase();
+            db.dropDatabase(graph, false);
         }
     }
 
@@ -123,7 +123,7 @@ public class StarPackedTest {
                 inIn = ((StarPackedGraph) graph).enableInIn;
                 testAddAndRemoveVertexProperty();
             }
-            db.dropDatabase();
+            db.dropDatabase(graph, false);
         }
     }
 

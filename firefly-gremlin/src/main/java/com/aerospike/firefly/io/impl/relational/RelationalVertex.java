@@ -790,7 +790,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         final long inEdgeCount = record.getLong(db.IN_EDGE_COUNTER);
         final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER);
 
-
         // Get inEdgeIds and outEdgeIds.
         final Map<String, List<Object>> inEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.IN_EDGES));
         final Map<String, List<Object>> outEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.OUT_EDGES));

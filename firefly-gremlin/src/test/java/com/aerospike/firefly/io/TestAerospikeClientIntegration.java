@@ -451,8 +451,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
-            Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
+            final Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
+            final Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
                     AerospikeConnection.LABEL);
             FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
             assertFalse(vertxKeys.hasNext());

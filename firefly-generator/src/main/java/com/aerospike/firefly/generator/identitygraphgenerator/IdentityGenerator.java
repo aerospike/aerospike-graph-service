@@ -386,7 +386,9 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap.put("schema", schemaSet);
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
-        } else objectPropertyMap = graphMap.get(fileName);
+        } else { 
+            objectPropertyMap = graphMap.get(fileName);
+        }
 
         if (!streamMap.containsKey(dir + "/" + fileName + "_" + fileCount)) {
             HashSet<String[]> schemaSet = new HashSet<>();

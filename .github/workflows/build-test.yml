@@ -51,6 +51,10 @@ jobs:
           distribution: 'temurin'
       - name: Build Maven Project
         run: |
+          # Run simple check to see if code is formatted properly before building.
+          # If code is incorrectly formatted, it can be fixed automatically with:
+          # mvn editorconfig:format
+          mvn editorconfig:check
           mvn clean package -DskipTests --no-transfer-progress
   stop-runner-build:
     name: Stop Build Runner

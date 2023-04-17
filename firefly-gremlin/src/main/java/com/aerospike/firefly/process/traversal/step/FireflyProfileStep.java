@@ -36,8 +36,8 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
         }
     }
 
-    public static long percentile(List<Long> latencies, double percentile) {
-        int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
+    public static long percentile(final List<Long> latencies, final double percentile) {
+        final int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
         return latencies.get(index - 1);
     }
 

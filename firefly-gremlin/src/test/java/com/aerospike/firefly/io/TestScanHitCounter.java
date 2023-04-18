@@ -27,7 +27,7 @@ import static org.junit.Assert.assertTrue;
 public class TestScanHitCounter extends AbstractFireflySuite {
     @Before
     public void clear(){
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
     @Test
     public void testScanHitCounter() {

@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
@@ -19,6 +20,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.MapHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Tree;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -67,7 +69,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLab
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.properties;
-
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -443,18 +444,18 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
 
-        ObjectMapper mapper = ((GraphSONIo) noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0))).mapper().version(GraphSONVersion.V1_0).create().createMapper();
-        Tree t = (Tree) noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph, "marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
+        ObjectMapper mapper = noCacheGraph.io(GraphSONIo.build(GraphSONVersion.V1_0)).mapper().version(GraphSONVersion.V1_0).create().createMapper();
+        Tree t = noCacheGraph.traversal().V(new Object[]{this.convertToVertexId(noCacheGraph, "marko")}).out(new String[0]).properties(new String[]{"name"}).tree().next();
         String json = mapper.writeValueAsString(t);
-        HashMap<String, Object> m = (HashMap) mapper.readValue(json, this.mapTypeReference);
-        Assert.assertEquals(1L, (long) m.size());
+        HashMap<String, Object> m = mapper.readValue(json, this.mapTypeReference);
+        Assert.assertEquals(1L, m.size());
         Assert.assertTrue(m.containsKey(this.convertToVertex(noCacheGraph, "marko").id().toString()));
         HashMap<String, Object> branch = (HashMap) m.get(this.convertToVertexId(noCacheGraph, "marko").toString());
-        Assert.assertEquals(2L, (long) branch.size());
+        Assert.assertEquals(2L, branch.size());
         Assert.assertTrue(branch.containsKey("key"));
         Assert.assertTrue(branch.containsKey("value"));
         HashMap<String, Object> branchKey = (HashMap) branch.get("key");
@@ -469,7 +470,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertEquals("marko", ((HashMap) ((List) branchKeyProps.get("name")).get(0)).get("value"));
         Assert.assertEquals(29, ((HashMap) ((List) branchKeyProps.get("age")).get(0)).get("value"));
         HashMap<String, Object> branchValue = (HashMap) branch.get("value");
-        Assert.assertEquals(3L, (long) branchValue.size());
+        Assert.assertEquals(3L, branchValue.size());
         Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "vadas").toString()));
         Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "lop").toString()));
         Assert.assertTrue(branchValue.containsKey(this.convertToVertexId(noCacheGraph, "josh").toString()));
@@ -478,12 +479,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         Assert.assertTrue(branch2.containsKey("value"));
         Map.Entry entry = (Map.Entry) ((HashMap) branch2.get("value")).entrySet().iterator().next();
         HashMap<String, HashMap<String, Object>> branch2Prop = (HashMap) entry.getValue();
-        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("id"));
-        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("value"));
-        Assert.assertTrue(((HashMap) branch2Prop.get("key")).containsKey("label"));
-        Assert.assertEquals("name", ((HashMap) branch2Prop.get("key")).get("label"));
-        Assert.assertEquals("vadas", ((HashMap) branch2Prop.get("key")).get("value"));
-        Assert.assertEquals(entry.getKey().toString(), ((HashMap) branch2Prop.get("key")).get("id").toString());
+        Assert.assertTrue(branch2Prop.get("key").containsKey("id"));
+        Assert.assertTrue(branch2Prop.get("key").containsKey("value"));
+        Assert.assertTrue(branch2Prop.get("key").containsKey("label"));
+        Assert.assertEquals("name", branch2Prop.get("key").get("label"));
+        Assert.assertEquals("vadas", branch2Prop.get("key").get("value"));
+        Assert.assertEquals(entry.getKey().toString(), branch2Prop.get("key").get("id").toString());
     }
 
     @Test
@@ -501,8 +502,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         cacheConfig.setProperty(Graph.GRAPH, "cachegraph");
 
         FireflyGraph cacheGraph = FireflyGraph.open(cacheConfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
-        cacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
+        cacheGraph.getBaseGraph().dropDatabase(cacheGraph, false);
 
         Vertex ncgVa = noCacheGraph.traversal().addV().next();
         Vertex ncgVb = noCacheGraph.traversal().addV().next();
@@ -564,7 +565,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void noNext() {
         try {
-            graph.edges(10000l).next();
+            graph.edges(10000L).next();
             fail("Call to g.edges(10000l) should throw an exception");
         } catch (Exception ex) {
             assertThat(ex, IsInstanceOf.instanceOf(NoSuchElementException.class));
@@ -587,30 +588,30 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 }
             }
         }
-        assertEquals(0L, FireflyCloseableIteratorUtils.count(start.edges(Direction.IN, new String[0])));
-        assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(start.edges(Direction.OUT, new String[0])));
-        Iterator var9 = FireflyCloseableIteratorUtils.list(start.edges(Direction.OUT, new String[0])).iterator();
+        assertEquals(0L, FireflyCloseableIteratorUtils.count(start.edges(Direction.IN)));
+        assertEquals(branchSize, FireflyCloseableIteratorUtils.count(start.edges(Direction.OUT)));
+        Iterator var9 = FireflyCloseableIteratorUtils.list(start.edges(Direction.OUT)).iterator();
 
         while (var9.hasNext()) {
             Edge a = (Edge) var9.next();
             Assert.assertEquals("test1", a.label());
 
-            Assert.assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.OUT, new String[0])));
-            Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.IN, new String[0])));
-            Iterator var12 = FireflyCloseableIteratorUtils.list(a.inVertex().edges(Direction.OUT, new String[0])).iterator();
+            Assert.assertEquals(branchSize, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.OUT)));
+            Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(a.inVertex().vertices(Direction.IN)));
+            Iterator var12 = FireflyCloseableIteratorUtils.list(a.inVertex().edges(Direction.OUT)).iterator();
 
             while (var12.hasNext()) {
                 Edge b = (Edge) var12.next();
                 Assert.assertEquals("test2", b.label());
-                Assert.assertEquals((long) branchSize, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.OUT, new String[0])));
-                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.IN, new String[0])));
-                Iterator var14 = FireflyCloseableIteratorUtils.list(b.inVertex().edges(Direction.OUT, new String[0])).iterator();
+                Assert.assertEquals(branchSize, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.OUT)));
+                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(b.inVertex().vertices(Direction.IN)));
+                Iterator var14 = FireflyCloseableIteratorUtils.list(b.inVertex().edges(Direction.OUT)).iterator();
 
                 while (var14.hasNext()) {
                     Edge c = (Edge) var14.next();
                     Assert.assertEquals("test3", c.label());
-                    Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.OUT, new String[0])));
-                    Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.IN, new String[0])));
+                    Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.OUT)));
+                    Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(c.inVertex().vertices(Direction.IN)));
                 }
             }
         }
@@ -670,36 +671,36 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             return;
         }
         for (int i = 0; i < 25; ++i) {
-            this.graph.addVertex(new Object[]{"myId", i});
+            graph.addVertex("myId", i);
         }
 
-        this.graph.vertices(new Object[0]).forEachRemaining((vx) -> {
-            this.graph.vertices(new Object[0]).forEachRemaining((u) -> {
-                vx.addEdge("knows", u, new Object[]{"myEdgeId", 12});
+        graph.vertices(new Object[0]).forEachRemaining((vx) -> {
+            graph.vertices(new Object[0]).forEachRemaining((u) -> {
+                vx.addEdge("knows", u, "myEdgeId", 12);
             });
         });
-        this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(25, 625));
+        this.tryCommit(graph, sngcme_getAssertVertexEdgeCounts(25, 625));
         List<Vertex> vertices = new ArrayList();
-        FireflyCloseableIteratorUtils.fill(this.graph.vertices(new Object[0]), vertices);
+        FireflyCloseableIteratorUtils.fill(graph.vertices(), vertices);
         Iterator var2 = vertices.iterator();
 
         while (var2.hasNext()) {
             Vertex v = (Vertex) var2.next();
             v.remove();
-            this.sngcme_tryCommit(this.graph);
+            this.sngcme_tryCommit(graph);
         }
 
-        this.tryCommit(this.graph, sngcme_getAssertVertexEdgeCounts(0, 0));
+        this.tryCommit(graph, sngcme_getAssertVertexEdgeCounts(0, 0));
     }
 
     @Test
     public void shouldReadWriteSelfLoopingEdges() throws Exception {
-        GraphSONMapper mapper = ((GraphSONIo) this.graph.io(GraphSONIo.build())).mapper().version(GraphSONVersion.V3_0).create();
-        Graph source = this.graph;
-        Vertex v1 = source.addVertex(new Object[0]);
-        Vertex v2 = source.addVertex(new Object[0]);
-        v1.addEdge("CONTROL", v2, new Object[0]);
-        v1.addEdge("SELFLOOP", v1, new Object[0]);
+        GraphSONMapper mapper = graph.io(GraphSONIo.build()).mapper().version(GraphSONVersion.V3_0).create();
+        Graph source = graph;
+        Vertex v1 = source.addVertex();
+        Vertex v2 = source.addVertex();
+        v1.addEdge("CONTROL", v2);
+        v1.addEdge("SELFLOOP", v1);
         final HashMap<String, Object> configMap = new HashMap<>();
         graph.configuration().getKeys().forEachRemaining(k -> configMap.put(k, graph.configuration().get(String.class, k)));
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "1");
@@ -711,12 +712,12 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             Throwable var8 = null;
 
             try {
-                ((GraphSONIo) source.io(IoCore.graphson())).writer().mapper(mapper).create().writeGraph(os, source);
+                source.io(IoCore.graphson()).writer().mapper(mapper).create().writeGraph(os, source);
                 ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
                 Throwable var10 = null;
 
                 try {
-                    ((GraphSONIo) targetGraph.io(IoCore.graphson())).reader().mapper(mapper).create().readGraph(is, targetGraph);
+                    targetGraph.io(IoCore.graphson()).reader().mapper(mapper).create().readGraph(is, targetGraph);
                 } catch (Throwable var35) {
                     var10 = var35;
                     throw var35;
@@ -755,8 +756,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             throw new RuntimeException(var39);
         }
 
-        Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.vertices(new Object[0])), FireflyCloseableIteratorUtils.count(targetGraph.vertices(new Object[0])));
-        Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.edges(new Object[0])), FireflyCloseableIteratorUtils.count(targetGraph.edges(new Object[0])));
+        Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.vertices()), FireflyCloseableIteratorUtils.count(targetGraph.vertices()));
+        Assert.assertEquals(FireflyCloseableIteratorUtils.count(source.edges()), FireflyCloseableIteratorUtils.count(targetGraph.edges()));
     }
 
     private static <A> boolean internalCheckList(final List<A> expectedList, final List<A> actualList) {
@@ -912,19 +913,19 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void shouldHandleListVertexPropertiesWithoutNullPropertyValues() {
         if (graph.features().vertex().supportsMultiProperties()) {
-            Vertex v = this.graph.addVertex(new Object[]{"name", "marko", "age", 34});
+            Vertex v = graph.addVertex("name", "marko", "age", 34);
 
-            this.tryCommit(this.graph, (g) -> {
+            this.tryCommit(graph, (g) -> {
                 Assert.assertEquals("marko", v.property("name").value());
                 Assert.assertEquals("marko", v.value("name"));
                 Assert.assertEquals(34, v.property("age").value());
                 Assert.assertEquals(34L, (long) (Integer) v.value("age"));
-                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(v.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(v.properties(new String[0])));
-                assertVertexEdgeCounts(this.graph, 1, 0);
+                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(v.properties("name")));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(v.properties()));
+                assertVertexEdgeCounts(graph, 1, 0);
             });
-            VertexProperty<String> property = v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez", new Object[0]);
-            this.tryCommit(this.graph, (g) -> {
+            VertexProperty<String> property = v.property(VertexProperty.Cardinality.list, "name", "marko a. rodriguez");
+            this.tryCommit(graph, (g) -> {
                 Assert.assertEquals(v, property.element());
             });
 
@@ -935,51 +936,51 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 validateException(Vertex.Exceptions.multiplePropertiesExistForProvidedKey("name"), var4);
             }
 
-            Assert.assertTrue(FireflyCloseableIteratorUtils.list(v.values(new String[]{"name"})).contains("marko"));
-            Assert.assertTrue(FireflyCloseableIteratorUtils.list(v.values(new String[]{"name"})).contains("marko a. rodriguez"));
-            Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(v.properties(new String[0])));
-            Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(v.properties(new String[]{"name"})));
-            assertVertexEdgeCounts(this.graph, 1, 0);
+            Assert.assertTrue(FireflyCloseableIteratorUtils.list(v.values("name")).contains("marko"));
+            Assert.assertTrue(FireflyCloseableIteratorUtils.list(v.values("name")).contains("marko a. rodriguez"));
+            Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(v.properties()));
+            Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(v.properties("name")));
+            assertVertexEdgeCounts(graph, 1, 0);
             Assert.assertEquals(v, v.property(VertexProperty.Cardinality.list, "name", "mrodriguez", new Object[0]).element());
-            this.tryCommit(this.graph, (g) -> {
-                Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(v.properties(new String[]{"name"})));
-                Assert.assertEquals(4L, FireflyCloseableIteratorUtils.count(v.properties(new String[0])));
-                assertVertexEdgeCounts(this.graph, 1, 0);
+            this.tryCommit(graph, (g) -> {
+                Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(v.properties("name")));
+                Assert.assertEquals(4L, FireflyCloseableIteratorUtils.count(v.properties()));
+                assertVertexEdgeCounts(graph, 1, 0);
             });
             v.properties(new String[]{"name"}).forEachRemaining((meta) -> {
                 meta.property("counter", ((String) meta.value()).length());
             });
-            this.tryCommit(this.graph, (g) -> {
+            this.tryCommit(graph, (g) -> {
                 v.properties(new String[0]).forEachRemaining((meta) -> {
                     Assert.assertEquals(meta.key(), meta.label());
                     Assert.assertTrue(meta.isPresent());
                     Assert.assertEquals(v, meta.element());
                     if (meta.key().equals("age")) {
                         Assert.assertEquals(meta.value(), 34);
-                        Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(meta.properties(new String[0])));
+                        Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(meta.properties()));
                     }
 
                     if (meta.key().equals("name")) {
-                        Assert.assertEquals((long) ((String) meta.value()).length(), (long) (Integer) meta.value("counter"));
-                        Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(meta.properties(new String[0])));
-                        Assert.assertEquals(1L, (long) meta.keys().size());
+                        Assert.assertEquals(((String) meta.value()).length(), (long) (Integer) meta.value("counter"));
+                        Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(meta.properties()));
+                        Assert.assertEquals(1L, meta.keys().size());
                         Assert.assertTrue(meta.keys().contains("counter"));
                     }
 
                 });
-                assertVertexEdgeCounts(this.graph, 1, 0);
+                assertVertexEdgeCounts(graph, 1, 0);
             });
-            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.list, "name", (Object) null, new Object[0]));
-            this.tryCommit(this.graph, (graph) -> {
-                Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(graph.traversal().V(v).properties(new String[]{"name"})));
-                Assert.assertEquals(4L, FireflyCloseableIteratorUtils.count(v.properties(new String[0])));
-                assertVertexEdgeCounts(this.graph, 1, 0);
+            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.list, "name", null));
+            this.tryCommit(graph, (graph) -> {
+                Assert.assertEquals(3L, FireflyCloseableIteratorUtils.count(graph.traversal().V(v).properties("name")));
+                Assert.assertEquals(4L, FireflyCloseableIteratorUtils.count(v.properties()));
+                assertVertexEdgeCounts(AbstractFireflySuite.graph, 1, 0);
             });
-            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.single, "name", (Object) null, new Object[0]));
-            this.tryCommit(this.graph, (g) -> {
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(v.properties(new String[]{"name"})));
-                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(v.properties(new String[0])));
-                assertVertexEdgeCounts(this.graph, 1, 0);
+            Assert.assertEquals(VertexProperty.empty(), v.property(VertexProperty.Cardinality.single, "name", null));
+            this.tryCommit(graph, (g) -> {
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(v.properties("name")));
+                Assert.assertEquals(1L, FireflyCloseableIteratorUtils.count(v.properties()));
+                assertVertexEdgeCounts(graph, 1, 0);
             });
         } else {
             LOG.info("Skipping shouldHandleListVertexPropertiesWithoutNullPropertyValues because graph does not support multi-properties");
@@ -989,34 +990,34 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void shouldRemoveMultiPropertiesWhenVerticesAreRemoved() {
         if (graph.features().vertex().supportsMultiProperties()) {
-            final Vertex marko = this.graph.addVertex(new Object[]{"name", "marko", "name", "okram"});
-            final Vertex stephen = this.graph.addVertex(new Object[]{"name", "stephen", "name", "spmallette"});
-            this.tryCommit(this.graph, (graph) -> {
+            final Vertex marko = graph.addVertex("name", "marko", "name", "okram");
+            final Vertex stephen = graph.addVertex("name", "stephen", "name", "spmallette");
+            this.tryCommit(graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 2, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties(new String[0])));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties(new String[0])));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"blah"})));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(stephen.properties(new String[]{"blah"})));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties("name")));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(stephen.properties()));
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(stephen.properties("blah")));
             });
             stephen.remove();
-            this.tryCommit(this.graph, (graph) -> {
+            this.tryCommit(graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties(new String[0])));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"blah"})));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(marko.properties()));
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
             });
 
             for (int i = 0; i < 100; ++i) {
-                marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + String.valueOf(i), new Object[0]);
+                marko.property(VertexProperty.Cardinality.list, "name", "Remove-" + i);
             }
 
-            this.tryCommit(this.graph, (graph) -> {
+            this.tryCommit(graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 1, 0);
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"name"})));
-                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties(new String[0])));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties(new String[]{"blah"})));
+                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties("name")));
+                Assert.assertEquals(102L, FireflyCloseableIteratorUtils.count(marko.properties()));
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(marko.properties("blah")));
             });
             graph.traversal().V(new Object[0]).properties(new String[]{"name"}).has(T.value, P.test((a, b) -> {
                 return ((String) a).startsWith((String) b);
@@ -1031,15 +1032,15 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 alsoMarko = marko;
             }
 
-            this.tryCommit(this.graph, (graph) -> {
+            this.tryCommit(graph, (graph) -> {
                 assertVertexEdgeCounts(graph, 1, 0);
-                List<VertexProperty<Object>> l = FireflyCloseableIteratorUtils.list(alsoMarko.properties(new String[]{"name"}));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties(new String[]{"name"})));
-                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties(new String[0])));
-                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(alsoMarko.properties(new String[]{"blah"})));
+                List<VertexProperty<Object>> l = FireflyCloseableIteratorUtils.list(alsoMarko.properties("name"));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("name")));
+                Assert.assertEquals(2L, FireflyCloseableIteratorUtils.count(alsoMarko.properties()));
+                Assert.assertEquals(0L, FireflyCloseableIteratorUtils.count(alsoMarko.properties("blah")));
             });
             marko.remove();
-            this.tryCommit(this.graph, getAssertVertexEdgeCounts(0, 0));
+            this.tryCommit(graph, getAssertVertexEdgeCounts(0, 0));
         } else {
             LOG.info("skipping shouldRemoveMultiPropertiesWhenVerticesAreRemoved because {} does not support multi-properties", graph);
         }
@@ -1076,8 +1077,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         graph = GraphFactory.createGraph(db, config);
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
-        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(graph.getBaseGraph().DATA_MODEL_NAME).value());
-        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(graph.getBaseGraph().DATA_MODEL_VER).value());
+        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
+        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
     }
 
     @Test
@@ -1089,7 +1090,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Edge> allEdges = graph.traversal().E().toList();
         List<Edge> e1e = graph.traversal().V(a).bothE().toList();
         List<Edge> e2e = graph.traversal().V(b).bothE().toList();
-        assertEquals((Long) 1L, (Long) graph.traversal().V(a).inE().count().next());
+        assertEquals((Long) 1L, graph.traversal().V(a).inE().count().next());
     }
 
     @Test
@@ -1214,6 +1215,148 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 System.out.println(e.getMessage());
             }
         });
+    }
+
+    final String id1 = "< ID_1 >";
+    final String entity2 = "< ENTITY_2 >";
+
+    public List<Vertex> executeanonymizedcustomer(final GraphTraversalSource g) {
+        return g.V(id1).
+                fold().coalesce(
+                        __.unfold(),
+                        __.addV("entity_link").
+                                property(T.id, id1).
+                                property("type", "id").
+                                property("opt_ind", "0").
+                                property("first_seen", "< epoch_timestamp >").
+                                property("last_seen", "< epoch_timestamp >"))
+                .sideEffect(
+                        __.V(id1).
+                                coalesce(
+                                        __.properties("internal dataset").drop(),
+                                        __.property("last_seen", "< epoch_timestamp >")))
+                .sideEffect(
+                        __.V(entity2).fold().
+                                coalesce(
+                                        __.unfold(),
+                                        __.addV("address").
+                                                property(T.id, entity2).
+                                                property("type", "entity").
+                                                property("first_seen", "< epoch_timestamp >")))
+                .sideEffect(
+                        __.V(entity2).
+                                coalesce(
+                                        __.properties("internal dataset").
+                                                drop()))
+                .sideEffect(
+                        __.V(entity2).
+                                inE("identifies").
+                                outV().hasId(id1).fold().
+                                coalesce(
+                                        __.unfold(),
+                                        __.addE("identifies").
+                                                property("first_seen", "< epoch_timestamp >").
+                                                from(__.V(id1)).to(__.V(entity2))))
+                .sideEffect(
+                        __.V(entity2).
+                                inE("identifies").as("edge").outV().hasId(id1).select("edge").properties("internal dataset").drop()).toList();
+    }
+
+    List<Vertex> executeMarko(final GraphTraversalSource g) {
+        return g.V(id1).
+                fold().coalesce(
+                        __.unfold(),
+                        __.addV("entity_link").
+                                property(T.id, id1).
+                                property("type", "id").
+                                property("opt_ind", "0").
+                                property("first_seen", "< epoch_timestamp >").
+                                property("last_seen", "< epoch_timestamp >")).
+                sideEffect(
+                        __.V(id1).coalesce(
+                                __.properties("internal dataset").drop(),
+                                __.property("last_seen", "< epoch_timestamp >"))).
+                sideEffect(
+                        __.V(entity2).
+                                sideEffect(__.fold().coalesce(
+                                        __.unfold(),
+                                        __.addV("address").property(T.id, entity2).
+                                                property("type", "entity").
+                                                property("first_seen", "< epoch_timestamp >"))).
+                                sideEffect(__.properties("internal dataset").drop()).
+                                sideEffect(
+                                        __.in("identifies").hasId(id1).
+                                                fold().coalesce(
+                                                        __.unfold(),
+                                                        __.addE("identifies").property("first_seen", "< epoch_timestamp >").
+                                                                from(__.V(id1)).
+                                                                to(__.V(entity2)))).
+                                sideEffect(
+                                        __.inE("identifies").
+                                                where(__.outV().hasId(id1)).
+                                                properties("internal dataset").
+                                                drop())).toList();
+    }
+
+    List<Vertex> executeLyndon(final GraphTraversalSource g) {
+        return g.V(id1).
+                fold().coalesce(
+                        __.unfold(),
+                        __.addV("entity_link").
+                                property(T.id, id1).
+                                property("type", "id").
+                                property("opt_ind", "0").
+                                property("first_seen", "< epoch_timestamp >").
+                                property("last_seen", "< epoch_timestamp >")).
+                sideEffect(
+                        __.V(id1).coalesce(
+                                __.properties("internal dataset").drop(),
+                                __.property("last_seen", "< epoch_timestamp >"))).
+                sideEffect(
+                        __.V(entity2).fold().
+                                coalesce(
+                                        __.unfold(),
+                                        __.addV("address").property(T.id, entity2).
+                                                property("type", "entity").
+                                                property("first_seen", "< epoch_timestamp >")).
+                                sideEffect(__.properties("internal dataset").drop()).
+                                sideEffect(
+                                        __.in("identifies").hasId(id1).
+                                                fold().coalesce(
+                                                        __.unfold(),
+                                                        __.addE("identifies").property("first_seen", "< epoch_timestamp >").
+                                                                from(__.V(id1)).
+                                                                to(__.V(entity2)))).
+                                sideEffect(
+                                        __.inE("identifies").
+                                                where(__.outV().hasId(id1)).
+                                                properties("internal dataset").
+                                                drop())).toList();
+    }
+
+    @Test
+    public void testanonymizedcustomerQuery() {
+        GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        // g.addV("address").property(T.id, entity2).iterate();
+        List<Vertex> vertices = executeanonymizedcustomer(g);
+        List<Vertex> gV = g.V().toList();
+        System.out.println("done");
+    }
+
+    @Test
+    public void testQueries() {
+        GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        List<Vertex> verticesMarko = executeMarko(g);
+        List<Vertex> gVMarko = g.V().toList();
+        g.V().drop().iterate();
+        List<Vertex> verticesanonymizedcustomer = executeanonymizedcustomer(g);
+        List<Vertex> gVanonymizedcustomer = g.V().toList();
+        g.V().drop().iterate();
+        List<Vertex> verticesLyndon = executeLyndon(g);
+        List<Vertex> gVLyndon = g.V().toList();
+        System.out.println("done");
     }
 }
 

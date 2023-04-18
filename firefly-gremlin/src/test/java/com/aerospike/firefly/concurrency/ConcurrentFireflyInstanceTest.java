@@ -43,7 +43,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstanceEdgeAdditionTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
@@ -80,7 +80,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstanceEdgeRemovalTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
@@ -117,7 +117,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstanceEdgeAddRemoveTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(2, FireflyVertex.class), "foo", new ArrayList<>());
@@ -159,7 +159,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstancePropertyAddTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1, FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = (FireflyVertex) g.V().next();
@@ -208,7 +208,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstancePropertyRemoveTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1,FireflyVertex.class), "foo", new ArrayList<>());
             for (int i = 0; i < INITIAL_COUNT; i++) {
@@ -242,7 +242,7 @@ public class ConcurrentFireflyInstanceTest {
     @Test
     public void concurrentFireflyInstancePropertyAddRemoveTest() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             final GraphTraversalSource g = fireflyGraph.traversal();
             final FireflyVertex a = fireflyGraph.writeVertex(fireflyGraph.getIdFactory().createId(1,FireflyVertex.class), "foo", new ArrayList<>());
             final FireflyVertex b = (FireflyVertex) g.V().next();

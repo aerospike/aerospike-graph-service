@@ -38,7 +38,7 @@ public class WriteFailureTest {
     public void writeEdgeFailureTest() {
         // Test that if we partially write an edge it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
@@ -71,7 +71,7 @@ public class WriteFailureTest {
     public void removeEdgeFailureTest() {
         // Test that if we partially remove an edge it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
@@ -107,7 +107,7 @@ public class WriteFailureTest {
         // Test that if we partially write a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 
             FireflyVertex a = (FireflyVertex) g.addV().next();
@@ -130,7 +130,7 @@ public class WriteFailureTest {
         // Test that if we partially remove a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
             Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 
             FireflyVertex a = (FireflyVertex) g.addV().next();

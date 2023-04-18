@@ -28,7 +28,7 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
     protected final V value;
     protected final FireflyGraph graph;
     public Map<String, Object> properties;
-    public Map<String, Long> typeHints;
+    public Map<String, Object> typeHints;
 
     public FireflyVertexProperty(final FireflyGraph graph,
                                  final FireflyId id,
@@ -36,7 +36,7 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
                                  final String key,
                                  final V value,
                                  final Map<String, Object> properties,
-                                 final Map<String, Long> typeHints) {
+                                 final Map<String, Object> typeHints) {
         super(id, key);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");

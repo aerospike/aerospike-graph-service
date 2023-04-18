@@ -65,7 +65,7 @@ public class TestMovielens10M extends AbstractFireflySuite {
     @AfterClass
     public static void clearDataAfterTest() {
         try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            graph.getBaseGraph().dropDatabase();
+            graph.getBaseGraph().dropDatabase(graph, false);
         }
     }
 

@@ -47,7 +47,7 @@ public class TestDataModelVersioning {
     public void cleanDataModelTest() {
         // This can cause failures later if you don't clean it up.
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
     }
 
     public static void openGraphStarPacked() {
@@ -77,7 +77,7 @@ public class TestDataModelVersioning {
     @Test
     public void TestFailOnDiffModel() {
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         openGraphStarPacked();
         graph.close();
         db.close();
@@ -151,7 +151,7 @@ public class TestDataModelVersioning {
     public void TestTriggerUpgrade() throws Exception {
 
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
 
         Upgrade.registerUpgradeTask(TestTask.class);
 
@@ -173,7 +173,7 @@ public class TestDataModelVersioning {
     @Test
     public void TestFailOnLaterVersion() throws Exception {
         db = AerospikeConnection.connect(config);
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         FakeGraph.version = "0.0.2";
         if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
             Upgrade.performUpgrade(FakeGraph.class, db);

@@ -78,7 +78,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -686,6 +685,7 @@ public class AerospikeConnection implements AutoCloseable {
         put(Integer.class, 2L);
         put(Double.class, 3L);
         put(byte[].class, 4L);
+        put(Byte[].class, 4L);
         put(String.class, 5L);
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
@@ -722,14 +722,38 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on-disk type
+     * Return the numeric id of the on-disk type of scalar values. If the value parameter is an ArrayList, return an
+     * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
      *
-     * @param clazz class to lookup
-     * @return index of supported type
+     * @param value Object to get type hint ID of
+     * @return Type hint value
      */
-    public static Long getSupportedType(final Class clazz) {
-        if (!SupportedValueTypes.containsKey(clazz))
+    public static Object getSupportedType(final Object value) {
+        final Class clazz = value.getClass();
+        if (!SupportedValueTypes.containsKey(clazz)) {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
+        } else if (SupportedValueTypes.get(clazz).equals(SupportedValueTypes.get(ArrayList.class))) {
+            // Values within a list for our supported types are stored on disk as expected except for Integers which get
+            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
+            // properly cast them back upon a read.
+            final ArrayList<Long> integerIndices = new ArrayList<>();
+            final ArrayList<?> valueList = (ArrayList<?>) value;
+            for (int i = 0; i < valueList.size(); i++) {
+                final Object valueInList = valueList.get(i);
+                if (valueInList != null) {
+                    final Class valueClass = valueInList.getClass();
+                    if (!SupportedValueTypes.containsKey(valueClass) ||
+                            SupportedValueTypes.get(valueClass).equals(SupportedValueTypes.get(ArrayList.class))) {
+                        throw new UnsupportedOperationException(valueClass.getName()
+                                + " within a List is not a supported value type");
+                    }
+                    if (valueList.get(i).getClass().equals(Integer.class)) {
+                        integerIndices.add((long) i);
+                    }
+                }
+            }
+            return integerIndices;
+        }
         return SupportedValueTypes.get(clazz);
     }
 
@@ -1075,12 +1099,19 @@ public class AerospikeConnection implements AutoCloseable {
                 !fireflyRecord.record().getMap(mapName).containsKey(mapKey))
             return null;
         final Object value = fireflyRecord.record().getMap(mapName).get(mapKey);
-        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
-        final Class valueClass = SupportedTypeValues.get(typeHint);
-        return (V) typeCast(valueClass, value);
+        final Object typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        return (V) convertValuetoTypeUsingHint(value, typeHint);
     }
 
-    public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {
+    public Object convertValuetoTypeUsingHint(final Object value, final Object typeHint) {
+        if (typeHint instanceof ArrayList) {
+            final ArrayList<Object> valueList = (ArrayList<Object>) value;
+            final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
+            for (final Long index : integerIndices) {
+                valueList.set(index.intValue(), ((Long) valueList.get(index.intValue())).intValue());
+            }
+            return valueList;
+        }
         final Class clazz = SupportedTypeValues.get(typeHint);
         return (clazz == null) ? value : typeCast(clazz, value);
     }
@@ -1175,7 +1206,7 @@ public class AerospikeConnection implements AutoCloseable {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, mapName, Value.get(mapKey), Value.get(value));
             typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
-                    Value.get(getSupportedType(value.getClass())));
+                    Value.get(getSupportedType(value)));
         }
         final Expression idTypeExp = Exp.build(Exp.val(fid.getStorageTypeHint()));
         final Operation idTypeOp = ExpOperation.write(this.ID_TYPE_BIN, idTypeExp,
@@ -1199,7 +1230,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param val
      * @return
      */
-    public Object typeCast(final Class clazz, final Object val) {
+    private Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
@@ -1364,7 +1395,11 @@ public class AerospikeConnection implements AutoCloseable {
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
-
+            // Should never be null in production, but some tests don't have a graph object for a legit reason when
+            // calling this function so handle null graph regardless.
+            if (graph != null) {
+                graph.fireflySummaryUpdater.truncate();
+            }
             if (dropIndices)
                 dropGraphIndices(graph);
             Thread.sleep(1);
@@ -1393,13 +1428,6 @@ public class AerospikeConnection implements AutoCloseable {
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }
-    }
-
-    /**
-     * Drop database by truncate, do not drop indices
-     */
-    public void dropDatabase() {
-        dropDatabase(null, false);
     }
 
     /**

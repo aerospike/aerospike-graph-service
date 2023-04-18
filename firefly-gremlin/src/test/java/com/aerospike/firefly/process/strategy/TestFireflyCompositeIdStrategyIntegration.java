@@ -48,7 +48,7 @@ public class TestFireflyCompositeIdStrategyIntegration {
         CONFIG.clearProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase());
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         final GraphTraversalSource g = SETUP_GRAPH.traversal();
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         g.V().drop().iterate();
         long start = System.currentTimeMillis();
@@ -61,7 +61,7 @@ public class TestFireflyCompositeIdStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         SETUP_GRAPH.close();
     }
 

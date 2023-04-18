@@ -669,7 +669,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
         final Bin edgeCacheInBin = new Bin(db.IN_EDGES, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
         final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Map<String, Long> vertexPropertyTypeHintMap;
+        final Map<String, Object> vertexPropertyTypeHintMap;
 
         switch (vertexTypeHint) {
             case StarPackedVertex.VERTEX_TYPE_HINT:
@@ -682,7 +682,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                         Value.get(vertexPropertyValueMap, MapOrder.KEY_ORDERED));
                 vertexPropertyTypeHintMap = new TreeMap<>();
                 for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
-                    vertexPropertyTypeHintMap.put(entry.getKey(), AerospikeConnection.getSupportedType(entry.getValue().getClass()));
+                    vertexPropertyTypeHintMap.put(entry.getKey(), AerospikeConnection.getSupportedType(entry.getValue()));
                 }
                 final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT,
                         Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));
@@ -694,7 +694,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // The existence of the Vertex Property ID as a key in this map is what is used to determine whether the
                 // Vertex Property currently exists, and thus instantiating it here is necessary.
                 final Map<Object, Map<String, Object>> vpProperties = new TreeMap<>();
-                final Map<Object, Map<String, Long>> vpPropertiesTypeHints = new TreeMap<>();
+                final Map<Object, Map<String, Object>> vpPropertiesTypeHints = new TreeMap<>();
                 for (final FireflyId id : ((Map<String, FireflyId>) vertexPropertyIds).values()) {
                     vpProperties.put(id.getStorageId(), new TreeMap<>());
                     vpPropertiesTypeHints.put(id.getStorageId(), new TreeMap<>());
@@ -799,8 +799,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                 graph.getIdFactory().convertMapListObjectToFireflyIdMap(outEdgeIds);
         final Map<Object, Map<String, Object>> vertexPropertyProperties =
                 new HashMap<>((Map<Object, Map<String, Object>>) record.getMap(db.PROPERTIES));
-        final Map<Object, Map<String, Long>> vertexPropertyPropertiesTypeHints =
-                new HashMap<>((Map<Object, Map<String, Long>>) record.getMap(db.TYPE_HINTS));
+        final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints =
+                new HashMap<>((Map<Object, Map<String, Object>>) record.getMap(db.TYPE_HINTS));
 
 
         // Create vertex based on type hint.
@@ -811,8 +811,8 @@ public abstract class RelationalVertex extends FireflyVertex {
                 // Get vertex properties and vertex property counter from record.
                 final Map<String, Object> vertexPropertyValues =
                         (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-                final Map<String, Long> vertexPropertyTypeHints =
-                        (Map<String, Long>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+                final Map<String, Object> vertexPropertyTypeHints =
+                        (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
                 final Map<String, Object> vertexPropertyIds =
                         (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
                 final Map<String, FireflyId> fireflyVertexPropertyIds =

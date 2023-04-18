@@ -24,7 +24,7 @@ public class FireflyDropStep extends AbstractStep {
     protected Traverser.Admin processNextStart() throws NoSuchElementException {
         if (!isDone.getAndSet(true)) {
             final FireflyGraph graph = (FireflyGraph) this.getTraversal().getGraph().get();
-            graph.getBaseGraph().dropDatabase();
+            graph.getBaseGraph().dropDatabase(graph, false);
         }
         throw FastNoSuchElementException.instance();
     }

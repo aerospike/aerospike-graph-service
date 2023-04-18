@@ -102,7 +102,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
         final Map<String, Object> data = new TreeMap<>();
-        final Map<String, Long> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -112,7 +112,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value.getClass()));
+                typeHints.put(key, getSupportedType(value));
                 data.put(key, value);
             }
         });

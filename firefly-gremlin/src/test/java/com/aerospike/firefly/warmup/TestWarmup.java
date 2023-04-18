@@ -141,7 +141,7 @@ public class TestWarmup extends AbstractFireflySuite {
 
         AerospikeConnection warmupdb = AerospikeConnection.connect(warmupConfig);
         FireflyGraph warmupgraph = FireflyGraph.open(warmupConfig);
-        warmupdb.dropDatabase();
+        warmupdb.dropDatabase(warmupgraph, false);
         assertEquals((Long) 0L, warmupgraph.traversal().V().count().next());
         graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
         assertEquals((Long) 0L, warmupgraph.traversal().V().count().next());

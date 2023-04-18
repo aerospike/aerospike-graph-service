@@ -8,16 +8,12 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
-import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
+
+import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -74,17 +70,17 @@ public class PackedGraph extends RelationalGraph {
                                                             final V value,
                                                             final Object... keyValues) {
         final Map<String, Object> properties = new TreeMap<>();
-        final Map<String, Long> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
 
         for (int i = 0; i < keyValues.length; i = i + 2) {
             if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
                 if (keyValues[i + 1] != null) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1].getClass()));
+                    typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1]));
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(String.class));
+                    typeHints.put((String) keyValues[i], SupportedValueTypes.get(String.class));
                 }
                 // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
                 // properties to remove, so just ignore.

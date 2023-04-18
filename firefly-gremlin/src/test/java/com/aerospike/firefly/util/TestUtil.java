@@ -40,10 +40,12 @@ public class TestUtil {
         Configuration config_two = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
         config_two.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "6");
+        final FireflyGraph g1 = FireflyGraph.open(config_one);
+        final FireflyGraph g2 = FireflyGraph.open(config_two);
         AerospikeConnection db_one = AerospikeConnection.connect(config_one);
         AerospikeConnection db_two = AerospikeConnection.connect(config_two);
-        db_one.dropDatabase();
-        db_two.dropDatabase();
+        db_one.dropDatabase(g1, false);
+        db_two.dropDatabase(g2, false);
         FireflyGraph graph_one = FireflyGraph.open(config_one);
         graph_one.traversal().V().drop().iterate();
         FireflyGraph graph_two = FireflyGraph.open(config_two);

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.utils;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.junit.After;
 import org.junit.Before;
@@ -29,16 +30,18 @@ public class TestBloomFilterIdCache {
     private AerospikeConnection db;
     private static final int ID_COUNT = 100;
     private static final int THREAD_COUNT = 8;
+    private FireflyGraph graph;
 
     @Before
     public void setup() {
         db = AerospikeConnection.connect(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES));
-        db.dropDatabase();
+        graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES));
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
 
     @After
     public void cleanup() {
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         db.close();
     }
 

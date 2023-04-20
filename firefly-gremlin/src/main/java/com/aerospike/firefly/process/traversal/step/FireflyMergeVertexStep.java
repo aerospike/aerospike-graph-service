@@ -62,7 +62,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
     protected CallbackRegistry<Event> callbackRegistry;
 
     public FireflyMergeVertexStep(final MergeVertexStep step) {
-        this(step.getTraversal(), step.isStart(), step.getSearchCreateTraversal());
+        this(step.getTraversal(), step.isStart());
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();

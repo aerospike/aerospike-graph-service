@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import groovy.transform.builder.InitializerStrategy;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -35,12 +36,12 @@ public class TestEdgeCacheIntegration {
     @BeforeClass
     public static void beforeAll() {
         SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
     @Test
@@ -81,8 +82,8 @@ public class TestEdgeCacheIntegration {
 
             final FireflyVertex v1 = (FireflyVertex) graph.traversal().addV("v1").next();
             final FireflyVertex v2 = (FireflyVertex) graph.traversal().addV("v2").next();
-            Assert.assertTrue(v1.isEdgeCacheDisabled());
-            Assert.assertTrue(v2.isEdgeCacheDisabled());
+            Assert.assertTrue(v1.isEdgeCacheOverflowed());
+            Assert.assertTrue(v2.isEdgeCacheOverflowed());
         }
     }
 
@@ -107,22 +108,22 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testCacheLimit() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 2)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 3)) {
             // This time specifically returns referenced instances and not snapshot instantiated ones
             final FireflyTestVertexes vertexes = setupTest(graph, false);
             assertGremlinTraversalAccuracy(graph);
 
-            // The cache will only be disabled for threeOutTwoIn, since it has 3 OUT edges which exceeds cache size of 2
-            Assert.assertTrue(vertexes.threeOutTwoIn.isEdgeCacheDisabled());
+            // The cache will only overflow for threeOutTwoIn, since it has 3 OUT edges which exceeds cache size of 2
+            Assert.assertTrue(vertexes.threeOutTwoIn.isEdgeCacheOverflowed());
             assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.OUT), 3);
             assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.IN), 2);
-            Assert.assertFalse(vertexes.oneOutTwoIn.isEdgeCacheDisabled());
+            Assert.assertFalse(vertexes.oneOutTwoIn.isEdgeCacheOverflowed());
             assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.OUT), 1);
             assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.IN), 2);
-            Assert.assertFalse(vertexes.twoOutOneIn.isEdgeCacheDisabled());
+            Assert.assertFalse(vertexes.twoOutOneIn.isEdgeCacheOverflowed());
             assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.OUT), 2);
             assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.IN), 1);
-            Assert.assertFalse(vertexes.zeroOutOneIn.isEdgeCacheDisabled());
+            Assert.assertFalse(vertexes.zeroOutOneIn.isEdgeCacheOverflowed());
             assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.OUT), 0);
             assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.IN), 1);
         }
@@ -198,37 +199,37 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testAddAndRemoveEdgesAdjacencyIndexEnabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 3)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 4)) {
             testAddAndRemoveEdges(graph);
         }
     }
 
     @Test
     public void testAddAndRemoveEdgesAdjacencyIndexDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFireflyAdjacencyDisabled(CONFIG, 3)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFireflyAdjacencyDisabled(CONFIG, 4)) {
             testAddAndRemoveEdges(graph);
         }
     }
 
     private void testAddAndRemoveEdges(final FireflyGraph graph) {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
 
-        // This tests adding and removal of edges, in states where the cache is enabled and disabled, as well as the
-        // cache state being triggered to disable.
+        // This tests adding and removal of edges, in states where the cache overflow is enabled and disabled, as well
+        // as the cache state being triggered to change.
         final GraphTraversalSource g = graph.traversal();
         FireflyVertex v1 = (FireflyVertex) g.addV("v1").next();
         FireflyVertex v2 = (FireflyVertex) g.addV("v2").next();
         FireflyVertex v3 = (FireflyVertex) g.addV("v3").next();
-        Assert.assertFalse(v1.isEdgeCacheDisabled());
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
-        Assert.assertFalse(v3.isEdgeCacheDisabled());
+        Assert.assertFalse(v1.isEdgeCacheOverflowed());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
+        Assert.assertFalse(v3.isEdgeCacheOverflowed());
 
         // 3 OUT shouldn't disable cache.
         g.addE("v1Out1").from(v1).to(v2).next();
         g.addE("v1Out2").from(v1).to(v2).next();
         g.addE("v1Out3").from(v1).to(v2).next();
-        Assert.assertFalse(v1.isEdgeCacheDisabled());
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
+        Assert.assertFalse(v1.isEdgeCacheOverflowed());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
         Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
@@ -238,10 +239,10 @@ public class TestEdgeCacheIntegration {
         g.addE("v1In1").from(v3).to(v1).next();
         Assert.assertEquals(3, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
         Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
-        Assert.assertFalse(v1.isEdgeCacheDisabled());
+        Assert.assertFalse(v1.isEdgeCacheOverflowed());
         Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v3.edges(Direction.OUT)));
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v3.edges(Direction.IN)));
-        Assert.assertFalse(v3.isEdgeCacheDisabled());
+        Assert.assertFalse(v3.isEdgeCacheOverflowed());
 
         // Check edge removal when cache is enabled still.
         Assert.assertTrue(g.V().hasLabel("v1").outE("v1Out3").hasNext());
@@ -252,10 +253,10 @@ public class TestEdgeCacheIntegration {
         v2 = (FireflyVertex) g.V().hasLabel("v2").next();
         Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
         Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
-        Assert.assertFalse(v1.isEdgeCacheDisabled());
+        Assert.assertFalse(v1.isEdgeCacheOverflowed());
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
         Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v2.edges(Direction.IN)));
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
         Assert.assertFalse(g.V().hasLabel("v1").outE("v1Out3").hasNext());
         Assert.assertFalse(g.V().hasLabel("v2").inE("v1Out3").hasNext());
 
@@ -263,17 +264,17 @@ public class TestEdgeCacheIntegration {
         g.addE("v1Out3").from(v1).to(v2).next();
         // Add to v3 here to ensure cache counter logic is properly decoupled between both ends of the edge.
         g.addE("v1Out4").from(v1).to(v3).next();
-        Assert.assertTrue(v1.isEdgeCacheDisabled());
+        Assert.assertTrue(v1.isEdgeCacheOverflowed());
         // This also implicitly ensures the drop of the edge on v2 earlier properly decremented its edge count.
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
-        Assert.assertFalse(v3.isEdgeCacheDisabled());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
+        Assert.assertFalse(v3.isEdgeCacheOverflowed());
         // Sanity check on generated vertices on reading from database.
         v1 = (FireflyVertex) g.V().hasLabel("v1").next();
         v2 = (FireflyVertex) g.V().hasLabel("v2").next();
         v3 = (FireflyVertex) g.V().hasLabel("v3").next();
-        Assert.assertTrue(v1.isEdgeCacheDisabled());
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
-        Assert.assertFalse(v3.isEdgeCacheDisabled());
+        Assert.assertTrue(v1.isEdgeCacheOverflowed());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
+        Assert.assertFalse(v3.isEdgeCacheOverflowed());
         Assert.assertEquals(4, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
         Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
@@ -287,8 +288,8 @@ public class TestEdgeCacheIntegration {
         v1 = (FireflyVertex) g.V().hasLabel("v1").next();
         v2 = (FireflyVertex) g.V().hasLabel("v2").next();
         // Ensure caches don't somehow re-enable.
-        Assert.assertTrue(v1.isEdgeCacheDisabled());
-        Assert.assertFalse(v2.isEdgeCacheDisabled());
+        Assert.assertTrue(v1.isEdgeCacheOverflowed());
+        Assert.assertFalse(v2.isEdgeCacheOverflowed());
         Assert.assertEquals(2, FireflyCloseableIteratorUtils.count(v1.edges(Direction.OUT)));
         Assert.assertEquals(1, FireflyCloseableIteratorUtils.count(v1.edges(Direction.IN)));
         Assert.assertEquals(0, FireflyCloseableIteratorUtils.count(v2.edges(Direction.OUT)));
@@ -324,7 +325,7 @@ public class TestEdgeCacheIntegration {
     }
 
     private FireflyTestVertexes setupTest(final FireflyGraph graph, final boolean returnSnapshot) {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         final GraphTraversalSource g = graph.traversal();
         final FireflyVertex threeOutTwoInSnapshot = (FireflyVertex) g.addV("threeOutTwoIn").next();
         final FireflyVertex oneOutTwoInSnapshot = (FireflyVertex) g.addV("oneOutTwoIn").next();

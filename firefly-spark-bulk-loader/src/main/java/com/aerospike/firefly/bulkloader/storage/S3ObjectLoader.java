@@ -14,11 +14,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 public class S3ObjectLoader implements ObjectLoader, Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(S3ObjectLoader.class);
@@ -72,15 +71,16 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
 
     /**
      * Function to load input files from S3.
-     * This function returns all the directory paths leading upto the csv files. Does not return the csv's.
+     * This function returns all the paths of the csv files.
      *
-     * @param directory  Folder key string specifying the name of the master directory of vertices or edges.
-     * @return Set of directory path strings containing the csv files in S3.
+     * @param directory Folder key string specifying the name of the master directory of vertices or edges.
+     * @return List of key string of the csv files in S3.
      */
     @Override
-    public Set<String> getObjectList(final String directory) {
+    public List<String> getCsvPaths(final String directory) throws IOException {
+        // TODO GRAPH-491: Test this in an AWS environment to ensure nested csv files are properly accounted for.
         try {
-            final Set<String> keys = new HashSet<>();
+            final List<String> keys = new ArrayList<>();
             ObjectListing response = this.S3_CLIENT.listObjects(bucketName, directory);
             List<S3ObjectSummary> objects = response.getObjectSummaries();
             for (final S3ObjectSummary object : objects) {
@@ -97,7 +97,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
             }
             return keys;
         } catch (final SdkClientException e) {
-            throw new RuntimeException(e);
+            throw new IOException(e);
         }
     }
 }

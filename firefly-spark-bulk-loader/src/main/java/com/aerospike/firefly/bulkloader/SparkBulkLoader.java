@@ -1,7 +1,6 @@
 package com.aerospike.firefly.bulkloader;
 
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
-import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement;
 import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
@@ -20,26 +19,25 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.createDatasets;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
 
 public class SparkBulkLoader {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoader.class);
-    private static final String[] REQUIRED_VERTEX_HEADERS = new String[]{SparkFireflyElement.ID_HEADER};
-    private static final String[] REQUIRED_EDGE_HEADERS = new String[]{SparkFireflyElement.ID_HEADER, FROM_VERTEX_HEADER, TO_VERTEX_HEADER};
+    private static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);
+    private static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
     private static Configuration CONFIG;
     private static String MODE = "cluster";
 
     public static void main(final String[] args) {
         String s3BucketName = null;
         ObjectLoader loader;
-        final Set<String> vertexDirectories = new HashSet<>();
-        final Set<String> edgeDirectories = new HashSet<>();
         final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
         // mode = local/cluster. If running in IDE, set -m local, if spark-submit, set -m cluster
         MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
@@ -47,31 +45,21 @@ public class SparkBulkLoader {
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         StorageLevel dfStorageLevel = StorageLevel.NONE();
         LOGGER.info("Config path provided = {} & job running in {} mode", configPath, MODE);
-        try {
-            if (configPath == null)
-                throw new RuntimeException("Failed to start bulk loader due to null configPath (" + configPath + ")");
+        if (configPath == null) {
+            throw new RuntimeException("Failed to start bulk loader due to null configPath (" + configPath + ")");
+        }
+        if (ENV.equalsIgnoreCase("aws")) {
+            s3BucketName = cmd.getOptionValue("b");
+            if (s3BucketName == null) {
+                throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
+            }
+            loader = S3ObjectLoader.getInstance();
+            ((S3ObjectLoader)loader).setBucketName(s3BucketName);
+        } else {
+            loader = FileLoader.getInstance();
+        }
 
-            if (ENV.equalsIgnoreCase("aws")) {
-                s3BucketName = cmd.getOptionValue("b");
-                if (s3BucketName == null)
-                    throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
-                loader = S3ObjectLoader.getInstance();
-                ((S3ObjectLoader)loader).setBucketName(s3BucketName);
-            } else loader = FileLoader.getInstance();
-
-            CONFIG = loader.loadConfiguration(configPath);
-            vertexDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG)));
-            edgeDirectories.addAll(loader.getObjectList(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG)));
-        }
-        catch (final IOException ie) {
-            LOGGER.error("Unable to load config.", ie);
-            ie.printStackTrace();
-            System.exit(1);
-        }
-        catch (final RuntimeException runtimeException) {
-            LOGGER.error("Amazon SDK client error", runtimeException);
-            System.exit(1);
-        }
+        CONFIG = loader.loadConfiguration(configPath);
 
         final double sampleFraction = Double.parseDouble(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SAMPLING_PERCENTAGE, CONFIG)) / 100;
         final boolean enableDFCaching = Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING,CONFIG));
@@ -102,16 +90,43 @@ public class SparkBulkLoader {
         // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
         spark.sparkContext().setLogLevel(SPARK_LOG_LEVEL);
 
-        Dataset<Row> unionVertexDS = DatasetOperations.loadAndMergeDatasets(spark, vertexDirectories, REQUIRED_VERTEX_HEADERS);
-        // Sample out vertex dataset for verifying the inserts.
-        Dataset<Row> sampledVertexDatasets = unionVertexDS.sample(sampleFraction);
-        Dataset<Row> persistedVertexDS;
+        final String vertexDirectory = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, CONFIG);
+        final String edgeDirectory = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, CONFIG);
+        LOGGER.info("Vertex directory provided: {}", vertexDirectory);
+        LOGGER.info("Edge directory provided: {}", edgeDirectory);
+
+        // Get all csv files in the directory.
+        List<String> vertexPaths = null;
+        List<String> edgePaths = null;
+        try {
+            vertexPaths = loader.getCsvPaths(vertexDirectory);
+            if (vertexPaths.isEmpty()) {
+                // Only check empty vertex paths since not loading any edges is a potential valid use case
+                throw new RuntimeException("Failed to find files in path '" + vertexDirectory +
+                        "'; please review the content of this directory and make sure it contains valid csv files.");
+            }
+            edgePaths = loader.getCsvPaths(edgeDirectory);
+        } catch (IOException e) {
+            LOGGER.error("Failed to load input CSV files.", e);
+            System.exit(1);
+        }
+
+        // Convert csv files to Datasets.
+        final List<Dataset<Row>> vertexDatasets = createDatasets(spark, vertexPaths, REQUIRED_VERTEX_HEADERS);
+        final List<Dataset<Row>> edgeDatasets = createDatasets(spark, edgePaths, REQUIRED_EDGE_HEADERS);
+
+        final Dataset<Row> unionVertexDS = DatasetOperations.mergeDatasets(spark, vertexDatasets);
+        final Dataset<Row> persistedVertexDS;
         if (dfStorageLevel.isValid()) {
             persistedVertexDS = unionVertexDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for vertex dataset = {}", dfStorageLevel);
         } else {
             persistedVertexDS = unionVertexDS;
-		}
+        }
+
+        // Sample out vertex dataset for verifying the inserts.
+        final Dataset<Row> sampledVertexDatasets = persistedVertexDS.sample(sampleFraction);
+
         final String finalS3BucketName = s3BucketName;
 
         // Write Vertices.
@@ -131,9 +146,9 @@ public class SparkBulkLoader {
         DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
 
         // Load and Merge Edges.
-        final Dataset<Row> unionEdgeDS = DatasetOperations.loadAndMergeDatasets(spark, edgeDirectories, REQUIRED_EDGE_HEADERS);
+        final Dataset<Row> unionEdgeDS = DatasetOperations.mergeDatasets(spark, edgeDatasets);
 
-        Dataset<Row> persistedEdgeDS;
+        final Dataset<Row> persistedEdgeDS;
         if (dfStorageLevel.isValid()) {
             persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
             LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
@@ -144,14 +159,15 @@ public class SparkBulkLoader {
         // Sample out edge dataset to verify the inserts.
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
-        // If the edge cache is disabled globally we do not need to search for supernodes.
-        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG))) {
+        // If edge caches or adjacency indexes are enabled need to identify supernodes.
+        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG)) ||
+                Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, CONFIG))) {
             spark.sparkContext().setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
             // Csv format is: ~id, ~from, ~to, ...
             DatasetOperations.extractSupernodes(persistedEdgeDS, CONFIG);
         }
 
-        // Write to edge caches for non-supernodes.
+        // Write edges and to edge cache of non-supernodes.
         final Instant startOfEdgeMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
         final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);

@@ -19,9 +19,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,7 +37,7 @@ public final class ConfigurationHelper {
 
     private static List PREFIX_MASK = new ArrayList() {{
         add(Keys.GRAPH_ID);
-        add(Keys.ID_CACHE_SIZE);
+        add(Keys.ON_RECORD_ID_LIMIT);
     }};
 
     public static class Keys {
@@ -53,6 +55,7 @@ public final class ConfigurationHelper {
             public static final String VERTEX_PROPERTY_AERO_SET = "VERTEX_PROPERTY_AERO_SET";
             public static final String VERTEX_PROPERTY_SET = "VERTEX_PROPERTY_SET";
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
+            public static final String SUMMARY_SET = "SUMMARY_SET";
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
@@ -64,6 +67,8 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
         public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
         public static final String AEROSPIKE_TIMEOUT = "AEROSPIKE_TIMEOUT";
+        public static final String AEROSPIKE_USER = "AEROSPIKE_USER";
+        public static final String AEROSPIKE_PASSWORD = "AEROSPIKE_PASSWORD";
         public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
         public static final String MAX_CONNECTIONS_PER_NODE = "MAX_CONNECTIONS_PER_NODE";
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
@@ -85,11 +90,11 @@ public final class ConfigurationHelper {
         public static final String TYPE_HINTS = "TYPE_HINTS";
         public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
         public static final String COUNTER = "COUNTER";
-        public static final String ID_TYPE_BIN = "ID_TYPE";
+        public static final String ID_TYPE = "ID_TYPE";
         public static final String GLOBAL = "GLOBAL";
         public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
         public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
-        public static final String ID_CACHE_SIZE = "ON_RECORD_ID_LIMIT";
+        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String GRAPH_ID = "GRAPH_ID";
         public static final String IN_EDGES = "IN_EDGES";
         public static final String OUT_EDGES = "OUT_EDGES";
@@ -97,8 +102,9 @@ public final class ConfigurationHelper {
         public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
-
-        public static final String INDEX_METADATA = "INDEX_META";
+        public static final String SUPERNODES_IN = "SUPERNODES_IN";
+        public static final String SUPERNODES_OUT = "SUPERNODES_OUT";
+        public static final String INDEX_META = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
         public static final String INDEXED_BINS = "INDEXED_BINS";
         public static final String LABEL = "LABEL";
@@ -123,6 +129,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "ENABLE_BATCH_EDGE_READ_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
+        public static final String AEROSPIKE_WRITE_MAX_RETRY = "AEROSPIKE_WRITE_MAX_RETRY";
 
         // BufferedNumericIdManager
         public static final String VERTEX_ID_BUFFER_SIZE = "VERTEX_ID_BUFFER_SIZE";
@@ -139,11 +146,19 @@ public final class ConfigurationHelper {
         public static final String TLS = "TLS";
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
+        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
     }
+
+    private static final Set<String> environmentVariables = new HashSet<>() {{
+        add(Keys.AEROSPIKE_USER);
+        add(Keys.AEROSPIKE_PASSWORD);
+    }};
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
         put(Keys.AEROSPIKE_NAMESPACE, "test");
+        put(Keys.AEROSPIKE_USER, "");
+        put(Keys.AEROSPIKE_PASSWORD, "");
         put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
         put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
@@ -175,19 +190,19 @@ public final class ConfigurationHelper {
         put(Keys.VP_TYPE_HINTS, "VP_TYPE_HINTS");
         put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
-        put(Keys.ID_TYPE_BIN, "ID_TYPE");
+        put(Keys.ID_TYPE, "ID_TYPE");
         put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
         put(Keys.Sets.TEST_SET, "TEST_SET");
         put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
         put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
-        put(Keys.ID_CACHE_SIZE, "100000");
+        put(Keys.ON_RECORD_ID_LIMIT, "10000");
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
         put(Keys.EDGE_CACHE_DISABLED, "CACHE_DISABLED");
         put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
-        put(Keys.INDEX_METADATA, "INDEX_META");
+        put(Keys.INDEX_META, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
         put(Keys.INDEXED_BINS, "indexedBins");
         put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");
@@ -202,6 +217,7 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
+        put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -218,7 +234,9 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
-        put(Keys.ADJACENCY_INDEX_ENABLED, "false");
+        put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.SUPERNODES_IN, "SUPERNODES_IN");
+        put(Keys.SUPERNODES_OUT, "SUPERNODES_OUT");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
@@ -230,6 +248,8 @@ public final class ConfigurationHelper {
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_MODE, "false");
+        put(Keys.ENABLE_CUSTOM_PROFILE, "true");
+        put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -297,8 +317,15 @@ public final class ConfigurationHelper {
 
     public static String getOrDefault(final String key, Configuration config) {
         final String lowerKey = key.toLowerCase();
-        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key))
+        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
+        } else if (environmentVariables.contains(key.toUpperCase())) {
+            // Allow username and password to come from environment variables.
+            final String environment = System.getenv(key.toLowerCase());
+            if (environment != null && !environment.isEmpty()) {
+                return environment;
+            }
+        }
         try {
             Keys.Sets.class.getField(key);
         } catch (NoSuchFieldException e) {

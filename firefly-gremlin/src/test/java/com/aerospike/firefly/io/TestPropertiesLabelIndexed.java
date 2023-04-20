@@ -48,6 +48,6 @@ public class TestPropertiesLabelIndexed extends TestProperties {
 
     @After
     public void afterEach() {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
 }

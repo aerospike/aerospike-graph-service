@@ -17,17 +17,8 @@ import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class Upgrade {
-    public static class DataModelMetadata {
-        public final int version;
-        public final String name;
 
-        public DataModelMetadata(int version, String name) {
-            this.version = version;
-            this.name = name;
-        }
-    }
-
-    private static List<Class<? extends UpgradeTask>> availableUpgrades = new ArrayList<>();
+    private static final List<Class<? extends UpgradeTask>> availableUpgrades = new ArrayList<>();
 
     /**
      * Configure an upgrade task that will mutate the Aerospike data before the Graph is loaded
@@ -44,7 +35,7 @@ public class Upgrade {
      *
      * @param dataModel class implementing the current data model
      * @param db        AerospikeConnection instance
-     * @throws Exception
+     * @throws Exception if the data model is not compatible with the current version.
      */
     public static void initMetadata(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
         ComparableVersion classModelVer = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
@@ -60,7 +51,7 @@ public class Upgrade {
      * @param dataModel configured class implementing the data model to use
      * @param db        AerospikeConnection instance
      * @return does it need to run upgrade?
-     * @throws Exception
+     * @throws Exception if the data model is not compatible with the current version.
      */
     public static boolean checkNeedsUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
         ComparableVersion currentVer = db.getDataModelVerion();
@@ -70,15 +61,15 @@ public class Upgrade {
             currentVer = db.getDataModelVerion();
             currentModel = db.getDataModelName();
         } else if (currentVer == null || currentModel == null) {
-            throw new RuntimeException("currentVer or currentModel null, but not both");
+            throw new RuntimeException(currentVer == null ? "currentVer is null." : "currentModel is null.");
         }
         if (!dataModel.getMethod(GETDATAMODELNAME).invoke(null).equals(currentModel))
-            throw new RuntimeException(String.format("On disk data model %s does not match provided data model %s", currentModel, dataModel.getCanonicalName()));
+            throw new RuntimeException(String.format("On disk data model '%s' does not match provided data model '%s'.", currentModel, dataModel.getCanonicalName()));
         ComparableVersion classModelVer = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
         if (currentVer == null)
             db.setModelVersion(classModelVer.toString());
         if (classModelVer.compareTo(db.getDataModelVerion()) < 0)
-            throw new RuntimeException(String.format("On disk data model %d is higher then software data model %d", db.getDataModelVerion(), classModelVer));
+            throw new RuntimeException(String.format("On disk data model '%s' is higher then software data model '%s'.", db.getDataModelVerion(), classModelVer));
         return db.getDataModelVerion().compareTo(classModelVer) < 0;
     }
 
@@ -87,7 +78,7 @@ public class Upgrade {
      *
      * @param dataModel class implementing current data model
      * @param db        AerospikeConnection instance
-     * @throws Exception
+     * @throws Exception if the data model is not compatible with the current version.
      */
     public static void performUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
         ComparableVersion currentVer = db.getDataModelVerion();

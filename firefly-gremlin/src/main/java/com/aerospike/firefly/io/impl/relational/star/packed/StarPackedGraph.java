@@ -12,9 +12,12 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.T;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -63,9 +66,12 @@ public class StarPackedGraph extends PackedGraph {
     public String getDataModel() {
         return DATA_MODEL;
     }
+
+    // This function is used via reflection in Upgrade.java. Removing will cause issues.
     public static String getDataModelName() {
         return DATA_MODEL;
     }
+
 
     /**
      * Function to write edge to Aerospike.
@@ -191,9 +197,24 @@ public class StarPackedGraph extends PackedGraph {
     public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue,
                                                             final FireflyVertex vertex,
                                                             final String key,
-                                                            final V value) {
+                                                            final V value,
+                                                            final Object... keyValues) {
+        final Map<String, Object> properties = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
+        final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
+
+        for (int i = 0; i < keyValues.length; i = i + 2) {
+            if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
+                if (!allowNullProperties && null == keyValues[i + 1]) {
+                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    if (keyValues[i + 1] != null) {
+                        typeHints.put((String) keyValues[i], AerospikeConnection.getSupportedType(keyValues[i + 1]));
+                    }
+                }
+        }
+
         // Write vertex property to Aerospike.
-        final FireflyVertexProperty<V> fireflyVertexProperty = PackedVertexProperty.writeVertexProperty(this, vertex, idValue, key, value);
+        final FireflyVertexProperty<V> fireflyVertexProperty = new PackedVertexProperty<>(this, idValue, (PackedVertex) vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.
         vertex.writeVertexProperty(fireflyVertexProperty);

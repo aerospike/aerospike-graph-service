@@ -1,11 +1,11 @@
 package com.aerospike.firefly.bulkloader.spark.executorservice;
 
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -18,9 +18,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class EdgeWriteThread implements Runnable {
+public class EdgeWriteThread implements Callable<Boolean> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteThread.class);
     private final Set<Object> supernodes;
     private final boolean ignoreFailedProperties;
@@ -33,7 +34,8 @@ public class EdgeWriteThread implements Runnable {
     private final AtomicInteger inEdgeCount = new AtomicInteger(0);
     private final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap;
     private final Map<Object, Map<String, List<Value>>> vertexInEdgeMap;
-    private final GenericRowWithSchema row;
+    private final GenericRowWithSchema fireflyRow;
+    private final GenericRowWithSchema fireflyMetadataRow;
     private static final int RETRY_LIMIT = 100;
     private final int partitionId;
     
@@ -45,8 +47,9 @@ public class EdgeWriteThread implements Runnable {
                            final String nullValue, FireflyGraph graph,
                            final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap,
                            final Map<Object, Map<String, List<Value>>> vertexInEdgeMap,
-                           final GenericRowWithSchema row,
-                           final int partitionId) {
+                           final GenericRowWithSchema rowForFirefly,
+                           final int partitionId,
+                           final GenericRowWithSchema fireflyMetadataRow) {
         this.supernodes = supernodes;
         this.ignoreFailedProperties = ignoreFailedProperties;
         this.keepProvidedId = keepProvidedId;
@@ -56,35 +59,45 @@ public class EdgeWriteThread implements Runnable {
         this.graph = graph;
         this.vertexOutEdgeMap = vertexOutEdgeMap;
         this.vertexInEdgeMap = vertexInEdgeMap;
-        this.row = row;
+        this.fireflyRow = rowForFirefly;
         this.partitionId = partitionId;
+        this.fireflyMetadataRow = fireflyMetadataRow;
     }
 
+    /**
+     * Function to write edge to Aerospike.
+     *
+     * @return true if error occurred while writing edge, false otherwise.
+     */
     @Override
-    public void run() {
+    public Boolean call() {
         Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
         try {
-            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.row, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
+            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
             final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
             final Object inVertexId = sparkEdge.getInVertexId();
             final Object outVertexId = sparkEdge.getOutVertexId();
             final String edgeLabel = sparkEdge.getLabel();
             int tryCount = 0;
-            boolean succeeded = false;
-            while (!succeeded) {
+            while (true) {
                 try {
                     this.graph.bulkWriteEdge((Long) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                            inVertexId, outVertexId);
-                    succeeded = true;
+                            inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
                 } catch (final AerospikeException e) {
+                    if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                        // No point in retrying this kind of error.
+                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
+                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
+                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                        return !this.ignoreElementCreationFailed;
+                    }
                     if (++tryCount > RETRY_LIMIT) {
                         LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                                 inVertexId + " after " + tryCount + " attempts.", e);
-                        if (!this.ignoreElementCreationFailed) {
-                            throw e;
-                        } else {
-                            break;
-                        }
+                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                        return !this.ignoreElementCreationFailed;
                     } else {
                         LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                                 inVertexId + ". Attempting to write edge again. Attempt count: "
@@ -105,12 +118,15 @@ public class EdgeWriteThread implements Runnable {
                             edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
                             this.ignoreElementCreationFailed);
                 }
+
+                // Everything succeeded, return false.
+                return false;
             }
-        } catch (final FireflyBulkLoaderException e) {
-            LOGGER.warn("Failed to load edge for row: " + Arrays.toString(this.row.values()), e);
-            if (!this.ignoreElementCreationFailed) {
-                throw e;
-            }
+        } catch (final RuntimeException e) {
+            LOGGER.error("Failed to load edge for fireflyrow: " + fireflyMetadataRow  + " metadataRow: "  + fireflyMetadataRow, e);
+            // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+            // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+            return !this.ignoreElementCreationFailed;
         }
     }
 }

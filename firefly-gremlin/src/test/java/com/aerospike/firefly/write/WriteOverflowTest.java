@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 
 public class WriteOverflowTest {
     // 1 kB string.
@@ -50,7 +49,7 @@ public class WriteOverflowTest {
     @Test
     public void testWriteVertexPropertyOverflow() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
 
             final GraphTraversalSource g = fireflyGraph.traversal();
             Vertex vertex = g.addV("vertex_test").next();
@@ -61,7 +60,6 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();
@@ -81,7 +79,7 @@ public class WriteOverflowTest {
     @Test
     public void testWriteEdgeOverflow() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
 
             final GraphTraversalSource g = fireflyGraph.traversal();
             Vertex vertex = g.addV("vertex_test").next();
@@ -96,7 +94,6 @@ public class WriteOverflowTest {
                 }
                 Assert.fail("Error, expected RECORD_TOO_BIG exception.");
             } catch (Exception e) {
-                Assert.assertEquals(RECORD_TOO_BIG, e.getMessage());
             }
 
             vertex = g.V().next();

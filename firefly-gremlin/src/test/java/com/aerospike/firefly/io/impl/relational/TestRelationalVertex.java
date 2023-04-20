@@ -26,7 +26,11 @@ public class TestRelationalVertex {
     static private final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
     static {
+        // TODO: Is this test even valuable now? Scans no longer work properly on Edge records that are adjacency
+        //       indexed and an adjacency index query only returns overflow Edges that couldn't fit in the Edge caches.
+        //       All we can really test now is a scan versus a non-overflowing Edge cache for equality.
         CONFIG.setProperty(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED.toLowerCase(), true);
+        CONFIG.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), 10000);
     }
 
     static private final FireflyGraph GRAPH = FireflyGraph.open(CONFIG);
@@ -39,14 +43,14 @@ public class TestRelationalVertex {
 
     @Before
     public void beforeEach() {
-        GRAPH.getBaseGraph().dropDatabase();
+        GRAPH.getBaseGraph().dropDatabase(GRAPH, false);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), GRAPH);
     }
 
     @Test
-    public void scanAndIndexHaveEquivalentResultsBoth() {
+    public void scanAndCacheHaveEquivalentResultsBoth() {
         RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
-        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.BOTH));
+        List<FireflyId> idsByIndex = aRelationalVertex.getEdgeIdsFromVertex(Direction.BOTH);
         List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.BOTH));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
@@ -57,9 +61,9 @@ public class TestRelationalVertex {
     }
 
     @Test
-    public void scanAndIndexHaveEquivalentResultsIN() {
+    public void scanAndCacheHaveEquivalentResultsIN() {
         RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
-        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.IN));
+        List<FireflyId> idsByIndex = aRelationalVertex.getEdgeIdsFromVertex(Direction.IN);
         List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.IN));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
@@ -70,9 +74,9 @@ public class TestRelationalVertex {
     }
 
     @Test
-    public void scanAndIndexHaveEquivalentResultsOUT() {
+    public void scanAndCacheHaveEquivalentResultsOUT() {
         RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
-        List<FireflyId> idsByIndex = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByIndex(Direction.OUT));
+        List<FireflyId> idsByIndex = aRelationalVertex.getEdgeIdsFromVertex(Direction.OUT);
         List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getEdgeIdsFromVertexByScan(Direction.OUT));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());

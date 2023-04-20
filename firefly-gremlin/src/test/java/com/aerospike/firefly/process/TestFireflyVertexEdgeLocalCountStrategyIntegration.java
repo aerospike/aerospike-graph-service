@@ -3,7 +3,6 @@ package com.aerospike.firefly.process;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -22,7 +21,7 @@ import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ID_CACHE_SIZE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -35,13 +34,13 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         SETUP_GRAPH.close();
     }
 
     @Before
     public void beforeEach() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
         final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(1, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
@@ -69,7 +68,7 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
     @After
     public void afterEach() {
         CONFIG.clearProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase());
-        CONFIG.clearProperty(ID_CACHE_SIZE.toLowerCase());
+        CONFIG.clearProperty(ON_RECORD_ID_LIMIT.toLowerCase());
     }
 
     @Test
@@ -96,9 +95,9 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
     @Test
     public void testLocalCountStrategyEdgeCacheSizeExceeded() {
         // Cache size exceeded
-        CONFIG.setProperty(ID_CACHE_SIZE.toLowerCase(), "2");
+        CONFIG.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), "2");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            CONFIG.clearProperty(ID_CACHE_SIZE.toLowerCase());
+            CONFIG.clearProperty(ON_RECORD_ID_LIMIT.toLowerCase());
             assertCountStrategyAccuracy(graph);
             assertCountStrategyVertexLabelAccuracy(graph);
             assertCountStrategyEdgeLabelAccuracy(graph);

@@ -17,6 +17,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
@@ -27,9 +28,11 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
+import com.aerospike.firefly.structure.util.FireflySummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -71,6 +74,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
+import static com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex.FIREFLY_STATISTICS_APPROXIMATE;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -112,8 +116,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    public static String FIREFLY_VERSION = "0.6.0-SNAPSHOT";
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    public static String FIREFLY_VERSION = "0.7.0-SNAPSHOT";
+    public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
@@ -129,6 +133,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
     public FireflyIndexMetadata fireflyIndexMetadata = null;
+    public FireflySummaryUpdater fireflySummaryUpdater = null;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -180,6 +185,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+        fireflySummaryUpdater = new FireflySummaryUpdater(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -245,7 +251,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void bulkWriteEdge(final long edgeId, final String label,
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
-                                       final Object outVertexId);
+                                       final Object outVertexId, final boolean inVSupernode, final boolean outVSupernode);
 
     public abstract void removeEdgeById(final FireflyId edgeId);
 
@@ -260,16 +266,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void removeGraphVariable(final String key);
 
-    // Vertex property and property functions.
-    public abstract void removeProperty(final FireflyElement element, final String key);
-
-    public abstract <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value);
-
-    public abstract <V> Map<String, Property<V>> readProperties(final FireflyElement element);
-
-    public abstract <V> Property<V> readProperty(final FireflyElement element, final String key);
-
-    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
+    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(
+            final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value, final Object... keyValues);
 
     // Counting functions.
     public abstract long getVertexCount(final Expression expression);
@@ -403,6 +401,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
+            }
+            if (vertexIdsOrVertices[0].equals(FIREFLY_STATISTICS_APPROXIMATE)) {
+                return FireflyCloseableIteratorUtils.of(new FireflyApproximateStatisticsVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
                 try {
@@ -588,8 +589,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName,
-                predicateToFilter(predicate, indexInfo), queryPolicy);
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
@@ -642,11 +642,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             expression = Exp.build(exp);
         }
 
-
         db.getScanHitCounter().increment(mapKey);
 
         final ScanPolicy policy = new ScanPolicy();
-        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
+        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(ReadContext.create(setName, binName, mapKey), expression, policy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(kr));
@@ -719,8 +718,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
-        fireflyCardinalityMetadataTask.cancel();
-        fireflyIndexMetadataTask.cancel();
+        this.fireflyCardinalityMetadataTask.cancel();
+        this.fireflyIndexMetadataTask.cancel();
+        this.fireflySummaryUpdater.close();
         this.db.close();
     }
 

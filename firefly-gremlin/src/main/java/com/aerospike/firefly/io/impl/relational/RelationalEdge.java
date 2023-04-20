@@ -42,7 +42,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
@@ -55,7 +57,6 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 public class RelationalEdge extends FireflyEdge {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalEdge.class);
     protected final AerospikeConnection db;
-    // TODO: Possible performance enhancement. Cache the edge properties and keep them up to date here.
 
     /**
      * Constructor for RelationalEdge.
@@ -72,19 +73,31 @@ public class RelationalEdge extends FireflyEdge {
                              final FireflyId outVertex,
                              final FireflyId inVertex,
                              final Map<String, Object> properties,
-                             final Map<String, Long> typeHints) {
+                             final Map<String, Object> typeHints) {
         super(fid, label, graph, inVertex, outVertex, properties, typeHints);
         this.db = graph.getBaseGraph();
     }
 
     /**
+     * Remove property from edge property cache.
+     *
+     * @param key Key to remove.
+     */
+    public void removePropertyFromCache(final String key) {
+        properties.remove(key);
+        typeHints.remove(key);
+    }
+
+    /**
      * Write edge including caching IN/OUT vertices and edge properties.
      *
-     * @param graph      handle to Graph.
-     * @param edgeId     Id of Edge to write.
-     * @param label      label for Edge to write.
-     * @param inVertex   in Vertex for new Edge.
-     * @param outVertex  out Vertex for new Edge.
+     * @param graph                 handle to Graph.
+     * @param edgeId                Id of Edge to write.
+     * @param label                 label for Edge to write.
+     * @param inVertex              in Vertex for new Edge.
+     * @param outVertex             out Vertex for new Edge.
+     * @param inVertexCacheWrite    was the edge written to the edge cache of the in vertex.
+     * @param outVertexCacheWrite   was the edge written to the edge cache of the out vertex.
      * @param properties Edge properties.
      */
     public static RelationalEdge writeEdge(final FireflyGraph graph,
@@ -92,12 +105,14 @@ public class RelationalEdge extends FireflyEdge {
                                            final String label,
                                            final List<Map.Entry<String, Object>> properties,
                                            final FireflyVertex inVertex,
-                                           final FireflyVertex outVertex) {
+                                           final FireflyVertex outVertex,
+                                           final boolean inVertexCacheWrite,
+                                           final boolean outVertexCacheWrite) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
         final Map<String, Object> data = new TreeMap<>();
-        final Map<String, Long> typeHints = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
         properties.forEach(prop -> {
             final String key = prop.getKey();
             final Object value = prop.getValue();
@@ -107,7 +122,7 @@ public class RelationalEdge extends FireflyEdge {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value.getClass()));
+                typeHints.put(key, getSupportedType(value));
                 data.put(key, value);
             }
         });
@@ -116,10 +131,15 @@ public class RelationalEdge extends FireflyEdge {
         final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId.getUserId()), Value.get(label));
-        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
+
+        // Write to supernodes bin if vertex cache overflowed and adjacency indexes are enabled.
+        final String inBin = (!inVertexCacheWrite && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_IN : Direction.IN.name();
+        final Operation writeInV = MapOperation.put(mapPolicy, inBin,
                 Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
-        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
+        final String outBin = (!outVertexCacheWrite && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_OUT : Direction.OUT.name();
+        final Operation writeOutV = MapOperation.put(mapPolicy, outBin,
                 Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
+
         final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
                 Value.get(edgeId.getUserId()), Value.get(data, MapOrder.KEY_ORDERED));
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
@@ -127,9 +147,10 @@ public class RelationalEdge extends FireflyEdge {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
+        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
+        graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
         return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
     }
 
@@ -164,48 +185,6 @@ public class RelationalEdge extends FireflyEdge {
     }
 
     /**
-     * Construct edge from record.
-     *
-     * @param graph     Graph handle.
-     * @param keyRecord Record to construct from.
-     * @return Edge.
-     */
-    public static RelationalEdge fromRecord(final FireflyGraph graph, final KeyRecord keyRecord, final FireflyId edgeId) {
-        LOG.trace("Constructing edge from record.");
-        if (keyRecord == null) {
-            return null;
-        }
-        final FireflyRecord fireflyRecord = FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord);
-        return RelationalEdgeFactory.create(edgeId, fireflyRecord, graph);
-    }
-
-    /**
-     * Construct edges from phat edge record.
-     *
-     * @param graph     Graph handle.
-     * @param keyRecord Record to construct from.
-     * @return Iterator of FireflyEdge.
-     */
-    public static Iterator<FireflyEdge> allFromRecord(final FireflyGraph graph, final KeyRecord keyRecord) {
-        LOG.trace("Constructing edges from phat edge record.");
-        if (keyRecord == null || keyRecord.record == null) {
-            return Collections.emptyIterator();
-        }
-
-        final List<FireflyEdge> edges = new ArrayList<>();
-        final Map<Long, String> labelMap = (TreeMap<Long, String>) keyRecord.record.getMap(AerospikeConnection.LABEL);
-        for (final Long edgeId : labelMap.keySet()) {
-            final FireflyId fireflyEdgeId = new FireflyPhatEdgeId(edgeId, graph.getBaseGraph().PHAT_EDGE_SIZE,
-                    graph.getBaseGraph().EDGE_AERO_SET);
-            final FireflyEdge edge = RelationalEdgeFactory.create(fireflyEdgeId,
-                    FireflyRecord.fromRecord(graph.getBaseGraph(), keyRecord), graph);
-            edges.add(edge);
-        }
-
-        return edges.iterator();
-    }
-
-    /**
      * Remove edge from Aerospike.
      */
     @Override
@@ -229,6 +208,8 @@ public class RelationalEdge extends FireflyEdge {
         final Operation removeOut = MapOperation.removeByKey(Direction.OUT.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeProperties = MapOperation.removeByKey(db.PROPERTIES, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeTypeHints = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT, Value.get(edgeId.getUserId()), MapReturnType.NONE);
 
         // Logic for deleting the entire phat edge record if it no longer contains individual edges.
         final Expression removeEmptyPhatEdgeExp = Exp.build(
@@ -246,13 +227,16 @@ public class RelationalEdge extends FireflyEdge {
         final Operation removeOutBin = ExpOperation.write(Direction.OUT.name(), removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removePropertiesBin = ExpOperation.write(db.PROPERTIES, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeTypeHintsBin = ExpOperation.write(db.TYPE_HINTS, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        
+        final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+
         // This operation must be last since the expression checks the map in the label bin.
         final Operation removeLabelBin = ExpOperation.write(AerospikeConnection.LABEL, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         try {
             db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
-                    removeInBin, removeOutBin, removePropertiesBin, removeTypeHintsBin, removeLabelBin);
+                    removeSupernodesIn, removeSupernodesOut, removeInBin, removeOutBin, removePropertiesBin,
+                    removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeLabelBin);
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
@@ -260,74 +244,10 @@ public class RelationalEdge extends FireflyEdge {
         }
     }
 
-    public <V> Property<V> writeProperty(final String propertyKey, final V value) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Key key = getKey(db, db.EDGE_AERO_SET, this.id);
-        final Value edgeIdMapKey = Value.get(this.id.getUserId());
-
-        final Operation valueOp;
-        final Operation typeHintOp;
-
-        // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
-        // the property key if a null value is given.
-        if (value == null) {
-            valueOp = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
-        } else {
-            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            valueOp = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
-                    Value.get(getSupportedType(value.getClass())), CTX.mapKey(edgeIdMapKey));
-        }
-
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        try {
-            db.operate(writePolicy, key, valueOp, typeHintOp);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
-                // Special logic to handle when Edge has been removed from the Phat Edge since in this case
-                // the key is the Phat Edge key and thus the key still exists.
-                throw new ElementNotFoundException(this, ae);
-            } else {
-                throw ae;
-            }
-        }
-
-        return new RelationalProperty<>(graph, this, propertyKey, value);
-    }
-
-    public void removeProperty(final String propertyKey) {
-        final AerospikeConnection db = graph.getBaseGraph();
-        final Key key = getKey(db, db.EDGE_AERO_SET, this.id);
-        final Value edgeIdMapKey = Value.get(this.id.getUserId());
-
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-
-        try {
-            this.properties.remove(propertyKey);
-            db.operate(null, key, removeProperty, removeTypeHint);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
-                // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is
-                // the Phat Edge key and thus the key still exists.
-                LOG.debug("Ignored exception removing an already-removed property {}", this, ae);
-            } else {
-                throw ae;
-            }
-        }
-    }
-
     private static class RelationalEdgeFactory {
         private static RelationalEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
                                              final FireflyId outVertex, final FireflyId inVertex,
-                                             final Map<String, Object> properties, final Map<String, Long> typeHints) {
+                                             final Map<String, Object> properties, final Map<String, Object> typeHints) {
             if (StarPackedGraph.isStarPackedGraph(graph)) {
                 return new StarPackedEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
             } else {
@@ -350,10 +270,35 @@ public class RelationalEdge extends FireflyEdge {
                 return null;
             }
             final String label = labels.get(edgeIdMapKey);
-            final FireflyId outVertex = FireflyIdPoly.fromBase64Hash((String) record.getMap(Direction.OUT.name()).get(edgeIdMapKey), db.VERTEX_AERO_SET);
-            final FireflyId inVertex = FireflyIdPoly.fromBase64Hash((String) record.getMap(Direction.IN.name()).get(edgeIdMapKey), db.VERTEX_AERO_SET);
+
+            // If adjacency indexes are enabled the OUT and IN Vertex IDs might be stored in the adjacency index bins
+            // instead of the regular ones.
+            Map<?, ?> outVMap = record.getMap(Direction.OUT.name());
+            if ((outVMap == null || !outVMap.containsKey(edgeIdMapKey))) {
+                if (db.ADJACENCY_INDEX_ENABLED) {
+                    outVMap = record.getMap(db.SUPERNODES_OUT);
+                }
+                if ((outVMap == null || !outVMap.containsKey(edgeIdMapKey))) {
+                    LOG.error("Could not find OUT Vertex ID for Edge ID {}.", edgeId.getUserId());
+                    return null;
+                }
+            }
+            final FireflyId outVertex = FireflyIdPoly.fromBase64Hash((String) outVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+
+            Map<?, ?> inVMap = record.getMap(Direction.IN.name());
+            if ((inVMap == null || !inVMap.containsKey(edgeIdMapKey))) {
+                if (db.ADJACENCY_INDEX_ENABLED) {
+                    inVMap = record.getMap(db.SUPERNODES_IN);
+                }
+                if ((inVMap == null || !inVMap.containsKey(edgeIdMapKey))) {
+                    LOG.error("Could not find IN Vertex ID for Edge ID {}.", edgeId.getUserId());
+                    return null;
+                }
+            }
+            final FireflyId inVertex = FireflyIdPoly.fromBase64Hash((String) inVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+
             final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES).get(edgeIdMapKey);
-            final Map<String, Long> typeHints = (Map<String, Long>) record.getMap(db.TYPE_HINTS).get(edgeIdMapKey);
+            final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS).get(edgeIdMapKey);
 
             return RelationalEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }

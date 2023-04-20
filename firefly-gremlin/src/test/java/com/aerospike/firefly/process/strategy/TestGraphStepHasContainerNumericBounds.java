@@ -85,7 +85,7 @@ public class TestGraphStepHasContainerNumericBounds {
         config.setProperty(VERTEX_PROPERTY_INDEXES.toLowerCase(), "age");
         config.setProperty(INDEX_METADATA_UPDATE_FREQUENCY.toLowerCase(), 1);
         try (FireflyGraph graph = FireflyGraph.open(config)){
-            graph.getBaseGraph().dropDatabase();
+            graph.getBaseGraph().dropDatabase(graph, false);
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             final GraphTraversalSource g = graph.traversal();
             Thread.sleep(10);

@@ -1,9 +1,11 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
@@ -18,6 +20,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -41,7 +44,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
@@ -83,16 +88,17 @@ public abstract class RelationalGraph extends FireflyGraph {
                                  final FireflyVertex outVertex) {
         // Write edge to vertex, if edge write fails, null check on edge record will protect from inconsistent data.
         // Add edge to inVertex and outVertex.
-        outVertex.writeEdge(Direction.OUT, getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label);
-        inVertex.writeEdge(Direction.IN, getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label);
+        final boolean inVertexCacheWrite = inVertex.writeEdge(Direction.IN, getIdFactory().createCompositeEdgeId(edgeId, outVertex.id), label);
+        final boolean outVertexCacheWrite = outVertex.writeEdge(Direction.OUT, getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label);
 
         // Write edge to Aerospike and return FireflyEdge.
-        return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex);
+        return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite);
     }
 
     @Override
     public void bulkWriteEdge(final long edgeId, final String label, final List<Map.Entry<String, Object>> properties,
-                              final Object inVertexId, final Object outVertexId) {
+                              final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
+                              final boolean outVSupernode) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
         final Map<String, Object> data = new TreeMap<>();
@@ -106,7 +112,7 @@ public abstract class RelationalGraph extends FireflyGraph {
                 data.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
+                typeHints.put(key, getSupportedType(value));
                 data.put(key, value);
             }
         });
@@ -115,10 +121,15 @@ public abstract class RelationalGraph extends FireflyGraph {
         final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId), Value.get(label));
-        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
+
+        // Write to supernodes bin if vertex cache overflowed and adjacency indexes are enabled.
+        final String inBin = (inVSupernode && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_IN : Direction.IN.name();
+        final Operation writeInV = MapOperation.put(mapPolicy, inBin,
                 Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
+        final String outBin = (outVSupernode && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_OUT : Direction.OUT.name();
+        final Operation writeOutV = MapOperation.put(mapPolicy, outBin,
                 Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+
         final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
                 Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
@@ -126,9 +137,10 @@ public abstract class RelationalGraph extends FireflyGraph {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_CONNECTION_MAX_RETRY;
+        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
         db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
+        fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
     }
 
     /**
@@ -174,18 +186,33 @@ public abstract class RelationalGraph extends FireflyGraph {
         final boolean isCacheDisabled = results.getBoolean(this.db.EDGE_CACHE_DISABLED);
         final long edgeCount = results.getLong(counterBinName);
 
-        if (isCacheDisabled) {
-            // Cache was already disabled so wipe the write we just did to prevent memory leak.
-            final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-            final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.operate(writePolicy, key, wipeCache);
-        } else if (edgeCount > this.db.ID_CACHE_SIZE) {
-            // Disable the edge cache for this vertex and clear the cache.
-            final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
-            final Operation disableCache = Operation.put(disabledCacheBin);
-            final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-            final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-            this.db.operate(writePolicy, key, disableCache, wipeCache);
+        try {
+            if (isCacheDisabled) {
+                // Cache was already disabled so wipe the write we just did to prevent memory leak.
+                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
+                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
+                this.db.operate(writePolicy, key, wipeCache);
+            } else if (edgeCount > this.db.ID_CACHE_SIZE) {
+                // Disable the edge cache for this vertex and clear the cache.
+                final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
+                final Operation disableCache = Operation.put(disabledCacheBin);
+                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
+                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
+                this.db.operate(writePolicy, key, disableCache, wipeCache);
+            }
+        } catch (final AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                LOG.error("RECORD_TO_BIG error on in bulk cache update operation " +
+                                "vertexId: {} direction: {} edgeIds: {} edgeLabel: {}",
+                        vertexId, direction, edgeIds, edgeLabel);
+                try {
+                    final Record r = db.getClient().get(null, key);
+                    LOG.error("Record which received RECORD_TOO_BIG: '{}'", r);
+                } catch (final RuntimeException ignored) {
+                    LOG.error("Failed to read back vertex that received RECORD_TOO_BIG.");
+                }
+            }
+            throw ae;
         }
     }
 
@@ -267,31 +294,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     /**
-     * Read the Record of properties associated with the Element from PROPERTY_AERO_SET
-     * remove k from the ELEMENT_PROPERTIES map
-     *
-     * @param element Element to remove property from
-     * @param key     property key to remove
-     */
-    @Override
-    public void removeProperty(final FireflyElement element, final String key) {
-        if (element instanceof PackedVertexProperty) {
-            ((PackedVertexProperty<?>) element).removeProperty(key);
-        } else if (element instanceof RelationalEdge) {
-            ((RelationalEdge) element).removeProperty(key);
-        } else {
-            // TODO GRAPH-439: This default behaviour can probably be removed given that vertices, edges, and vertex
-            //  properties all now have their own unique logic for their properties.
-            db.removeTypeHintedValueFromMap(
-                    db.setFromElementType(element.getClass()),
-                    element.id,
-                    db.PROPERTIES,
-                    key,
-                    db.TYPE_HINTS);
-        }
-    }
-
-    /**
      * Return a Graph variable value by name
      *
      * @param key Graph variable key
@@ -360,35 +362,13 @@ public abstract class RelationalGraph extends FireflyGraph {
 
     protected Iterator<FireflyId> scanAllVertices() {
         LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<KeyRecord> i = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
+        final Iterator<KeyRecord> i = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
         return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
     }
 
     @Override
-    public <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value) {
-        FireflyHelper.validatePropertyValue(value);
-        if (element instanceof RelationalEdge) {
-            return ((RelationalEdge) element).writeProperty(key, value);
-        }
-        // TODO GRAPH-439: Refactor property inheritance tree and update/remove this. Since Linked is deprecated writing
-        //                 of properties probably should be delegated to their respective parent classes since they all
-        //                 have differing logic now and this is not used.
-        return RelationalProperty.writeProperty(this, element, key, value);
-    }
-
-    @Override
-    public <V> Map<String, Property<V>> readProperties(final FireflyElement element) {
-        return RelationalProperty.readProperties(this, element);
-    }
-
-    @Override
-    public <V> Property<V> readProperty(final FireflyElement element, final String key) {
-        return RelationalProperty.readProperty(this, element, key);
-    }
-
-    @Override
     public long getVertexCount(final Expression expression) {
-        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(db.VERTEX_AERO_SET, expression, false));
+        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), expression, false));
     }
 
     @Override

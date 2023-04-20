@@ -41,11 +41,14 @@ public class StarPackedVertex extends PackedVertex {
                             final long outEdgeCount,
                             final Map<String, FireflyId> vertexPropertyIds,
                             final Map<String, Object> vertexPropertyValues,
-                            final Map<String, Long> vertexPropertyValuesTypeHints,
+                            final Map<String, Object> vertexPropertyValuesTypeHints,
+                            final Map<Object, Map<String, Object>> vertexPropertyIdToProperty,
+                            final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHint,
                             final boolean isCacheDisabled,
                             final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, vertexPropertyIds,
-                vertexPropertyValues, vertexPropertyValuesTypeHints, isCacheDisabled, db);
+                vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyIdToProperty,
+                vertexPropertyIdToTypeHint, isCacheDisabled, db);
     }
 
     /**
@@ -100,7 +103,7 @@ public class StarPackedVertex extends PackedVertex {
         // Read the ids, values, and type hints from the record.
         Map<String, List<Map<String, Object>>> vertexPropertyIds;
         Map<String, List<Map<String, Object>>> vertexPropertyValues;
-        Map<String, List<Map<String, Long>>> vertexPropertyTypeHints;
+        Map<String, List<Map<String, Object>>> vertexPropertyTypeHints;
         if (record == null) {
             // First entry, generate empty map.
             vertexPropertyIds = new TreeMap<>();
@@ -110,7 +113,7 @@ public class StarPackedVertex extends PackedVertex {
             // Read existing maps.
             vertexPropertyIds = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
             vertexPropertyValues = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            vertexPropertyTypeHints = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            vertexPropertyTypeHints = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
 
             // If any bins happen to be null, initialize them.
             if (vertexPropertyIds == null) {
@@ -134,11 +137,11 @@ public class StarPackedVertex extends PackedVertex {
         // Create a map for the id, value, and type hint.
         final Map<String, Object> vertexPropertyIdMap = new TreeMap<>();
         final Map<String, Object> vertexPropertyValueMap = new TreeMap<>();
-        final Map<String, Long> vertexPropertyTypeHintMap = new TreeMap<>();
+        final Map<String, Object> vertexPropertyTypeHintMap = new TreeMap<>();
         adjacentVertex.properties().forEachRemaining(vp -> {
             vertexPropertyIdMap.put(vp.key(), ((FireflyVertexProperty) vp).id.getStorageId());
             vertexPropertyValueMap.put(vp.key(), vp.value());
-            vertexPropertyTypeHintMap.put(vp.key(), db.getSupportedType(vp.value().getClass()));
+            vertexPropertyTypeHintMap.put(vp.key(), db.getSupportedType(vp.value()));
         });
 
         // Add maps to lists.
@@ -430,7 +433,7 @@ public class StarPackedVertex extends PackedVertex {
             }
 
             final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Object>>> vertexVPTypeHint = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
             final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
 
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
@@ -449,7 +452,7 @@ public class StarPackedVertex extends PackedVertex {
 
             final List<Object> edgeIds = edgeLabelToId.get(edge.label());
             final List<Map<String, Object>> vertexPropertyValues = vertexVPValue.get(edge.label());
-            final List<Map<String, Long>> vertexPropertyTypeHints = vertexVPTypeHint.get(edge.label());
+            final List<Map<String, Object>> vertexPropertyTypeHints = vertexVPTypeHint.get(edge.label());
             final List<Map<String, Object>> vertexPropertyIds = vertexVPId.get(edge.label());
             if (edgeIds.size() != vertexPropertyValues.size()) {
                 LOG.error("Edge list size {} did not match vertex property list size {} for vertex {} when adding properties to adjacent lists of vertex {}.", edgeIds.size(), vertexPropertyValues.size(), vpId, vertex.id());
@@ -460,7 +463,7 @@ public class StarPackedVertex extends PackedVertex {
                     String.format("Failed to find edge %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge, vpId, vertex.id()));
             vertexPropertyValues.get(edgeIndex).put(fireflyVertexProperty.key(), fireflyVertexProperty.value());
             vertexVPValue.put(edge.label(), vertexPropertyValues);
-            vertexPropertyTypeHints.get(edgeIndex).put(fireflyVertexProperty.key(), db.getSupportedType(fireflyVertexProperty.value().getClass()));
+            vertexPropertyTypeHints.get(edgeIndex).put(fireflyVertexProperty.key(), db.getSupportedType(fireflyVertexProperty.value()));
             vertexVPTypeHint.put(edge.label(), vertexPropertyTypeHints);
             vertexPropertyIds.get(edgeIndex).put(fireflyVertexProperty.key(), fireflyVertexProperty.id.getStorageId());
             vertexVPId.put(edge.label(), vertexPropertyIds);

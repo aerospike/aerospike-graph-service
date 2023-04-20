@@ -24,10 +24,6 @@ public class StringIdManager implements IdManager<String> {
         this.graph = graph;
     }
 
-    private static String createErrorMessage(final Class<?> expectedType, final Object id) {
-        return String.format("Expected an id that is convertible to %s but received %s - [%s]", expectedType, id.getClass(), id);
-    }
-
     /**
      * Create a String id
      *
@@ -49,7 +45,4 @@ public class StringIdManager implements IdManager<String> {
     public boolean allow(final Class<?> id) {
         return AerospikeConnection.IdToDiskTypeMap.containsKey(id);
     }
-
-
-
 }

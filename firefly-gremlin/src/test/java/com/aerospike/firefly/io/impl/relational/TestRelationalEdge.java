@@ -25,7 +25,7 @@ public class TestRelationalEdge {
     @Before
     public void beforeEach() {
         this.graph = FireflyGraph.open(CONFIG);
-        this.graph.getBaseGraph().dropDatabase();
+        this.graph.getBaseGraph().dropDatabase(graph, false);
         var g = graph.traversal();
         this.from = g.addV("from").next();
         this.to = g.addV("to").next();
@@ -33,7 +33,7 @@ public class TestRelationalEdge {
 
     @After
     public void after() {
-        this.graph.getBaseGraph().dropDatabase();
+        this.graph.getBaseGraph().dropDatabase(graph, false);
         this.graph.close();
     }
 

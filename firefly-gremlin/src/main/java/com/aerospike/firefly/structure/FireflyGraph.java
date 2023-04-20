@@ -33,6 +33,7 @@ import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.structure.util.FireflySummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.FaultUtil;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
@@ -154,7 +155,6 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
-
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
     public static String FIREFLY_VERSION = "0.7.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
@@ -446,11 +446,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 return FireflyCloseableIteratorUtils.of(new FireflyApproximateStatisticsVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                try {
-                    WarmupUtil.create(configuration).preheat(1);
-                } catch (Exception e) {
-                    LOG.warn("Failed to run warmup routine {}", e.getMessage());
-                }
+                WarmupUtil.create(configuration).preheat(1);
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
         }

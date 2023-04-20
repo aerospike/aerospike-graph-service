@@ -146,11 +146,13 @@ public final class ConfigurationHelper {
         public static final String TLS = "TLS";
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
+        public static final String FAULT_TEST = "FAULT_TEST";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
         add(Keys.AEROSPIKE_USER);
         add(Keys.AEROSPIKE_PASSWORD);
+        add(Keys.FAULT_TEST);
     }};
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -248,6 +250,7 @@ public final class ConfigurationHelper {
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
+        put(Keys.FAULT_TEST, "false");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -319,9 +322,9 @@ public final class ConfigurationHelper {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         } else if (environmentVariables.contains(key.toUpperCase())) {
             // Allow username and password to come from environment variables.
-            final String environment = System.getenv(key.toLowerCase());
-            if (environment != null && !environment.isEmpty()) {
-                return environment;
+            final String envConfig = System.getenv(key.toUpperCase());
+            if (envConfig != null && !envConfig.isEmpty()) {
+                return envConfig;
             }
         }
         try {

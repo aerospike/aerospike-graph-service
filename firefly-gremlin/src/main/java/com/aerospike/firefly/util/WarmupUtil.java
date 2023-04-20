@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -34,8 +36,10 @@ public class WarmupUtil {
     final FireflyGraph graph;
     public static final int passes = 48;
     final Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
+    private final Configuration conf;
 
     private WarmupUtil(Configuration conf) {
+        this.conf = conf;
         Configuration warmupConfig = ConfigurationUtils.cloneConfiguration(conf);
         String warmupArena = getWarmupArenaName();
         warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
@@ -54,6 +58,12 @@ public class WarmupUtil {
     }
 
     public void preheat(int passes) {
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
+            final String message = "Fault test is enabled by configuration, will stall warmup routine.";
+            System.out.println(message);
+            LOG.warn(message);
+            throw new AerospikeException("Fault Test. The FAULT_TEST configuration key has been enabled. This intentionally causes the warmup routine to fail.");
+        }
         LOG.debug("Performing automatic warmup");
         IntStream.range(0, passes).forEach(i -> {
             phase1();
@@ -122,5 +132,20 @@ public class WarmupUtil {
 
         });
         return Arrays.asList(vxidmap.values().toArray());
+    }
+
+    public static void invokeWarmup(GraphTraversalSource g) {
+        Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
+        System.out.println("Will attempt warmup routine");
+        try {
+            IntStream.range(0, 48).forEach(it -> {
+                System.out.printf("Warmup routine iteration %d at time %s \n", it, new Date());
+                g.V("FIREFLY_WARMUP").next();
+            });
+        } catch (Exception e) {
+            final String message = String.format("Failed to perform warmup routine: %s", e.getMessage());
+            LOG.error(message);
+            System.err.println(message);
+        }
     }
 }

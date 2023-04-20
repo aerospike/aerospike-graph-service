@@ -34,7 +34,6 @@ import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.structure.util.FireflySummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.FaultUtil;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;

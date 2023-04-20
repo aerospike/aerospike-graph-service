@@ -146,6 +146,7 @@ public final class ConfigurationHelper {
         public static final String TLS = "TLS";
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
+        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
@@ -247,6 +248,7 @@ public final class ConfigurationHelper {
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_MODE, "false");
+        put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
     }};
 

@@ -28,6 +28,7 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.ScanHitCounter;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
@@ -56,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -381,8 +383,10 @@ public abstract class RelationalVertex extends FireflyVertex {
         if (exp != null)
             policy.filterExp = exp;
         final AerospikeClient client = db.getClient();
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)));
+        final UUID scanId = UUID.randomUUID();
+        final ConcurrentScanRecordSequenceListener listener =
+                ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
+        listener.setStartTime();
         client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
         return new FireflyCloseableIterator<>(listener);
     }

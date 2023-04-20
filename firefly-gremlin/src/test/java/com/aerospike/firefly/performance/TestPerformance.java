@@ -265,7 +265,8 @@ public class TestPerformance extends AbstractFireflySuite {
         this.printTraversalForm(traversal);
         TraversalMetrics traversalMetrics = (TraversalMetrics) traversal.next();
         Collection<? extends Metrics> m = traversalMetrics.getMetrics();
-        assertEquals(5, m.size());
+        assertEquals(6, m.size());
+        System.out.println(traversalMetrics);
     }
 
 

@@ -59,12 +59,10 @@ public class WarmupUtil {
 
     public void preheat(int passes) {
         if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
-            final String message = "Fault test is enabled by configuration, will stall warmup routine.";
+            final String message = "Fault Test. The FAULT_TEST configuration key has been enabled. This intentionally causes the warmup routine to fail.";
             System.out.println(message);
-            LOG.warn(message);
-            throw new AerospikeException("Fault Test. The FAULT_TEST configuration key has been enabled. This intentionally causes the warmup routine to fail.");
+            throw new AerospikeException(message);
         }
-        LOG.debug("Performing automatic warmup");
         IntStream.range(0, passes).forEach(i -> {
             phase1();
             phase2();
@@ -108,7 +106,6 @@ public class WarmupUtil {
                 LOG.warn(e.getMessage());
             }
             g.V(createdIdAry).drop().iterate();
-
         }
     }
 
@@ -119,8 +116,6 @@ public class WarmupUtil {
             Vertex newVertex = (Vertex) DetachedFactory.detach(origVertex, true).attach(Attachable.Method.create(clone));
             vxidmap.put(origVertex.id(), newVertex.id());
         });
-
-
         original.edges(new Object[0]).forEachRemaining((e) -> {
             Vertex iv = e.inVertex();
             Vertex ov = e.outVertex();

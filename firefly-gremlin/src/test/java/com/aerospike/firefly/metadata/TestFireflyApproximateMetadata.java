@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -489,7 +488,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         g.addE("OWNS").
                 from(
-                    __.V().hasLabel("person").has("name", "Lyndon")).
+                        __.V().hasLabel("person").has("name", "Lyndon")).
                 to(
                         __.V().hasLabel("dog")).iterate();
         g.E().hasLabel("OWNS").property("since", 2019L).iterate();

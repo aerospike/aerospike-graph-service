@@ -242,8 +242,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
 
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
-        final Map<Object, Object> searchCreate;
-        searchCreate = TraversalUtil.apply(traverser, searchCreateTraversal);
+        final Map<Object, Object> searchCreate = TraversalUtil.apply(traverser, searchCreateTraversal);
         validateMapInput(searchCreate, false);
         Stream<Vertex> stream = createSearchStream(searchCreate);
         stream = stream.map(v -> {

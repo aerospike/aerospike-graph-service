@@ -199,7 +199,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             traversal.next();
             Assert.fail("Should have failed as vertices are not created");
         } catch (Exception ex) {
-            assertThat(ex.getMessage(), endsWith("could not be found and edge could not be created"));
+            assertThat(ex.getMessage(), endsWith("Vertex id could not be resolved from mergeE: 100"));
         }
         assertEquals(0, FireflyCloseableIteratorUtils.count(g.E()));
     }

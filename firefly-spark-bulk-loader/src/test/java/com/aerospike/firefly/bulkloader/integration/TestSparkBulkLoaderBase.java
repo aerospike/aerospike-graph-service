@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
@@ -43,6 +44,10 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getDefaultConfigArtificialSupernode();
 
     protected abstract String getKeepIdAsPropertyTrueConfigArtificialSupernode();
+
+    protected abstract String getPreflightCheckVertex();
+
+    protected abstract String getPreflightCheckEdge();
 
     @Test
     public void testDataAccuracy() {
@@ -120,6 +125,34 @@ public abstract class TestSparkBulkLoaderBase {
         for (final Object id : stringIds) {
             Assert.assertTrue(g.V(id).hasNext());
         }
+    }
+
+    @Test
+    public void testPreflightCheckVertex() {
+        boolean success = true;
+        try {
+            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckVertex()});
+        } catch (final FireflyBulkLoaderException preflightFailed) {
+            success = false;
+        }
+        Assert.assertFalse(success);
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertFalse(g.V().hasNext());
+        Assert.assertFalse(g.E().hasNext());
+    }
+
+    @Test
+    public void testPreflightCheckEdge() {
+        boolean success = true;
+        try {
+            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckEdge()});
+        } catch (final FireflyBulkLoaderException preflightFailed) {
+            success = false;
+        }
+        Assert.assertFalse(success);
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertFalse(g.V().hasNext());
+        Assert.assertFalse(g.E().hasNext());
     }
 
     private void testSupernodes() {

@@ -13,6 +13,8 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String KEEP_ID_AS_PROPERTY_CONFIG = "src/test/resources/conf/packed/keep-provided-id-as-property.properties";
     static private final String DEFAULT_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/config-artificial-supernode.properties";
     static private final String KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/keep-provided-id-as-property-artificial-supernode.properties";
+    static private final String PREFLIGHT_CHECK_EDGE = "src/test/resources/conf/packed/preflight-check-edge.properties";
+    static private final String PREFLIGHT_CHECK_VERTEX = "src/test/resources/conf/packed/preflight-check-vertex.properties";
     static private final String DATA_MODEL = "packed";
 
     @Test
@@ -43,5 +45,15 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     @Override
     protected String getKeepIdAsPropertyTrueConfigArtificialSupernode() {
         return KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE;
+    }
+
+    @Override
+    protected String getPreflightCheckEdge() {
+        return PREFLIGHT_CHECK_EDGE;
+    }
+
+    @Override
+    protected String getPreflightCheckVertex() {
+        return PREFLIGHT_CHECK_VERTEX;
     }
 }

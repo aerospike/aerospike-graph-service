@@ -5,6 +5,7 @@ import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
+import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.Configuration;
@@ -115,6 +116,7 @@ public class SparkBulkLoader {
         final List<Dataset<Row>> vertexDatasets = createDatasets(spark, vertexPaths, REQUIRED_VERTEX_HEADERS);
         final List<Dataset<Row>> edgeDatasets = createDatasets(spark, edgePaths, REQUIRED_EDGE_HEADERS);
 
+        // Merge Vertex Dataset.
         final Dataset<Row> unionVertexDS = DatasetOperations.mergeDatasets(spark, vertexDatasets);
         final Dataset<Row> persistedVertexDS;
         if (dfStorageLevel.isValid()) {
@@ -124,15 +126,34 @@ public class SparkBulkLoader {
             persistedVertexDS = unionVertexDS;
         }
 
+        // Merge Edge Dataset.
+        final Dataset<Row> unionEdgeDS = DatasetOperations.mergeDatasets(spark, edgeDatasets);
+
+        final Dataset<Row> persistedEdgeDS;
+        if (dfStorageLevel.isValid()) {
+            persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
+            LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
+        } else {
+            persistedEdgeDS = unionEdgeDS;
+        }
+
         // Sample out vertex dataset for verifying the inserts.
         final Dataset<Row> sampledVertexDatasets = persistedVertexDS.sample(sampleFraction);
 
         final String finalS3BucketName = s3BucketName;
 
+        // Pre-flight verification that row data can be parsed into their respective SparkFireflyELement.
+        // Verify Vertex row data can be parsed into SparkFireflyVertex (dry run).
+        if (!DatasetOperations.verifyVertexRows(persistedVertexDS, configPath, ENV, finalS3BucketName) ||
+                !DatasetOperations.verifyEdgeRows(persistedEdgeDS, configPath, ENV, finalS3BucketName)) {
+            final String preflightFailed = "Detected invalid CSV data in pre-flight check. See logs for detail on which line number and file caused the failure.";
+            throw new FireflyBulkLoaderException(preflightFailed);
+        }
+
         // Write Vertices.
         final Instant startOfVertexMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
-        final List<Long> vertexResult = DatasetOperations.vertexWrite(persistedVertexDS, configPath, ENV, finalS3BucketName);
+        final List<Long> vertexResult = DatasetOperations.writeVertices(persistedVertexDS, configPath, ENV, finalS3BucketName);
         final Instant endOfVertexMapPartitions = Instant.now();
         Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
         LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
@@ -144,17 +165,6 @@ public class SparkBulkLoader {
         // Verify vertices.
         spark.sparkContext().setJobGroup("Verify Vertex", "Verify vertex MapPartition", true);
         DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
-
-        // Load and Merge Edges.
-        final Dataset<Row> unionEdgeDS = DatasetOperations.mergeDatasets(spark, edgeDatasets);
-
-        final Dataset<Row> persistedEdgeDS;
-        if (dfStorageLevel.isValid()) {
-            persistedEdgeDS = unionEdgeDS.persist(dfStorageLevel);
-            LOGGER.info("Storage Level for Edge dataset = {}", dfStorageLevel);
-        } else {
-            persistedEdgeDS = unionEdgeDS;
-		}	
 
         // Sample out edge dataset to verify the inserts.
         final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);

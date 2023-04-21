@@ -31,7 +31,6 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     }
 
     public static SparkFireflyEdge createEdge(final GenericRowWithSchema row,
-                                              final boolean ignoreParseFailedProperties,
                                               final boolean keepProvidedId,
                                               final String providedIdPropertyName,
                                               final String nullValue,
@@ -67,14 +66,12 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
-                LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
-                if (!ignoreParseFailedProperties) {
-                    throw new FireflyBulkLoaderException(e);
-                }
+                LOG.error("Failed to generate property for header '" + header + "' from value: " + row.getAs(header));
+                throw new FireflyBulkLoaderException(e);
             }
         }
         if (fromVertexId == null || toVertexId == null) {
-            throw new FireflyBulkLoaderException("Could not generate edge due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate edge due to ~from or ~to being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;

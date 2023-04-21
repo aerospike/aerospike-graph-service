@@ -19,8 +19,6 @@ public class BulkLoaderConfigHelper {
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "provided_edge_id_property_name";
     // Boolean value to ignore failures creating a Vertex or Edge and continue the bulk load.
     public static final String IGNORE_ELEMENT_CREATION_FAILED = "ignore_element_creation_failed";
-    // Boolean value to ignore failures parsing specific properties on Vertices and Edges, e.g. specifying "hello world" to be parsed as a numeric value.
-    public static final String IGNORE_PARSE_FAILED_PROPERTIES = "ignore_parse_failed_properties";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "sampling_percentage";
     // Flag to enable/disable to caching of dataframe
@@ -35,7 +33,6 @@ public class BulkLoaderConfigHelper {
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
         put(IGNORE_ELEMENT_CREATION_FAILED, "false");
-        put(IGNORE_PARSE_FAILED_PROPERTIES, "true");
         put(SAMPLING_PERCENTAGE, "0.1");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");

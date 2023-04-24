@@ -30,12 +30,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.aerospike.firefly.process.call.FireflyServiceFactory.PRETTY_PRINT_FORMAT_LOG;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflySummaryUpdater implements Closeable {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflySummaryUpdater.class);
+public class FireflyGraphSummaryUpdater implements Closeable {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphSummaryUpdater.class);
     private static final int BLOCKING_QUEUE_SIZE = 25000;
     private static final int WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE = 500;
     private static final int HIGH_WATERMARK = 1000;
@@ -53,6 +56,8 @@ public class FireflySummaryUpdater implements Closeable {
     // Store these locally so that we don't create any that we have already created.
     private final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
     private final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
+    private AtomicLong lastTicketOutputTime = new AtomicLong(0);
+    private final Long TICKER_OUTPUT_INTERVAL_MS = 30000L;
 
     public boolean exited() {
         return this.exited.get();
@@ -128,34 +133,6 @@ public class FireflySummaryUpdater implements Closeable {
         }
     }
 
-    private static class KeyCount {
-        public final String key;
-        public final long count;
-
-        private KeyCount(final String key, final long count) {
-            this.key = key;
-            this.count = count;
-        }
-
-        @Override
-        public String toString() {
-            return "KeyCount{key=" + key + ",count=" + count + "}";
-        }
-
-        @Override
-        public int hashCode() {
-            return key.hashCode();
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            final KeyCount that = (KeyCount) o;
-            return key.equals(that.key);
-        }
-    }
-
     private static class PoisonPill implements UpdateInfo {
     }
 
@@ -167,7 +144,7 @@ public class FireflySummaryUpdater implements Closeable {
     private final Key VP_SUMMARY_KEY;
     private final Key EP_SUMMARY_KEY;
 
-    public FireflySummaryUpdater(final AerospikeConnection db) {
+    public FireflyGraphSummaryUpdater(final AerospikeConnection db) {
         this.db = db;
         this.VP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, VP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
         this.EP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
@@ -177,7 +154,7 @@ public class FireflySummaryUpdater implements Closeable {
     }
 
     public void truncate() {
-        synchronized (FireflySummaryUpdater.class) {
+        synchronized (FireflyGraphSummaryUpdater.class) {
             vertexLabelToProperties.clear();
             edgeLabelToProperties.clear();
         }
@@ -413,8 +390,31 @@ public class FireflySummaryUpdater implements Closeable {
         return new FireflyElementMetadata(vertexMetadata, edgeMetadata);
     }
 
+    private void printGraphSummaryTicker() {
+        if (lastTicketOutputTime.get() + TICKER_OUTPUT_INTERVAL_MS > System.currentTimeMillis()) {
+            return;
+        }
+
+        final FireflyElementMetadata fireflyElementMetadata = getFireflyStatistics();
+        LOG.info("Graph summary ticker:\n" + PRETTY_PRINT_FORMAT_LOG,
+                fireflyElementMetadata.totalVertexCount(),
+                fireflyElementMetadata.vertexCountByLabel(),
+                fireflyElementMetadata.totalEdgeCount(),
+                fireflyElementMetadata.edgeCountByLabel(),
+                fireflyElementMetadata.vertexPropertiesByLabel(),
+                fireflyElementMetadata.edgePropertiesByLabel());
+        lastTicketOutputTime.set(System.currentTimeMillis());
+    }
+
     public Runnable getUpdateRunnable() {
         return () -> {
+            try {
+                printGraphSummaryTicker();
+            } catch (final RuntimeException e) {
+                // This should work but in case it doesn't, continue into standard operation.
+                LOG.warn("Failed to print graph summary ticker.", e);
+            }
+
             boolean hadError = false;
             while (true) {
                 final UpdateInfo info;
@@ -450,6 +450,10 @@ public class FireflySummaryUpdater implements Closeable {
                 }
                 try {
                     if (!foundPoisonPill && infoList.size() < HIGH_WATERMARK) {
+                        // Only print out ticket if we are not over the watermark (our write load is not large).
+                        // This is because we do not want to add additional stress on the system if we are under heavy
+                        // load. Additionally, if we received a poison pill we should not print out a ticker.
+                        printGraphSummaryTicker();
                         Thread.sleep(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE);
                     }
                 } catch (final InterruptedException ignored) {
@@ -584,7 +588,7 @@ public class FireflySummaryUpdater implements Closeable {
         for (final LabelCountInfo updateInfo : updates) {
             for (final String property : updateInfo.properties) {
                 // Check if we have already inserted this mapping.
-                synchronized (FireflySummaryUpdater.class) {
+                synchronized (FireflyGraphSummaryUpdater.class) {
                     if (propertyMappings.containsKey(updateInfo.label) && propertyMappings.get(updateInfo.label).contains(property)) {
                         // Skip it.
                         continue;
@@ -596,7 +600,7 @@ public class FireflySummaryUpdater implements Closeable {
                 final Operation updateOp = ListOperation.append(createListOnlyPolicy, SUMMARY_PROPERTY_BIN, Value.get(property), CTX.mapKey(Value.get(updateInfo.label)));
                 db.getClient().operate(writePolicy, key, createOp, updateOp);
 
-                synchronized (FireflySummaryUpdater.class) {
+                synchronized (FireflyGraphSummaryUpdater.class) {
                     if (!propertyMappings.containsKey(updateInfo.label)) {
                         propertyMappings.put(updateInfo.label, new HashSet<>());
                     }

@@ -1,19 +1,14 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.Record;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -23,8 +18,9 @@ import java.util.Set;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyApproximateStatisticsVertex implements Vertex {
+public class FireflyGraphSummaryVertex implements Vertex {
     private final FireflyGraph graph;
 
     private static final String VERTEX_COUNT = "vertex_count";
@@ -41,34 +37,34 @@ public class FireflyApproximateStatisticsVertex implements Vertex {
             EDGE_COUNT_PER_LABEL,
             EDGE_PROPERTIES_PER_LABEL
     );
-    public static final String FIREFLY_STATISTICS_APPROXIMATE = "~firefly_approximate_statistics_vertex";
+    public static final String GRAPH_SUMMARY_VERTEX = "~graph_summary";
 
-    public FireflyApproximateStatisticsVertex(final FireflyGraph graph) {
+    public FireflyGraphSummaryVertex(final FireflyGraph graph) {
         this.graph = graph;
     }
 
     @Override
     public Edge addEdge(final String label, final Vertex inVertex, final Object... keyValues) {
-        throw new UnsupportedOperationException("Approximate statistics vertices are read-only");
+        throw new UnsupportedOperationException("Graph summary vertex is read-only.");
     }
 
     @Override
     public <V> VertexProperty<V> property(final VertexProperty.Cardinality cardinality, final String key, final V value, final Object... keyValues) {
-        throw new UnsupportedOperationException("Approximate statistics are read-only");
+        throw new UnsupportedOperationException("Graph summary vertex properties are read-only.");
     }
 
     @Override
     public Iterator<Edge> edges(final Direction direction, final String... edgeLabels) {
-        throw new UnsupportedOperationException("Approximate statistics vertices do not have edges");
+        throw new UnsupportedOperationException("Graph summary vertex does not have edges.");
     }
 
     @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
-        throw new UnsupportedOperationException("Approximate statistics vertices do not have adjacent vertices");
+        throw new UnsupportedOperationException("Graph summary vertex does not have adjacent vertices.");
     }
 
     private Map<String, Object> readData() {
-        final FireflySummaryUpdater.FireflyElementMetadata elementMetadata =
+        final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata =
                 graph.fireflySummaryUpdater.getFireflyStatistics();
         final Map<String, Object> data = new HashMap<>();
         if (elementMetadata.edgeInfo != null) {
@@ -135,7 +131,7 @@ public class FireflyApproximateStatisticsVertex implements Vertex {
 
                     @Override
                     public Object id() {
-                        return FIREFLY_STATISTICS_APPROXIMATE + ":" + propertyKey;
+                        return GRAPH_SUMMARY_VERTEX + ":" + propertyKey;
                     }
 
                     @Override
@@ -154,12 +150,12 @@ public class FireflyApproximateStatisticsVertex implements Vertex {
 
     @Override
     public Object id() {
-        return FIREFLY_STATISTICS_APPROXIMATE;
+        return GRAPH_SUMMARY_VERTEX;
     }
 
     @Override
     public String label() {
-        return FIREFLY_STATISTICS_APPROXIMATE;
+        return GRAPH_SUMMARY_VERTEX;
     }
 
     @Override

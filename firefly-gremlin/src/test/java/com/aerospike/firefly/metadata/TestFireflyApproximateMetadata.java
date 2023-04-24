@@ -131,7 +131,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        final Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties.
         final Map<String, Set<String>> vertexProperties = v.value("vertex_properties_per_label");
@@ -200,7 +200,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        final Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties per label.
         final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -298,7 +298,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        final Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties.
         final Map<String, Set<String>> vertexProperties = v.value("vertex_properties_per_label");
@@ -362,7 +362,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        final Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties per label.
         final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -399,7 +399,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
     @Test
     public void testEmpty() {
         // Get statistics vertex.
-        final Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        final Vertex v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
         final Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -422,7 +422,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
     public void testIncrementalVertexPropertyAdditions() {
         // Get statistics vertex.
         wait1Second();
-        Vertex v = g.V("~firefly_approximate_statistics_vertex").next();
+        Vertex v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
         Map<String, Set<String>> vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -444,7 +444,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        v = g.V("~firefly_approximate_statistics_vertex").next();
+        v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
         vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -468,7 +468,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        v = g.V("~firefly_approximate_statistics_vertex").next();
+        v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
         vertexPropertiesPerLabel = v.value("vertex_properties_per_label");
@@ -505,7 +505,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
 
         // Get statistics vertex.
         wait1Second();
-        v = g.V("~firefly_approximate_statistics_vertex").next();
+        v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
         vertexPropertiesPerLabel = v.value("vertex_properties_per_label");

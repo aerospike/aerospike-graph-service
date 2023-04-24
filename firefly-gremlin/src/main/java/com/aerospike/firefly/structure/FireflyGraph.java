@@ -20,6 +20,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
+import com.aerospike.firefly.process.call.FireflyServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
@@ -28,11 +29,11 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex;
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
-import com.aerospike.firefly.structure.util.FireflySummaryUpdater;
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -48,11 +49,11 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
@@ -74,7 +75,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.structure.util.FireflyApproximateStatisticsVertex.FIREFLY_STATISTICS_APPROXIMATE;
+import static com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
@@ -132,7 +133,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
     public FireflyIndexMetadata fireflyIndexMetadata = null;
-    public FireflySummaryUpdater fireflySummaryUpdater = null;
+    public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
+    private final ServiceRegistry serviceRegistry = new ServiceRegistry();
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -184,7 +186,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
-        fireflySummaryUpdater = new FireflySummaryUpdater(db);
+        fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
+        serviceRegistry.registerService(new FireflyServiceFactory(this));
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -401,8 +404,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
-            if (vertexIdsOrVertices[0].equals(FIREFLY_STATISTICS_APPROXIMATE)) {
-                return FireflyCloseableIteratorUtils.of(new FireflyApproximateStatisticsVertex(this));
+            if (vertexIdsOrVertices[0].equals(GRAPH_SUMMARY_VERTEX)) {
+                return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
                 WarmupUtil.create(configuration).preheat(1);
@@ -732,5 +735,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     @Override
     public String toString() {
         return StringFactory.graphString(this, db.toString());
+    }
+
+    @Override
+    public ServiceRegistry getServiceRegistry() {
+        return this.serviceRegistry;
     }
 }

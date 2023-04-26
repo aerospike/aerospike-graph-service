@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -153,5 +154,14 @@ public class BenchmarkTestSyntheticData {
         } else {
             throw new RuntimeException("No vertices found.");
         }
+    }
+
+    @Benchmark
+    public void benchmark_g_E(final Blackhole blackhole) {
+        Object id = householdIds.get(random.nextInt(householdIds.size()));
+        final Map<String, Object> props = g.V(id).
+                bothE().propertyMap().next();
+        if (props.size() > 0)
+            blackhole.consume(props);
     }
 }

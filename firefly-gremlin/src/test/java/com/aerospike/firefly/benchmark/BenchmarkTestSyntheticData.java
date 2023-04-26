@@ -157,11 +157,28 @@ public class BenchmarkTestSyntheticData {
     }
 
     @Benchmark
-    public void benchmark_g_E(final Blackhole blackhole) {
-        Object id = householdIds.get(random.nextInt(householdIds.size()));
+    public void benchmark_g_E_get_props(final Blackhole blackhole) {
+        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        //Retrieve all properties from edges attached to vertex
         final Map<String, Object> props = g.V(id).
                 bothE().propertyMap().next();
         if (props.size() > 0)
             blackhole.consume(props);
+    }
+
+    private String randomString(int len) {
+        final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        final Random rnd = new Random();
+        final StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++)
+            sb.append(AB.charAt(rnd.nextInt(AB.length())));
+        return sb.toString();
+    }
+
+    @Benchmark
+    public void benchmark_g_E_addProp(final Blackhole blackhole) {
+        //Add a new property to the edge pack
+        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        g.V(id).bothE().next().property("test", randomString(10));
     }
 }

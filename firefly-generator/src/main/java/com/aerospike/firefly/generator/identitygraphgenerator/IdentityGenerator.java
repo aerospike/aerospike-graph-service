@@ -48,7 +48,7 @@ import java.util.stream.IntStream;
  * IdentityGenerator is Runnable and multiple independent threads/workers can be spawned each executing their own IdentityGenerator instance.
  * Given the nature of the underlying graph structure, it is not necessary for the individual workers to have knowledge/reference to
  * the subgraphs of parallel IdentityGenerators. Such a structure allows for an embarrassingly parallel graph generator.
- * 
+ *
  * IdentityGenerator.Builder is used to create the Runnable.
  *
  * <pre><code>
@@ -122,6 +122,7 @@ public class IdentityGenerator implements Runnable {
     private static String bucket;
     private static AmazonS3 S3_CLIENT;
     private static final AtomicLong i = new AtomicLong(0);
+    private final boolean deterministic;
 
     private final HashMap<String, MutablePair<ByteArrayOutputStream, OutputStreamWriter>> streamMap = new HashMap<>();
 
@@ -129,6 +130,7 @@ public class IdentityGenerator implements Runnable {
         this.builder = builder;
         CommandLine cmd = this.builder.cmd;
         this.LOG = builder.logger;
+        this.deterministic = cmd.hasOption("D");
         ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : ENV;
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
         numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
@@ -386,7 +388,7 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap.put("schema", schemaSet);
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
-        } else { 
+        } else {
             objectPropertyMap = graphMap.get(fileName);
         }
 
@@ -480,8 +482,11 @@ public class IdentityGenerator implements Runnable {
         return street + " " + this.createName(10);
     }
 
-    private final long getGaussian(int mean, int variance) {
-        return Math.round(mean + this.random.nextGaussian() * variance);
+    private long getGaussian(int mean, int variance) {
+        if (deterministic)
+            return mean;
+        else
+            return Math.round(mean + this.random.nextGaussian() * variance);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -618,7 +623,7 @@ public class IdentityGenerator implements Runnable {
                     ",devicesPerHousehold:" + this.devicesPerPerson +
                     ",opsPerTransaction:" + this.ops +
                     ",numberOfEdgeProperties:" + this.numberOfEdgeProperties +
-                    ",edgePropertyValueLength:" + this.edgePropertyValueLength +"]";
+                    ",edgePropertyValueLength:" + this.edgePropertyValueLength + "]";
         }
     }
 }

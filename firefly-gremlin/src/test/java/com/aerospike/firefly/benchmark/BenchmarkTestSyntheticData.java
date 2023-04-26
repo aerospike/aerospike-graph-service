@@ -3,6 +3,8 @@ package com.aerospike.firefly.benchmark;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -164,6 +166,16 @@ public class BenchmarkTestSyntheticData {
                 bothE().propertyMap().next();
         if (props.size() > 0)
             blackhole.consume(props);
+    }
+
+    @Benchmark
+    public void benchmark_g_E_get_one_prop(final Blackhole blackhole) {
+        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        //Retrieve all properties from edges attached to vertex
+        final Edge it = g.V(id).bothE().next();
+        if (it.properties().hasNext()) {
+            it.properties().next();
+        }
     }
 
     private String randomString(int len) {

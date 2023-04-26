@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.client.util.Crypto;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -46,6 +47,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -565,7 +567,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void noNext() {
         try {
-            graph.edges(10000L).next();
+            final byte[] data = new byte[16];
+            new Random().nextBytes(data);
+            graph.edges(data).next();
             fail("Call to g.edges(10000l) should throw an exception");
         } catch (Exception ex) {
             assertThat(ex, IsInstanceOf.instanceOf(NoSuchElementException.class));
@@ -633,10 +637,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);
-        Object nextUserId = next.getUserId();
-        assertTrue(x.contains(next.getUserId()));
+        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
         next = i.get(1);
-        assertTrue(x.contains(next.getUserId()));
+        assertTrue(x.contains(Crypto.encodeBase64(((ByteBuffer) next.getUserId()).array())));
     }
 
     public static void validateException(final Throwable expected, final Throwable actual) {
@@ -1165,7 +1168,9 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         assertFalse(iterAllKnown.hasNext());
         eab.remove();
         assertFalse(graph.edges(eab.id()).hasNext());
-        Iterator<Edge> iter = graph.edges(eac.id(), ebc.id(), eab.id(), 123L);
+        final byte[] buff = new byte[16];
+        new Random().nextBytes(buff);
+        Iterator<Edge> iter = graph.edges(eac.id(), ebc.id(), eab.id(), buff);
         assertTrue(iter.hasNext());
         iter.next();
         assertTrue(iter.hasNext());

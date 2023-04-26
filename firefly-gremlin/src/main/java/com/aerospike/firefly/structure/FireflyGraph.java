@@ -27,6 +27,7 @@ import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.id.RecyclingBufferedNumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex;
@@ -67,6 +68,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -75,8 +77,9 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
+import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
-import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
@@ -129,7 +132,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     private final FireflyIdFactory idFactory;
     protected FireflyGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
-    public final IdManager<Long> edgeIdManager;
+    public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
     public FireflyIndexMetadata fireflyIndexMetadata = null;
@@ -157,11 +160,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.idFactory = db.getIdFactory();
 
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)), false);
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)));
-        this.edgeIdManager = new BufferedNumericIdManager(EDGE_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)), true);
+        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)), false);
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
@@ -251,7 +254,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
 
-    public abstract void bulkWriteEdge(final long edgeId, final String label,
+    public abstract void bulkWriteEdge(final byte[] edgeId, final String label,
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
                                        final Object outVertexId, final boolean inVSupernode, final boolean outVSupernode);
 
@@ -431,9 +434,14 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         final List<Object> ids = getIds(List.of(edgeIds));
-        final List<FireflyId> idList = ids.stream()
-                .map(id -> getIdFactory().createId(id, FireflyEdge.class))
-                .collect(Collectors.toList());
+        final List<FireflyId> idList;
+        try {
+            idList = ids.stream()
+                    .map(id -> getIdFactory().createId(id, FireflyEdge.class))
+                    .collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            throw new NoSuchElementException(e.getMessage());
+        }
 
         if (idList.isEmpty()) {
             return new FireflyBatchElementIterator<>(this, this.db.readElementIds(FireflyEdge.class), filters, this::readEdges);

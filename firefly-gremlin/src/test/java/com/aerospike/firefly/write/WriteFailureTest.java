@@ -19,9 +19,11 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.TreeMap;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -34,6 +36,14 @@ public class WriteFailureTest {
         }
     }
 
+    private static byte[] getBytesId(final long value) {
+        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(value);
+        final byte[] id = new byte[16];
+        System.arraycopy(buffer.array(), 0, id, 0, 8);
+        return id;
+    }
+
     @Test
     public void writeEdgeFailureTest() {
         // Test that if we partially write an edge it does not show up half way.
@@ -43,8 +53,8 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
-            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
+            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
+            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);
             Iterator<Edge> bOut = b.edges(Direction.OUT);
@@ -54,7 +64,7 @@ public class WriteFailureTest {
             Assert.assertFalse(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(1,FireflyEdge.class),
+            RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class),
                     "fail", new ArrayList<>(), a, b, true, true);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
@@ -76,10 +86,10 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyVertex b = (FireflyVertex) g.addV().next();
 
-            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
-            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail");
+            a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
+            b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
             RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph,
-                    fireflyGraph.getIdFactory().createId(1, FireflyEdge.class), "fail", new ArrayList<>(), a, b ,
+                    fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail", new ArrayList<>(), a, b ,
                     true, true);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
             Iterator<Edge> aIn = a.edges(Direction.IN);

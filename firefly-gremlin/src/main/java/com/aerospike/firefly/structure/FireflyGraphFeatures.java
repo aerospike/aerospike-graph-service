@@ -241,13 +241,18 @@ public class FireflyGraphFeatures implements Graph.Features {
         private final Graph.Features.EdgePropertyFeatures edgePropertyFeatures = new FireflyEdgePropertyFeatures();
         private final IdManager<?> edgeIdManager;
 
-        private FireflyEdgeFeatures(IdManager<?> edgeIdManager) {
+        private FireflyEdgeFeatures(final IdManager<?> edgeIdManager) {
             this.edgeIdManager = edgeIdManager;
         }
 
         @Override
         public Graph.Features.EdgePropertyFeatures properties() {
             return edgePropertyFeatures;
+        }
+
+        @Override
+        public boolean supportsNumericIds() {
+            return false;
         }
 
         @Override

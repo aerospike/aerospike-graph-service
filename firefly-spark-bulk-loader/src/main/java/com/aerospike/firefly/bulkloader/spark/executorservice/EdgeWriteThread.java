@@ -77,7 +77,7 @@ public class EdgeWriteThread implements Callable<Boolean> {
         int tryCount = 0;
         while (true) {
             try {
-                this.graph.bulkWriteEdge((Long) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                         inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
             } catch (final AerospikeException e) {
                 if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {

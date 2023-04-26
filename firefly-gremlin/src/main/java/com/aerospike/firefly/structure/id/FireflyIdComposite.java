@@ -2,9 +2,8 @@ package com.aerospike.firefly.structure.id;
 
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.google.common.primitives.Longs;
 
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -16,27 +15,28 @@ public class FireflyIdComposite extends FireflyId {
        but sometimes needed multiple times. Because of this, these are
        calculated lazily (and latched when needed the first time),
        to increase performance. */
-    private byte[] id;
-    private final FireflyId adjacentId;
+    private final byte[] id;
+    private FireflyId adjacentId;
     private final FireflyId edgeId;
 
     public FireflyIdComposite(final AerospikeConnection db, final FireflyId edgeId, final FireflyId adjacentId) {
         this.adjacentId = adjacentId;
         this.edgeId = edgeId;
         this.db = db;
-        this.id = new byte[28];
-        System.arraycopy(Longs.toByteArray((long) edgeId.getUserId()), 0, this.id, 0, 8);
-        System.arraycopy(adjacentId.getKeyHash(), 0, this.id, 8, 20);
+        this.id = new byte[36];
+        System.arraycopy(((ByteBuffer) edgeId.getUserId()).array(), 0, this.id, 0, 16);
+        System.arraycopy(adjacentId.getKeyHash(), 0, this.id, 16, 20);
     }
 
     public FireflyIdComposite(final AerospikeConnection db, final byte[] id) {
-        if (id.length != 28) {
-            throw new RuntimeException("Invalid id length");
+        if (id.length != 36) {
+            throw new RuntimeException("Invalid id length of " + id.length + " for composite id. Length should be 36.");
         }
         this.id = id;
-        long individualEdgeId = Longs.fromByteArray(Arrays.copyOfRange(id, 0, 8));
-        this.edgeId = new FireflyPhatEdgeId(individualEdgeId, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
-        adjacentId = null;
+        final byte[] individualEdgeId = new byte[16];
+        System.arraycopy(id, 0, individualEdgeId, 0, 16);
+        this.edgeId = new FireflyPhatEdgeId(ByteBuffer.wrap(individualEdgeId), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+        this.adjacentId = null;
         this.db = db;
     }
 
@@ -68,10 +68,10 @@ public class FireflyIdComposite extends FireflyId {
      * @return the id of vertex on other side of edge
      */
     public FireflyId getAdjacentId() {
-        if (adjacentId != null) {
-            return adjacentId;
+        if (adjacentId == null) {
+            adjacentId = FireflyIdPoly.fromHash(digestFromBytes(16), db.VERTEX_AERO_SET);
         }
-        return FireflyIdPoly.fromHash(digestFromBytes(8), db.VERTEX_AERO_SET);
+        return adjacentId;
     }
 
     /**

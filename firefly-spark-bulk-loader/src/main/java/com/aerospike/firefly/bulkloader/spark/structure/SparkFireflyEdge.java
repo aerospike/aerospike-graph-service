@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +24,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
     private final Object fromVertexId;
     private final Object toVertexId;
 
-    private SparkFireflyEdge(final Long edgeId, final String label, final Object fromVertexId, final Object toVertexId,
+    private SparkFireflyEdge(final byte[] edgeId, final String label, final Object fromVertexId, final Object toVertexId,
                              final List<Map.Entry<String, Object>> properties) {
         super(edgeId, label, properties);
         this.fromVertexId = fromVertexId;
@@ -76,7 +77,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         if (label == null) {
             label = DEFAULT_LABEL;
         }
-        final Long edgeId;
+        final byte[] edgeId;
         if (forVerification) {
             edgeId = null;
         } else {
@@ -95,7 +96,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             // time this is null.
             throw new UnsupportedOperationException("Can't get SparkFireflyEdge in verification mode.");
         }
-        return new FireflyPhatEdgeId((long) this.id, db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
+        return new FireflyPhatEdgeId(ByteBuffer.wrap((byte[]) this.id), db.PHAT_EDGE_SIZE, db.EDGE_AERO_SET);
     }
 
     public Object getInVertexId() {

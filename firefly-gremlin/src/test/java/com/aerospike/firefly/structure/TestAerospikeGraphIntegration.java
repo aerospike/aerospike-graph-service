@@ -37,12 +37,15 @@ import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONMapper;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONVersion;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.apache.tinkerpop.shaded.jackson.core.type.TypeReference;
 import org.apache.tinkerpop.shaded.jackson.databind.ObjectMapper;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -1363,5 +1366,60 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         List<Vertex> gVLyndon = g.V().toList();
         System.out.println("done");
     }
+
+
+    @Test
+    public void benchmark_g_E_get_props() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        final GraphTraversalSource g = graph.traversal();
+        final List<Object> modernVIDList = IteratorUtils.list(g.V().id());
+        final Random random = new Random();
+        final Object id = modernVIDList.get(random.nextInt(modernVIDList.size()));
+        //Retrieve all properties from edges attached to vertex
+        final Map<String, Object> props = g.V(id).
+                bothE().propertyMap().next();
+    }
+
+
+    @Test
+    public void benchmark_g_E_get_one_prop() {
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        final GraphTraversalSource g = graph.traversal();
+        final List<Object> modernVIDList = IteratorUtils.list(g.V().id());
+        final Random random = new Random();
+        final Object id = modernVIDList.get(random.nextInt(modernVIDList.size()));
+        //Retrieve all properties from edges attached to vertex
+        final Edge it = g.V(id).bothE().next();
+        if (it.properties().hasNext()) {
+            it.properties().next();
+        }
+    }
+
+    private String randomString(int len) {
+        final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        final Random rnd = new Random();
+        final StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++)
+            sb.append(AB.charAt(rnd.nextInt(AB.length())));
+        return sb.toString();
+    }
+
+
+    @Test
+    public void benchmark_g_E_addProp() {
+        //Add a new property to the edge pack
+        GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
+        final GraphTraversalSource g = graph.traversal();
+        final List<Object> modernVIDList = IteratorUtils.list(g.V().id());
+        final Random random = new Random();
+        final Object id = modernVIDList.get(random.nextInt(modernVIDList.size()));
+        final Object eid = g.V(id).bothE().next().id();
+        final Long initialCount = g.E(eid).properties().count().next();
+        g.E(eid).property(randomString(10), randomString(10)).next();
+        final Long finalCount = g.E(eid).properties().count().next();
+        assertEquals((long) initialCount + 1, (long) finalCount);
+    }
+
+
 }
 

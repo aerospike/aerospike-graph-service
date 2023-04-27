@@ -10,7 +10,7 @@ import java.util.Arrays;
  */
 public abstract class FireflyId implements Comparable {
     public enum Source {
-        NUMBER, STRING, HASH, COMPOSITE
+        NUMBER, STRING, HASH, COMPOSITE, BYTE_ARRAY
     }
 
     public abstract Object getUserId();

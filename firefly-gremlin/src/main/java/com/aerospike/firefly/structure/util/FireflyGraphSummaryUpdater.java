@@ -57,7 +57,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
     private final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
     private AtomicLong lastTicketOutputTime = new AtomicLong(0);
-    private final Long TICKER_OUTPUT_INTERVAL_MS = 30000L;
+    private final Long TICKER_OUTPUT_INTERVAL_MS = 60000L;
 
     public boolean exited() {
         return this.exited.get();

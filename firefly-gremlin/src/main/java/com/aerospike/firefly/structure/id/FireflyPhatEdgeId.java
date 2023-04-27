@@ -3,20 +3,33 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.client.Value;
 import com.aerospike.client.util.Crypto;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class FireflyPhatEdgeId extends FireflyIdPoly {
     private final long capacity;
 
-    public FireflyPhatEdgeId(final long id, final long capacity, final String edgeSetName) {
+    public FireflyPhatEdgeId(final ByteBuffer id, final long capacity, final String edgeSetName) {
         super(id, edgeSetName);
         this.capacity = capacity;
     }
 
+    public static long bytesIdToEdgeRecord(final ByteBuffer id) {
+        // Edge byte array is [<recycledId>, <uniqueId>]
+        // and the recycled id is used for the edge record.
+        final byte[] bytes = Arrays.copyOfRange(id.array(), 0, 8);
+        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer.getLong();
+    }
+
     @Override
     public Object getStorageId() {
-        return ((long) this.id) / capacity;
+        return bytesIdToEdgeRecord((ByteBuffer) this.id) / capacity;
     }
 
     /**

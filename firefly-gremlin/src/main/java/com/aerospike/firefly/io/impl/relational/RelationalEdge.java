@@ -1,12 +1,9 @@
 package com.aerospike.firefly.io.impl.relational;
 
-import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
-import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
-import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
@@ -17,9 +14,7 @@ import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
 import com.aerospike.client.exp.MapExp;
-import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedEdge;
@@ -30,19 +25,17 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -76,6 +69,11 @@ public class RelationalEdge extends FireflyEdge {
                              final Map<String, Object> typeHints) {
         super(fid, label, graph, inVertex, outVertex, properties, typeHints);
         this.db = graph.getBaseGraph();
+    }
+
+    @Override
+    public Object id() {
+        return Base64.getEncoder().encodeToString(((ByteBuffer) id.getUserId()).array());
     }
 
     /**
@@ -262,8 +260,8 @@ public class RelationalEdge extends FireflyEdge {
             }
             final AerospikeConnection db = graph.getBaseGraph();
             final Record record = fireflyRecord.record();
-            final long edgeIdMapKey = (long) edgeId.getUserId();
-            final Map<Long, String> labels = (Map<Long, String>) record.getMap(AerospikeConnection.LABEL);
+            final ByteBuffer edgeIdMapKey = (ByteBuffer) edgeId.getUserId();
+            final Map<ByteBuffer, String> labels = (Map<ByteBuffer, String>) record.getMap(AerospikeConnection.LABEL);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the
             // other phat edge maps, since they are all written in the same operate.
             if (!labels.containsKey(edgeIdMapKey)) {

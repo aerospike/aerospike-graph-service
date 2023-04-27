@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure.id;
 import com.aerospike.client.Value;
 import com.aerospike.client.util.Crypto;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -15,13 +16,15 @@ public class FireflyIdPoly extends FireflyId {
             Long.class, new GetLongId(),
             Integer.class, new GetIntegerId(),
             Double.class, new GetDoubleId(),
-            String.class, new GetStringId()
+            String.class, new GetStringId(),
+            ByteBuffer.class, new GetByteArrayId()
     );
     protected static Map<Class, Long> STORAGE_TYPE_HINTS = Map.of(
             Long.class, 1L,
             Integer.class, 2L,
             Double.class, 3L,
-            String.class, 5L
+            String.class, 5L,
+            ByteBuffer.class, 6L
     );
     protected final Object id;
     public final Source source;
@@ -51,13 +54,18 @@ public class FireflyIdPoly extends FireflyId {
         } else if (String.class.isAssignableFrom(id.getClass())) {
             this.source = Source.STRING;
             this.id = id;
+        } else if (ByteBuffer.class.isAssignableFrom(id.getClass())) {
+            this.source = Source.BYTE_ARRAY;
+            this.id = id;
         } else {
-            throw new IllegalArgumentException("Id must be a String or Number.");
+            throw new IllegalArgumentException("Id must be a String, Number, or byte array. Id provided was '" + id.getClass() + "'.");
         }
         this.setName = setName;
-        if (!STORAGE_TYPE_HINTS.containsKey(this.userClass)) {
+        if (!STORAGE_TYPE_HINTS.containsKey(this.userClass) &&
+                !STORAGE_TYPE_HINTS.containsKey(this.userClass.getSuperclass())) {
             // Should not happen in production, but add case for it anyway.
-            throw new RuntimeException(String.format("Error, cannot create numeric id with user class of %s.", this.userClass.getName()));
+            throw new RuntimeException(String.format("Error, cannot create poly id with user class of %s.",
+                    this.userClass.getName()));
         }
     }
 
@@ -124,6 +132,8 @@ public class FireflyIdPoly extends FireflyId {
         if (this.userClass == null) throw new RuntimeException("Error, cannot get user id for hash id.");
         if (CONVERT_TO_USER_CLASS.containsKey(userClass)) {
             return CONVERT_TO_USER_CLASS.get(userClass).getUserId(id);
+        } else if (CONVERT_TO_USER_CLASS.containsKey(userClass.getSuperclass())) {
+            return CONVERT_TO_USER_CLASS.get(userClass.getSuperclass()).getUserId(id);
         } else {
             throw new RuntimeException(String.format("Error, cannot convert numeric id to user class of %s.", userClass.getName()));
         }
@@ -141,7 +151,11 @@ public class FireflyIdPoly extends FireflyId {
 
     @Override
     public Long getStorageTypeHint() {
-        return STORAGE_TYPE_HINTS.get(userClass);
+        if (STORAGE_TYPE_HINTS.containsKey(userClass)) {
+            return STORAGE_TYPE_HINTS.get(userClass);
+        } else {
+            return STORAGE_TYPE_HINTS.get(userClass.getSuperclass());
+        }
     }
 
     @Override
@@ -222,5 +236,12 @@ public class FireflyIdPoly extends FireflyId {
 
     public static byte[] decodeBase64(final String base64data) {
         return Crypto.decodeBase64(base64data.getBytes(), 0, base64data.getBytes().length);
+    }
+
+    static class GetByteArrayId extends GetUserId {
+        @Override
+        public Object getUserId(final Object id) {
+            return id;
+        }
     }
 }

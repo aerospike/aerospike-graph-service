@@ -96,7 +96,7 @@ public abstract class RelationalGraph extends FireflyGraph {
     }
 
     @Override
-    public void bulkWriteEdge(final long edgeId, final String label, final List<Map.Entry<String, Object>> properties,
+    public void bulkWriteEdge(final byte[] edgeId, final String label, final List<Map.Entry<String, Object>> properties,
                               final Object inVertexId, final Object outVertexId, final boolean inVSupernode,
                               final boolean outVSupernode) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);

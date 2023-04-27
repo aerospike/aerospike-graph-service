@@ -15,7 +15,6 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedEdgeProperty;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexPropertyProperty;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
@@ -29,6 +28,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;

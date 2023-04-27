@@ -14,7 +14,9 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,17 +129,23 @@ public class FireflyIdFactory {
             // This is just caught and propagated up via a gremlin specific exception.
             throw new IllegalArgumentException("Invalid id type: " + typeHint + ". Id type must be one of " + HINT_TO_TYPE.keySet());
         } else if (FireflyEdge.class.isAssignableFrom(type)) {
-            final Long edgeId;
-            if (String.class.isAssignableFrom(id.getClass())) {
+            if (id instanceof ByteBuffer) {
+                return new FireflyPhatEdgeId((ByteBuffer) id, db.PHAT_EDGE_SIZE, set);
+            } else if (byte[].class.isAssignableFrom(id.getClass())) {
+                return new FireflyPhatEdgeId(ByteBuffer.wrap((byte[]) id), db.PHAT_EDGE_SIZE, set);
+            } else if (id instanceof String) {
                 try {
-                    edgeId = Long.parseLong((String) id);
-                } catch (final NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid id for edge: " + id);
+                    byte[] decodedBytes = Base64.getDecoder().decode((String) id);
+                    if (decodedBytes.length != 16) {
+                        throw new IllegalArgumentException("Invalid id for edge: '" + id + "'. Base64 encoded String did not decode to a valid 16 byte array.");
+                    }
+                    return new FireflyPhatEdgeId(ByteBuffer.wrap(decodedBytes), db.PHAT_EDGE_SIZE, set);
+                } catch (RuntimeException e) {
+                    throw new IllegalArgumentException("Invalid id for edge: '" + id + "'. Id type must be ByteBuffer, byte[], or base64 encoded String.");
                 }
             } else {
-                edgeId = ((Number) id).longValue();
+                throw new IllegalArgumentException("Invalid id for edge: '" + id + "'. Id type must be ByteBuffer, byte[], or base64 encoded String.");
             }
-            return new FireflyPhatEdgeId(edgeId, db.PHAT_EDGE_SIZE, set);
         } else if (Number.class.isAssignableFrom(id.getClass())) {
             return FireflyIdPoly.fromObject(id, HINT_TO_TYPE.get(typeHint), set);
         } else if (String.class.isAssignableFrom(id.getClass())) {

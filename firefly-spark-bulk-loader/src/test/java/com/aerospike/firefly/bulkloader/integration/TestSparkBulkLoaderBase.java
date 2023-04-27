@@ -1,10 +1,12 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
+import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.spark.SparkException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -48,6 +50,16 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getPreflightCheckVertex();
 
     protected abstract String getPreflightCheckEdge();
+
+    protected abstract String getNoIdEdges();
+
+    protected abstract String getNoIdEdgesKeepIdAsPropertyOff();
+
+    protected abstract String getDuplicateVertexId();
+
+    protected abstract String getDuplicateEdgeId();
+
+    protected abstract String getNonExistentEdgeVertexId();
 
     @Test
     public void testDataAccuracy() {
@@ -132,7 +144,7 @@ public abstract class TestSparkBulkLoaderBase {
         boolean success = true;
         try {
             SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckVertex()});
-        } catch (final FireflyBulkLoaderException preflightFailed) {
+        } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
         Assert.assertFalse(success);
@@ -146,13 +158,72 @@ public abstract class TestSparkBulkLoaderBase {
         boolean success = true;
         try {
             SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckEdge()});
-        } catch (final FireflyBulkLoaderException preflightFailed) {
+        } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
         Assert.assertFalse(success);
         final GraphTraversalSource g = graph.traversal();
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
+    }
+
+    @Test
+    public void testNoIdEdgesKeepAsProperty() {
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNoIdEdges()});
+        testEdges();
+        // There's no ~id to keep as a property so it shouldn't be returned.
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertFalse(g.E().has("testIdName").hasNext());
+    }
+
+    @Test
+    public void testNoIdEdgesKeepAsPropertyOff() {
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNoIdEdgesKeepIdAsPropertyOff()});
+        testEdges();
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertFalse(g.E().has("testIdName").hasNext());
+    }
+
+    @Test
+    public void testDuplicateVertexId() {
+        boolean success = true;
+        try {
+            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDuplicateVertexId()});
+        } catch (final Exception e) {
+            // TODO GRAPH-485: Update this to reflect the expected exception when pre-flight duplicate Vertex ID check
+            //                 is implemented. May potentially keep this as is for incremental bulk loading.
+            success = false;
+            Assert.assertTrue(e instanceof SparkException);
+            final Exception cause = (Exception) e.getCause();
+            Assert.assertTrue(cause instanceof RuntimeException);
+            Assert.assertEquals(cause.getMessage(), "Error occurred while writing vertices, see logs for more details.");
+        }
+        Assert.assertFalse(success);
+    }
+
+    @Test
+    public void testDuplicateEdgeId() {
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDuplicateEdgeId()});
+        testVertices();
+        testVertexEdgeConnections();
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertEquals(3, (long) g.E().has("testIdName", "duplicate").count().next());
+    }
+
+    @Test
+    public void testNonExistentVertexId() {
+        boolean success = true;
+        try {
+            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNonExistentEdgeVertexId()});
+        } catch (final Exception e) {
+            // TODO GRAPH-501: Update this to reflect the expected exception when pre-flight duplicate Vertex ID exists
+            //                 check is implemented.
+            success = false;
+            Assert.assertTrue(e instanceof SparkException);
+            final Exception cause = (Exception) e.getCause();
+            Assert.assertTrue(cause instanceof ElementNotFoundException);
+        }
+        Assert.assertFalse(success);
     }
 
     private void testSupernodes() {

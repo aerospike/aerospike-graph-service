@@ -1,11 +1,12 @@
 package com.aerospike.firefly.bulkloader;
 
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderCsvException;
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.Configuration;
@@ -109,7 +110,7 @@ public class SparkBulkLoader {
             edgePaths = loader.getCsvPaths(edgeDirectory);
         } catch (IOException e) {
             LOGGER.error("Failed to load input CSV files.", e);
-            System.exit(1);
+            throw new FireflyBulkLoaderCsvException(e);
         }
 
         // Convert csv files to Datasets.
@@ -147,7 +148,7 @@ public class SparkBulkLoader {
         if (!DatasetOperations.verifyVertexRows(persistedVertexDS, configPath, ENV, finalS3BucketName) ||
                 !DatasetOperations.verifyEdgeRows(persistedEdgeDS, configPath, ENV, finalS3BucketName)) {
             final String preflightFailed = "Detected invalid CSV data in pre-flight check. See logs for detail on which line number and file caused the failure.";
-            throw new FireflyBulkLoaderException(preflightFailed);
+            throw new FireflyBulkLoaderPreflightException(preflightFailed);
         }
 
         // Write Vertices.

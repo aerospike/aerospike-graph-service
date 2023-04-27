@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.util;
+package com.aerospike.firefly.bulkloader.exception;
 
 public class FireflyBulkLoaderException extends RuntimeException {
 

@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -188,11 +189,19 @@ public class BenchmarkTestSyntheticData {
         return sb.toString();
     }
 
+
+    @Setup(Level.Invocation)
+    public void prepare() {
+        //Add a new property to the edge pack
+        final Object id = householdIds.get(householdIds.size() - 1);
+        g.V(id).bothE().has("test").properties("test").drop().iterate();
+    }
+
     @Benchmark
     public void benchmark_g_E_addProp(final Blackhole blackhole) {
         //Add a new property to the edge pack
-        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        final Object id = householdIds.get(householdIds.size() - 1);
         final Object eid = g.V(id).bothE().next().id();
-        g.E(eid).property(randomString(10), randomString(10)).next();
+        g.E(eid).property("test", randomString(10)).next();
     }
 }

@@ -7,8 +7,6 @@ import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
-import com.aerospike.firefly.bulkloader.util.ProgressBar;
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.Configuration;
@@ -24,7 +22,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Timer;
 
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.createDatasets;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
@@ -39,8 +36,8 @@ public class SparkBulkLoader {
     private static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
     private static Configuration CONFIG;
     private static String MODE = "cluster";
-    private static final ProgressBar progressBar = new ProgressBar();
-    private static final Timer progressBarTimer = new Timer();
+//    private static final ProgressBar progressBar = new ProgressBar();
+//    private static final Timer progressBarTimer = new Timer();
 
     public static void main(final String[] args) {
         String s3BucketName = null;
@@ -70,8 +67,8 @@ public class SparkBulkLoader {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
             // If graph fails to open for some reason, it will be null internally and progress bar will not report.
-            progressBar.setGraph(FireflyGraph.open(CONFIG));
-            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
+//            progressBar.setGraph(FireflyGraph.open(CONFIG));
+//            progressBarTimer.scheduleAtFixedRate(progressBar, 0, 10000);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);
         }
@@ -158,64 +155,73 @@ public class SparkBulkLoader {
 
         // Pre-flight verification that row data can be parsed into their respective SparkFireflyELement.
         // Verify Vertex row data can be parsed into SparkFireflyVertex (dry run).
-        if (!DatasetOperations.verifyVertexRows(persistedVertexDS, configPath, ENV, finalS3BucketName) ||
-                !DatasetOperations.verifyEdgeRows(persistedEdgeDS, configPath, ENV, finalS3BucketName)) {
-            final String preflightFailed = "Detected invalid CSV data in pre-flight check. See logs for detail on which line number and file caused the failure.";
-            throw new FireflyBulkLoaderPreflightException(preflightFailed);
+
+        if(cmd.hasOption("processvertex")) {
+            LOGGER.warn("=======PROCESSING VERTICES===========");
+            if (!DatasetOperations.verifyVertexRows(persistedVertexDS, configPath, ENV, finalS3BucketName) ||
+                    !DatasetOperations.verifyEdgeRows(persistedEdgeDS, configPath, ENV, finalS3BucketName)) {
+                final String preflightFailed = "Detected invalid CSV data in pre-flight check. See logs for detail on which line number and file caused the failure.";
+                throw new FireflyBulkLoaderPreflightException(preflightFailed);
+            }
+
+            final Instant startOfVertexMapPartitions = Instant.now();
+            spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
+
+//            progressBar.setVertexCount(persistedVertexDS.count());
+            LOGGER.warn("write vertices ..... ");
+            final List<Long> vertexResult = DatasetOperations.writeVertices(persistedVertexDS, configPath, ENV, finalS3BucketName);
+//            progressBar.setVertexLoadComplete();
+            final Instant endOfVertexMapPartitions = Instant.now();
+            Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
+            LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
+
+            final int totalVertexDuration = vertexResult.stream().mapToInt(Math::toIntExact).sum();
+            int noOfVertexPartitions = vertexResult.size();
+            LOGGER.info("Mean time taken per Vertex partition for " + noOfVertexPartitions + " partitions = " + totalVertexDuration);
+
+            // Verify vertices.
+            LOGGER.warn("verify Vertex ..... ");
+            spark.sparkContext().setJobGroup("Verify Vertex", "Verify vertex MapPartition", true);
+            DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
+//            progressBar.setVertexValidationComplete();
         }
 
-        // Write Vertices.
-        final Instant startOfVertexMapPartitions = Instant.now();
-        spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
+        if(cmd.hasOption("processedge")){
+            LOGGER.warn("=======PROCESSING EDGES===========");
+            // Sample out edge dataset to verify the EDGE inserts.
+            final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
 
-        progressBar.setVertexCount(persistedVertexDS.count());
-        final List<Long> vertexResult = DatasetOperations.writeVertices(persistedVertexDS, configPath, ENV, finalS3BucketName);
-        progressBar.setVertexLoadComplete();
+            // If edge caches or adjacency indexes are enabled need to identify supernodes.
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG)) ||
+                    Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, CONFIG))) {
+                spark.sparkContext().setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
+                // Csv format is: ~id, ~from, ~to, ...
+                DatasetOperations.extractSupernodes(persistedEdgeDS, CONFIG);
+            }
+//            progressBar.setSuperNodeExtractionComplete();
 
-        final Instant endOfVertexMapPartitions = Instant.now();
-        Duration vertexInterval = Duration.between(startOfVertexMapPartitions, endOfVertexMapPartitions);
-        LOGGER.info("Execution time in seconds for vertexMapPartitions mapPartitions block: " + vertexInterval.getSeconds());
+            // Write edges and to edge cache of non-supernodes.
+            LOGGER.warn("Edges write..... ");
+            final Instant startOfEdgeMapPartitions = Instant.now();
+            spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
 
-        final int totalVertexDuration = vertexResult.stream().mapToInt(Math::toIntExact).sum();
-        int noOfVertexPartitions = vertexResult.size();
-        LOGGER.info("Mean time taken per Vertex partition for " + noOfVertexPartitions + " partitions = " + totalVertexDuration);
+//            progressBar.setEdgeCount(persistedEdgeDS.count());
+            final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);
+//            progressBar.setEdgeLoadComplete();
+            final Instant endOfEdgeMapPartitions = Instant.now();
+            Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
+            LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
 
-        // Verify vertices.
-        spark.sparkContext().setJobGroup("Verify Vertex", "Verify vertex MapPartition", true);
-        DatasetOperations.verifyVertices(sampledVertexDatasets, configPath, ENV, finalS3BucketName);
-        progressBar.setVertexValidationComplete();
+            final int totalEgdeDuration = edgeResult.stream().mapToInt(Math::toIntExact).sum();
+            int noOfEdgePartitions = edgeResult.size();
+            LOGGER.info("Mean time taken per Edge partition for " + noOfEdgePartitions + " partitions = " + totalEgdeDuration);
 
-        // Sample out edge dataset to verify the inserts.
-        final Dataset<Row> edgeDatasetsSample = persistedEdgeDS.sample(sampleFraction);
-
-        // If edge caches or adjacency indexes are enabled need to identify supernodes.
-        if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, CONFIG)) ||
-                Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, CONFIG))) {
-            spark.sparkContext().setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
-            // Csv format is: ~id, ~from, ~to, ...
-            DatasetOperations.extractSupernodes(persistedEdgeDS, CONFIG);
+            // Verify edges.
+            spark.sparkContext().setJobGroup("Verify Edges", "Verify Edges MapPartition", true);
+            LOGGER.warn("Edges verify!..... ");
+            DatasetOperations.verifyEdges(configPath, edgeDatasetsSample, ENV, finalS3BucketName);
+//            progressBar.setEdgeValidationComplete();
         }
-        progressBar.setSuperNodeExtractionComplete();
-
-        // Write edges and to edge cache of non-supernodes.
-        final Instant startOfEdgeMapPartitions = Instant.now();
-        spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
-
-        progressBar.setEdgeCount(persistedEdgeDS.count());
-        final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);
-        progressBar.setEdgeLoadComplete();
-        final Instant endOfEdgeMapPartitions = Instant.now();
-        Duration edgeInterval = Duration.between(startOfEdgeMapPartitions, endOfEdgeMapPartitions);
-        LOGGER.info("Execution time in seconds for Edge mapPartitions block: " + edgeInterval.getSeconds());
-
-        final int totalEgdeDuration = edgeResult.stream().mapToInt(Math::toIntExact).sum();
-        int noOfEdgePartitions = edgeResult.size();
-        LOGGER.info("Mean time taken per Edge partition for " + noOfEdgePartitions + " partitions = " + totalEgdeDuration);
-
-        // Verify edges.
-        spark.sparkContext().setJobGroup("Verify Edges", "Verify Edges MapPartition", true);
-        DatasetOperations.verifyEdges(configPath, edgeDatasetsSample, ENV, finalS3BucketName);
-        progressBar.setEdgeValidationComplete();
 
         // Stop spark session
         spark.stop();

@@ -186,6 +186,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <resilience4j.version>1.7.1</resilience4j.version>
     </properties>
 
 </project>

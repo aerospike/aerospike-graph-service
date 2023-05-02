@@ -61,29 +61,4 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     protected String getPreflightCheckVertex() {
         return PREFLIGHT_CHECK_VERTEX;
     }
-
-    @Override
-    protected String getNoIdEdges() {
-        return NO_ID_EDGES;
-    }
-
-    @Override
-    protected String getNoIdEdgesKeepIdAsPropertyOff() {
-        return NO_ID_EDGES_KEEP_AS_PROPERTY_OFF;
-    }
-
-    @Override
-    protected String getDuplicateVertexId() {
-        return DUPLICATE_VERTEX_ID;
-    }
-
-    @Override
-    protected String getDuplicateEdgeId() {
-        return DUPLICATE_EDGE_ID;
-    }
-
-    @Override
-    protected String getNonExistentEdgeVertexId() {
-        return NONEXISTENT_VERTEX_ID;
-    }
 }

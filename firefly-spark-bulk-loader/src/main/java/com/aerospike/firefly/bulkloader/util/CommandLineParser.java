@@ -25,6 +25,30 @@ public class CommandLineParser {
         final Option pathOption = new Option("c", "config", true, "config path [local/non-aws remote -> absolute/S3 -> full path to config.properties after bucket name]");
         options.addOption(pathOption);
 
+        Option pv = new Option("processvertex",  "process vertex");
+        Option pe = new Option("processedge",  "process edge");
+
+        Option ve = new Option("verifyedge", "verify edge");
+        Option vv = new Option("verifyvertex",  "verify vertex");
+
+        Option dre = new Option("dryrunedge", "dryrun edge");
+        Option drv = new Option("dryrunvertex",  "dryrun vertex");
+
+        Option we = new Option("writeedge", "write edge");
+        Option wv = new Option("writevertex",  "write vertices");
+
+        options.addOption(pv);
+        options.addOption(pe);
+
+        options.addOption(ve);
+        options.addOption(vv);
+
+        options.addOption(dre);
+        options.addOption(drv);
+
+        options.addOption(we);
+        options.addOption(wv);
+
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {
             return parser.parse(options, args);

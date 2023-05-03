@@ -135,6 +135,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         LOG.debug("Removing vertex {}.", id);
         db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id));
 
+        graph.fireflySummaryUpdater.addVertexRemoveToQueue(label);
+
         // Set flags to indicate vertex has been removed.
         this.removed = true;
     }

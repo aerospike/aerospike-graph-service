@@ -7,6 +7,7 @@ import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
 public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     final protected AerospikeConnection db;
     final protected Iterator<KeyRecord> keyRecords;
-    protected Iterator<Long> currentRecordEdgeIds = Collections.emptyIterator();
+    protected Iterator<ByteBuffer> currentRecordEdgeIds = Collections.emptyIterator();
     /**
      * Wrapper iterator for converting key records of Phat Edges into all of its contained edges' FireflyIds.
      *
@@ -45,14 +46,14 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     @Override
     public FireflyId next() {
         if (hasNext()) {
-            final long edgeId = this.currentRecordEdgeIds.next();
+            final ByteBuffer edgeId = this.currentRecordEdgeIds.next();
             return new FireflyPhatEdgeId(edgeId, this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
         } else {
             throw FastNoSuchElementException.instance();
         }
     }
     protected void getNextKeyRecords() {
-        this.currentRecordEdgeIds = ((Map<Long, String>) this.keyRecords.next().record.getMap(AerospikeConnection.LABEL))
+        this.currentRecordEdgeIds = ((Map<ByteBuffer, String>) this.keyRecords.next().record.getMap(AerospikeConnection.LABEL))
                 .keySet().iterator();
     }
 }

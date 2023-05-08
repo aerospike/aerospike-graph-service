@@ -18,7 +18,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.TextP;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest;
@@ -199,7 +198,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             traversal.next();
             Assert.fail("Should have failed as vertices are not created");
         } catch (Exception ex) {
-            assertThat(ex.getMessage(), endsWith("could not be found and edge could not be created"));
+            assertThat(ex.getMessage(), endsWith("Vertex id could not be resolved from mergeE: 100"));
         }
         assertEquals(0, FireflyCloseableIteratorUtils.count(g.E()));
     }
@@ -1365,7 +1364,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
         Traversal<Vertex, Long> traversal = noCacheGraph.traversal().V().local(outE().count());
@@ -1392,7 +1391,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
 
@@ -1428,7 +1427,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
 
@@ -1490,7 +1489,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createKitchenSink(), noCacheGraph);
 
@@ -1512,7 +1511,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         Configuration nostrategyconfig = ConfigurationUtils.cloneConfiguration(config);
 //        nostrategyconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
@@ -1521,7 +1520,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nostrategyconfig.setProperty(Graph.GRAPH, "nsg");
 
         FireflyGraph noStrategyGraph = FireflyGraph.open(nostrategyconfig);
-        noStrategyGraph.getBaseGraph().dropDatabase();
+        noStrategyGraph.getBaseGraph().dropDatabase(noStrategyGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createModern(), noCacheGraph);
         GraphHelper.cloneElements(TinkerFactory.createModern(), noStrategyGraph);
@@ -1560,7 +1559,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
-        noCacheGraph.getBaseGraph().dropDatabase();
+        noCacheGraph.getBaseGraph().dropDatabase(noCacheGraph, false);
 
         GraphHelper.cloneElements(TinkerFactory.createKitchenSink(), noCacheGraph);
         GraphTraversalSource g = noCacheGraph.traversal();

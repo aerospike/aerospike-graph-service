@@ -1,8 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Record;
-import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
@@ -13,7 +10,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedElement;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -29,7 +25,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public abstract class FireflyVertex extends FireflyElement implements WrappedElement<Record>, Vertex {
+public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     protected FireflyGraph graph;
 
@@ -43,13 +39,13 @@ public abstract class FireflyVertex extends FireflyElement implements WrappedEle
 
     protected abstract <V> Iterator<VertexProperty<V>> readVertexProperty(final String key);
 
-    public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperties);
+    public abstract void writeVertexProperty(final FireflyVertexProperty vertexProperty);
 
     public abstract void removeVertexPropertyForModel(final String key, final FireflyId vertexPropertyId);
 
     protected abstract void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
-    public abstract void writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
+    public abstract boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
     public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
 
@@ -120,8 +116,8 @@ public abstract class FireflyVertex extends FireflyElement implements WrappedEle
                 graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
 
         // Write vertex property to graph.
-        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value);
-        ElementHelper.attachProperties(vertexProperty, keyValues);
+
+        final VertexProperty<V> vertexProperty = graph.writeVertexProperty(vertexPropertyId, this, key, value, keyValues);
 
         // Return vertex property.
         return vertexProperty;
@@ -205,10 +201,5 @@ public abstract class FireflyVertex extends FireflyElement implements WrappedEle
         return StringFactory.vertexString(this);
     }
 
-    @Override
-    public Record getBaseElement() {
-        return FireflyRecord.read(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, id).record();
-    }
-
-    public abstract boolean isEdgeCacheDisabled();
+    public abstract boolean isEdgeCacheOverflowed();
 }

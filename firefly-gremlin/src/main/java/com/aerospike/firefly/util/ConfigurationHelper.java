@@ -55,6 +55,7 @@ public final class ConfigurationHelper {
             public static final String VERTEX_PROPERTY_AERO_SET = "VERTEX_PROPERTY_AERO_SET";
             public static final String VERTEX_PROPERTY_SET = "VERTEX_PROPERTY_SET";
             public static final String ID_MANAGER_SET = "ID_MANAGER_SET";
+            public static final String SUMMARY_SET = "SUMMARY_SET";
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
@@ -101,7 +102,8 @@ public final class ConfigurationHelper {
         public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
         public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
         public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
-
+        public static final String SUPERNODES_IN = "SUPERNODES_IN";
+        public static final String SUPERNODES_OUT = "SUPERNODES_OUT";
         public static final String INDEX_META = "INDEX_META";
         public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
         public static final String INDEXED_BINS = "INDEXED_BINS";
@@ -127,6 +129,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "ENABLE_BATCH_EDGE_READ_STRATEGY";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
+        public static final String AEROSPIKE_WRITE_MAX_RETRY = "AEROSPIKE_WRITE_MAX_RETRY";
 
         // BufferedNumericIdManager
         public static final String VERTEX_ID_BUFFER_SIZE = "VERTEX_ID_BUFFER_SIZE";
@@ -143,11 +146,14 @@ public final class ConfigurationHelper {
         public static final String TLS = "TLS";
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
+        public static final String FAULT_TEST = "FAULT_TEST";
+        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
         add(Keys.AEROSPIKE_USER);
         add(Keys.AEROSPIKE_PASSWORD);
+        add(Keys.FAULT_TEST);
     }};
 
     private static final Map<String, String> defaultValues = new HashMap<>() {{
@@ -192,7 +198,7 @@ public final class ConfigurationHelper {
         put(Keys.Sets.TEST_SET, "TEST_SET");
         put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
         put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
-        put(Keys.ON_RECORD_ID_LIMIT, "10000");
+        put(Keys.ON_RECORD_ID_LIMIT, "8000");
         put(Keys.GRAPH_ID, "0");
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
@@ -213,6 +219,7 @@ public final class ConfigurationHelper {
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
+        put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -229,7 +236,9 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
-        put(Keys.ADJACENCY_INDEX_ENABLED, "false");
+        put(Keys.ADJACENCY_INDEX_ENABLED, "true");
+        put(Keys.SUPERNODES_IN, "SUPERNODES_IN");
+        put(Keys.SUPERNODES_OUT, "SUPERNODES_OUT");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
@@ -241,6 +250,9 @@ public final class ConfigurationHelper {
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_MODE, "false");
+        put(Keys.ENABLE_CUSTOM_PROFILE, "true");
+        put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
+        put(Keys.FAULT_TEST, "false");
     }};
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -312,9 +324,9 @@ public final class ConfigurationHelper {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         } else if (environmentVariables.contains(key.toUpperCase())) {
             // Allow username and password to come from environment variables.
-            final String environment = System.getenv(key.toLowerCase());
-            if (environment != null && !environment.isEmpty()) {
-                return environment;
+            final String envConfig = System.getenv(key.toUpperCase());
+            if (envConfig != null && !envConfig.isEmpty()) {
+                return envConfig;
             }
         }
         try {

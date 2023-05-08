@@ -19,7 +19,7 @@ LABEL org.opencontainers.image.description = "Docker image for Aerospike's graph
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
-ENV TINKERPOP_VERSION='3.6.1'
+ENV TINKERPOP_VERSION='3.6.2'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
 ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
@@ -65,8 +65,8 @@ RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0' ;  \
-    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
+    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
     fi
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly

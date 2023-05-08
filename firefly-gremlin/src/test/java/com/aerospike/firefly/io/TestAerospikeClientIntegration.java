@@ -157,7 +157,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
                 graph.traversal().V(root).addE("edge").to(nu).next();
             });
             FireflyVertex x = (FireflyVertex) graph.traversal().V(root).next();
-            Record br = x.getBaseElement();
             long val = graph.traversal().V(root).bothE().count().next().longValue();
             assertEquals(6L, val);
             IntStream.range(0, 2).forEach(i -> graph.traversal().E().limit(1).drop().iterate());
@@ -305,7 +304,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     @Test
     public void testParseRaw() {
         final String infoResponse = Info.request(new InfoPolicy(), db.getClient().getNodes()[0], "namespaces");
-        List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
+        final List<Map<String, String>> data = AerospikeConnection.InfoOps.parseRaw(infoResponse);
         final AtomicBoolean pass = new AtomicBoolean(false);
         data.forEach(it -> {
             if (it.containsKey(AerospikeConnection.InfoOps.Keys.RESULT) && Objects.equals(it.get(AerospikeConnection.InfoOps.Keys.RESULT), "test"))
@@ -393,11 +392,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testListAllSets() {
-        Set<String> res = AerospikeConnection.InfoOps.getSetList(db.getNamespace(), db.getClient());
-    }
-
-    @Test
     public void testListEmptySets() {
         Set<String> res = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
         System.out.println(res);
@@ -429,7 +423,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldRemoveAllData() throws InterruptedException {
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
         AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).forEach(nonEmptySet -> {
             db.getClient().truncate(null, db.getNamespace(), nonEmptySet, null);
         });
@@ -446,19 +440,19 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             // ID_MGR_SET id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
-                    Set.of("0_G_META", "0_ID_MGR_SET") :
+                    Set.of("0_G_META", "0_ID_MGR_SET", "0_G_SUMMARY") :
                     Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 2 : 7, x.size());
+            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 3 : 7, x.size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 4 : 10, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 5 : 10, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(db.VERTEX_AERO_SET, null);
-            Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(db.EDGE_AERO_SET, null, new ScanPolicy(),
+            final Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
+            final Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
                     AerospikeConnection.LABEL);
             FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
             assertFalse(vertxKeys.hasNext());
@@ -482,7 +476,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void updateListByOperation() {
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         final String edgeLabel = "testLabel";
         final String edgeDirection = "OUT";
         final long edgeRawId = 3L;
@@ -518,7 +512,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void createListByOperation() {
-        db.dropDatabase();
+        db.dropDatabase(graph, false);
         final String edgeLabel = "testLabel";
         final String edgeDirection = "OUT";
         final long edgeRawId = 3L;

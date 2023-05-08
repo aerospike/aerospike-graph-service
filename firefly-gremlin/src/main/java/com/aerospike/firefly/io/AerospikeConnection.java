@@ -78,7 +78,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -100,6 +99,10 @@ import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
  */
 public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
+
+    static {
+        Value.UseBoolBin = true;
+    }
 
     public static final String USER_KEY = "USER_KEY";
     public static final String LABEL = "label";
@@ -153,6 +156,7 @@ public class AerospikeConnection implements AutoCloseable {
     protected final String VERTEX_ID_BIN;
     protected final String VERTEX_PROPERTY_ID_KEY;
     protected final String VERTEX_PROPERTY_ID_BIN;
+    public final String SUMMARY_SET;
     public final String VERTEX_PROPERTY_NAME_TO_ID;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT;
@@ -179,24 +183,23 @@ public class AerospikeConnection implements AutoCloseable {
     public final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE;
     public final List<AbstractMap.Entry<UUID, CompletableFuture<Void>>> cacheTasks;
     public final int AEROSPIKE_CONNECTION_MAX_RETRY;
+    public final int AEROSPIKE_WRITE_MAX_RETRY;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final boolean ADJACENCY_INDEX_ENABLED;
+    public final String SUPERNODES_IN;
+    public final String SUPERNODES_OUT;
     public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
     public final List<String> OPTIMIZED_TWO_HOP_STEPS; // Optionally: ["out_out", "out_in", "in_out", "in_in"].
     public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
-
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
+    public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
-
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    private final ScanHitCounter scanHitCounter = ScanHitCounter.create(60, 100, 10, (entry) -> {
-        LOG.warn("WARNING: Scan triggered on {} has been hit {} times within 60 seconds, consider adding an index.", entry.getKey(), entry.getValue());
-        return null;
-    });
+
     private final FireflyIdFactory idFactory;
 
     /**
@@ -233,6 +236,7 @@ public class AerospikeConnection implements AutoCloseable {
             this.clientPolicy.tlsPolicy = new TlsPolicy();
         this.client = new AerospikeClient(clientPolicy, hosts);
         FireflyAerospikeVersionCheck.validateVersion(client);
+        SUMMARY_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.SUMMARY_SET, conf);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);
         IN_VP_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.IN_VP_SET, conf);
@@ -285,6 +289,7 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_META, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
+        AEROSPIKE_WRITE_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf));
         CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
         INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET, conf);
@@ -294,6 +299,8 @@ public class AerospikeConnection implements AutoCloseable {
         OPTIMIZED_TWO_HOP_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_TWO_HOP_STEPS, conf);
         OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);
         ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
+        SUPERNODES_IN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_IN, conf);
+        SUPERNODES_OUT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_OUT, conf);
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -343,7 +350,13 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Scan hit counter
      */
     public ScanHitCounter getScanHitCounter() {
-        return scanHitCounter;
+        if (scanHitCounterThreadLocal.get() == null)
+            scanHitCounterThreadLocal.set(new ScanHitCounter());
+        return scanHitCounterThreadLocal.get();
+    }
+
+    public void resetScanHitCounter() {
+        this.scanHitCounterThreadLocal.set(null);
     }
 
     /**
@@ -386,17 +399,17 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Iterator of raw Ids
      */
     public Iterator<FireflyId> readElementIds(final Class<? extends FireflyElement> type) {
-        final AerospikeConnection.IdConfig cfg = new AerospikeConnection.IdConfig(this, type);
-        return scanAllIdsInSet(cfg.getAeroSet());
+        return scanAllIdsInSet(ReadContext.create(setFromElementType(type)));
     }
 
     /**
      * Return an iterator of all the ids in a set represented as FireflyId
      *
-     * @param setName name of Aerospike set to scan
+     * @param readContext read context
      * @return an Iterator of raw FireflyId
      */
-    private Iterator<FireflyId> scanAllIdsInSet(final String setName) {
+    private Iterator<FireflyId> scanAllIdsInSet(final ReadContext readContext) {
+        final String setName = readContext.getSetName();
         final Class<? extends FireflyElement> type;
         if (setName.equals(VERTEX_AERO_SET)) {
             type = FireflyVertex.class;
@@ -410,11 +423,11 @@ public class AerospikeConnection implements AutoCloseable {
 
         LOG.trace("Scanning {} ids.", setName);
         if (setName.equals(EDGE_AERO_SET)) {
-            final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(setName, null, new ScanPolicy(),
+            final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(readContext, null, new ScanPolicy(),
                     AerospikeConnection.LABEL);
             return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
         } else {
-            final Iterator<KeyRecord> i = scanAllKeysInSet(setName, null);
+            final Iterator<KeyRecord> i = scanAllKeysInSet(readContext, null);
             return FireflyCloseableIteratorUtils.map(i,
                     keyRecord -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, keyRecord), type));
         }
@@ -425,16 +438,17 @@ public class AerospikeConnection implements AutoCloseable {
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
      * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
-     * @param setName Aerospike set name to scan
+     * @param context read context
      * @param exp     Expression to apply to Scan
      * @param sendKey Send the original user key
      * @return Iterator of KeyRecord
      */
-    public Iterator<KeyRecord> scanAllKeysInSet(final String setName, final Expression exp, boolean sendKey) {
+    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp, boolean sendKey) {
+        final String setName = context.getSetName();
         LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
-        return scanAllRecordsInSet(setName, exp, policy, sendKey);
+        return scanAllRecordsInSet(context, exp, policy, sendKey);
     }
 
     /**
@@ -442,15 +456,16 @@ public class AerospikeConnection implements AutoCloseable {
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
      * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
-     * @param setName Aerospike set name to scan
+     * @param context read context
      * @param exp     Expression to apply to Scan
      * @return Iterator of KeyRecord
      */
-    public Iterator<KeyRecord> scanAllKeysInSet(final String setName, final Expression exp) {
+    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp) {
+        final String setName = context.getSetName();
         LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
         ScanPolicy policy = new ScanPolicy();
         policy.includeBinData = false;
-        return scanAllRecordsInSet(setName, exp, policy);
+        return scanAllRecordsInSet(ReadContext.create(setName), exp, policy);
     }
 
     /**
@@ -458,14 +473,14 @@ public class AerospikeConnection implements AutoCloseable {
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
      * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
-     * @param setName  Aerospike set name to scan
+     * @param context  read context
      * @param exp      Expression to apply to Scan
      * @param policy   ScanPolicy to use during Scan
      * @param binNames Bin names to read into Records returned
      * @return Iterator of KeyRecord
      */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, String... binNames) {
-        return scanAllRecordsInSet(setName, exp, policy, true, binNames);
+    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, String... binNames) {
+        return scanAllRecordsInSet(context, exp, policy, true, binNames);
     }
 
     /**
@@ -473,31 +488,33 @@ public class AerospikeConnection implements AutoCloseable {
      * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
      * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
      *
-     * @param setName  Aerospike set name to scan
+     * @param context  read context
      * @param exp      Expression to apply to Scan
      * @param policy   ScanPolicy to use during Scan
      * @param sendKey  Send the original user key
      * @param binNames Bin names to read into Records returned
      * @return Iterator of KeyRecord
      */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final String setName, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
+    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
+        final String setName = context.getSetName();
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
         final Monitor scanMonitor = new Monitor();
         policy.sendKey = sendKey;
         if (exp != null) policy.filterExp = exp;
-
-        final ConcurrentScanRecordSequenceListener listener = new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, conf)));
+        final UUID scanId = UUID.randomUUID();
+        final ScanHitCounter shc = this.getScanHitCounter();
+        if (context.getKeyName().isPresent())
+            shc.associateUUID(scanId, context.getKeyName().get());
+        final ConcurrentScanRecordSequenceListener listener =
+                ConcurrentScanRecordSequenceListener.create(this, scanMonitor, scanId);
+        listener.setStartTime();
         client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
+
         return new FireflyCloseableIterator<>(listener);
     }
 
     public EventLoops getEventLoops() {
         return eventLoops;
-    }
-
-    public int getCommandsPerLoop() {
-        return commandsPerLoop;
     }
 
     /**
@@ -550,43 +567,6 @@ public class AerospikeConnection implements AutoCloseable {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Bin b = new Bin(DATA_MODEL_NAME, name);
         write(k, b);
-    }
-
-
-    /**
-     * manage the set names for an element type
-     */
-    public static class IdConfig {
-        private final Class<? extends FireflyElement> type;
-        private final String AERO_SET;
-        private final String ID_KEY;
-        private final String ID_BIN;
-
-        public IdConfig(AerospikeConnection ac, final Class<? extends FireflyElement> type) {
-            this.type = type;
-            if (type == FireflyVertex.class) {
-                AERO_SET = ac.VERTEX_AERO_SET;
-                ID_KEY = ac.VERTEX_ID_KEY;
-                ID_BIN = ac.VERTEX_ID_BIN;
-            } else if (type == FireflyEdge.class) {
-                AERO_SET = ac.EDGE_AERO_SET;
-                ID_KEY = ac.EDGE_ID_KEY;
-                ID_BIN = ac.EDGE_ID_BIN;
-            } else
-                throw new RuntimeException("Unknown ID type: " + type);
-        }
-
-        String getIdKey() {
-            return ID_KEY;
-        }
-
-        public String getAeroSet() {
-            return AERO_SET;
-        }
-
-        String getIdBin() {
-            return ID_BIN;
-        }
     }
 
     public static class InfoOps {
@@ -649,13 +629,13 @@ public class AerospikeConnection implements AutoCloseable {
          * Second item of map entry is set the index belongs to
          */
         public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+            // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
-            List<Map<String, String>> res = parseRaw(infoResponse);
-            return res.stream()
+            return parseRaw(infoResponse).stream()
                     .filter(m -> m.get(Keys.NS).equals(namespace))
-                    .map(m -> {
-                        return (Map.Entry<String, String>) new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET));
-                    }).collect(Collectors.toList());
+                    .map(m -> (Map.Entry<String, String>)
+                            new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                    .collect(Collectors.toList());
         }
 
         /**
@@ -664,42 +644,10 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client AerospikeClient connection instance
          * @return enterprise or not
          */
-        public static boolean isEnterprise(AerospikeClient client) {
+        public static boolean isEnterprise(final AerospikeClient client) {
+            // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
-        }
-
-        /**
-         * Get the number of Records in a Set for a particular namespace
-         *
-         * @param setName   Name of set to query for number of records
-         * @param namespace Namespace containing set
-         * @param client    AerospikeClient instance
-         * @return Number of Records in set
-         */
-        public static long getSetSize(final String setName, String namespace, AerospikeClient client) {
-            if (client.getNodes().length > 1)
-                throw new RuntimeException("getSetSize not supported for multi node");
-            final String infoQuery = "sets/" + namespace + "/" + setName;
-            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], infoQuery);
-            final List<Long> setSize = Arrays.stream(infoResponse.split(":"))
-                    .filter(str -> str.startsWith("objects"))
-                    .map(str -> Long.valueOf(str.split("=")[1]))
-                    .collect(Collectors.toList());
-            return setSize.isEmpty() ? 0 : setSize.get(0);
-        }
-
-        /**
-         * Get a list of all the Sets in a namespace
-         *
-         * @param namespace namespace to query
-         * @param client    AerospikeClient instance
-         * @return Set of namespaces
-         */
-        public static Set<String> getSetList(String namespace, AerospikeClient client) {
-            String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SETS);
-            final Set<String> allSets = parseBySet(infoResponse, namespace).keySet();
-            return allSets;
         }
 
         /**
@@ -709,9 +657,11 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
-        public static Set<String> getNonEmptySetList(String namespace, AerospikeClient client) {
+        public static Set<String> getNonEmptySetList(final String namespace, final AerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
-            for (Node node: client.getNodes()) {
+
+            // Need to loop all nodes here in case one of the sets only has data on a single node.
+            for (final Node node : client.getNodes()) {
                 final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SETS);
                 allSets.addAll(parseBySet(infoResponse, namespace).entrySet().stream().filter(entry -> {
                             Map<String, String> map = entry.getValue();
@@ -724,13 +674,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
-    public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> KeyToDiskTypeMap = new HashMap<>() {{
-        put(Long.class, Long.class);
-        put(Integer.class, Long.class);
-        put(Double.class, Double.class);
-        put(byte[].class, byte[].class);
-        put(String.class, String.class);
-    }};
     public static final Map<Class<? extends Serializable>, Class<? extends Serializable>> IdToDiskTypeMap = new HashMap<>() {{
         put(Long.class, Long.class);
         put(Integer.class, Long.class);
@@ -742,6 +685,7 @@ public class AerospikeConnection implements AutoCloseable {
         put(Integer.class, 2L);
         put(Double.class, 3L);
         put(byte[].class, 4L);
+        put(Byte[].class, 4L);
         put(String.class, 5L);
         put(Boolean.class, 6L);
         put(ArrayList.class, 7L);
@@ -756,12 +700,9 @@ public class AerospikeConnection implements AutoCloseable {
         put(7L, ArrayList.class);
     }};
 
-    private final int commandsPerLoop = 25;
     private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
-    static AtomicLong generationCheckRetryMetric = new AtomicLong(0);
-    static AtomicLong generationCheckHighWaterMark = new AtomicLong(0);
 
     /**
      * Return the name of the set associated with the FireflyElement class
@@ -781,14 +722,38 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on-disk type
+     * Return the numeric id of the on-disk type of scalar values. If the value parameter is an ArrayList, return an
+     * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
      *
-     * @param clazz class to lookup
-     * @return index of supported type
+     * @param value Object to get type hint ID of
+     * @return Type hint value
      */
-    public static Long getSupportedType(final Class clazz) {
-        if (!SupportedValueTypes.containsKey(clazz))
+    public static Object getSupportedType(final Object value) {
+        final Class clazz = value.getClass();
+        if (!SupportedValueTypes.containsKey(clazz)) {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
+        } else if (SupportedValueTypes.get(clazz).equals(SupportedValueTypes.get(ArrayList.class))) {
+            // Values within a list for our supported types are stored on disk as expected except for Integers which get
+            // stored as a Long. We need to keep track of which indexes within the list were inputted as Integers to
+            // properly cast them back upon a read.
+            final ArrayList<Long> integerIndices = new ArrayList<>();
+            final ArrayList<?> valueList = (ArrayList<?>) value;
+            for (int i = 0; i < valueList.size(); i++) {
+                final Object valueInList = valueList.get(i);
+                if (valueInList != null) {
+                    final Class valueClass = valueInList.getClass();
+                    if (!SupportedValueTypes.containsKey(valueClass) ||
+                            SupportedValueTypes.get(valueClass).equals(SupportedValueTypes.get(ArrayList.class))) {
+                        throw new UnsupportedOperationException(valueClass.getName()
+                                + " within a List is not a supported value type");
+                    }
+                    if (valueList.get(i).getClass().equals(Integer.class)) {
+                        integerIndices.add((long) i);
+                    }
+                }
+            }
+            return integerIndices;
+        }
         return SupportedValueTypes.get(clazz);
     }
 
@@ -797,7 +762,7 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void createGraphIndexes() {
         final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE, conf));
-        if(warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
+        if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
@@ -805,10 +770,10 @@ public class AerospikeConnection implements AutoCloseable {
                         .map(Map.Entry::getKey).collect(Collectors.toList());
         if (ADJACENCY_INDEX_ENABLED) {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_IN_INDEX, Direction.IN.name(),
+                    E_IN_INDEX, SUPERNODES_IN,
                     IndexType.STRING, IndexCollectionType.MAPVALUES);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_OUT_INDEX, Direction.OUT.name(),
+                    E_OUT_INDEX, SUPERNODES_OUT,
                     IndexType.STRING, IndexCollectionType.MAPVALUES);
         }
 
@@ -986,7 +951,7 @@ public class AerospikeConnection implements AutoCloseable {
         if (writeOnly) {
             writePolicy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
         }
-        writePolicy.maxRetries = AEROSPIKE_CONNECTION_MAX_RETRY;
+        writePolicy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
         if (generation != -1) {
             // Set generation for write.
             writePolicy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
@@ -1113,39 +1078,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Increment the generation check retry count
-     */
-    public static void incrementGenerationCheckRetryMetric() {
-        generationCheckRetryMetric.incrementAndGet();
-    }
-
-    /**
-     * Return the generation check retry count
-     *
-     * @return generation check retry count
-     */
-    public static long getGenerationCheckRetryMetric() {
-        return generationCheckRetryMetric.get();
-    }
-
-
-    /**
-     * Set the generation check high-water mark
-     */
-    public static void setGenerationCheckHighWaterMark(final long value) {
-        generationCheckRetryMetric.updateAndGet(x -> Math.max(x, value));
-    }
-
-    /**
-     * Return the high-water mark for generation check retries
-     *
-     * @return number of retries
-     */
-    public static long getGenerationCheckHighWaterMark() {
-        return generationCheckHighWaterMark.get();
-    }
-
-    /**
      * Return a named key-value from a map
      * read its associated type-hint and reconstruct the correct JVM type for the value
      *
@@ -1167,42 +1099,19 @@ public class AerospikeConnection implements AutoCloseable {
                 !fireflyRecord.record().getMap(mapName).containsKey(mapKey))
             return null;
         final Object value = fireflyRecord.record().getMap(mapName).get(mapKey);
-        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
-        final Class valueClass = SupportedTypeValues.get(typeHint);
-        return (V) typeCast(valueClass, value);
+        final Object typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        return (V) convertValuetoTypeUsingHint(value, typeHint);
     }
 
-    /**
-     * Return the first key-value from a map
-     * read its associated type-hint and reconstruct the correct JVM type for the value
-     *
-     * @param aeroSet
-     * @param fid
-     * @param mapName
-     * @param <V>
-     * @return
-     */
-    public <V> AbstractMap.Entry<String, V> readTypeHintedKeyValueFromMap(final String aeroSet,
-                                                                          final FireflyId fid,
-                                                                          final String mapName,
-                                                                          final String typeHintBin) {
-        final FireflyRecord fireflyRecord = FireflyRecord.read(this, aeroSet, fid);
-        if (fireflyRecord == null || fireflyRecord.record() == null || fireflyRecord.record().getMap(mapName).size() == 0)
-            return null;
-        final Optional<? extends Map<?, ?>> map = Optional.ofNullable(fireflyRecord.record().getMap(mapName));
-        if (!map.isPresent())
-            return null;
-        final String mapKey = (String) map.get().keySet().iterator().next();
-        final Long typeHint = (Long) fireflyRecord.record().getMap(typeHintBin).get(mapKey);
-        final Object val = map.get().values().iterator().next();
-
-        if (val == null)
-            return null;
-        final Class clazz = SupportedTypeValues.get(typeHint);
-        return new AbstractMap.SimpleEntry<>(mapKey, (V) typeCast(clazz, val));
-    }
-
-    public Object convertValuetoTypeUsingHint(final Object value, final Long typeHint) {
+    public Object convertValuetoTypeUsingHint(final Object value, final Object typeHint) {
+        if (typeHint instanceof ArrayList) {
+            final ArrayList<Object> valueList = (ArrayList<Object>) value;
+            final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
+            for (final Long index : integerIndices) {
+                valueList.set(index.intValue(), ((Long) valueList.get(index.intValue())).intValue());
+            }
+            return valueList;
+        }
         final Class clazz = SupportedTypeValues.get(typeHint);
         return (clazz == null) ? value : typeCast(clazz, value);
     }
@@ -1297,7 +1206,7 @@ public class AerospikeConnection implements AutoCloseable {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, mapName, Value.get(mapKey), Value.get(value));
             typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
-                    Value.get(getSupportedType(value.getClass())));
+                    Value.get(getSupportedType(value)));
         }
         final Expression idTypeExp = Exp.build(Exp.val(fid.getStorageTypeHint()));
         final Operation idTypeOp = ExpOperation.write(this.ID_TYPE_BIN, idTypeExp,
@@ -1321,7 +1230,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param val
      * @return
      */
-    public Object typeCast(final Class clazz, final Object val) {
+    private Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
@@ -1481,11 +1390,16 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, OUT_IN_SET, null);
             client.truncate(null, namespace, IN_OUT_SET, null);
             client.truncate(null, namespace, IN_IN_SET, null);
+            client.truncate(null, namespace, SUMMARY_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
-
+            // Should never be null in production, but some tests don't have a graph object for a legit reason when
+            // calling this function so handle null graph regardless.
+            if (graph != null) {
+                graph.fireflySummaryUpdater.truncate();
+            }
             if (dropIndices)
                 dropGraphIndices(graph);
             Thread.sleep(1);
@@ -1514,13 +1428,6 @@ public class AerospikeConnection implements AutoCloseable {
         for (final Map.Entry<String, String> entry : indexes) {
             dropIndex(entry.getValue(), entry.getKey());
         }
-    }
-
-    /**
-     * Drop database by truncate, do not drop indices
-     */
-    public void dropDatabase() {
-        dropDatabase(null, false);
     }
 
     /**
@@ -1564,7 +1471,7 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        if(set.contains(WarmupUtil.getWarmupArenaName()))
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
             return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);
@@ -1613,7 +1520,7 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        if(set.contains(WarmupUtil.getWarmupArenaName()))
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
             return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);

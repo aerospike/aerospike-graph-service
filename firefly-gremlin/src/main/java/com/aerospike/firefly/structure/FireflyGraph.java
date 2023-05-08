@@ -17,19 +17,24 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
+import com.aerospike.firefly.process.call.FireflyServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.IdManager;
+import com.aerospike.firefly.structure.id.RecyclingBufferedNumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -45,11 +50,11 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
@@ -63,6 +68,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -71,7 +77,9 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.util.Tokens.EDGE_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
+import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
+import static com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
@@ -101,60 +109,18 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexTest$BasicVertexTest", method = "shouldNotGetConcurrentModificationException", reason = "Concurrent writes are not supported in star packed data model.", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.VertexPropertyTest$VertexPropertyRemoval", method = "shouldRemoveMultiPropertiesWhenVerticesAreRemoved", reason = "Replaced in TestAerospikeGraphIntegration with cache-friendly implementation.", computers = {"ALL"})
 
-// Opt out of grateful since they are by far the slowest tests.
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX5X_asXaX_outXwrittenByX_asXbX_selectXa_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_both_both_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX3X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest", method = "g_V_repeatXoutX_timesX8X_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphTest", method = "g_V_hasXname_GarciaX_inXsungByX_asXsongX_V_hasXname_Willie_DixonX_inXwrittenByX_whereXeqXsongXX_name", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXname_GarciaX__a_0writtenBy_b__a_0sungBy_bX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0sungBy_c__b_writtenBy_d__c_writtenBy_e__d_hasXname_George_HarisonX__e_hasXname_Bob_MarleyXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_d__c_sungBy_d__d_hasXname_GarciaXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_dX_whereXc_sungBy_dX_whereXd_hasXname_GarciaXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXname_GarciaX__a_0writtenBy_b__b_followedBy_c__c_writtenBy_d__whereXd_neqXaXXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_hasLabelXsongsX_matchXa_name_b__a_performances_cX_selectXb_cX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_followedBy_count_isXgtX10XX_b__a_0followedBy_count_isXgtX10XX_bX_count", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest", method = "g_V_matchXa_hasXsong_name_sunshineX__a_mapX0followedBy_weight_meanX_b__a_0followedBy_c__c_filterXweight_whereXgteXbXXX_outV_dX_selectXdX_byXnameX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.EarlyLimitStrategyProcessTest", method = "shouldHandleRangeSteps", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest", method = "shouldSeedLocalSample", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest", method = "shouldSeedGlobalSample", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest", method = "playlistPaths", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest", method = "classicRecommendation", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderTest", method = "g_V_hasXsong_name_OHBOYX_outXfollowedByX_outXfollowedByX_order_byXperformancesX_byXsongType_descX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderTest", method = "g_V_hasLabelXsongX_order_byXperformances_descX_byXnameX_rangeX110_120X_name", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest", method = "grateful_V_out_out_profile", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ProfileTest", method = "grateful_V_out_out_profileXmetricsX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_repeatXbothXfollowedByXX_timesX2X_group_byXsongTypeX_byXcountX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_repeatXbothXfollowedByXX_timesX2X_groupXaX_byXsongTypeX_byXcountX_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_group_byXnameX_byXproperties_groupCount_byXlabelXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_hasLabelXsongX_groupXaX_byXnameX_byXproperties_groupCount_byXlabelXX_out_capXaX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupTest", method = "g_V_outXfollowedByX_group_byXsongTypeX_byXbothE_group_byXlabelX_byXweight_sumXX", reason = "Grateful graph takes long to load.", computers = {"ALL"})
-
 // Firefly does not support Float ids
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateVerticesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
 
-// THESE TESTS ARE SLOW SO DURING DEVELOPMENT UNCOMMENT THE OPT_OUTS
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.CommunityGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.algorithm.generator.DistributionGeneratorTest", method = "*", reason = "MAKE ACTIVE LATER", computers = {"ALL"})
-
-// TinkerPop bug
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest", method = "shouldTriggerAddVertexViaMergeV", reason = "Cardinality cannot be determined by key without id")
-
-// @TODO
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.detached.DetachedGraphTest", method = "testAttachableCreateMethod", reason = "Test enabled by MultiProperties, likely did not work prior")
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldAttachWithCreateMethod", reason = "Test enabled by MultiProperties, likely did not work prior")
-@Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.util.star.StarGraphTest", method = "shouldCopyFromGraphAToGraphB", reason = "Test enabled by MultiProperties, likely did not work prior")
-
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
-
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    public static String FIREFLY_VERSION = "0.6.0";
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    public static String FIREFLY_VERSION = "0.7.0";
+    public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
     private final FireflyGraphFeatures features;
@@ -166,10 +132,12 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     private final FireflyIdFactory idFactory;
     protected FireflyGraphComputerView graphComputerView = null;
     public final IdManager<Long> vertexIdManager;
-    public final IdManager<Long> edgeIdManager;
+    public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
     public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
     public FireflyIndexMetadata fireflyIndexMetadata = null;
+    public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
+    private final ServiceRegistry serviceRegistry = new ServiceRegistry();
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -192,11 +160,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.idFactory = db.getIdFactory();
 
         this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)));
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)), false);
         this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)));
-        this.edgeIdManager = new BufferedNumericIdManager(EDGE_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)));
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)), true);
+        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
+                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)), false);
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
@@ -221,6 +189,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
+        fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
+        serviceRegistry.registerService(new FireflyServiceFactory(this));
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -284,9 +254,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     // Edge functions.
     public abstract FireflyEdge writeEdge(final FireflyId edgeId, final String label, final List<Map.Entry<String, Object>> properties, final FireflyVertex inVertex, final FireflyVertex outVertex);
 
-    public abstract void bulkWriteEdge(final long edgeId, final String label,
+    public abstract void bulkWriteEdge(final byte[] edgeId, final String label,
                                        final List<Map.Entry<String, Object>> properties, final Object inVertexId,
-                                       final Object outVertexId);
+                                       final Object outVertexId, final boolean inVSupernode, final boolean outVSupernode);
 
     public abstract void removeEdgeById(final FireflyId edgeId);
 
@@ -301,16 +271,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract void removeGraphVariable(final String key);
 
-    // Vertex property and property functions.
-    public abstract void removeProperty(final FireflyElement element, final String key);
-
-    public abstract <V> Property<V> writeProperty(final FireflyElement element, final String key, final V value);
-
-    public abstract <V> Map<String, Property<V>> readProperties(final FireflyElement element);
-
-    public abstract <V> Property<V> readProperty(final FireflyElement element, final String key);
-
-    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value);
+    public abstract <V> FireflyVertexProperty<V> writeVertexProperty(
+            final FireflyId vertexPropertyId, final FireflyVertex vertex, final String key, final V value, final Object... keyValues);
 
     // Counting functions.
     public abstract long getVertexCount(final Expression expression);
@@ -445,12 +407,11 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
+            if (vertexIdsOrVertices[0].equals(GRAPH_SUMMARY_VERTEX)) {
+                return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
+            }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                try {
-                    WarmupUtil.create(configuration).preheat(1);
-                } catch (Exception e) {
-                    LOG.warn("Failed to run warmup routine {}", e.getMessage());
-                }
+                WarmupUtil.create(configuration).preheat(1);
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
         }
@@ -473,9 +434,14 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Create edge iterator with graph and edge id iterator.
         // If there are edgeIds present, convert them to an iterator of Longs, otherwise read edges from database.
         final List<Object> ids = getIds(List.of(edgeIds));
-        final List<FireflyId> idList = ids.stream()
-                .map(id -> getIdFactory().createId(id, FireflyEdge.class))
-                .collect(Collectors.toList());
+        final List<FireflyId> idList;
+        try {
+            idList = ids.stream()
+                    .map(id -> getIdFactory().createId(id, FireflyEdge.class))
+                    .collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            throw new NoSuchElementException(e.getMessage());
+        }
 
         if (idList.isEmpty()) {
             return new FireflyBatchElementIterator<>(this, this.db.readElementIds(FireflyEdge.class), filters, this::readEdges);
@@ -629,8 +595,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName,
-                predicateToFilter(predicate, indexInfo), queryPolicy);
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
@@ -683,11 +648,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             expression = Exp.build(exp);
         }
 
-
         db.getScanHitCounter().increment(mapKey);
 
         final ScanPolicy policy = new ScanPolicy();
-        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(setName, expression, policy);
+        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(ReadContext.create(setName, binName, mapKey), expression, policy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(kr));
@@ -760,8 +724,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public void close() {
         LOG.info("Closing FireflyGraph.");
         this.closed.set(true);
-        fireflyCardinalityMetadataTask.cancel();
-        fireflyIndexMetadataTask.cancel();
+        this.fireflyCardinalityMetadataTask.cancel();
+        this.fireflyIndexMetadataTask.cancel();
+        this.fireflySummaryUpdater.close();
         this.db.close();
     }
 
@@ -778,5 +743,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     @Override
     public String toString() {
         return StringFactory.graphString(this, db.toString());
+    }
+
+    @Override
+    public ServiceRegistry getServiceRegistry() {
+        return this.serviceRegistry;
     }
 }

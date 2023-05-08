@@ -1,7 +1,21 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Key;
+import com.aerospike.client.Operation;
+import com.aerospike.client.ResultCode;
+import com.aerospike.client.Value;
+import com.aerospike.client.cdt.CTX;
+import com.aerospike.client.cdt.MapOperation;
+import com.aerospike.client.cdt.MapOrder;
+import com.aerospike.client.cdt.MapPolicy;
+import com.aerospike.client.cdt.MapReturnType;
+import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.policy.RecordExistsAction;
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalProperty;
+import com.aerospike.firefly.io.impl.relational.packed.PackedEdgeProperty;
+import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -14,12 +28,16 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -32,9 +50,11 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     protected final FireflyId inVid;
     protected final FireflyId outVid;
     protected final Map<String, Object> properties;
-    protected final Map<String, Long> typeHints;
+    protected final Map<String, Object> typeHints;
 
     public abstract void removeEdge();
+
+    public abstract void removePropertyFromCache(final String key);
 
     public FireflyEdge(final FireflyId id,
                        final String label,
@@ -42,7 +62,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
                        final FireflyId inVid,
                        final FireflyId outVid,
                        final Map<String, Object> properties,
-                       final Map<String, Long> typeHints) {
+                       final Map<String, Object> typeHints) {
         super(id, label);
         this.graph = graph;
         this.inVid = inVid;
@@ -91,7 +111,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     public <V> Property<V> property(final String key) {
         if (properties.containsKey(key)) {
             final V casted = (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(properties.get(key), typeHints.get(key));
-            return new RelationalProperty<>(graph, this, key, casted);
+            return new PackedEdgeProperty<>(graph, this, key, casted);
         } else {
             return Property.empty();
         }
@@ -119,9 +139,10 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         }
 
         // Write the property and add to edge.
-        final Property<V> property = graph.writeProperty(this, key, value);
+        FireflyHelper.validatePropertyValue(value);
+        final Property<V> property = writeProperty(graph, this, key, value);
         properties.put(key, value);
-        typeHints.put(key, AerospikeConnection.getSupportedType(value.getClass()));
+        typeHints.put(key, AerospikeConnection.getSupportedType(value));
         return property;
     }
 
@@ -133,6 +154,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         // But doing this, should one of the subsequent deletes fail, we will not have an
         // orphaned edge on one vertex but not the other.
         removeEdge();
+
+        graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
 
         final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
         final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
@@ -158,7 +181,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
 
             // Otherwise if there is only 1 key and it is not null, return the property if we have it, otherwise empty iterator.
             if (properties.containsKey(propertyKeys[0])) {
-                return FireflyCloseableIteratorUtils.of(new RelationalProperty<>(graph, this, propertyKeys[0],
+                return FireflyCloseableIteratorUtils.of(new PackedEdgeProperty<>(graph, this, propertyKeys[0],
                         (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
                                 properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0]))));
             } else {
@@ -169,7 +192,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             final List<Property<V>> propertyList = new ArrayList<>();
             for (final String key : properties.keySet()) {
                 if (ElementHelper.keyExists(key, propertyKeys)) {
-                    propertyList.add(new RelationalProperty<>(graph, this, key,
+                    propertyList.add(new PackedEdgeProperty<>(graph, this, key,
                             (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
                                     properties.get(key), typeHints.get(key))));
                 }
@@ -178,13 +201,49 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         }
     }
 
+    public static <V> Property<V> writeProperty(final FireflyGraph graph, final FireflyEdge edge, final String propertyKey, final V value) {
+        final AerospikeConnection db = graph.getBaseGraph();
+        final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
+        final Value edgeIdMapKey = Value.get(edge.id.getUserId());
+
+        final Operation valueOp;
+        final Operation typeHintOp;
+
+        // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
+        // the property key if a null value is given.
+        if (value == null) {
+            valueOp = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey), MapReturnType.NONE,
+                    CTX.mapKey(edgeIdMapKey));
+            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey), MapReturnType.NONE,
+                    CTX.mapKey(edgeIdMapKey));
+        } else {
+            final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+            valueOp = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(value),
+                    CTX.mapKey(edgeIdMapKey));
+            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
+                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey));
+        }
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        try {
+            db.operate(writePolicy, key, valueOp, typeHintOp);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+                // Special logic to handle when Edge has been removed from the Phat Edge since in this case
+                // the key is the Phat Edge key and thus the key still exists.
+                throw new ElementNotFoundException(edge, ae);
+            } else {
+                throw ae;
+            }
+        }
+
+        graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(edge.label, Set.of(propertyKey));
+        return new PackedEdgeProperty<>(graph, edge, propertyKey, value);
+    }
+
     @Override
     public String toString() {
         return StringFactory.edgeString(this);
-    }
-
-    public void removeCachedProperty(String key) {
-        properties.remove(key);
-        typeHints.remove(key);
     }
 }

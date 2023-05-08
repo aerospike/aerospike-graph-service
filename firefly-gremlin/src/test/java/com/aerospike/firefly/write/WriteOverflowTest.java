@@ -49,7 +49,7 @@ public class WriteOverflowTest {
     @Test
     public void testWriteVertexPropertyOverflow() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
 
             final GraphTraversalSource g = fireflyGraph.traversal();
             Vertex vertex = g.addV("vertex_test").next();
@@ -79,7 +79,7 @@ public class WriteOverflowTest {
     @Test
     public void testWriteEdgeOverflow() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            fireflyGraph.getBaseGraph().dropDatabase();
+            fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
 
             final GraphTraversalSource g = fireflyGraph.traversal();
             Vertex vertex = g.addV("vertex_test").next();

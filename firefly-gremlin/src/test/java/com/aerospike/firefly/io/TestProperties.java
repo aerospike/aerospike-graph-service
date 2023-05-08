@@ -3,12 +3,15 @@ package com.aerospike.firefly.io;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -68,7 +71,36 @@ public class TestProperties {
     @After
     public void afterEach() {
         System.out.println("===> Completed " + testName.getMethodName() + " <===");
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
+    }
+
+    @Test
+    public void testPropertiesWeight() {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+
+        g.addV("person").property("name", "Lyndon").iterate();
+        g.addV("person").property("name", "Simon").iterate();
+        g.addE("knows").property("weight", 0.5).
+                from(__.V().has("name", "Lyndon")).
+                to(__.V().has("name", "Simon")).iterate();
+        List<Vertex> v = g.V().has("name", "Lyndon").toList();
+        List<Edge> e = g.V().has("name", "Lyndon").outE("knows").toList();
+        Traversal<Vertex, Vertex> traversal = g.V().
+                has("name", "Lyndon").
+                property("weight",
+                        __.outE("knows").
+                                values("weight").sum(),
+                        "acl", "private");
+
+        Vertex lyndon = traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals("person", lyndon.label());
+        Assert.assertEquals("Lyndon", lyndon.value("name"));
+        Assert.assertEquals(0.5, lyndon.value("weight"), 0.01);
+        Assert.assertEquals("private", lyndon.property("weight").value("acl"));
+        Assert.assertEquals(2L, IteratorUtils.count(lyndon.properties()));
+        Assert.assertEquals(1L, IteratorUtils.count(lyndon.property("weight").properties()));
     }
 
     @Test
@@ -170,7 +202,7 @@ public class TestProperties {
         Assert.assertEquals("simon", name.value());
         Assert.assertFalse(names.hasNext());
 
-        // Test adding a property to a now empty vertex property's property map
+        // Test adding a property to a now empty vertex property"s property map
         g.V().hasLabel("person").properties("name").property("length", 5).iterate();
         var vpsWithLength5 = g.V().properties().has("length", 5);
         name = vpsWithLength5.next();
@@ -190,6 +222,18 @@ public class TestProperties {
         Assert.assertEquals("age", ageVp.key());
         Assert.assertEquals("trente", ageVp.value());
         Assert.assertFalse(ageVps.hasNext());
+    }
+
+    @Test
+    public void testResiliency() throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        g.addV("person").iterate();
+        System.out.println("Sleep 15 seconds");
+        Thread.sleep(1000 * 15);
+        System.out.println("Wake up");
+        List<Vertex> vs = g.V().hasLabel("person").toList();
+        Assert.assertEquals(1, vs.size());
     }
 
     @Test
@@ -349,7 +393,6 @@ public class TestProperties {
         g.V().hasLabel("person").property("notExistingKey", null).iterate();
         Assert.assertFalse(g.V().hasLabel("person").has("notExistingKey").hasNext());
 
-
         // Test null in a list
         final List<String> names = new ArrayList<>();
         names.add("simon");
@@ -395,7 +438,6 @@ public class TestProperties {
         g.V().hasLabel("person").properties("name").property("notExistingKey", null).iterate();
         Assert.assertFalse(g.V().hasLabel("person").properties("name").has("notExistingKey").hasNext());
 
-
         // Test null in a list
         final List<String> languages = new ArrayList<>();
         languages.add("english");
@@ -413,6 +455,58 @@ public class TestProperties {
         assertCollectionEquals(new ArrayList<>(languages), (List<Object>) property.value());
     }
 
+    @Test
+    public void testListPropertyValue() {
+        final GraphTraversalSource g = graph.traversal();
+
+        final List<Object> listValue = new ArrayList<>();
+        // String
+        listValue.add("hello world");
+        // Boolean
+        listValue.add(true);
+        // Int
+        listValue.add(1);
+        // Long
+        listValue.add(23L);
+        // Double
+        listValue.add(456.78);
+        // byte[]
+        listValue.add(new byte[]{ 1, 2, 3 });
+        // Byte[]
+        listValue.add(new Byte[]{ 4, 5, 6});
+
+        // Vertex Property
+        g.V().hasLabel("person").property("listProperty", listValue).iterate();
+        List<Object> returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.V().hasLabel("person").property("listProperty", "notAList").iterate();
+        g.V().hasLabel("person").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+
+        // Vertex Property Property
+        g.V().hasLabel("person").property("vpp", "vpp").iterate();
+        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.V().hasLabel("person").properties("vpp").property("listProperty", "notAList").iterate();
+        g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.V().hasLabel("person").properties("vpp").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+
+        // Edge Property
+        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+        // Check that can rewrite array type hints
+        g.E().hasLabel("bought").property("listProperty", "notAList").iterate();
+        g.E().hasLabel("bought").property("listProperty", listValue).iterate();
+        returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
+        assertListPropertyValue(listValue, returnedListValue);
+    }
+
     private static void assertCollectionEquals(final Collection<Object> expected, final Collection<Object> actual) {
         final List<Object> expectedClone = new LinkedList<>(expected);
         for (final Object item : actual) {
@@ -424,6 +518,24 @@ public class TestProperties {
         }
         if (!expectedClone.isEmpty()) {
             Assert.fail("Expected list has additional values compared to actual list.");
+        }
+    }
+
+    private static void assertListPropertyValue(final List<Object> expected, final List<Object> actual) {
+        // This helper assertion function should only be used by testListPropertyValue
+        Assert.assertEquals(expected.size(), actual.size());
+        for (int i = 0; i < 5; i++) {
+            Assert.assertEquals(expected.get(i), actual.get(i));
+        }
+        final byte[] expectedByte = (byte[]) expected.get(5);
+        final byte[] actualByte = (byte[]) actual.get(5);
+        for (int i = 0; i < expectedByte.length; i++) {
+            Assert.assertEquals(expectedByte[i], actualByte[i]);
+        }
+        final Byte[] expectedByteObj = (Byte[]) expected.get(6);
+        final Byte[] actualByteObj = (Byte[]) actual.get(6);
+        for (int i = 0; i < expectedByteObj.length; i++) {
+            Assert.assertEquals(expectedByteObj[i], actualByteObj[i]);
         }
     }
 }

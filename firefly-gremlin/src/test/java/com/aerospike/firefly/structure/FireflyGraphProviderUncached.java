@@ -56,19 +56,20 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
 
     @Override
     public void clear(final Graph graph, final Configuration configuration) {
-        // Connect to db using configuration
-        Configuration conf = configuration;
-        conf.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
-        if (graph != null)
-            conf = ((FireflyGraph) graph).configuration();
-        AerospikeConnection db = AerospikeConnection.connect(conf);
-        // Drop database and remove indices. Can leak memory otherwise (16mb per unused index)
-        db.dropDatabase((FireflyGraph) graph, true);
-        db.close();
-
-        // Cast to firefly graph otherwise we have to throw an Exception that doesn't exist from this function.
         if (graph != null) {
-            ((FireflyGraph) graph).close();
+            final FireflyGraph fireflyGraph = (FireflyGraph) graph;
+            if (fireflyGraph.closed.get()) {
+                try (final FireflyGraph fireflyGraph2 = FireflyGraph.open(configuration)) {
+                    fireflyGraph2.getBaseGraph().dropDatabase(fireflyGraph2, false);
+                }
+            } else {
+                fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
+                fireflyGraph.close();
+            }
+        } else {
+            try (FireflyGraph fireflyGraph = FireflyGraph.open(configuration)) {
+                fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
+            }
         }
     }
 

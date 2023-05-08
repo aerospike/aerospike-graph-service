@@ -1,67 +1,89 @@
 package com.aerospike.firefly.io;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.AbstractMap;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class ScanHitCounter {
-    private final int WARNING_THRESHOLD;
-    private final int MAX_SIZE; // track the thousand most hit keys
-    private final Logger LOG = LoggerFactory.getLogger(this.getClass());
-    private final Function<Map.Entry<String, Long>, Void> onWarning;
-    private final int timeout;
-    final Cache<String, AtomicLong> stats;
+    final Map<String, AtomicLong> hitCount;
+    final Map<UUID, String> scansByKey;
+    final Map<UUID, AtomicLong> scanTimings;
 
 
-    private ScanHitCounter(final int timeout, final int keysToTrack, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
-        this.onWarning = onWarning;
-        this.MAX_SIZE = keysToTrack;
-        this.timeout = timeout;
-        this.WARNING_THRESHOLD = scanHitWarningThreshold;
-        this.stats = CacheBuilder.newBuilder()
-                .expireAfterAccess(timeout, TimeUnit.SECONDS)
-                .build();
+    public ScanHitCounter() {
+        this.hitCount = new ConcurrentHashMap<>();
+        this.scansByKey = new ConcurrentHashMap<>();
+        this.scanTimings = new ConcurrentHashMap<>();
     }
 
-    public static ScanHitCounter create(final int timeout, final int maxSize, final int scanHitWarningThreshold, Function<Map.Entry<String, Long>, Void> onWarning) {
-        return new ScanHitCounter(timeout, maxSize, scanHitWarningThreshold, onWarning);
+    /**
+     * Associate a UUID with a key. This is used to track the key that triggered a scan.
+     *
+     * @param uuid the UUID of the scan
+     * @param key  the key the scan was triggered on
+     */
+    public void associateUUID(final UUID uuid, final String key) {
+        this.scansByKey.put(uuid, key);
     }
 
+    /**
+     * Set the start and stop times for a scan. This is used to track the time it took to complete a scan.
+     *
+     * @param uuid      the UUID of the scan
+     * @param startTime the start time of the scan
+     */
+    public void setScanTimings(final UUID uuid, final long startTime, final long stopTime) {
+        this.scanTimings.computeIfAbsent(uuid, k -> new AtomicLong(0)).set(stopTime - startTime);
+    }
+
+    /**
+     * Increment the hit count for a key.
+     *
+     * @param key the key to increment
+     * @return the new value
+     */
     public long increment(String key) {
         if (key == null) {
             return 0;
         }
-        long val = stats.asMap().computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
-
-        if (stats.size() > MAX_SIZE) {
-            stats.asMap().entrySet().stream()
-                    .sorted((e1, e2) -> {
-                        if (e2.getValue().equals(e1.getValue()))
-                            return 0;
-                        else
-                            return e1.getValue().get() > e2.getValue().get() ? 1 : -1;
-                    })
-                    .limit(stats.size() - MAX_SIZE)
-                    .forEach(e -> stats.invalidate(e.getKey()));
-        }
-        if (val > this.WARNING_THRESHOLD) {
-            onWarning.apply(new AbstractMap.SimpleEntry<>(key, val));
-        }
-        return val;
+        return hitCount.computeIfAbsent(key, k -> new AtomicLong(0)).incrementAndGet();
     }
 
+    /**
+     * Get the hit count for a key.
+     *
+     * @param key the key to get the hit count for
+     * @return the hit count
+     */
     public long get(String key) {
-        return stats.asMap().getOrDefault(key, new AtomicLong(0)).get();
+        return hitCount.getOrDefault(key, new AtomicLong(0)).get();
+    }
+
+    /**
+     * @return map of hit counts
+     */
+    public Map<String, AtomicLong> stats() {
+        return hitCount;
+    }
+
+    /**
+     * @return map of scan times
+     */
+    public Map<UUID, AtomicLong> getScanTimings() {
+        return scanTimings;
+    }
+
+    /**
+     * Get the key that triggered a scan.
+     * @param scanId
+     * @return the key that triggered the scan
+     */
+    public Object getKeyForUUID(UUID scanId) {
+        return scansByKey.getOrDefault(scanId, "NO KEY");
     }
 }

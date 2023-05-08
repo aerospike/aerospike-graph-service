@@ -9,8 +9,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE;
 
 public class BufferedNumericIdManagerIntegrationTest {
     private static final String BUFFER_SIZE = "3";
@@ -20,9 +21,9 @@ public class BufferedNumericIdManagerIntegrationTest {
 
     @BeforeClass
     public static void beforeAll() {
-        CONFIG.setProperty(EDGE_ID_BUFFER_SIZE.toLowerCase(), "0");
+        CONFIG.setProperty(VERTEX_ID_BUFFER_SIZE.toLowerCase(), "1");
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
-        CONFIG.setProperty(EDGE_ID_BUFFER_SIZE.toLowerCase(), BUFFER_SIZE);
+        CONFIG.setProperty(VERTEX_ID_BUFFER_SIZE.toLowerCase(), BUFFER_SIZE);
     }
 
     @AfterClass
@@ -38,7 +39,7 @@ public class BufferedNumericIdManagerIntegrationTest {
     @Test
     public void testBufferedAndUnbufferedIdGet() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
-            final BufferedNumericIdManager idManager = (BufferedNumericIdManager) graph.edgeIdManager;
+            final BufferedNumericIdManager idManager = (BufferedNumericIdManager) graph.vertexIdManager;
             // Buffer -1, -2, -3
             Assert.assertEquals(idManager.getNextId(graph).longValue(), baseline-1);
             Assert.assertEquals(idManager.getNextId(graph).longValue(), baseline-2);
@@ -52,9 +53,10 @@ public class BufferedNumericIdManagerIntegrationTest {
     public void testIdsReservedProperly() {
         try (final FireflyGraph graph1 = FireflyGraph.open(CONFIG);
              final FireflyGraph graph2 = FireflyGraph.open(CONFIG)) {
-            final BufferedNumericIdManager idManager1 = (BufferedNumericIdManager) graph1.edgeIdManager;
-            final BufferedNumericIdManager idManager2 = (BufferedNumericIdManager) graph2.edgeIdManager;
-            // Buffer -1 -2, -3
+            final BufferedNumericIdManager idManager1 = (BufferedNumericIdManager) graph1.vertexIdManager;
+            final BufferedNumericIdManager idManager2 = (BufferedNumericIdManager) graph2.vertexIdManager;
+
+            // Buffer -1, -2, -3
             Assert.assertEquals(idManager1.getNextId(graph1).longValue(), baseline-1);
             // Buffer -4, -5, -6
             Assert.assertEquals(idManager2.getNextId(graph2).longValue(), baseline-4);
@@ -70,6 +72,8 @@ public class BufferedNumericIdManagerIntegrationTest {
     }
 
     private static long getBaselineId() {
-        return SETUP_GRAPH.edgeIdManager.getNextId(SETUP_GRAPH);
+        // Jog id manager to make sure it re-buffers.
+        SETUP_GRAPH.vertexIdManager.getNextId(SETUP_GRAPH);
+        return SETUP_GRAPH.vertexIdManager.getNextId(SETUP_GRAPH) - 1;
     }
 }

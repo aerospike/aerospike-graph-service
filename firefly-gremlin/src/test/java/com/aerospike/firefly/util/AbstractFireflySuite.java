@@ -46,7 +46,7 @@ public abstract class AbstractFireflySuite {
         db = AerospikeConnection.connect(config);
         db.clearNamespace();
         graph = FireflyGraph.open(config);
-        graph.getBaseGraph().dropDatabase();
+        graph.getBaseGraph().dropDatabase(graph, false);
     }
 
     @Before

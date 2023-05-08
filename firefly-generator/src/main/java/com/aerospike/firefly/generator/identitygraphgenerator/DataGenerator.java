@@ -23,13 +23,17 @@ public class DataGenerator {
         try {
             final CommandLine cmd = parseCmdArgs(args);
             final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "1000";
+            final int numOfEdgeProperties = cmd.hasOption("p") ? Integer.parseInt(cmd.getOptionValue("p")) : 0;
+            final int sizeOfEdgeProperty = cmd.hasOption("s") ? Integer.parseInt(cmd.getOptionValue("s")) : 10;
             Builder builder = Builder.create();
             builder = builder.opsPerTransaction(50000)
                     .cmdLineArgs(cmd)
                     .households(Integer.parseInt(numOfHouseholds))
                     .accountsPerHousehold(20)
                     .peoplePerHousehold(10)
-                    .devicesPerPerson(3);
+                    .devicesPerPerson(3)
+                    .numberOfEdgeProperties(numOfEdgeProperties)
+                    .edgePropertyValueLength(sizeOfEdgeProperty);
             IdentityGenerator identityGenerator = builder.generate();
             identityGenerator.run();
             LOG.info("Data generator finished. Exiting.");
@@ -71,6 +75,14 @@ public class DataGenerator {
         final Option varianceOption = new Option("v", "variance", true, "'variance' for Gaussian distribution");
         varianceOption.setRequired(false);
         options.addOption(varianceOption);
+
+        final Option edgePropertyCount = new Option("p", "edgePropertyCount", true, "count of edge properties");
+        edgePropertyCount.setRequired(false);
+        options.addOption(edgePropertyCount);
+
+        final Option edgePropertySize = new Option("x", "edgePropertySize", true, "size of edge properties");
+        edgePropertySize.setRequired(false);
+        options.addOption(edgePropertySize);
 
         final CommandLineParser parser = new DefaultParser();
         try {

@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class EdgeWriteThread implements Callable<Boolean> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeWriteThread.class);
     private final Set<Object> supernodes;
-    private final boolean ignoreFailedProperties;
     private final boolean keepProvidedId;
     private final String providedIdPropertyName;
     private final boolean ignoreElementCreationFailed;
@@ -40,7 +39,6 @@ public class EdgeWriteThread implements Callable<Boolean> {
     private final int partitionId;
     
     public EdgeWriteThread(final Set<Object> supernodes,
-                           final boolean ignoreFailedProperties,
                            final boolean keepProvidedId,
                            final String providedIdPropertyName,
                            final boolean ignoreElementCreationFailed,
@@ -51,7 +49,6 @@ public class EdgeWriteThread implements Callable<Boolean> {
                            final int partitionId,
                            final GenericRowWithSchema fireflyMetadataRow) {
         this.supernodes = supernodes;
-        this.ignoreFailedProperties = ignoreFailedProperties;
         this.keepProvidedId = keepProvidedId;
         this.providedIdPropertyName = providedIdPropertyName;
         this.ignoreElementCreationFailed = ignoreElementCreationFailed;
@@ -72,61 +69,54 @@ public class EdgeWriteThread implements Callable<Boolean> {
     @Override
     public Boolean call() {
         Thread.currentThread().setName("Write-edge-thread-for-partitionId-" + this.partitionId);
-        try {
-            final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.ignoreFailedProperties, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
-            final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
-            final Object inVertexId = sparkEdge.getInVertexId();
-            final Object outVertexId = sparkEdge.getOutVertexId();
-            final String edgeLabel = sparkEdge.getLabel();
-            int tryCount = 0;
-            while (true) {
-                try {
-                    this.graph.bulkWriteEdge((Long) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                            inVertexId, outVertexId);
-                } catch (final AerospikeException e) {
-                    if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
-                        // No point in retrying this kind of error.
-                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
-                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
-                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                        return !this.ignoreElementCreationFailed;
-                    }
-                    if (++tryCount > RETRY_LIMIT) {
-                        LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                inVertexId + " after " + tryCount + " attempts.", e);
-                        // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                        // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                        return !this.ignoreElementCreationFailed;
-                    } else {
-                        LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
-                                inVertexId + ". Attempting to write edge again. Attempt count: "
-                                + tryCount + ".", e);
-                        SparkBulkLoader.exponentialBackoff(tryCount);
-                        continue;
-                    }
+        final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
+        final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
+        final Object inVertexId = sparkEdge.getInVertexId();
+        final Object outVertexId = sparkEdge.getOutVertexId();
+        final String edgeLabel = sparkEdge.getLabel();
+        int tryCount = 0;
+        while (true) {
+            try {
+                this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                        inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
+            } catch (final AerospikeException e) {
+                if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                    // No point in retrying this kind of error.
+                    LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
+                            sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
+                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                    return !this.ignoreElementCreationFailed;
                 }
-
-                // Write edge to vertices' edge caches.
-                if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                    GraphOperations.loadEdgeMap(this.graph, this.supernodes, outVertexId,
-                            this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                            edgeLabel, Direction.OUT, this.outEdgeCount, this.vertexOutEdgeMap,
-                            this.ignoreElementCreationFailed);
-                    GraphOperations.loadEdgeMap(this.graph, this.supernodes, inVertexId,
-                            this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                            edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
-                            this.ignoreElementCreationFailed);
+                if (++tryCount > RETRY_LIMIT) {
+                    LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
+                            inVertexId + " after " + tryCount + " attempts.", e);
+                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
+                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
+                    return !this.ignoreElementCreationFailed;
+                } else {
+                    LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
+                            inVertexId + ". Attempting to write edge again. Attempt count: "
+                            + tryCount + ".", e);
+                    SparkBulkLoader.exponentialBackoff(tryCount);
+                    continue;
                 }
-
-                // Everything succeeded, return false.
-                return false;
             }
-        } catch (final RuntimeException e) {
-            LOGGER.error("Failed to load edge for fireflyrow: " + fireflyMetadataRow  + " metadataRow: "  + fireflyMetadataRow, e);
-            // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-            // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-            return !this.ignoreElementCreationFailed;
+
+            // Write edge to vertices' edge caches.
+            if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
+                GraphOperations.loadEdgeMap(this.graph, this.supernodes, outVertexId,
+                        this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                        edgeLabel, Direction.OUT, this.outEdgeCount, this.vertexOutEdgeMap,
+                        this.ignoreElementCreationFailed);
+                GraphOperations.loadEdgeMap(this.graph, this.supernodes, inVertexId,
+                        this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                        edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
+                        this.ignoreElementCreationFailed);
+            }
+
+            // Everything succeeded, return false.
+            return false;
         }
     }
 }

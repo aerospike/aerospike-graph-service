@@ -17,6 +17,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.opencsv.CSVWriter;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
@@ -41,12 +42,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
 /**
  * IdentityGenerator is Runnable and multiple independent threads/workers can be spawned each executing their own IdentityGenerator instance.
  * Given the nature of the underlying graph structure, it is not necessary for the individual workers to have knowledge/reference to
  * the subgraphs of parallel IdentityGenerators. Such a structure allows for an embarrassingly parallel graph generator.
- *
+ * 
  * IdentityGenerator.Builder is used to create the Runnable.
  *
  * <pre><code>
@@ -60,7 +62,6 @@ import java.util.concurrent.atomic.AtomicLong;
  *     .generate(graph);
  * new Thread(ig).start();
  * </code></pre>
- *
  */
 public class IdentityGenerator implements Runnable {
 
@@ -122,7 +123,7 @@ public class IdentityGenerator implements Runnable {
     private static AmazonS3 S3_CLIENT;
     private static final AtomicLong i = new AtomicLong(0);
 
-    private static final HashMap<String, MutablePair<ByteArrayOutputStream, OutputStreamWriter>> streamMap = new HashMap<>();
+    private final HashMap<String, MutablePair<ByteArrayOutputStream, OutputStreamWriter>> streamMap = new HashMap<>();
 
     private IdentityGenerator(final Builder builder) {
         this.builder = builder;
@@ -132,7 +133,7 @@ public class IdentityGenerator implements Runnable {
         path = cmd.hasOption("d") ? cmd.getOptionValue("d") : path;
         numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
         variance = cmd.hasOption("v") ? Integer.parseInt(cmd.getOptionValue("v")) : variance;
-        if (ENV.equals("aws")){
+        if (ENV.equals("aws")) {
             bucket = cmd.getOptionValue("b");
             String accessKey = cmd.getOptionValue("a");
             String secretKey = cmd.getOptionValue("s");
@@ -157,6 +158,9 @@ public class IdentityGenerator implements Runnable {
         Vertex newDevice = new Device();
         Vertex newHouseHold = new Household();
         Vertex newPerson = new Person();
+        if (builder.numberOfEdgeProperties > 0) {
+            IntStream.range(0, builder.numberOfEdgeProperties - 1).forEach(i -> edgesHeaders.add(String.valueOf(i)));
+        }
         try {
             for (int i = 0; i < builder.numberOfHouseholds; i++) {
                 final Vertex household = this.createHousehold(newHouseHold, "vertices/Household", "household");
@@ -168,18 +172,39 @@ public class IdentityGenerator implements Runnable {
                     final Vertex account = this.createAccount(newAccount, "vertices/Account", "account");
                     if (accounts.size() > 1) {
                         final Vertex rootAccount = accounts.get(this.random.nextInt(accounts.size() - 1));
-                        this.createSubAccountNew(rootAccount, account, "edges/SubAccount", "subaccount");
+                        this.createSubAccountNew(rootAccount,
+                                account,
+                                "edges/SubAccount",
+                                builder.numberOfEdgeProperties,
+                                builder.edgePropertyValueLength,
+                                "subaccount");
                     }
                     accounts.add(account);
                 }
                 for (int j = 0; j < numberOfPeople; j++) {
                     final Vertex person = this.createPerson(newPerson, "vertices/Person", "person");
-                    if (accounts.size() > 0) this.createHoldsNew(person, accounts.remove(0), "edges/Holds", "holds");
-                    this.createPartOfNew(person, household, "edges/PartOf", "partof");
+                    if (accounts.size() > 0)
+                        this.createHoldsNew(person,
+                                accounts.remove(0),
+                                builder.numberOfEdgeProperties,
+                                builder.edgePropertyValueLength,
+                                "edges/Holds",
+                                "holds");
+                    this.createPartOfNew(person,
+                            household,
+                            "edges/PartOf",
+                            builder.numberOfEdgeProperties,
+                            builder.edgePropertyValueLength,
+                            "partof");
                     final long numberOfDevices = this.getGaussian(builder.devicesPerPerson, variance);
                     for (int k = 0; k < numberOfDevices; k++) {
                         final Vertex device = this.createDevice(newDevice, "vertices/Device", "device");
-                        this.createOwnsNew(person, device, "edges/Owns", "owns");
+                        this.createOwnsNew(person,
+                                device,
+                                "edges/Owns",
+                                builder.numberOfEdgeProperties,
+                                builder.edgePropertyValueLength,
+                                "owns");
                     }
                 }
             }
@@ -198,60 +223,66 @@ public class IdentityGenerator implements Runnable {
         LOG.info("Generating data for firefly graph done..");
     }
 
+    public String[] createRandomPropertyKeyValues(int count, int valueSize) {
+        List<String> keyValues = new ArrayList<>();
+        for (int i = 0; i < count; i += 1) {
+            keyValues.add(String.valueOf(i));
+            keyValues.add(RandomStringUtils.randomAlphanumeric(valueSize));
+        }
+        return keyValues.toArray(new String[0]);
+    }
+
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void createSubAccountNew(final Vertex account,
                                     final Vertex subAccount,
-                                    String dir,
-                                    String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(SUB_ACCOUNT);
-        edge.setFrom(account.getId());
-        edge.setTo(subAccount.getId());
+                                    final String dir,
+                                    final int numberOfEdgeProperties,
+                                    final int edgePropertyValueLength,
+                                    final String fileName) throws IOException {
+        final Edge edge = new Edge(i.getAndIncrement(), SUB_ACCOUNT, account.getId(), subAccount.getId(),
+                createRandomPropertyKeyValues(numberOfEdgeProperties, edgePropertyValueLength));
         generateAndWriteEdgeData(account, subAccount, edge, dir, fileName);
     }
 
     public void createHoldsNew(final Vertex person,
                                final Vertex account,
-                               String dir,
-                               String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(HOLDS);
-        edge.setFrom(person.getId());
-        edge.setTo(account.getId());
+                               final int numberOfEdgeProperties,
+                               final int edgePropertyValueLength,
+                               final String dir,
+                               final String fileName) throws IOException {
+        final Edge edge = new Edge(i.getAndIncrement(), HOLDS, person.getId(), account.getId(),
+                createRandomPropertyKeyValues(numberOfEdgeProperties, edgePropertyValueLength));
         generateAndWriteEdgeData(person, account, edge, dir, fileName);
     }
 
     public void createOwnsNew(final Vertex person,
                               final Vertex device,
-                              String dir,
-                              String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(OWNS);
-        edge.setFrom(person.getId());
-        edge.setTo(device.getId());
+                              final String dir,
+                              final int numberOfEdgeProperties,
+                              final int edgePropertyValueLength,
+                              final String fileName) throws IOException {
+        final Edge edge = new Edge(i.getAndIncrement(), OWNS, person.getId(), device.getId(),
+                createRandomPropertyKeyValues(numberOfEdgeProperties, edgePropertyValueLength));
         generateAndWriteEdgeData(person, device, edge, dir, fileName);
     }
 
     public void createPartOfNew(final Vertex person,
                                 final Vertex household,
-                                String dir,
-                                String fileName) throws IOException {
-        final Edge edge = new Edge();
-        edge.setId(i.getAndIncrement());
-        edge.setLabel(PART_OF);
-        edge.setFrom(person.getId());
-        edge.setTo(household.getId());
+                                final String dir,
+                                final int numberOfEdgeProperties,
+                                final int edgePropertyValueLength,
+                                final String fileName) throws IOException {
+        final Edge edge = new Edge(i.getAndIncrement(), PART_OF, person.getId(), household.getId(),
+                createRandomPropertyKeyValues(numberOfEdgeProperties, edgePropertyValueLength));
         generateAndWriteEdgeData(person, household, edge, dir, fileName);
     }
 
     public Vertex createHousehold(Vertex household,
                                   String dir,
                                   String fileName) throws IOException {
-        Household h = (Household)household;
+        Household h = (Household) household;
         h.setId(i.getAndIncrement());
         h.setLabel(HOUSEHOLD);
         h.setStreet(this.createStreet());
@@ -269,7 +300,7 @@ public class IdentityGenerator implements Runnable {
         a.setId(i.getAndIncrement());
         a.setLabel(ACCOUNT);
         a.setNumber(UUID.randomUUID().toString());
-        generateAndWriteVertexData(a, dir,fileName);
+        generateAndWriteVertexData(a, dir, fileName);
         return account;
     }
 
@@ -291,7 +322,7 @@ public class IdentityGenerator implements Runnable {
     public Vertex createDevice(Vertex device,
                                String dir,
                                String fileName) throws IOException {
-        final Device d = (Device)device;
+        final Device d = (Device) device;
         d.setId(i.getAndIncrement());
         d.setLabel(DEVICE);
         d.setMacAddress(UUID.randomUUID().toString());
@@ -321,10 +352,10 @@ public class IdentityGenerator implements Runnable {
                                                   String dir, String fileName) throws IOException {
         int fileCount = 0;
         if (graphMap.containsKey(fileName))
-            fileCount = (int)graphMap.get(fileName).get("fileCount");
+            fileCount = (int) graphMap.get(fileName).get("fileCount");
         Integer countOfRecords = populateGraphMap(dir, fileName, pair, fileCount);
-        this.csvWriter.csvwriterWriteToStream((ArrayList<String[]>)this.graphMap.get(fileName).get("data"),
-                    streamMap.get(dir + "/" + fileName + "_" + fileCount).right);
+        this.csvWriter.csvwriterWriteToStream((ArrayList<String[]>) this.graphMap.get(fileName).get("data"),
+                streamMap.get(dir + "/" + fileName + "_" + fileCount).right);
         HashMap<String, Object> objectPropertyMap = new HashMap<>();
         if (countOfRecords == numberOfRecordsPerFile) {
             if (ENV.equals("aws"))
@@ -343,7 +374,7 @@ public class IdentityGenerator implements Runnable {
         }
     }
 
-    public synchronized Integer populateGraphMap(String dir, String fileName, MutablePair<String[], String[]> pair, int fileCount) throws IOException {
+    public synchronized Integer populateGraphMap(final String dir, final String fileName, final MutablePair<String[], String[]> pair, final int fileCount) throws IOException {
         HashMap<String, Object> objectPropertyMap;
         if (!graphMap.containsKey(fileName)) {
             objectPropertyMap = new HashMap<>();
@@ -355,8 +386,9 @@ public class IdentityGenerator implements Runnable {
             objectPropertyMap.put("schema", schemaSet);
             objectPropertyMap.put("data", new ArrayList<>());
             graphMap.put(fileName, objectPropertyMap);
+        } else { 
+            objectPropertyMap = graphMap.get(fileName);
         }
-        else objectPropertyMap = graphMap.get(fileName);
 
         if (!streamMap.containsKey(dir + "/" + fileName + "_" + fileCount)) {
             HashSet<String[]> schemaSet = new HashSet<>();
@@ -377,7 +409,7 @@ public class IdentityGenerator implements Runnable {
     public synchronized MutablePair<String[], String[]> generateVertexData(Vertex vertex) {
         ArrayList<String> vertexheaders = new ArrayList<>(verticesHeaders);
         vertexheaders.addAll(vertex.keys());
-        ArrayList<String> data =new ArrayList<>();
+        ArrayList<String> data = new ArrayList<>();
         data.add(vertex.getId().toString());
         data.add(vertex.getLabel());
 
@@ -391,11 +423,12 @@ public class IdentityGenerator implements Runnable {
     public synchronized MutablePair<String[], String[]> generateEdgeData(Vertex from,
                                                                          Vertex to,
                                                                          Edge edge) {
-        ArrayList<String> data =new ArrayList<>();
+        ArrayList<String> data = new ArrayList<>();
         data.add(edge.getId().toString());
         data.add(edge.getLabel());
         data.add(from.getId().toString());
         data.add(to.getId().toString());
+        data.addAll(edge.getProperties().values());
 
         return new MutablePair<>(Arrays.copyOf(edgesHeaders.toArray(), edgesHeaders.toArray().length, String[].class), Arrays.copyOf(data.toArray(), data.toArray().length, String[].class));
     }
@@ -424,6 +457,7 @@ public class IdentityGenerator implements Runnable {
         }
         return name;
     }
+
     public String createName(final int meanLength) {
         return createName(meanLength, 2);
     }
@@ -484,10 +518,11 @@ public class IdentityGenerator implements Runnable {
             writer.writeAll(list);
             writer.flush();
         }
+
         private void flushStreamToFile(byte[] stream, String filePath) {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             byteArrayOutputStream.writeBytes(stream);
-            try(OutputStream outputStream = new FileOutputStream(path + "/" + filePath + ".csv")) {
+            try (OutputStream outputStream = new FileOutputStream(path + "/" + filePath + ".csv")) {
                 byteArrayOutputStream.writeTo(outputStream);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -510,6 +545,8 @@ public class IdentityGenerator implements Runnable {
         protected int peoplePerHousehold;
         protected int devicesPerPerson;
         protected int accountsPerHousehold;
+        protected int numberOfEdgeProperties = 0;
+        protected int edgePropertyValueLength;
         protected String id = UUID.randomUUID().toString();
         protected int ops = 10000;
         protected CommandLine cmd;
@@ -558,6 +595,17 @@ public class IdentityGenerator implements Runnable {
             return this;
         }
 
+        public Builder numberOfEdgeProperties(final int numberOfEdgeProperties) {
+            this.numberOfEdgeProperties = numberOfEdgeProperties;
+            return this;
+        }
+
+        public Builder edgePropertyValueLength(final int edgePropertyValueLength) {
+            this.edgePropertyValueLength = edgePropertyValueLength;
+            return this;
+        }
+
+
         public IdentityGenerator generate() {
             return new IdentityGenerator(this);
         }
@@ -568,7 +616,9 @@ public class IdentityGenerator implements Runnable {
                     ",numberOfHouseholds:" + this.numberOfHouseholds +
                     ",peoplePerHousehold:" + this.peoplePerHousehold +
                     ",devicesPerHousehold:" + this.devicesPerPerson +
-                    ",opsPerTransaction:" + this.ops + "]";
+                    ",opsPerTransaction:" + this.ops +
+                    ",numberOfEdgeProperties:" + this.numberOfEdgeProperties +
+                    ",edgePropertyValueLength:" + this.edgePropertyValueLength +"]";
         }
     }
 }

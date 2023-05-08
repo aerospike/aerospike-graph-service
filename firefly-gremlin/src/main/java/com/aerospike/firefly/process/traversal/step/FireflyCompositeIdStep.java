@@ -81,7 +81,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             final int previousSize = fireflyIdList.size();
 
             // If the in edge cache is disabled then we need to use the regular interface.
-            if (vertex.isEdgeCacheDisabled()) {
+            if (vertex.isEdgeCacheOverflowed()) {
                 if (direction == Direction.IN || direction == Direction.BOTH) {
                     final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, graph, vertex);
                     FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);

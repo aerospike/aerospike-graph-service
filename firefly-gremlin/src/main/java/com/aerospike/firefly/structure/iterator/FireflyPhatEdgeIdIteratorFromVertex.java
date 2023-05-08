@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -37,24 +38,34 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
 
     @Override
     protected void getNextKeyRecords() {
-        final Set<Long> edgeIds = new HashSet<>();
+        final Set<ByteBuffer> edgeIds = new HashSet<>();
         final Record record = this.keyRecords.next().record;
         if (this.direction == Direction.BOTH || this.direction == Direction.OUT) {
-            final Map<Long, String> edgeIdToOutVertexId = (Map<Long, String>) record.getMap(Direction.OUT.name());
-            for (final Map.Entry<Long, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {
+            final String binName = getOutVBinName();
+            final Map<ByteBuffer, String> edgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(binName);
+            for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64())) {
                     edgeIds.add(edgeIdToVertexId.getKey());
                 }
             }
         }
         if (this.direction == Direction.BOTH || this.direction == Direction.IN) {
-            final Map<Long, String> edgeIdToInVertexId = (Map<Long, String>) record.getMap(Direction.IN.name());
-            for (final Map.Entry<Long, String> edgeIdToVertexId : edgeIdToInVertexId.entrySet()) {
+            final String binName = getInVBinName();
+            final Map<ByteBuffer, String> edgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(binName);
+            for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToInVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64())) {
                     edgeIds.add(edgeIdToVertexId.getKey());
                 }
             }
         }
         this.currentRecordEdgeIds = edgeIds.iterator();
+    }
+
+    protected String getInVBinName() {
+        return Direction.IN.name();
+    }
+
+    protected String getOutVBinName() {
+        return Direction.OUT.name();
     }
 }

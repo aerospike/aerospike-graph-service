@@ -47,7 +47,7 @@ import java.util.stream.Stream;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * adapted from MergeVertexStep
-/**
+ * /**
  * Implementation for the {@code mergeV()} step covering both the start step version and the one used mid-traversal.
  */
 public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements Mutating<Event>,
@@ -62,7 +62,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
     protected CallbackRegistry<Event> callbackRegistry;
 
     public FireflyMergeVertexStep(final MergeVertexStep step) {
-        this(step.getTraversal(), step.isStart(), step.getSearchCreateTraversal());
+        this(step.getTraversal(), step.isStart(), step.getMergeTraversal());
         if (step.getOnMatchTraversal() != null) this.addChildOption(Merge.onMatch, step.getOnMatchTraversal());
         if (step.getOnCreateTraversal() != null) this.addChildOption(Merge.onCreate, step.getOnCreateTraversal());
         if (step.getCallbackRegistry() != null) this.callbackRegistry = step.getCallbackRegistry();
@@ -76,35 +76,10 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
         this(traversal, isStart, new ConstantTraversal<>(searchCreate));
     }
 
-    public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart, final Traversal.Admin<S,Map<Object, Object>> searchCreateTraversal) {
+    public FireflyMergeVertexStep(final Traversal.Admin traversal, final boolean isStart, final Traversal.Admin<S, Map<Object, Object>> searchCreateTraversal) {
         super(traversal);
         this.isStart = isStart;
         this.searchCreateTraversal = integrateChild(searchCreateTraversal);
-    }
-
-    /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be used to search for vertices.
-     * This {@code Map} also will be used as the default data set to be used to create a vertex if the search is not
-     * successful.
-     */
-    public Traversal.Admin<S, Map<Object, Object>> getSearchCreateTraversal() {
-        return searchCreateTraversal;
-    }
-
-    /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be the override to the one provided
-     * by the {@link #getSearchCreateTraversal()} for vertex creation events.
-     */
-    public Traversal.Admin<S, Map<Object, Object>> getOnCreateTraversal() {
-        return onCreateTraversal;
-    }
-
-    /**
-     * Gets the traversal that will be used to provide the {@code Map} that will be used to modify vertices that
-     * match the search criteria of {@link #getSearchCreateTraversal()}.
-     */
-    public Traversal.Admin<S, Map<String, Object>> getOnMatchTraversal() {
-        return onMatchTraversal;
     }
 
     /**
@@ -119,10 +94,6 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
      */
     public boolean isFirst() {
         return first;
-    }
-
-    public CallbackRegistry<Event> getCallbackRegistry() {
-        return callbackRegistry;
     }
 
     @Override
@@ -268,12 +239,11 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
         });
         return stream.distinct();
     }
-    
+
     @Override
     protected Iterator<Vertex> flatMap(final Traverser.Admin<S> traverser) {
-        final Map<Object,Object> searchCreate = TraversalUtil.apply(traverser, searchCreateTraversal);
+        final Map<Object, Object> searchCreate = TraversalUtil.apply(traverser, searchCreateTraversal);
         validateMapInput(searchCreate, false);
-
         Stream<Vertex> stream = createSearchStream(searchCreate);
         stream = stream.map(v -> {
             // If no onMatch is defined then there is no update - return the vertex unchanged
@@ -302,8 +272,8 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                     // Try to detect proper cardinality for the key according to the graph
                     final Graph graph = this.getTraversal().getGraph().get();
                     VertexProperty.Cardinality effectiveCard;
-                    if(FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
-                        effectiveCard  = VertexProperty.Cardinality.single;
+                    if (FireflyCloseableIteratorUtils.count(v.properties(key)) <= 1)
+                        effectiveCard = VertexProperty.Cardinality.single;
                     else effectiveCard = VertexProperty.Cardinality.list;
                     v.property(effectiveCard, key, value);
                 });
@@ -323,7 +293,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
             // If there is an onCreateTraversal then the search criteria is ignored for the creation as it is provided
             // by way of the traversal which will return the Map
             final boolean useOnCreate = onCreateTraversal != null;
-            final Map<Object,Object> onCreateMap = useOnCreate ? TraversalUtil.apply(traverser, onCreateTraversal) : searchCreate;
+            final Map<Object, Object> onCreateMap = useOnCreate ? TraversalUtil.apply(traverser, onCreateTraversal) : searchCreate;
 
             // searchCreate should have already been validated so only do it if it is overridden
             if (useOnCreate) validateMapInput(onCreateMap, false);
@@ -355,7 +325,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
      * Validates input to any {@code Map} arguments to this step. For {@link Merge#onMatch} updates cannot be applied
      * to immutable parts of an {@link Edge} (id, label, incident vertices) so those can be ignored in the validation.
      */
-    public static void validateMapInput(final Map<?,Object> m, final boolean ignoreTokens) {
+    public static void validateMapInput(final Map<?, Object> m, final boolean ignoreTokens) {
         if (null == m) return;
         if (ignoreTokens) {
             m.entrySet().stream().filter(e -> {

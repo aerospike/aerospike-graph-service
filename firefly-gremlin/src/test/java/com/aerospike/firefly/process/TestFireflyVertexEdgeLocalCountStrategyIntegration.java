@@ -18,6 +18,7 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
@@ -34,13 +35,19 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
 
     @AfterClass
     public static void afterAll() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         SETUP_GRAPH.close();
+    }
+
+    private static byte[] getEdgeId() {
+        final byte[] buffer = new byte[16];
+        new Random().nextBytes(buffer);
+        return buffer;
     }
 
     @Before
     public void beforeEach() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase();
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
         List<Map.Entry<String, Object>> properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Simon"));
         final FireflyVertex simon = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(1, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Lyndon"));
@@ -49,19 +56,19 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
         final FireflyVertex grant = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(3, FireflyVertex.class), "person", properties);
         properties = Collections.singletonList(new AbstractMap.SimpleEntry<>("name", "Joe"));
         final FireflyVertex joe = SETUP_GRAPH.writeVertex(SETUP_GRAPH.getIdFactory().createId(4, FireflyVertex.class), "person", properties);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(1, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 simon, joe);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(2, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 lyndon, joe);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(3, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 grant, joe);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(4, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 simon, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(5, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 grant, lyndon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(6, FireflyEdge.class), "startedBefore", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "startedBefore", Collections.emptyList(),
                 grant, simon);
-        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(7, FireflyEdge.class), "foo", Collections.emptyList(),
+        SETUP_GRAPH.writeEdge(SETUP_GRAPH.getIdFactory().createId(getEdgeId(), FireflyEdge.class), "foo", Collections.emptyList(),
                 lyndon, simon);
     }
 

@@ -304,13 +304,4 @@ public class FireflyRecord {
     public String toString() {
         return key.toString();
     }
-
-    /**
-     * Return the user key associated with this record
-     *
-     * @return Object user key
-     */
-    public Object getUserKey() {
-        return record.getValue(AerospikeConnection.USER_KEY) == null ? key.userKey.getObject() : record.getValue(AerospikeConnection.USER_KEY);
-    }
 }

@@ -51,6 +51,10 @@ jobs:
           distribution: 'temurin'
       - name: Build Maven Project
         run: |
+          # Run simple check to see if code is formatted properly before building.
+          # If code is incorrectly formatted, it can be fixed automatically with:
+          # mvn editorconfig:format
+          mvn editorconfig:check
           mvn clean package -DskipTests --no-transfer-progress
   stop-runner-build:
     name: Stop Build Runner
@@ -245,6 +249,78 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  start-runner-benchmark:
+    name: Start Benchmark Build Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-benchmark-internal dataset:
+    name: Start Benchmark internal dataset Build Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
+  start-runner-benchmark-identifies:
+    name: Start Benchmark Identifies Build Runner
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
   start-runner-spark-bulk-loader:
     name: Start Spark Bulk Loader Runner
     runs-on: ubuntu-latest
@@ -279,7 +355,61 @@ jobs:
       - name: Build Docker Image
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
-          docker build --build-arg RELEASE_BUILD=1 -t aerospike/firefly .
+          docker build -t aerospike/firefly .
+  benchmark-firefly:
+    name: Benchmark Firefly
+    timeout-minutes: 240
+    needs: start-runner-benchmark
+    runs-on: ${{ needs.start-runner-benchmark.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /actions-runner/_work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Launch Firefly in Gremlin-Server and Run Benchmark
+        run: |
+          echo "Downloading gremlin-server"
+          cd ..
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.2/apache-tinkerpop-gremlin-server-3.6.2-bin.zip --quiet
+          echo "Unzipping gremlin-server"
+          unzip -qq gremlin-server
+          
+          echo "Build Firefly"
+          cd firefly
+          mvn clean install -DskipTests --no-transfer-progress
+          
+          echo "Installing Firefly in gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
+          
+          echo "Starting gremlin-server"
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running benchmark"
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
+      - name: Publish Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customSmallerIsBetter'
+          output-file-path: firefly-gremlin/target/jmh-result.json
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          benchmark-data-dir-path: docs/
   test-firefly-tls:
     name: Test TLS integration
     timeout-minutes: 12
@@ -303,7 +433,6 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -DskipTests clean compile test-compile package
           mvn -pl firefly-gremlin -Djavax.net.ssl.trustStore=$(realpath firefly-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath firefly-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
-
   test-firefly-packed:
     name: Test Packed
     timeout-minutes: 120
@@ -317,7 +446,6 @@ jobs:
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
@@ -440,18 +568,18 @@ jobs:
         run: |
           mvn clean install -DskipTests
           mvn -pl firefly-spark-bulk-loader test --no-transfer-progress
-  benchmark-firefly:
-    name: Benchmark Firefly
+  benchmark-internal dataset-flow-firefly:
+    name: Benchmark internal dataset Flow Firefly
     timeout-minutes: 240
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
+    needs: start-runner-benchmark-internal dataset
+    runs-on: ${{ needs.start-runner-benchmark-internal dataset.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
+          firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -462,26 +590,26 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.1/apache-tinkerpop-gremlin-server-3.6.1-bin.zip --quiet
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.2/apache-tinkerpop-gremlin-server-3.6.2-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
-          
+
           echo "Build Firefly"
           cd firefly
           mvn clean install -DskipTests --no-transfer-progress
-          
+
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0'
-          
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
+
           echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
-          
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
-          
+
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
-      - name: Publish Benchmark Results
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset -DfailIfNoTests=false --no-transfer-progress
+      - name: Publish Benchmark internal dataset Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
@@ -494,19 +622,18 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
-
-  benchmark-internal dataset-flow-firefly:
-    name: Benchmark internal dataset Flow Firefly
+  benchmark-identifies-flow-firefly:
+    name: Benchmark Identifies Flow Firefly
     timeout-minutes: 240
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
+    needs: start-runner-benchmark-identifies
+    runs-on: ${{ needs.start-runner-benchmark-identifies.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
+          firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -517,7 +644,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.1/apache-tinkerpop-gremlin-server-3.6.1-bin.zip --quiet
+          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.2/apache-tinkerpop-gremlin-server-3.6.2-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
 
@@ -526,17 +653,17 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.6.0'
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
 
           echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.1/bin/gremlin-server.sh /home/runner/work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          ../apache-tinkerpop-gremlin-server-3.6.2/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset -DfailIfNoTests=false --no-transfer-progress
-      - name: Publish Benchmark internal dataset Results
+          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestIdentifiesTraversal -DfailIfNoTests=false --no-transfer-progress
+      - name: Publish Benchmark Identifies Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
@@ -571,7 +698,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Starting gremlin-server"
-          docker build --build-arg RELEASE_BUILD=1 -t firefly .
+          docker build -t firefly .
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -601,7 +728,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Starting gremlin-server"
-          docker build --build-arg RELEASE_BUILD=1 -t firefly .
+          docker build -t firefly .
           
           echo "Running docker image with custom properties file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &
@@ -758,6 +885,69 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-docker.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-docker.outputs.ec2-instance-id }}
+  stop-runner-benchmark:
+    name: Stop Benchmark Runner
+    needs:
+      - benchmark-firefly
+      - start-runner-benchmark
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-benchmark.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-benchmark.outputs.ec2-instance-id }}
+  stop-runner-benchmark-internal dataset:
+    name: Stop Benchmark internal dataset Runner
+    needs:
+      - benchmark-internal dataset-flow-firefly
+      - start-runner-benchmark-internal dataset
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-benchmark-internal dataset.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-benchmark-internal dataset.outputs.ec2-instance-id }}
+  stop-runner-benchmark-identifies:
+    name: Stop Benchmark Identifies Runner
+    needs:
+      - benchmark-identifies-flow-firefly
+      - start-runner-benchmark-identifies
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-benchmark-identifies.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-benchmark-identifies.outputs.ec2-instance-id }}
   stop-runner-spark-bulk-loader:
     name: Stop Spark Bulk Loader Runner
     needs:

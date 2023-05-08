@@ -1,6 +1,6 @@
 package com.aerospike.firefly.bulkloader.spark.structure;
 
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -24,7 +24,6 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     }
 
     public static SparkFireflyVertex createVertex(final GenericRowWithSchema row,
-                                                  final boolean ignoreParseFailedProperties,
                                                   final String nullValue) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
@@ -47,14 +46,12 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
-                LOG.warn("Failed to generate property for header '" + header + "' from value: " + row.getAs(header), e);
-                if (!ignoreParseFailedProperties) {
-                    throw e;
-                }
+                LOG.error("Failed to generate property for header '" + header + "' from value: " + row.getAs(header));
+                throw new FireflyBulkLoaderException(e);
             }
         }
         if (id == null) {
-            throw new FireflyBulkLoaderException("Could not generate vertex due to a required value being blank.");
+            throw new FireflyBulkLoaderException("Could not generate vertex due to ~id being blank.");
         }
         if (label == null) {
             label = DEFAULT_LABEL;

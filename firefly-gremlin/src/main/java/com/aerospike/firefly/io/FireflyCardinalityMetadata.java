@@ -48,7 +48,7 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         // Get Nodes.
         final Node[] nodes = db.getClient().getNodes();
         if (nodes.length < 1) {
-            throw new Exception("Error, there is " + nodes.length + " nodes available. Expected at least 1.");
+            throw new Exception("Error, there are " + nodes.length + " nodes available. Expected at least 1.");
         }
 
         // Get current list of numeric and string indexes.

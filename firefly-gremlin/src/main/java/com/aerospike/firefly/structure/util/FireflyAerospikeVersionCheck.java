@@ -76,7 +76,7 @@ public class FireflyAerospikeVersionCheck {
     }
 
     public static void validateVersion(final AerospikeClient client) {
-        final Node node = client.getCluster().getRandomNode();
+        final Node node = client.getNodes()[0];
         final String response = Info.request(null, node, "build");
         final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);
         if (!validateVersion(version)) {

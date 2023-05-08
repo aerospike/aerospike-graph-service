@@ -7,12 +7,14 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.util.AbstractFireflySuite;
+import com.aerospike.client.util.Crypto;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -49,28 +51,6 @@ public class PolyIdTest extends AbstractFireflySuite {
         assertEquals(va.id(), graph.traversal().V(vb).in().toList().get(0).id());
     }
 
-    public void testFireflyIdPoly() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
-
-        assertEquals("A", va.id.getUserId());
-        assertEquals("B", vb.id.getUserId());
-
-        Record reca = va.getBaseElement();
-        Record recb = vb.getBaseElement();
-
-        assertEquals("A", reca.getString(AerospikeConnection.USER_KEY));
-        assertEquals("B", recb.getString(AerospikeConnection.USER_KEY));
-
-        Record readbackByHash = db.getClient().get(null, new Key(db.getNamespace(), vb.id.getKeyHash(), db.VERTEX_AERO_SET, Value.NULL));
-        assertEquals(recb, readbackByHash);
-
-        Record readbackByUser = db.getClient().get(null, new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id.getUserId())));
-        assertEquals(recb, readbackByUser);
-
-        assertArrayEquals(vb.id.getKeyHash(), new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id.getUserId())).digest);
-    }
-
     @Test
     public void testFireflyIdPolyComposite() {
         PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
@@ -79,18 +59,12 @@ public class PolyIdTest extends AbstractFireflySuite {
         assertEquals("A", va.id.getUserId());
         assertEquals("B", vb.id.getUserId());
 
-        Record reca = va.getBaseElement();
-        Record recb = vb.getBaseElement();
-
-        assertEquals("A", reca.getString(AerospikeConnection.USER_KEY));
-        assertEquals("B", recb.getString(AerospikeConnection.USER_KEY));
-
         FireflyEdge eab = (FireflyEdge) va.addEdge("knows", vb);
         FireflyEdge eba = (FireflyEdge) vb.addEdge("forgot", va);
 
         List<FireflyId> edgeIds = vb.getEdgeIdsFromVertex(Direction.OUT);
         assertEquals(1, edgeIds.size());
-        assertEquals(eba.id(), edgeIds.get(0).getUserId());
+        assertEquals(eba.id(), Crypto.encodeBase64(((ByteBuffer)edgeIds.get(0).getUserId()).array()));
         FireflyIdComposite fidc = (FireflyIdComposite) edgeIds.get(0);
         FireflyId eidRecovered = fidc.getEdgeId();
         FireflyId aidRecovered = fidc.getAdjacentId();

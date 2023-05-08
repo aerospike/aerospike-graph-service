@@ -168,7 +168,7 @@ public class SparkBulkLoader {
         final Instant startOfVertexMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Vertex write", "Vertex MapPartition and collectAsList", true);
 
-        progressBar.setVertexCount(persistedVertexDS.count());
+        progressBar.setVertexLoadStart();
         final List<Long> vertexResult = DatasetOperations.writeVertices(persistedVertexDS, configPath, ENV, finalS3BucketName);
         progressBar.setVertexLoadComplete();
 
@@ -201,7 +201,7 @@ public class SparkBulkLoader {
         final Instant startOfEdgeMapPartitions = Instant.now();
         spark.sparkContext().setJobGroup("Edges write", "Edges MapPartition and collectAsList", true);
 
-        progressBar.setEdgeCount(persistedEdgeDS.count());
+        progressBar.setEdgeLoadStart();
         final List<Long> edgeResult = DatasetOperations.writeEdges(configPath, persistedEdgeDS, ENV, finalS3BucketName);
         progressBar.setEdgeLoadComplete();
         final Instant endOfEdgeMapPartitions = Instant.now();

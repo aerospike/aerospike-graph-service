@@ -66,7 +66,7 @@ RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
     then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
-    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0-SNAPSHOT' ;  \
+    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
     fi
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly

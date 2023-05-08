@@ -19,8 +19,6 @@ public class ProgressBar extends TimerTask {
     private boolean superNodeExtractionComplete = false;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
-    private long vertexCount = 0L;
-    private long edgeCount = 0L;
     private long startVertexTime = 0L;
     private long startEdgeTime = 0L;
 
@@ -33,17 +31,15 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    public void setVertexCount(final long vertexCount) {
+    public void setVertexLoadStart() {
         synchronized (ProgressBar.class) {
             this.startVertexTime = System.currentTimeMillis();
-            this.vertexCount = vertexCount;
         }
     }
 
-    public void setEdgeCount(final long edgeCount) {
+    public void setEdgeLoadStart() {
         synchronized (ProgressBar.class) {
             this.startEdgeTime = System.currentTimeMillis();
-            this.edgeCount = edgeCount;
         }
     }
 
@@ -78,7 +74,7 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getPreFlightCheckProgress() {
-        if (vertexCount == 0 && edgeCount == 0) {
+        if (startVertexTime == 0 && startEdgeTime == 0) {
             return "\t\tPreflight check in progress\n";
         } else {
             return "\t\tPreflight check complete\n";
@@ -88,15 +84,15 @@ public class ProgressBar extends TimerTask {
     private String getVertexWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (vertexLoadComplete) {
             return "\t\tVertex writing complete\n";
-        } else if (vertexCount != 0 && vertexCount == elementMetadata.totalVertexCount()) {
-            return "\t\tVertex writing progress\n" +
-                    "\t\t\t[" + (getProgressBar((double) elementMetadata.totalVertexCount() /
-                    (double) vertexCount)) + "] (" + elementMetadata.totalVertexCount() + "/" + vertexCount + ")\n";
-        } else if (vertexCount != 0) {
-            return "\t\tVertex writing progress\n" +
-                    "\t\t\t[" + (getProgressBar((double) elementMetadata.totalVertexCount() /
-                    (double) vertexCount)) + "] (" + elementMetadata.totalVertexCount() + "/" + vertexCount + ")\n" +
-                    "\t\t\t" + getTimeRemaining(startVertexTime, elementMetadata.totalVertexCount(), vertexCount, "Vertex") + "\n";
+        } else if (startVertexTime != 0) {
+            long time = System.currentTimeMillis();
+            if ((time - startVertexTime) / 1000 != 0) {
+                return "\t\tVertex writing progress\n" +
+                        "\t\t\tWriting " + elementMetadata.totalVertexCount() /
+                        ((time - startVertexTime) / 1000) + " vertices per second\n";
+            } else {
+                return "\t\tVertex writing progress\n";
+            }
         } else {
             return "\t\tVertex writing not started\n";
         }
@@ -105,15 +101,15 @@ public class ProgressBar extends TimerTask {
     private String getEdgeWritingProgress(final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata) {
         if (edgeLoadComplete) {
             return "\t\tEdge writing complete\n";
-        } else if (edgeCount != 0 && edgeCount == elementMetadata.totalEdgeCount()) {
-            return "\t\tEdge writing progress\n" +
-                    "\t\t\t[" + (getProgressBar((double) elementMetadata.totalEdgeCount() /
-                    (double) edgeCount)) + "] (" + elementMetadata.totalEdgeCount() + "/" + edgeCount + ")\n";
-        } else if (edgeCount != 0) {
-            return "\t\tEdge writing progress\n" +
-                    "\t\t\t[" + (getProgressBar((double) elementMetadata.totalEdgeCount() /
-                    (double) edgeCount)) + "] (" + elementMetadata.totalEdgeCount() + "/" + edgeCount + ")\n" +
-                    "\t\t\t" + getTimeRemaining(startEdgeTime, elementMetadata.totalEdgeCount(), edgeCount, "Edge") + "\n";
+        } else if (startEdgeTime != 0) {
+            long time = System.currentTimeMillis();
+            if ((time - startEdgeTime) / 1000 != 0) {
+                return "\t\tEdge writing progress\n" +
+                        "\t\t\tWriting " + elementMetadata.totalEdgeCount() /
+                        ((time - startEdgeTime) / 1000) + " edges per second\n";
+            } else {
+                return "\t\tEdge writing progress\n";
+            }
         } else {
             return "\t\tEdge writing progress not started\n";
         }

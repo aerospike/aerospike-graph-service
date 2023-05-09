@@ -203,7 +203,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.warn("Failed to set log level {}", e.getMessage());
         }
         try {
-            LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+            final Runtime javaRuntime = Runtime.getRuntime();
+            LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
+            LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
+            LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
+            LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
+            LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
+            LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
+            LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
+            LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
+            LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
+            LOG.info("Firefly configuration: {}.", conf);
+            LOG.info("Starting Aerospike Firefly v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf)))
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);

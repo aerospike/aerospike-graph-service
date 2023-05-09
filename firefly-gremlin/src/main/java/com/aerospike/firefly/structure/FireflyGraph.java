@@ -20,7 +20,8 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.process.call.FireflyServiceFactory;
+import com.aerospike.firefly.process.call.FireflyBulkLoaderServiceFactory;
+import com.aerospike.firefly.process.call.FireflyMetadataServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
@@ -190,7 +191,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
-        serviceRegistry.registerService(new FireflyServiceFactory(this));
+        serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
+        serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
     }
 
     public static FireflyGraph open(final Configuration conf) {

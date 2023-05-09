@@ -2,7 +2,7 @@ package com.aerospike.firefly.bulkloader.spark.executorservice;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
-import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -76,7 +76,7 @@ public class VertexWriteThread implements Callable<Boolean> {
                 } else {
                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
                             ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
-                    SparkBulkLoader.exponentialBackoff(tryCount);
+                    SparkBulkLoaderMain.exponentialBackoff(tryCount);
                 }
             }
         }

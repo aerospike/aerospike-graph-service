@@ -10,7 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import java.util.Map;
 import java.util.Set;
 
-public class FireflyServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
+public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private final FireflyGraph graph;
     public static final String PRETTY_PRINT_FORMAT_LOG = "Total vertex count: {}.\n" +
             "Vertex count by label: {}.\n" +
@@ -25,7 +25,7 @@ public class FireflyServiceFactory<I, R> implements Service.ServiceFactory<I, R>
             "Edge count by label: %s.\n" +
             "Edge properties by label: %s.";
 
-    public FireflyServiceFactory(final FireflyGraph graph) {
+    public FireflyMetadataServiceFactory(final FireflyGraph graph) {
         this.graph = graph;
     }
 

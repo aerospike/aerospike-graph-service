@@ -3,7 +3,7 @@ package com.aerospike.firefly.bulkloader.spark.executorservice;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
-import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -98,7 +98,7 @@ public class EdgeWriteThread implements Callable<Boolean> {
                     LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                             inVertexId + ". Attempting to write edge again. Attempt count: "
                             + tryCount + ".", e);
-                    SparkBulkLoader.exponentialBackoff(tryCount);
+                    SparkBulkLoaderMain.exponentialBackoff(tryCount);
                     continue;
                 }
             }

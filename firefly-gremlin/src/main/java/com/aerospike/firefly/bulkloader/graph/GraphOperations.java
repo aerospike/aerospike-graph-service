@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
+import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 
 /**
  * Class containing all graph operation functions (Vertex/Edge load/write)

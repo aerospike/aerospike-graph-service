@@ -37,6 +37,9 @@ public class CommandLineParser {
         Option we = new Option("writeedge", "write edge");
         Option wv = new Option("writevertex",  "write vertices");
 
+        Option se = new Option("supernode", "supernode");
+
+
         options.addOption(pv);
         options.addOption(pe);
 
@@ -48,6 +51,8 @@ public class CommandLineParser {
 
         options.addOption(we);
         options.addOption(wv);
+
+        options.addOption(se);
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

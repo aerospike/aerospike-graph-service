@@ -52,6 +52,7 @@ import scala.Tuple2;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -323,7 +324,8 @@ public class DatasetOperations implements Serializable {
                                         final String bucketName) {
         final List<Long> cumulativeTime = Collections.synchronizedList(new ArrayList<>());
         return persistedEdgeDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
-            LOGGER.info("PartitionId in EdgeDataset = " + TaskContext.getPartitionId()); // Numerical value
+
+            LocalDateTime start = LocalDateTime.now();
             setConfig(configPath, env, bucketName);
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, CONFIG.get()));
@@ -381,6 +383,10 @@ public class DatasetOperations implements Serializable {
                 final Duration interval = Duration.between(startOfGraphOperations, endOfGraphOperations);
                 cumulativeTime.add(interval.getSeconds());
             }
+            LocalDateTime end = LocalDateTime.now();
+            LOGGER.info(String.format("Edge PartitionId= %d, start=%s, end= %s" , TaskContext.getPartitionId(), start, end));
+            LOGGER.info(String.format( "freeMemory: %d, totalMemory = %d, percentage = %f",  Runtime.getRuntime().freeMemory(),  Runtime.getRuntime().totalMemory(),
+                    ((double)Runtime.getRuntime().freeMemory() /  Runtime.getRuntime().totalMemory())));
             return cumulativeTime.iterator();
         }, Encoders.LONG()).collectAsList();
     }
@@ -455,6 +461,7 @@ public class DatasetOperations implements Serializable {
 
     public static void extractSupernodes(final Dataset<Row> persistedEdgeDS, final Configuration config) {
         final JavaRDD<Row> edgeRDD = persistedEdgeDS.javaRDD();
+
 
         // Values in csv for ~from and ~to will return as strings but can be strings or longs.
         final JavaPairRDD<Object, Long> fromPairRDD = edgeRDD.mapToPair((PairFunction<Row, Object, Long>) row ->

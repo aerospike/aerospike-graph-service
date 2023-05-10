@@ -52,7 +52,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testDataAccuracy() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(), "-processvertex", "-processedge", "-verifyvertex",
-                "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex"});
+                "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -62,7 +62,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDefault() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(),
                 "-processvertex", "-processedge", "-verifyvertex", "-verifyedge",
-                "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex"});
+                "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -73,7 +73,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testProvidedEdgeIdPropertyName() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig(),
                 "-processvertex", "-processedge", "-verifyvertex",
-                "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex"});
+                "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -86,7 +86,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDataAccuracyArtificialSupernodes() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(), "-processvertex",
                 "-processedge", "-verifyvertex", "-verifyedge",
-                "-dryrunedge", "-dryrunvertex" , "-writeedge", "-writevertex"});
+                "-dryrunedge", "-dryrunvertex" , "-writeedge", "-writevertex", "-supernode"});
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -97,7 +97,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testArtificialSupernodes() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(), "-processvertex", "-processedge",
                 "-verifyvertex", "-verifyedge", "-dryrunedge",
-                "-dryrunvertex", "-writeedge", "-writevertex"});
+                "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -110,7 +110,7 @@ public abstract class TestSparkBulkLoaderBase {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode(),
                 "-processvertex", "-processedge", "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex"
-                , "-writeedge", "-writevertex"});
+                , "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -125,7 +125,7 @@ public abstract class TestSparkBulkLoaderBase {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(),
                 "-processvertex", "-processedge", "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex"
-                , "-writeedge", "-writevertex"});
+                , "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Set<Object> expectedIds = Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
         final Set<Object> stringIds = Set.of("1", "2", "3", "4", "5", "6", "7");

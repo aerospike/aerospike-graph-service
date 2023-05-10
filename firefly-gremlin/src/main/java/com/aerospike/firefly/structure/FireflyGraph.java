@@ -255,6 +255,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
+    public abstract void bulkWriteVertex(final FireflyId id, final String label,
+                                         final List<Map.Entry<String, Object>> properties, final boolean createOnly);
+
     public abstract void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                                      final List<Value> edgeIds, final String edgeLabel);
 

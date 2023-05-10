@@ -9,6 +9,9 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListOrder;
+import com.aerospike.client.cdt.ListPolicy;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
@@ -119,8 +122,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         });
 
         final List<Operation> operations = new ArrayList<>();
-        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
+        // CREATE and UPDATE are both okay since this is idempotent.
+        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId), Value.get(label));
         operations.add(writeLabel);
@@ -184,7 +187,9 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
         final Operation getEdgeCount = Operation.get(counterBinName);
         final Operation getCacheState = Operation.get(this.db.EDGE_CACHE_DISABLED);
+        final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendEdgeId = ListOperation.appendItems(
+                preventDuplicates,
                 directionBinName,
                 edgeIds,
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
@@ -246,7 +251,15 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint());
+        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+    }
+
+    @Override
+    public void bulkWriteVertex(final FireflyId idValue,
+                                   final String label,
+                                   final List<Map.Entry<String, Object>> properties,
+                                   final boolean createOnly) {
+        RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
     }
 
     /**

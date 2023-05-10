@@ -48,10 +48,11 @@ public class VertexWriteThread implements Callable<Boolean> {
         final SparkFireflyVertex sparkVertex =
                 SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
         int tryCount = 0;
+        boolean firstWrite = true;
         while (true) {
             try {
-                this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
-                        sparkVertex.getLabel(), sparkVertex.getProperties());
+                this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
+                        sparkVertex.getLabel(), sparkVertex.getProperties(), firstWrite);
                 return false;
             } catch (final AerospikeException e) {
                 if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
@@ -77,6 +78,7 @@ public class VertexWriteThread implements Callable<Boolean> {
                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
                             ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
                     SparkBulkLoaderMain.exponentialBackoff(tryCount);
+                    firstWrite = false;
                 }
             }
         }

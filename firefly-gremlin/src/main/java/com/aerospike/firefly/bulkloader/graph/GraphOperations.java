@@ -1,7 +1,9 @@
 package com.aerospike.firefly.bulkloader.graph;
 
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
+import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -67,11 +69,24 @@ public class GraphOperations {
             try {
                 graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createId(vertexId, FireflyVertex.class), direction, edgeIds, label);
                 successful = true;
-            } catch (final AerospikeException e) {
-                if (++tryCount > RETRY_LIMIT) {
+            } catch (final FireflyLoadingException e) {
+                final AerospikeException cause = e.getCause();
+                if (!e.isRetryable()) {
+                    if (cause.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                        LOGGER.error("Failed to write edges with label " + label + " into " + direction +
+                                " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", e);
+                    } else if (cause.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                        LOGGER.error("Failed to write edges with label " + label + " into " + direction +
+                                " edge cache for vertex ID " + vertexId + " due to vertex record size too big.", e);
+                    } else {
+                        LOGGER.error("Failed to write edges with label " + label + " into " + direction +
+                                " edge cache for vertex ID " + vertexId, e);
+                    }
+                    throw cause;
+                } else if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId + " after " + tryCount + " attempts.", e);
-                    throw e;
+                    throw cause;
                 } else {
                     LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId +

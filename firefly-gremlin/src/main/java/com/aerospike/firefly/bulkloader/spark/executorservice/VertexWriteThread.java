@@ -3,6 +3,7 @@ package com.aerospike.firefly.bulkloader.spark.executorservice;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
+import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -51,23 +52,24 @@ public class VertexWriteThread implements Callable<Boolean> {
                 this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
                         sparkVertex.getLabel(), sparkVertex.getProperties(), firstWrite);
                 return false;
-            } catch (final AerospikeException e) {
-                if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
-                    // No point in retrying this kind of error.
-                    LOGGER.error("Record too big for vertex with id '{}', label '{}', properties '{}', FireflyRow value: '{}', MetadataRow value: '{}'",
-                            sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()),  Arrays.toString(metadataRow.values()));
-                    // Return true to signal error.
-                    return true;
-                }
-                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                    LOGGER.error("Failed to write vertex due to the a vertex with the provided id '{}' already existing. FireflyRow value: '{}', MetadataRow value: '{}'",
-                            sparkVertex.getFireflyId(this.graph.getBaseGraph()), Arrays.toString(fireflyRow.values()),  Arrays.toString(metadataRow.values()));
-                    throw e;
-                }
-                if (++tryCount > RETRY_LIMIT) {
+            } catch (final FireflyLoadingException e) {
+                if (!e.isRetryable()) {
+                    final AerospikeException cause = e.getCause();
+                    if (cause.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                        LOGGER.error("Record too big for vertex with id '{}', label '{}', properties '{}', FireflyRow value: '{}', MetadataRow value: '{}'",
+                                sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()));
+                        return true;
+                    } else if (cause.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                        LOGGER.error("Failed to write vertex due to the a vertex with the provided id '{}' already existing. FireflyRow value: '{}', MetadataRow value: '{}'",
+                                sparkVertex.getFireflyId(this.graph.getBaseGraph()), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()));
+                        return true;
+                    } else {
+                        LOGGER.error("Failed to write vertex. FireflyRow value: '{}', MetadataRow value: '{}'", Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()), cause);
+                        return true;
+                    }
+                } else if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write vertex with ID {} after {} attempts. Vertex properties: {}. FireflyRow value: {}, MetadataRow value: '{}'",
-                            sparkVertex.getId(), tryCount, sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()), e);
-                    // Return true to signal error.
+                            sparkVertex.getId(), tryCount, sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()), e.getCause());
                     return true;
                 } else {
                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +

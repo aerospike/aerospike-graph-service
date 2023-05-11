@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
+import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -76,18 +77,19 @@ public class EdgeWriteThread implements Callable<Boolean> {
             try {
                 this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                         inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
-            } catch (final AerospikeException e) {
-                if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
-                    // No point in retrying this kind of error.
-                    LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
-                            sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
-                    // Return true to signal error.
-                    return true;
-                }
-                if (++tryCount > RETRY_LIMIT) {
+            } catch (final FireflyLoadingException e) {
+                if (!e.isRetryable()) {
+                    if (e.getCause().getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                        LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
+                                sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
+                        return true;
+                    } else {
+                        LOGGER.error("Failed to write edge. FireflyRow value: '{}', FireflyMetadataRow value: '{}'", Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()), e.getCause());
+                        return true;
+                    }
+                } else if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                             inVertexId + " after " + tryCount + " attempts.", e);
-                    // Return true to signal error.
                     return true;
                 } else {
                     LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +

@@ -32,7 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.aerospike.firefly.process.call.FireflyServiceFactory.PRETTY_PRINT_FORMAT_LOG;
+import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.PRETTY_PRINT_FORMAT_LOG;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -178,11 +178,37 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * Update the number of vertices or edges that exist under the provided label in the summary record.
      *
      * @param label      The label of the vertex or edge to update.
+     */
+    public void addVertexRemoveToQueue(final String label) {
+        // If the queue is full, drop the update and let the summary skew a little.
+        if (!queue.offer(new VertexCountInfo(label, -1, Set.of()))) {
+            LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
+                    " cause summary metadata skew.", label);
+        }
+    }
+
+    /**
+     * Update the number of vertices or edges that exist under the provided label in the summary record.
+     *
+     * @param label      The label of the vertex or edge to update.
      * @param properties The properties of the edge to update.
      */
     public void addEdgeWriteToQueue(final String label, final Set<String> properties) {
         // If the queue is full, drop the update and let the summary skew a little.
         if (!queue.offer(new EdgeCountInfo(label, 1, properties))) {
+            LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
+                    " cause summary metadata skew.", label);
+        }
+    }
+
+    /**
+     * Update the number of vertices or edges that exist under the provided label in the summary record.
+     *
+     * @param label      The label of the vertex or edge to update.
+     */
+    public void addEdgeRemoveToQueue(final String label) {
+        // If the queue is full, drop the update and let the summary skew a little.
+        if (!queue.offer(new EdgeCountInfo(label, -1, Set.of()))) {
             LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
                     " cause summary metadata skew.", label);
         }

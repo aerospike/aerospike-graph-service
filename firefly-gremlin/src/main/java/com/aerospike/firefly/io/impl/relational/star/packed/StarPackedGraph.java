@@ -180,7 +180,7 @@ public class StarPackedGraph extends PackedGraph {
                                      final List<Map.Entry<String, Object>> properties) {
         // We only need to add this vertex itself. At this point it has no edges.
         // The actual vertex date is stored the same as the packed model so we can use that code here.
-        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint());
+        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
     }
 
     /**

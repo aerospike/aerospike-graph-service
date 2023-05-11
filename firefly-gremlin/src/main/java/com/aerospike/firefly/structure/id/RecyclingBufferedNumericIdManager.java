@@ -1,16 +1,13 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.client.Log;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -23,7 +20,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private final long bufferSize;
     private final BufferedNumericIdManager uniqueIdManager;
     private final BufferedNumericIdManager recyclingIdManager;
-    private final List<Long> recycledIds = new ArrayList<>();
+    private final List<Long> recycledIds = new LinkedList<>();
     private final boolean allowUserSupplied;
 
     public RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,

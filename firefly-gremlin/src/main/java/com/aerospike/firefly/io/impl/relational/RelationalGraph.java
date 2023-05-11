@@ -9,6 +9,9 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListOrder;
+import com.aerospike.client.cdt.ListPolicy;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
@@ -37,6 +40,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -117,29 +121,44 @@ public abstract class RelationalGraph extends FireflyGraph {
             }
         });
 
-        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
+        final List<Operation> operations = new ArrayList<>();
+        // CREATE and UPDATE are both okay since this is idempotent.
+        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId), Value.get(label));
+        operations.add(writeLabel);
 
-        // Write to supernodes bin if vertex cache overflowed and adjacency indexes are enabled.
-        final String inBin = (inVSupernode && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_IN : Direction.IN.name();
-        final Operation writeInV = MapOperation.put(mapPolicy, inBin,
+        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
                 Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        final String outBin = (outVSupernode && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_OUT : Direction.OUT.name();
-        final Operation writeOutV = MapOperation.put(mapPolicy, outBin,
+        operations.add(writeInV);
+        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
                 Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+        operations.add(writeOutV);
+
+        // Write to supernodes bin if vertex cache overflowed.
+        if (inVSupernode) {
+            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN,
+                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+            operations.add(writeInVSupernode);
+        }
+        if (outVSupernode) {
+            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT,
+                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+            operations.add(writeOutVSupernode);
+        }
 
         final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
                 Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
+        operations.add(writeProperties);
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
                 Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
+        operations.add(writeTypeHints);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
-        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
+        db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
     }
 
@@ -168,7 +187,9 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
         final Operation getEdgeCount = Operation.get(counterBinName);
         final Operation getCacheState = Operation.get(this.db.EDGE_CACHE_DISABLED);
+        final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendEdgeId = ListOperation.appendItems(
+                preventDuplicates,
                 directionBinName,
                 edgeIds,
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
@@ -230,7 +251,15 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint());
+        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+    }
+
+    @Override
+    public void bulkWriteVertex(final FireflyId idValue,
+                                   final String label,
+                                   final List<Map.Entry<String, Object>> properties,
+                                   final boolean createOnly) {
+        RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
     }
 
     /**

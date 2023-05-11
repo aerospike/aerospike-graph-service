@@ -28,7 +28,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.ScanHitCounter;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
@@ -42,7 +41,6 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -136,6 +134,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Remove vertex.
         LOG.debug("Removing vertex {}.", id);
         db.delete(FireflyRecord.getKey(db, db.VERTEX_AERO_SET, id));
+
+        graph.fireflySummaryUpdater.addVertexRemoveToQueue(label);
 
         // Set flags to indicate vertex has been removed.
         this.removed = true;
@@ -605,13 +605,15 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param vertexId   id of vertex,.
      * @param label      String label of vertex.
      * @param properties Map of properties to add to vertex.
+     * @param createOnly Flag that allows only new IDs to be written. Disable only for retry purposes.
      * @return FireflyVertex.
      */
     public static FireflyVertex writeVertex(final FireflyGraph graph,
                                             final FireflyId vertexId,
                                             final String label,
                                             final List<Map.Entry<String, Object>> properties,
-                                            final int vertexTypeHint) {
+                                            final int vertexTypeHint,
+                                            final boolean createOnly) {
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         // Get database connection.
@@ -705,7 +707,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
                 // Set generation to -1 (no generation check) because this is the initial write of the vertex.
                 // Also set writeOnly=true, if vertex already exists we will fail.
-                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, true,
+                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, createOnly,
                         cacheDisabledBin,
                         labelBin,
                         edgeCacheOutBin,

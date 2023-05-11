@@ -3,7 +3,8 @@ package com.aerospike.firefly.structure.util;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
-import com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -21,11 +22,15 @@ public class FireflyAerospikeVersionCheck {
     private final int revision;
     private final int extension;
 
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
+
     FireflyAerospikeVersionCheck(final String version) {
         int extension1;
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");
         }
+
+        LOG.info("Aerospike version: {}.", version);
 
         int begin = 0;
         int i = begin;

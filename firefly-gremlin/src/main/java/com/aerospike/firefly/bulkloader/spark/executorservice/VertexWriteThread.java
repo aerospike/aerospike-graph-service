@@ -2,9 +2,8 @@ package com.aerospike.firefly.bulkloader.spark.executorservice;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
-import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.slf4j.Logger;
@@ -49,10 +48,11 @@ public class VertexWriteThread implements Callable<Boolean> {
         final SparkFireflyVertex sparkVertex =
                 SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
         int tryCount = 0;
+        boolean firstWrite = true;
         while (true) {
             try {
-                this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
-                        sparkVertex.getLabel(), sparkVertex.getProperties());
+                this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()),
+                        sparkVertex.getLabel(), sparkVertex.getProperties(), firstWrite);
                 return false;
             } catch (final AerospikeException e) {
                 if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
@@ -63,6 +63,11 @@ public class VertexWriteThread implements Callable<Boolean> {
                     // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
                     return !this.ignoreElementCreationFailed;
                 }
+                if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                    LOGGER.error("Failed to write vertex due to the a vertex with the provided id '{}' already existing. FireflyRow value: '{}', MetadataRow value: '{}'",
+                            sparkVertex.getFireflyId(this.graph.getBaseGraph()), Arrays.toString(fireflyRow.values()),  Arrays.toString(metadataRow.values()));
+                    throw e;
+                }
                 if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write vertex with ID {} after {} attempts. Vertex properties: {}. FireflyRow value: {}, MetadataRow value: '{}'",
                             sparkVertex.getId(), tryCount, sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()), e);
@@ -72,7 +77,8 @@ public class VertexWriteThread implements Callable<Boolean> {
                 } else {
                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
                             ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);
-                    SparkBulkLoader.exponentialBackoff(tryCount);
+                    SparkBulkLoaderMain.exponentialBackoff(tryCount);
+                    firstWrite = false;
                 }
             }
         }

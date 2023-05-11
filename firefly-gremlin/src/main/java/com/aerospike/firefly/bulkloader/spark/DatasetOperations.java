@@ -14,7 +14,7 @@ import com.aerospike.firefly.bulkloader.storage.FileLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
-import com.aerospike.firefly.bulkloader.util.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -69,7 +69,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
+import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 import static org.apache.spark.sql.functions.col;

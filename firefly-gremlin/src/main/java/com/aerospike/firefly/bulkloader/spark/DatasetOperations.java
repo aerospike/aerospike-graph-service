@@ -172,8 +172,6 @@ public class DatasetOperations implements Serializable {
         return unionVertexDS.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId()); // Numerical value
             setConfig(configPath, env, bucketName);
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
             ThreadFactory vertexThreadFactory =
@@ -186,7 +184,7 @@ public class DatasetOperations implements Serializable {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
 
-                    futures.add(executor.submit(new VertexWriteThread(ignoreElementCreationFailed, nullValue, graph,
+                    futures.add(executor.submit(new VertexWriteThread(nullValue, graph,
                             fireflyRow, TaskContext.getPartitionId(), metadataRow)));
                 }
                 boolean error = false;
@@ -225,8 +223,6 @@ public class DatasetOperations implements Serializable {
                                       final String bucketName) {
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             setConfig(configPath, env, bucketName);
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
             try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
@@ -328,8 +324,6 @@ public class DatasetOperations implements Serializable {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, CONFIG.get()));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, CONFIG.get());
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
 
             ThreadFactory edgeThreadFactory =
@@ -345,7 +339,7 @@ public class DatasetOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow =  removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
                     futures.add(executor.submit(
                             new EdgeWriteThread(SUPERNODES, keepProvidedId, providedIdPropertyName,
-                                    ignoreElementCreationFailed, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
+                                    nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
                                     fireflyRow, TaskContext.getPartitionId(), metadataRow)));
                 }
                 boolean error = false;
@@ -371,8 +365,8 @@ public class DatasetOperations implements Serializable {
                     throw new RuntimeException("Error occurred while writing edges, see logs for more details");
                 }
                 try {
-                    GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
-                    GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                    GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
+                    GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
                 } catch (RuntimeException e) {
                     LOGGER.error("Failed to flush edge maps", e);
                     throw e;
@@ -394,8 +388,6 @@ public class DatasetOperations implements Serializable {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, CONFIG.get()));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, CONFIG.get());
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, CONFIG.get()));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, CONFIG.get());
             try (final FireflyGraph graph = FireflyGraph.open(CONFIG.get())) {
                 final GraphTraversalSource g = graph.traversal();
@@ -513,11 +505,7 @@ public class DatasetOperations implements Serializable {
                         if (++tryCount > RETRY_LIMIT) {
                             LOGGER.error("Failed to disable edge cache for vertex with ID " + supernodeId +
                                     " after " + tryCount + " attempts.", e);
-                            if (!Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config))) {
-                                throw e;
-                            } else {
-                                break;
-                            }
+                            throw e;
                         } else {
                             LOGGER.warn("Failed to disable edge cache for vertex with ID: " + supernodeId +
                                     ". Attempting to disable cache again. Attempt count: " + tryCount + ".", e);

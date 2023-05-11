@@ -22,8 +22,6 @@ Additional Bulk Loader specific configurations should be added to it to create t
   - Each type of vertex (i.e. the same label and some properties) **must** also be in its own sub-directory within `vertex_directory`. 
 * The bulk loader loads different edges and vertices from the sub-directories within the parent `edge_directory` and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge` and `vertex` dataset
 * `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
-* `ignore_element_creation_failed` - `Boolean`: If there is a row of data in the provided CSV that is insufficient to create an edge or vertex, `true` will allow the bulk loading job to continue. *Setting this to `true` should be used with caution.*
-* `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow the bulk loading job to continue.
 * `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was successful (default is 0.1%).
 
 ### Running the Bulk Loader Locally

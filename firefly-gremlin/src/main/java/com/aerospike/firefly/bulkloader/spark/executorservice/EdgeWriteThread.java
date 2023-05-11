@@ -26,7 +26,6 @@ public class EdgeWriteThread implements Callable<Boolean> {
     private final Set<Object> supernodes;
     private final boolean keepProvidedId;
     private final String providedIdPropertyName;
-    private final boolean ignoreElementCreationFailed;
     private final String nullValue;
     private final FireflyGraph graph;
     private final AtomicInteger outEdgeCount = new AtomicInteger(0);
@@ -41,7 +40,6 @@ public class EdgeWriteThread implements Callable<Boolean> {
     public EdgeWriteThread(final Set<Object> supernodes,
                            final boolean keepProvidedId,
                            final String providedIdPropertyName,
-                           final boolean ignoreElementCreationFailed,
                            final String nullValue, FireflyGraph graph,
                            final Map<Object, Map<String, List<Value>>> vertexOutEdgeMap,
                            final Map<Object, Map<String, List<Value>>> vertexInEdgeMap,
@@ -51,7 +49,6 @@ public class EdgeWriteThread implements Callable<Boolean> {
         this.supernodes = supernodes;
         this.keepProvidedId = keepProvidedId;
         this.providedIdPropertyName = providedIdPropertyName;
-        this.ignoreElementCreationFailed = ignoreElementCreationFailed;
         this.nullValue = nullValue;
         this.graph = graph;
         this.vertexOutEdgeMap = vertexOutEdgeMap;
@@ -84,16 +81,14 @@ public class EdgeWriteThread implements Callable<Boolean> {
                     // No point in retrying this kind of error.
                     LOGGER.error("Record too big for edge with id '{}', label '{}', properties '{}'. FireflyRow value: '{}', FireflyMetadataRow value: '{}'",
                             sparkEdge.getFireflyId(this.graph.getBaseGraph()), sparkEdge.getLabel(), sparkEdge.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(fireflyMetadataRow.values()));
-                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                    return !this.ignoreElementCreationFailed;
+                    // Return true to signal error.
+                    return true;
                 }
                 if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                             inVertexId + " after " + tryCount + " attempts.", e);
-                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                    return !this.ignoreElementCreationFailed;
+                    // Return true to signal error.
+                    return true;
                 } else {
                     LOGGER.warn("Failed to write edge " + outVertexId + "--" + edgeLabel + "->" +
                             inVertexId + ". Attempting to write edge again. Attempt count: "
@@ -107,12 +102,10 @@ public class EdgeWriteThread implements Callable<Boolean> {
             if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
                 GraphOperations.loadEdgeMap(this.graph, this.supernodes, outVertexId,
                         this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                        edgeLabel, Direction.OUT, this.outEdgeCount, this.vertexOutEdgeMap,
-                        this.ignoreElementCreationFailed);
+                        edgeLabel, Direction.OUT, this.outEdgeCount, this.vertexOutEdgeMap);
                 GraphOperations.loadEdgeMap(this.graph, this.supernodes, inVertexId,
                         this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                        edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap,
-                        this.ignoreElementCreationFailed);
+                        edgeLabel, Direction.IN, this.inEdgeCount, this.vertexInEdgeMap);
             }
 
             // Everything succeeded, return false.

@@ -17,8 +17,6 @@ public class BulkLoaderConfigHelper {
     public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "keep_provided_edge_id_as_property";
     // The key of the property to store the provided IDs for Edges in.
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "provided_edge_id_property_name";
-    // Boolean value to ignore failures creating a Vertex or Edge and continue the bulk load.
-    public static final String IGNORE_ELEMENT_CREATION_FAILED = "ignore_element_creation_failed";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "sampling_percentage";
     // Flag to enable/disable to caching of dataframe
@@ -32,7 +30,6 @@ public class BulkLoaderConfigHelper {
     private static final Map<String, String> DEFAULT_VALUES = new HashMap<>() {{
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
-        put(IGNORE_ELEMENT_CREATION_FAILED, "false");
         put(SAMPLING_PERCENTAGE, "0.1");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");

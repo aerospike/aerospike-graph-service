@@ -35,8 +35,7 @@ public class GraphOperations {
                                    final String edgeLabel,
                                    final Direction direction,
                                    final AtomicInteger edgeCount,
-                                   final Map<Object, Map<String, List<Value>>> edgeMap,
-                                   final boolean ignoreElementCreationFailed) {
+                                   final Map<Object, Map<String, List<Value>>> edgeMap) {
         synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
                 if (!edgeMap.containsKey(vertexId)) {
@@ -50,7 +49,7 @@ public class GraphOperations {
                 edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
                 final int count = edgeCount.incrementAndGet();
                 if (count > EDGE_CACHE_FLUSH_THRESHOLD) {
-                    flushEdgeMap(graph, direction, edgeMap, ignoreElementCreationFailed);
+                    flushEdgeMap(graph, direction, edgeMap);
                     edgeCount.set(0);
                 }
             }
@@ -61,8 +60,7 @@ public class GraphOperations {
                                                   final Object vertexId,
                                                   final Direction direction,
                                                   final String label,
-                                                  final List<Value> edgeIds,
-                                                  final boolean ignoreElementCreationFailed) {
+                                                  final List<Value> edgeIds) {
         int tryCount = 0;
         boolean successful = false;
         while (!successful) {
@@ -73,11 +71,7 @@ public class GraphOperations {
                 if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId + " after " + tryCount + " attempts.", e);
-                    if (!ignoreElementCreationFailed) {
-                        throw e;
-                    } else {
-                        break;
-                    }
+                    throw e;
                 } else {
                     LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId +
@@ -90,15 +84,14 @@ public class GraphOperations {
 
     public static void flushEdgeMap(final FireflyGraph graph,
                                     final Direction direction,
-                                    final Map<Object, Map<String, List<Value>>> edgeMap,
-                                    final boolean ignoreElementCreationFailed) {
+                                    final Map<Object, Map<String, List<Value>>> edgeMap) {
         for (Map.Entry<Object, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final Object vertexId = vertexIdToLabelMaps.getKey();
             final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
                 try {
-                    writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
-                            labelToEdgeIds.getValue(), ignoreElementCreationFailed);
+                    writeEdgesToFireflyVertex(
+                            graph, vertexId, direction, labelToEdgeIds.getKey(), labelToEdgeIds.getValue());
                 } catch (final RuntimeException e) {
                     LOGGER.error("Exception occurred while loading edges '{}' into vertex with id '{}'. Error message '{}'.",
                             labelToEdgeIds.getValue(), vertexId, e.getMessage(), e);

@@ -14,7 +14,6 @@ import java.util.concurrent.Callable;
 
 public class VertexWriteThread implements Callable<Boolean> {
     private static final Logger LOGGER = LoggerFactory.getLogger(VertexWriteThread.class);
-    private final boolean ignoreElementCreationFailed;
     private final String nullValue;
     private final FireflyGraph graph;
     private final GenericRowWithSchema fireflyRow;
@@ -22,13 +21,11 @@ public class VertexWriteThread implements Callable<Boolean> {
     private static final int RETRY_LIMIT = 100;
     private final int partitionId;
 
-    public VertexWriteThread(final boolean ignoreElementCreationFailed,
-                             final String nullValue,
+    public VertexWriteThread(final String nullValue,
                              final FireflyGraph graph,
                              final GenericRowWithSchema fireflyRow,
                              final int partitionId,
                              final GenericRowWithSchema metadataRow) {
-        this.ignoreElementCreationFailed = ignoreElementCreationFailed;
         this.nullValue = nullValue;
         this.graph = graph;
         this.fireflyRow = fireflyRow;
@@ -59,9 +56,8 @@ public class VertexWriteThread implements Callable<Boolean> {
                     // No point in retrying this kind of error.
                     LOGGER.error("Record too big for vertex with id '{}', label '{}', properties '{}', FireflyRow value: '{}', MetadataRow value: '{}'",
                             sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()),  Arrays.toString(metadataRow.values()));
-                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                    return !this.ignoreElementCreationFailed;
+                    // Return true to signal error.
+                    return true;
                 }
                 if (e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
                     LOGGER.error("Failed to write vertex due to the a vertex with the provided id '{}' already existing. FireflyRow value: '{}', MetadataRow value: '{}'",
@@ -71,9 +67,8 @@ public class VertexWriteThread implements Callable<Boolean> {
                 if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write vertex with ID {} after {} attempts. Vertex properties: {}. FireflyRow value: {}, MetadataRow value: '{}'",
                             sparkVertex.getId(), tryCount, sparkVertex.getProperties(), Arrays.toString(fireflyRow.values()), Arrays.toString(metadataRow.values()), e);
-                    // If ignoreElementCreationFailed is true and an error occurred, we should ignore the error (return false).
-                    // If ignoreElementCreationFailed is false and an error occurred, we should return that an error occurred (return true).
-                    return !this.ignoreElementCreationFailed;
+                    // Return true to signal error.
+                    return true;
                 } else {
                     LOGGER.warn("Failed to write vertex with ID: " + sparkVertex.getId() +
                             ". Attempting to write vertex again. Attempt count: " + tryCount + ".", e);

@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Log;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
@@ -15,6 +16,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
@@ -198,6 +200,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static FireflyGraph open(final Configuration conf) {
         try {
             final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+            Log.setCallback(new AerospikeLogger());
             LoggerUtil.setLogLevel(logLevel);
         } catch (Exception e) {
             LOG.warn("Failed to set log level {}", e.getMessage());

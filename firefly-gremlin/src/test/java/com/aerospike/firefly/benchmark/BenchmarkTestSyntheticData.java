@@ -3,10 +3,14 @@ package com.aerospike.firefly.benchmark;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
@@ -29,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -153,5 +158,50 @@ public class BenchmarkTestSyntheticData {
         } else {
             throw new RuntimeException("No vertices found.");
         }
+    }
+
+    @Benchmark
+    public void benchmark_g_E_get_props(final Blackhole blackhole) {
+        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        //Retrieve all properties from edges attached to vertex
+        final Map<String, Object> props = g.V(id).
+                bothE().propertyMap().next();
+        if (props.size() > 0)
+            blackhole.consume(props);
+    }
+
+    @Benchmark
+    public void benchmark_g_E_get_one_prop(final Blackhole blackhole) {
+        final Object id = householdIds.get(random.nextInt(householdIds.size()));
+        //Retrieve all properties from edges attached to vertex
+        final Edge it = g.V(id).bothE().next();
+        if (it.properties().hasNext()) {
+            it.properties().next();
+        }
+    }
+
+    private String randomString(int len) {
+        final String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        final Random rnd = new Random();
+        final StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++)
+            sb.append(AB.charAt(rnd.nextInt(AB.length())));
+        return sb.toString();
+    }
+
+
+    @Setup(Level.Invocation)
+    public void prepare() {
+        //Add a new property to the edge pack
+        final Object id = householdIds.get(householdIds.size() - 1);
+        g.V(id).bothE().has("test").properties("test").drop().iterate();
+    }
+
+    @Benchmark
+    public void benchmark_g_E_addProp(final Blackhole blackhole) {
+        //Add a new property to the edge pack
+        final Object id = householdIds.get(householdIds.size() - 1);
+        final Object eid = g.V(id).bothE().next().id();
+        g.E(eid).property("test", randomString(10)).next();
     }
 }

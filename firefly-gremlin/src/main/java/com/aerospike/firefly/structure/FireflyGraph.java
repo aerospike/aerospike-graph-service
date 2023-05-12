@@ -198,10 +198,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
+        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
+        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
         try {
-            final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
             Log.setCallback(new AerospikeLogger());
-            LoggerUtil.setLogLevel(logLevel);
+            if (clientLogging)
+                LoggerUtil.setLogLevel(logLevel);
         } catch (Exception e) {
             LOG.warn("Failed to set log level {}", e.getMessage());
         }
@@ -218,7 +221,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
             LOG.info("Firefly configuration: {}.", conf);
             LOG.info("Starting Aerospike Firefly v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf)))
+            if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {

@@ -124,7 +124,7 @@ public class TestLogging {
         client.get(null, keyDoesNotExist);
         AtomicBoolean passed = new AtomicBoolean(false);
         memoryAppender.getLoggedEvents().forEach(event -> {
-            if (event.getLoggerName().equals("com.aerospike.client.AerospikeClient"))
+            if (event.getLoggerName().equals(AerospikeClient.class.getName()))
                 passed.set(true);
         });
         assertTrue(passed.get());

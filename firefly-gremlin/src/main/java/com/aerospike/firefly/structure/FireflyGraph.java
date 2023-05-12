@@ -202,9 +202,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
         final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
         try {
-            Log.setCallback(new AerospikeLogger());
             if (clientLogging)
-                LoggerUtil.setLogLevel(logLevel);
+                Log.setCallback(new AerospikeLogger());
+            LoggerUtil.setLogLevel(logLevel);
         } catch (Exception e) {
             LOG.warn("Failed to set log level {}", e.getMessage());
         }

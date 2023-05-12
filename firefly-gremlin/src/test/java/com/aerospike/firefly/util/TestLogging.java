@@ -5,6 +5,9 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Before;
@@ -13,15 +16,17 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class TestLoggerUtil {
+public class TestLogging {
     private MemoryAppender memoryAppender;
 
     // https://www.baeldung.com/junit-asserting-logs
@@ -76,7 +81,7 @@ public class TestLoggerUtil {
 
     @Test
     public void testConfigureLogLevel() {
-        org.slf4j.Logger LOG = LoggerFactory.getLogger(TestLoggerUtil.class);
+        org.slf4j.Logger LOG = LoggerFactory.getLogger(TestLogging.class);
         LoggerUtil.setLogLevel(Level.OFF);
         LOG.info("This should not be logged");
         assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
@@ -92,7 +97,7 @@ public class TestLoggerUtil {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
         FireflyGraph graph = FireflyGraph.open(conf);
-        org.slf4j.Logger LOG = LoggerFactory.getLogger(TestLoggerUtil.class);
+        org.slf4j.Logger LOG = LoggerFactory.getLogger(TestLogging.class);
         LOG.info("This should not be logged");
         assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
         graph.close();
@@ -104,6 +109,25 @@ public class TestLoggerUtil {
         LOG.info("This should be logged");
         assertEquals(1, memoryAppender.countEventsForLogger(LOG.getName()));
         graph.close();
+    }
+
+    @Test
+    public void testCanSetASClientLogLevel(){
+        Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "DEBUG");
+        conf.setProperty(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED.toLowerCase(), "true");
+        FireflyGraph graph = FireflyGraph.open(conf);
+        final AerospikeClient client = graph.getBaseGraph().getClient();
+        final Key key = new Key("test", "test","test");
+        client.put(null, key, new Bin("test", "test"));
+        final Key keyDoesNotExist = new Key("test", "negative", "negative");
+        client.get(null, keyDoesNotExist);
+        AtomicBoolean passed = new AtomicBoolean(false);
+        memoryAppender.getLoggedEvents().forEach(event -> {
+            if (event.getLoggerName().equals("com.aerospike.client.AerospikeClient"))
+                passed.set(true);
+        });
+        assertTrue(passed.get());
     }
 
 }

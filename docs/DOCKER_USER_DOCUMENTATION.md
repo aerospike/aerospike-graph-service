@@ -53,7 +53,7 @@ with the properties file to configure the server properties as well as the Graph
 To pass in a yaml file, the docker container is started as shown below:
 
 ```
-docker run -p 8182:8182 -v /home/graph-user/graph/conf:/opt/aerospike-firefly/conf
+docker run -p 8182:8182 -v /home/graph-user/graph/conf:/opt/aerospike-firefly/conf ghcr.io/citrusleaf/firefly
 ```
 
 For this command to execute properly, the host machine must have two files present at `/home/graph-user/graph/conf`.

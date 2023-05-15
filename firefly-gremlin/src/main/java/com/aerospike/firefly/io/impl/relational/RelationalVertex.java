@@ -605,13 +605,15 @@ public abstract class RelationalVertex extends FireflyVertex {
      * @param vertexId   id of vertex,.
      * @param label      String label of vertex.
      * @param properties Map of properties to add to vertex.
+     * @param createOnly Flag that allows only new IDs to be written. Disable only for retry purposes.
      * @return FireflyVertex.
      */
     public static FireflyVertex writeVertex(final FireflyGraph graph,
                                             final FireflyId vertexId,
                                             final String label,
                                             final List<Map.Entry<String, Object>> properties,
-                                            final int vertexTypeHint) {
+                                            final int vertexTypeHint,
+                                            final boolean createOnly) {
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         // Get database connection.
@@ -705,7 +707,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
                 // Set generation to -1 (no generation check) because this is the initial write of the vertex.
                 // Also set writeOnly=true, if vertex already exists we will fail.
-                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, true,
+                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, createOnly,
                         cacheDisabledBin,
                         labelBin,
                         edgeCacheOutBin,

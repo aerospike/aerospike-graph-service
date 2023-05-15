@@ -4,11 +4,13 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
-import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListOrder;
+import com.aerospike.client.cdt.ListPolicy;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
@@ -17,8 +19,8 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -116,8 +118,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         });
 
         final List<Operation> operations = new ArrayList<>();
-        // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
+        // CREATE and UPDATE are both okay since this is idempotent.
+        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId), Value.get(label));
         operations.add(writeLabel);
@@ -152,7 +154,15 @@ public abstract class RelationalGraph extends FireflyGraph {
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
-        db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+        try {
+            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
+                throw new FireflyLoadingException(e, false);
+            } else {
+                throw new FireflyLoadingException(e, true);
+            }
+        }
         fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
     }
 
@@ -163,7 +173,6 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @param direction Direction of the edges.
      * @param edgeIds   List of edge IDs.
      * @param edgeLabel Label of all edges in edge ID list.
-     * @return False if the edge cache of the vertex is disabled.
      */
     public void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                             final List<Value> edgeIds, final String edgeLabel) {
@@ -179,53 +188,24 @@ public abstract class RelationalGraph extends FireflyGraph {
 
         // Create the operations.
         final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
-        final Operation getEdgeCount = Operation.get(counterBinName);
-        final Operation getCacheState = Operation.get(this.db.EDGE_CACHE_DISABLED);
+        final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendEdgeId = ListOperation.appendItems(
+                preventDuplicates,
                 directionBinName,
                 edgeIds,
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
         );
 
-        final FireflyCache cache = db.transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
-
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        final Record results = this.db.operate(writePolicy, key, incrementEdgeCount, getEdgeCount,
-                getCacheState, appendEdgeId);
-        final boolean isCacheDisabled = results.getBoolean(this.db.EDGE_CACHE_DISABLED);
-        final long edgeCount = results.getLong(counterBinName);
-
         try {
-            if (isCacheDisabled) {
-                // Cache was already disabled so wipe the write we just did to prevent memory leak.
-                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-                this.db.operate(writePolicy, key, wipeCache);
-            } else if (edgeCount > this.db.ID_CACHE_SIZE) {
-                // Disable the edge cache for this vertex and clear the cache.
-                final Bin disabledCacheBin = new Bin(this.db.EDGE_CACHE_DISABLED, true);
-                final Operation disableCache = Operation.put(disabledCacheBin);
-                final Bin emptyEdgeCacheBin = new Bin(directionBinName, Value.get(new TreeMap<>(), MapOrder.KEY_ORDERED));
-                final Operation wipeCache = Operation.put(emptyEdgeCacheBin);
-                this.db.operate(writePolicy, key, disableCache, wipeCache);
-            }
+            this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
         } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG) {
-                LOG.error("RECORD_TO_BIG error on in bulk cache update operation " +
-                                "vertexId: {} direction: {} edgeIds: {} edgeLabel: {}",
-                        vertexId, direction, edgeIds, edgeLabel);
-                try {
-                    final Record r = db.getClient().get(null, key);
-                    LOG.error("Record which received RECORD_TOO_BIG: '{}'", r);
-                } catch (final RuntimeException ignored) {
-                    LOG.error("Failed to read back vertex that received RECORD_TOO_BIG.");
-                }
+            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG || ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                throw new FireflyLoadingException(ae, false);
+            } else {
+                throw new FireflyLoadingException(ae, true);
             }
-            throw ae;
         }
     }
 
@@ -243,7 +223,23 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint());
+        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+    }
+
+    @Override
+    public void bulkWriteVertex(final FireflyId idValue,
+                                   final String label,
+                                   final List<Map.Entry<String, Object>> properties,
+                                   final boolean createOnly) {
+        try {
+            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.RECORD_TOO_BIG || e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
+                throw new FireflyLoadingException(e, false);
+            } else {
+                throw new FireflyLoadingException(e, true);
+            }
+        }
     }
 
     /**

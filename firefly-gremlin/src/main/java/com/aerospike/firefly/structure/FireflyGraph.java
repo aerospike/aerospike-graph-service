@@ -20,7 +20,8 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.process.call.FireflyServiceFactory;
+import com.aerospike.firefly.process.call.FireflyBulkLoaderServiceFactory;
+import com.aerospike.firefly.process.call.FireflyMetadataServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.structure.id.BufferedNumericIdManager;
@@ -190,7 +191,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
-        serviceRegistry.registerService(new FireflyServiceFactory(this));
+        serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
+        serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -201,7 +203,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.warn("Failed to set log level {}", e.getMessage());
         }
         try {
-            LOG.info("Starting Aerospike Firefly v" + FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+            final Runtime javaRuntime = Runtime.getRuntime();
+            LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
+            LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
+            LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
+            LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
+            LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
+            LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
+            LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
+            LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
+            LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
+            LOG.info("Firefly configuration: {}.", conf);
+            LOG.info("Starting Aerospike Firefly v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf)))
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
@@ -241,6 +254,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     protected abstract Iterator<FireflyId> scanAllVertices();
 
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
+
+    public abstract void bulkWriteVertex(final FireflyId id, final String label,
+                                         final List<Map.Entry<String, Object>> properties, final boolean createOnly);
 
     public abstract void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                                      final List<Value> edgeIds, final String edgeLabel);

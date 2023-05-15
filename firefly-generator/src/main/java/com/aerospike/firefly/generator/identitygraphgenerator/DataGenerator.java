@@ -18,13 +18,14 @@ import java.util.concurrent.Future;
 
 public class DataGenerator {
     private final static Logger LOG = LoggerFactory.getLogger(DataGenerator.class);
+
     public static void main(String[] args) {
         LOG.info("Main thread is - " + Thread.currentThread().getName());
         try {
             final CommandLine cmd = parseCmdArgs(args);
             final String numOfHouseholds = cmd.hasOption("h") ? cmd.getOptionValue("h") : "1000";
             final int numOfEdgeProperties = cmd.hasOption("p") ? Integer.parseInt(cmd.getOptionValue("p")) : 0;
-            final int sizeOfEdgeProperty = cmd.hasOption("s") ? Integer.parseInt(cmd.getOptionValue("s")) : 10;
+            final int sizeOfEdgeProperty = cmd.hasOption("x") ? Integer.parseInt(cmd.getOptionValue("x")) : 10;
             Builder builder = Builder.create();
             builder = builder.opsPerTransaction(50000)
                     .cmdLineArgs(cmd)
@@ -46,6 +47,8 @@ public class DataGenerator {
         final Options options = new Options();
         final Option envOption = new Option("e", "env", true, "local/remote or aws");
         options.addOption(envOption);
+        final Option deterministicOption = new Option("D", "deterministic", false, "deterministic mode");
+        options.addOption(deterministicOption);
 
         final Option pathOption = new Option("d", "directory", true, "Optional param. Absolute path to directory to write the datagenerator output in local." +
                 " If AWS bucket, please provide the sub directory name within the bucket");

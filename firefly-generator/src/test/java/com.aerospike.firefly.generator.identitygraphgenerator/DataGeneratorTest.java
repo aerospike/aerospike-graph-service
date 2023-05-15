@@ -85,10 +85,15 @@ public class DataGeneratorTest {
         }
     }
 
+    private String createDirectory() throws IOException {
+        return Files.createTempDirectory("datagenerator").toAbsolutePath().toString();
+    }
+
     @Before
     public void setUp() throws Exception {
-        dataDir = Files.createTempDirectory("datagenerator").toAbsolutePath().toString();
+        dataDir = createDirectory();
     }
+
 
     @After
     public void tearDown() throws Exception {
@@ -273,5 +278,22 @@ public class DataGeneratorTest {
                     .filter(line -> !line.startsWith("~")).iterator().next().split(",").length;
             assertEquals(numberOfProperties + Arrays.asList("~id", "~label", "~from", "~to").size(), csvElementCount);
         }
+    }
+
+    private int countFilesInDirectoryRecursive(final String directory) {
+        try (Stream<Path> path = Files.walk(Paths.get(directory))) {
+            return (int) path.filter(Files::isRegularFile).count();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Unable to read Files in path = " + directory);
+        }
+    }
+
+    @Test
+    public void testDeterministicMode() throws IOException {
+        final String tmpdir2 = createDirectory();
+        mockMain(new String[]{"-D", "-e", "local", "-d", dataDir, "-p", String.valueOf(5), "-s", "100"});
+        mockMain(new String[]{"-D", "-e", "local", "-d", tmpdir2, "-p", String.valueOf(5), "-s", "100"});
+        assertEquals(countFilesInDirectoryRecursive(dataDir), countFilesInDirectoryRecursive(tmpdir2));
     }
 }

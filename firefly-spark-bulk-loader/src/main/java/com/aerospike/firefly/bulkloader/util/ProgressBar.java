@@ -27,6 +27,20 @@ public class ProgressBar extends TimerTask {
     public ProgressBar() {
     }
 
+    private static String getProgressBar(final double percent) {
+        final String block = "█";
+        final int width = 50;
+        final int progress = (int) (width * percent);
+        String progressBlocks = IntStream.range(0, progress)
+                .mapToObj(i -> block)
+                .collect(Collectors.joining());
+        String emptyBlocks = IntStream.range(0, width - progress)
+                .mapToObj(i -> " ")
+                .collect(Collectors.joining());
+        return progressBlocks + emptyBlocks;
+
+    }
+
     public void setGraph(final FireflyGraph graph) {
         synchronized (ProgressBar.class) {
             this.graph = graph;
@@ -176,20 +190,6 @@ public class ProgressBar extends TimerTask {
         } else {
             return "\t\tSupernode extraction not started\n";
         }
-    }
-
-    private static String getProgressBar(final double percent) {
-        final String block = "█";
-        final int width = 50;
-        final int progress = (int) (width * percent);
-        String progressBlocks = IntStream.range(0, progress)
-                .mapToObj(i -> block)
-                .collect(Collectors.joining());
-        String emptyBlocks = IntStream.range(0, width - progress)
-                .mapToObj(i -> " ")
-                .collect(Collectors.joining());
-        return progressBlocks + emptyBlocks;
-
     }
 
     private void printProgress() {

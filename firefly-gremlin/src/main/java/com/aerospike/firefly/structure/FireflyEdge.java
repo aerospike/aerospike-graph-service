@@ -28,7 +28,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -154,6 +153,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         // But doing this, should one of the subsequent deletes fail, we will not have an
         // orphaned edge on one vertex but not the other.
         removeEdge();
+
+        graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
 
         final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
         final FireflyVertex outVertex = this.graph.readVertex(this.outVid);

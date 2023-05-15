@@ -5,6 +5,7 @@ public class FireflyBulkLoaderPreflightException extends FireflyBulkLoaderExcept
     public FireflyBulkLoaderPreflightException(String message) {
         super(message);
     }
+
     public FireflyBulkLoaderPreflightException(Throwable t) {
         super(t);
     }

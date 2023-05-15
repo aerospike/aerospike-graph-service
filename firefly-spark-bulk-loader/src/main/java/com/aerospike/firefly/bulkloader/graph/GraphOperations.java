@@ -7,11 +7,13 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import org.apache.spark.TaskContext;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -20,54 +22,47 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
 
 /**
- * Class containing all graph operation functions (Vertex/Edge load/write)
- * All functions are statically implemented to avoid creations of objects within Spark's distributed computing transformations
+ * Class containing graph operation functions (Vertex/Edge load/write)
  */
+@ThreadSafe
 public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
-    private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
-    private static final int RETRY_LIMIT = 100;
-    
-    public static void loadEdgeMap(final FireflyGraph graph,
-                                   final Set<Object> supernodes,
-                                   final Object vertexId,
-                                   final FireflyId cachedEdgeId,
-                                   final String edgeLabel,
-                                   final Direction direction,
-                                   final AtomicInteger edgeCount,
-                                   final Map<Object, Map<String, List<Value>>> edgeMap,
-                                   final boolean ignoreElementCreationFailed) {
+    private static final int OLD_RETRY_LIMIT = 10; //used by older backoff mechanism
+
+    public static void updateEdgeMapAndEdgeCount(final Set<Object> supernodes,
+                                                 final Object vertexId,
+                                                 final FireflyId cachedEdgeId,
+                                                 final String edgeLabel,
+                                                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap,
+                                                 final boolean ignoreElementCreationFailed) {
         synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
-                if (!edgeMap.containsKey(vertexId)) {
-                    edgeMap.put(vertexId, new ConcurrentHashMap<>());
-                }
-                final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
-                if (!labelEdgeIds.containsKey(edgeLabel)) {
-                    labelEdgeIds.put(edgeLabel, Collections.synchronizedList(new ArrayList<>()));
-                }
-                final List<Value> edgeIds = labelEdgeIds.get(edgeLabel);
-                edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
-                final int count = edgeCount.incrementAndGet();
-                if (count > EDGE_CACHE_FLUSH_THRESHOLD) {
-                    flushEdgeMap(graph, direction, edgeMap, ignoreElementCreationFailed);
-                    edgeCount.set(0);
-                }
+                updateEdgeMap(vertexId, cachedEdgeId, edgeLabel, edgeMap);
             }
         }
     }
 
-    static private void writeEdgesToFireflyVertex(final FireflyGraph graph,
-                                                  final Object vertexId,
-                                                  final Direction direction,
-                                                  final String label,
-                                                  final List<Value> edgeIds,
-                                                  final boolean ignoreElementCreationFailed) {
+    private static void updateEdgeMap(Object vertexId, FireflyId cachedEdgeId, String edgeLabel, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+        edgeMap
+                .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                .add(Value.get(cachedEdgeId.getCachedId()));
+        edgeMap
+                .get(vertexId)
+                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                .add(Value.get(cachedEdgeId.getCachedId()));
+    }
+
+    static private void bulkWriteEdgesToVertexCacheWithRetry(final FireflyGraph graph,
+                                                             final Object vertexId,
+                                                             final Direction direction,
+                                                             final String label,
+                                                             final List<Value> edgeIds,
+                                                             final boolean ignoreElementCreationFailed) {
         int tryCount = 0;
         boolean successful = false;
         while (!successful) {
@@ -75,7 +70,7 @@ public class GraphOperations {
                 graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createId(vertexId, FireflyVertex.class), direction, edgeIds, label);
                 successful = true;
             } catch (final AerospikeException e) {
-                if (++tryCount > RETRY_LIMIT) {
+                if (++tryCount > OLD_RETRY_LIMIT) {
                     LOGGER.error("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId + " after " + tryCount + " attempts.", e);
                     if (!ignoreElementCreationFailed) {
@@ -113,7 +108,7 @@ public class GraphOperations {
                                     edgeIdsToRemove.size(), edgeIds.size());
                             edgeIds.removeAll(edgeIdsToRemove);
                         } catch (final AerospikeException doubtE) {
-                            if (++doubtTryCount > RETRY_LIMIT) {
+                            if (++doubtTryCount > OLD_RETRY_LIMIT) {
                                 LOGGER.error("Failed to read in doubt edge IDs after " + doubtTryCount + " attempts.", e);
                                 if (!ignoreElementCreationFailed) {
                                     throw e;
@@ -145,15 +140,15 @@ public class GraphOperations {
 
     public static void flushEdgeMap(final FireflyGraph graph,
                                     final Direction direction,
-                                    final Map<Object, Map<String, List<Value>>> edgeMap,
+                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap,
                                     final boolean ignoreElementCreationFailed) {
-        for (Map.Entry<Object, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+        for (Map.Entry<Object, ConcurrentHashMap<String, Set<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final Object vertexId = vertexIdToLabelMaps.getKey();
-            final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
-            for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
+            final ConcurrentHashMap<String, Set<Value>> labelMaps = vertexIdToLabelMaps.getValue();
+            for (Map.Entry<String, Set<Value>> labelToEdgeIds : labelMaps.entrySet()) {
                 try {
-                    writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
-                            labelToEdgeIds.getValue(), ignoreElementCreationFailed);
+                    bulkWriteEdgesToVertexCacheWithRetry(graph, vertexId, direction, labelToEdgeIds.getKey(),
+                            new ArrayList<>(labelToEdgeIds.getValue()), ignoreElementCreationFailed);
                 } catch (final RuntimeException e) {
                     LOGGER.error("Exception occurred while loading edges '{}' into vertex with id '{}'. Error message '{}'.",
                             labelToEdgeIds.getValue(), vertexId, e.getMessage(), e);
@@ -161,6 +156,8 @@ public class GraphOperations {
                 }
             }
         }
+        LOGGER.info(String.format("partition-id: %d, cleaning edge map of size: %d, with direction: %s", TaskContext.getPartitionId(),
+                edgeMap.size(), direction.name()));
         edgeMap.clear();
     }
 }

@@ -6,6 +6,14 @@ public class PropertyValueParser {
         this.nullValue = nullValue;
     }
 
+    public static Object parseId(final String id) {
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException ignored) {
+        }
+        return id;
+    }
+
     public Long parseLong(final String value) {
         if (value.equals(this.nullValue)) {
             return null;
@@ -44,13 +52,5 @@ public class PropertyValueParser {
         }
 
         return value;
-    }
-
-    public static Object parseId(final String id) {
-        try {
-            return Long.parseLong(id);
-        } catch (NumberFormatException ignored) {
-        }
-        return id;
     }
 }

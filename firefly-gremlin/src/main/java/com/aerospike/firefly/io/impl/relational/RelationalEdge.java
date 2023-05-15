@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -125,29 +124,44 @@ public class RelationalEdge extends FireflyEdge {
             }
         });
 
+        final List<Operation> operations = new ArrayList<>();
         // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
         final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
         final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
                 Value.get(edgeId.getUserId()), Value.get(label));
+        operations.add(writeLabel);
 
-        // Write to supernodes bin if vertex cache overflowed and adjacency indexes are enabled.
-        final String inBin = (!inVertexCacheWrite && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_IN : Direction.IN.name();
-        final Operation writeInV = MapOperation.put(mapPolicy, inBin,
+        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
                 Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
-        final String outBin = (!outVertexCacheWrite && db.ADJACENCY_INDEX_ENABLED) ? db.SUPERNODES_OUT : Direction.OUT.name();
-        final Operation writeOutV = MapOperation.put(mapPolicy, outBin,
+        operations.add(writeInV);
+        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
                 Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
+        operations.add(writeOutV);
+
+        // Write to supernodes bin if vertex cache overflowed.
+        if (!inVertexCacheWrite) {
+            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN,
+                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
+            operations.add(writeInVSupernode);
+        }
+        if (!outVertexCacheWrite) {
+            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT,
+                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
+            operations.add(writeOutVSupernode);
+        }
 
         final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
                 Value.get(edgeId.getUserId()), Value.get(data, MapOrder.KEY_ORDERED));
+        operations.add(writeProperties);
         final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
                 Value.get(edgeId.getUserId()), Value.get(typeHints, MapOrder.KEY_ORDERED));
+        operations.add(writeTypeHints);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
-        db.operate(writePolicy, key, writeLabel, writeInV, writeOutV, writeProperties, writeTypeHints);
+        db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
         return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
     }

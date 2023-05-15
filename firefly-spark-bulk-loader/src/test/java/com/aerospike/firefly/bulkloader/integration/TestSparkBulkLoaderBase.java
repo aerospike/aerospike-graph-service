@@ -51,7 +51,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracy() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(), "-processvertex", "-processedge", "-verifyvertex",
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(), "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         testEdges();
         testVertices();
@@ -61,7 +61,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testDefault() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(),
-                "-processvertex", "-processedge", "-verifyvertex", "-verifyedge",
+                "-verifyvertex", "-verifyedge",
                 "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
@@ -72,7 +72,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testProvidedEdgeIdPropertyName() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig(),
-                "-processvertex", "-processedge", "-verifyvertex",
+                "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
@@ -84,8 +84,8 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracyArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(), "-processvertex",
-                "-processedge", "-verifyvertex", "-verifyedge",
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(),
+                "-verifyvertex", "-verifyedge",
                 "-dryrunedge", "-dryrunvertex" , "-writeedge", "-writevertex", "-supernode"});
         testEdges();
         testVertices();
@@ -95,8 +95,8 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(), "-processvertex", "-processedge",
-                "-verifyvertex", "-verifyedge", "-dryrunedge",
+        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode(),
+                "-dryrunedge",
                 "-dryrunvertex", "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
@@ -108,7 +108,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode(),
-                "-processvertex", "-processedge", "-verifyvertex",
+                "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex"
                 , "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
@@ -123,7 +123,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testVertexIds() {
         SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig(),
-                "-processvertex", "-processedge", "-verifyvertex",
+                "-verifyvertex",
                 "-verifyedge", "-dryrunedge", "-dryrunvertex"
                 , "-writeedge", "-writevertex", "-supernode"});
         final GraphTraversalSource g = graph.traversal();
@@ -147,7 +147,7 @@ public abstract class TestSparkBulkLoaderBase {
         boolean success = true;
         try {
             SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckVertex(),
-                    "-processvertex", "-processedge", "-verifyvertex", "-verifyedge", "-dryrunedge", "-dryrunvertex"});
+                    "-verifyvertex", "-verifyedge", "-dryrunedge", "-dryrunvertex"});
         } catch (final FireflyBulkLoaderException preflightFailed) {
             success = false;
         }
@@ -162,7 +162,7 @@ public abstract class TestSparkBulkLoaderBase {
         boolean success = true;
         try {
             SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckEdge(),
-                    "-processvertex", "-processedge", "-dryrunedge", "-dryrunvertex"});
+                    "-dryrunedge", "-dryrunvertex"});
         } catch (final FireflyBulkLoaderException preflightFailed) {
             success = false;
         }

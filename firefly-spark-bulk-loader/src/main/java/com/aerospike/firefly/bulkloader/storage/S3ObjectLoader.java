@@ -6,8 +6,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,23 +15,25 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 public class S3ObjectLoader implements ObjectLoader, Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(S3ObjectLoader.class);
-    private String bucketName;
-    private final AmazonS3 S3_CLIENT;
     private static S3ObjectLoader s3ObjectLoader;
+    private final AmazonS3 s3Client;
+    private String bucketName;
 
-    private S3ObjectLoader(){
-        S3_CLIENT = AmazonS3ClientBuilder.standard().build();
+    private S3ObjectLoader() {
+        s3Client = AmazonS3ClientBuilder.standard().build();
     }
 
     /**
      * Create a singleton instance of S3ObjectLoader to be used across all the distributed compute Spark map transformations
-     * @return
+     *
+     * @return S3ObjectLoader
      */
-    public static synchronized S3ObjectLoader getInstance(){
+    public static synchronized S3ObjectLoader getInstance() {
         if (s3ObjectLoader == null) {
             s3ObjectLoader = new S3ObjectLoader();
         }
@@ -51,9 +51,9 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
      * @return Configuration object built from config file.
      */
     @Override
-    public Configuration loadConfiguration(final String configPath) {
-        try (final S3Object s3Object = this.S3_CLIENT.getObject(bucketName, configPath);
-            final InputStream inputStream = s3Object.getObjectContent()) {
+    public Map<String, Object> loadConfiguration(final String configPath) {
+        try (final S3Object s3Object = this.s3Client.getObject(bucketName, configPath);
+             final InputStream inputStream = s3Object.getObjectContent()) {
             final Properties props = new Properties();
             props.load(inputStream);
             final HashMap<String, Object> configData = new HashMap<>();
@@ -63,7 +63,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
                 LOGGER.debug("config[{}:{}]", key, value);
                 configData.put(key, value);
             });
-            return new MapConfiguration(configData);
+            return configData;
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
@@ -81,7 +81,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
         // TODO GRAPH-491: Test this in an AWS environment to ensure nested csv files are properly accounted for.
         try {
             final List<String> keys = new ArrayList<>();
-            ObjectListing response = this.S3_CLIENT.listObjects(bucketName, directory);
+            ObjectListing response = this.s3Client.listObjects(bucketName, directory);
             List<S3ObjectSummary> objects = response.getObjectSummaries();
             for (final S3ObjectSummary object : objects) {
                 keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
@@ -89,7 +89,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
             // listObjects loads 1000 object keys in one call.
             // If there are multiple directories with more than 1000 files, then need to consume any remaining objects.
             while (response.isTruncated()) {
-                response = this.S3_CLIENT.listNextBatchOfObjects(response);
+                response = this.s3Client.listNextBatchOfObjects(response);
                 objects = response.getObjectSummaries();
                 for (S3ObjectSummary object : objects) {
                     keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));

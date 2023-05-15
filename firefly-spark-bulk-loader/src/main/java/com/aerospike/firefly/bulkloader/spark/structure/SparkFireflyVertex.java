@@ -19,7 +19,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
     private static final String DEFAULT_LABEL = "vertex";
 
     private SparkFireflyVertex(final Object id, final String label,
-                                 final List<Map.Entry<String, Object>> properties) {
+                               final List<Map.Entry<String, Object>> properties) {
         super(id, label, properties);
     }
 

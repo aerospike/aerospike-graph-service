@@ -5,6 +5,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.PrometheusMetricsServer;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.DefaultImportCustomizer;
 import org.apache.tinkerpop.gremlin.jsr223.GremlinPlugin;
@@ -16,6 +17,9 @@ import org.apache.tinkerpop.gremlin.jsr223.ImportCustomizer;
 public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
     private static final String NAME = "aerospike.firefly";
     private static final ImportCustomizer imports;
+    public static final PrometheusMetricsServer metricsProtocolServer = PrometheusMetricsServer.create(
+            PrometheusMetricsServer.DEFAULT_PROMETHEUS_PORT,
+            PrometheusMetricsServer.DEFAULT_PROMETHEUS_PATH);
 
     static {
         try {
@@ -44,6 +48,7 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
 
     public FireflyGremlinPlugin() {
         super(NAME, imports);
+        metricsProtocolServer.start();
     }
 
     public static GremlinPlugin instance() {

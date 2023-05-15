@@ -27,15 +27,15 @@ stop_gremlin_server() {
   then
     echo "==> Docker image is using custom firefly-graph.properties <=="
     echo "==== firefly-gremlin-server.yaml ===="
-    cat $CONF_DIR/firefly-gremlin-server.yaml
+    cat $CONF_DIR/firefly-gremlin-server-custom.yaml
     gremlin-server.sh $CONF_DIR/firefly-gremlin-server-custom.yaml
 
   # Else use the default server yaml and properties
   else
     echo "==> Docker image is using default firefly-graph.properties <=="
     echo "==== firefly-gremlin-server.yaml ===="
-    cat $CONF_DIR/firefly-gremlin-server.yaml
     python3 $CONF_DIR/firefly-graph-configure.py $CONF_DIR/firefly-graph.properties
+    cat $CONF_DIR/firefly-gremlin-server.yaml
     gremlin-server.sh $CONF_DIR/firefly-gremlin-server.yaml
   fi
 ) <&0 &

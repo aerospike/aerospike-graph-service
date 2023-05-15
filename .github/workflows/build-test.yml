@@ -723,6 +723,36 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
+  run-prometheus-test:
+    name: Prometheus Runner
+    timeout-minutes: 30
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Launch Firefly in Gremlin-Server and Test Prometheus
+        run: |
+          echo "Starting gremlin-server"
+          docker build -t firefly .
+          
+          echo "Running docker image with custom yaml file"
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running Prometheus Test"
+          mvn test -pl firefly-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
   test-docker-with-custom-yaml:
     name: Test Docker Image with Custom yaml
     timeout-minutes: 30
@@ -736,7 +766,6 @@ jobs:
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
@@ -751,6 +780,7 @@ jobs:
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
+          
           echo "Running benchmark"
           mvn test -pl firefly-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
   test-docker-with-custom-properties:

@@ -173,7 +173,6 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @param direction Direction of the edges.
      * @param edgeIds   List of edge IDs.
      * @param edgeLabel Label of all edges in edge ID list.
-     * @return False if the edge cache of the vertex is disabled.
      */
     public void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                             final List<Value> edgeIds, final String edgeLabel) {

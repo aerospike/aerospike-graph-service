@@ -31,7 +31,8 @@ public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
                     ResultCode.DEVICE_OVERLOAD,
                     ResultCode.TIMEOUT,
                     ResultCode.MAX_ERROR_RATE,
-                    ResultCode.KEY_BUSY, ResultCode.SERVER_NOT_AVAILABLE)
+                    ResultCode.KEY_BUSY,
+                    ResultCode.SERVER_NOT_AVAILABLE)
             .collect(Collectors.toCollection(HashSet::new));
     private static final Logger LOGGER = LoggerFactory.getLogger(ExponentialBackoffRetry.class);
     private final Retry retry;

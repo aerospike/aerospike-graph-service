@@ -62,7 +62,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.aerospike.firefly.bulkloader.SparkBulkLoader.exponentialBackoff;
+import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
@@ -136,8 +136,6 @@ public class EdgeOperations implements Serializable {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config);
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
 
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
@@ -160,8 +158,8 @@ public class EdgeOperations implements Serializable {
                     if (futures.size() >= bufferSize) {
                         CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
-                        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
-                        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
+                        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
                         final Instant end = Instant.now();
                         LOGGER.info(String.format("edge write, partitionId=%d, batch= %d, time taken(in milli-seconds)= %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, end).toMillis(), SUPERNODES.size()));
@@ -177,8 +175,7 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
 
-                    final EdgeWriteTask ewt = new EdgeWriteTask(retry, SUPERNODES, keepProvidedId, providedIdPropertyName,
-                            ignoreElementCreationFailed, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
+                    final EdgeWriteTask ewt = new EdgeWriteTask(retry, SUPERNODES, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
                             fireflyRow, TaskContext.getPartitionId(), metadataRow);
                     futures.add(ewt.write(ses));
                 }
@@ -194,8 +191,8 @@ public class EdgeOperations implements Serializable {
                 } else {
                     //write everything to disk in case of everything completed
                     try {
-                        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, ignoreElementCreationFailed);
-                        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, ignoreElementCreationFailed);
+                        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
+                        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
                     } catch (RuntimeException e) {
                         LOGGER.error("Failed to flush edge maps", e);
                         throw e;
@@ -211,8 +208,6 @@ public class EdgeOperations implements Serializable {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));
             final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config);
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
                 final GraphTraversalSource g = graph.traversal();
@@ -339,11 +334,7 @@ public class EdgeOperations implements Serializable {
                         if (++tryCount > RETRY_LIMIT) {
                             LOGGER.error("Failed to disable edge cache for vertex with ID " + supernodeId +
                                     " after " + tryCount + " attempts.", e);
-                            if (!Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config))) {
                                 throw e;
-                            } else {
-                                break;
-                            }
                         } else {
                             LOGGER.warn("Failed to disable edge cache for vertex with ID: " + supernodeId +
                                     ". Attempting to disable cache again. Attempt count: " + tryCount + ".", e);

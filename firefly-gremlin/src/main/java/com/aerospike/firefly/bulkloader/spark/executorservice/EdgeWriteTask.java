@@ -32,14 +32,13 @@ public class EdgeWriteTask {
     private final GenericRowWithSchema fireflyRow;
     private final GenericRowWithSchema fireflyMetadataRow;
     private final int partitionId;
-    private final boolean ignoreElementCreationFailed;
+
 
     public EdgeWriteTask(
             ExponentialBackoffRetry retry,
             final Set<Object> supernodes,
             final boolean keepProvidedId,
             final String providedIdPropertyName,
-            final boolean ignoreElementCreationFailed,
             final String nullValue, final FireflyGraph graph,
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap,
@@ -57,7 +56,6 @@ public class EdgeWriteTask {
         this.fireflyRow = rowForFirefly;
         this.partitionId = partitionId;
         this.fireflyMetadataRow = fireflyMetadataRow;
-        this.ignoreElementCreationFailed = ignoreElementCreationFailed;
     }
 
     public CompletableFuture write(ScheduledExecutorService service) {
@@ -74,12 +72,10 @@ public class EdgeWriteTask {
                                     if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
                                         GraphOperations.updateEdgeMapAndEdgeCount(this.supernodes, outVertexId,
                                                 this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                                                edgeLabel, this.vertexOutEdgeMap,
-                                                this.ignoreElementCreationFailed);
+                                                edgeLabel, this.vertexOutEdgeMap);
                                         GraphOperations.updateEdgeMapAndEdgeCount(this.supernodes, inVertexId,
                                                 this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                                                edgeLabel, this.vertexInEdgeMap,
-                                                this.ignoreElementCreationFailed);
+                                                edgeLabel, this.vertexInEdgeMap);
                                     }
                                     return null;
                                 }, service)

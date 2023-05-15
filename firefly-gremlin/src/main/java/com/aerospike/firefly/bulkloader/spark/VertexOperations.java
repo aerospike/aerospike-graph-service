@@ -99,8 +99,8 @@ public class VertexOperations implements Serializable {
     private void writeVertices(final Dataset<Row> unionVertexDS) {
         unionVertexDS.foreachPartition( rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId());
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config));
+//            final boolean ignoreElementCreationFailed =
+//                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
                 ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("vertex-write-partitionid-"+ TaskContext.getPartitionId()));
@@ -146,8 +146,6 @@ public class VertexOperations implements Serializable {
 
     private void verifyVertices(final Dataset<Row> sampledVertexDatasets) {
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            final boolean ignoreElementCreationFailed =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.IGNORE_ELEMENT_CREATION_FAILED, config));
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
 
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {

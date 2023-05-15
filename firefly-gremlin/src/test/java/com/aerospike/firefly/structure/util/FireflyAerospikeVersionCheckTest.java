@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;

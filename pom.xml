@@ -136,6 +136,7 @@
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
                         <exclude>**/FireflyAerospikeVersionCheckTest.java</exclude>
+                        <exclude>**/FireflyAerospikeGraphServiceCheckTest.java</exclude>
                         <exclude>**/TestTLSIntegration.java</exclude>
                     </excludes>
                 </configuration>

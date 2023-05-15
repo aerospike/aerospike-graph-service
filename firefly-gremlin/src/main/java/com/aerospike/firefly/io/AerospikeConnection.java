@@ -55,6 +55,7 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
+import com.aerospike.firefly.structure.util.FireflyAerospikeGraphServiceCheck;
 import com.aerospike.firefly.structure.util.FireflyAerospikeVersionCheck;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.Tokens;
@@ -236,6 +237,7 @@ public class AerospikeConnection implements AutoCloseable {
             this.clientPolicy.tlsPolicy = new TlsPolicy();
         this.client = new AerospikeClient(clientPolicy, hosts);
         FireflyAerospikeVersionCheck.validateVersion(client);
+        FireflyAerospikeGraphServiceCheck.checkFeatureKey(client);
         SUMMARY_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.SUMMARY_SET, conf);
         GRAPH_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GRAPH_ID, conf);
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET, conf);

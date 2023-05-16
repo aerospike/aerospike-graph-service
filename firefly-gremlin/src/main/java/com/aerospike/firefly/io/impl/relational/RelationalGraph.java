@@ -4,7 +4,6 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
-import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
@@ -58,7 +57,6 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLE
 public abstract class RelationalGraph extends FireflyGraph {
     private static final Logger LOG = LoggerFactory.getLogger(RelationalGraph.class);
 
-
     /**
      * Constructor for RelationalGraph.
      *
@@ -68,7 +66,6 @@ public abstract class RelationalGraph extends FireflyGraph {
     public RelationalGraph(AerospikeConnection db, final Configuration conf) {
         super(db, conf);
     }
-
 
     /**
      * Function to write edge to Aerospike.
@@ -156,12 +153,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.RECORD_TOO_BIG) {
-                throw new FireflyLoadingException(e, false);
-            } else {
-                throw new FireflyLoadingException(e, true);
-            }
+        } catch (final AerospikeException ae) {
+            throw new FireflyLoadingException(ae);
         }
         fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
     }
@@ -201,11 +194,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         try {
             this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
         } catch (final AerospikeException ae) {
-            if (ae.getResultCode() == ResultCode.RECORD_TOO_BIG || ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
-                throw new FireflyLoadingException(ae, false);
-            } else {
-                throw new FireflyLoadingException(ae, true);
-            }
+            throw new FireflyLoadingException(ae);
         }
     }
 
@@ -233,12 +222,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                                    final boolean createOnly) {
         try {
             RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
-        } catch (final AerospikeException e) {
-            if (e.getResultCode() == ResultCode.RECORD_TOO_BIG || e.getResultCode() == ResultCode.KEY_EXISTS_ERROR) {
-                throw new FireflyLoadingException(e, false);
-            } else {
-                throw new FireflyLoadingException(e, true);
-            }
+        } catch (final AerospikeException ae) {
+            throw new FireflyLoadingException(ae);
         }
     }
 

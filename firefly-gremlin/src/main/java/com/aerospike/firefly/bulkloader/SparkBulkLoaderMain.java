@@ -31,7 +31,7 @@ public class SparkBulkLoaderMain {
     public static void main(final String[] args) {
 
         CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
-        LOGGER.info("command line input: {}", String.join(",", args));
+        LOGGER.info("Command line input: {}", String.join(",", args));
 
         // Initialize Spark.
         String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;

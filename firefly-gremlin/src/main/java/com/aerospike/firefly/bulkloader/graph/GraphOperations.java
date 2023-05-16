@@ -26,7 +26,6 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
  */
 public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
-    private static final int OLD_RETRY_LIMIT = 10; //used by older backoff mechanism
 
     public static void updateEdgeMapAndEdgeCount(final Set<Object> supernodes,
                                                  final Object vertexId,

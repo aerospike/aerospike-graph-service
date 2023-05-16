@@ -131,7 +131,7 @@ public class VertexOperations implements Serializable {
                     }
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
-                    final VertexWriteTask vwt =new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow);
+                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow);
                     futures.add(vwt.write(ses));
                 }
 

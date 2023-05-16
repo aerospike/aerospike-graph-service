@@ -138,7 +138,7 @@ public class EdgeOperations implements Serializable {
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
 
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
-                LOGGER.warn(String.format("graph cache disabled:  %s", graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY));
+                LOGGER.info(String.format("graph cache disabled:  %s", graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 

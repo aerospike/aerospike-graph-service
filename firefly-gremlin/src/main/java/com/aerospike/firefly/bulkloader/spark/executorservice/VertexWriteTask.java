@@ -40,7 +40,8 @@ public class VertexWriteTask {
                 retry.withRetries(
                         CompletableFuture.supplyAsync(() -> {
                                     SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
-                                    return this.graph.writeVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties());
+                                    this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(),false);
+                                    return null;
                                 }, service)
                                 .exceptionally(e -> {
                                     LOGGER.error(String.format("Exception occurred in writing vertex %s", this), e);  //log the error when final failure happens

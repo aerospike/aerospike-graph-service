@@ -30,19 +30,18 @@ public class SparkBulkLoaderMain {
 
     public static void main(final String[] args) {
 
-        CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
-        LOGGER.info("Command line input: {}", String.join(",", args));
+        final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
+        LOGGER.info("command line input: {}", String.join(",", args));
 
         // Initialize Spark.
-        final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+        String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         Objects.requireNonNull(configPath);
-        Map<String, Object> config = buildConfiguration(cmd).loadConfiguration(configPath);
-        LOGGER.warn("config: " + config.toString());
+        ObjectLoader loader = buildConfiguration(cmd);
+        Map<String, Object> config = loader.loadConfiguration(configPath);
+        LOGGER.info("config: " + config.toString());
+        final SparkSession spark = buildSparkSession(config, cmd);
 
         initializeProgressBar(config);
-
-        final SparkSession spark = buildSparkSession(config, cmd);
-        ObjectLoader loader = buildConfiguration(cmd);
 
         //vertex processing
         VertexOperations vo = null;
@@ -108,7 +107,7 @@ public class SparkBulkLoaderMain {
         if (ENV.equalsIgnoreCase("aws")) {
             String s3BucketName = cmd.getOptionValue("b");
             if (s3BucketName == null) {
-                throw new RuntimeException("Failed to start bulk loader due to no S3 bucket name specified");
+                throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
             }
             loader = S3ObjectLoader.getInstance();
             ((S3ObjectLoader) loader).setBucketName(s3BucketName);

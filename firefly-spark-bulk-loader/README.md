@@ -33,9 +33,6 @@ following configuration options are available:
   and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge`
   and `vertex` dataset
 * `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
-* `ignore_element_creation_failed` - `Boolean`: If there is a row of data in the provided CSV that is insufficient to
-  create an edge or vertex, `true` will allow the bulk loading job to continue. *Setting this to `true` should be used
-  with caution.*
 * `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property
   Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow
   the bulk loading job to continue.

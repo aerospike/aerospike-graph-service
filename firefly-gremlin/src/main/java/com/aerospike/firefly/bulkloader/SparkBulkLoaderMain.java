@@ -34,7 +34,7 @@ public class SparkBulkLoaderMain {
         LOGGER.info("Command line input: {}", String.join(",", args));
 
         // Initialize Spark.
-        String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+        final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
         Objects.requireNonNull(configPath);
         Map<String, Object> config = buildConfiguration(cmd).loadConfiguration(configPath);
         LOGGER.warn("config: " + config.toString());

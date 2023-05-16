@@ -264,7 +264,6 @@ public class EdgeOperations implements Serializable {
     }
 
     public void extractSupernodes(Dataset<Row> edgeDataset) {
-
         boolean extract = cmd.hasOption("supernode") &&
                 (!Boolean.parseBoolean(
                         ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, new MapConfiguration(config))) ||

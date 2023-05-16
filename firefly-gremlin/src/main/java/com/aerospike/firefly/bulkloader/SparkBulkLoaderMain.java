@@ -108,7 +108,7 @@ public class SparkBulkLoaderMain {
         if (ENV.equalsIgnoreCase("aws")) {
             String s3BucketName = cmd.getOptionValue("b");
             if (s3BucketName == null) {
-                throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
+                throw new RuntimeException("Failed to start bulk loader due to no S3 bucket name specified");
             }
             loader = S3ObjectLoader.getInstance();
             ((S3ObjectLoader) loader).setBucketName(s3BucketName);

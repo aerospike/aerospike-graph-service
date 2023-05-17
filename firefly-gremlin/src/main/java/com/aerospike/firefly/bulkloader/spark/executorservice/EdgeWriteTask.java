@@ -70,10 +70,10 @@ public class EdgeWriteTask {
                                     this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                                             inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
                                     if (!this.graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY) {
-                                        GraphOperations.updateEdgeMapAndEdgeCount(this.supernodes, outVertexId,
+                                        GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
                                                 this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
                                                 edgeLabel, this.vertexOutEdgeMap);
-                                        GraphOperations.updateEdgeMapAndEdgeCount(this.supernodes, inVertexId,
+                                        GraphOperations.updateEdgeMap(this.supernodes, inVertexId,
                                                 this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
                                                 edgeLabel, this.vertexInEdgeMap);
                                     }

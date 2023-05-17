@@ -33,16 +33,43 @@ following configuration options are available:
   and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge`
   and `vertex` dataset
 * `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
-* `ignore_parse_failed_properties` - `Boolean`: If the value provided for a header with a type specified (see "Property
-  Column Headers" in Gremlin load data format link) cannot be converted to that type, setting this to `true` will allow
-  the bulk loading job to continue.
 * `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was
   successful (default is 0.1%).
 * `vertex_write_buffer` - (default is 10000) Decides how many vertices should be processed i.e. written to DB before accepting new records in each partition. Once we reach this point, we block until prior tasks are successfully completed.  
 * `edge_write_buffer` - (default is 10000) Decides how many edges should be processed i.e. written to DB before accepting new records in each partition. Once we reach this point, we block until prior tasks are successfully completed.  
+   
+### Command line params
+
+##### params
+| execution order | param name   |                                       description                                        |
+|-----------------|--------------|:----------------------------------------------------------------------------------------:|
+| 1               | dryrunvertex |                               preflight check of vertices                                |
+| 2               | writevertex  |                        write vertices specified by config into db                        |
+| 3               | verifyvertex |                      verify post write the sampled vertices dataset                      |
+| 4               | dryrunedge   |                                pre flight veritces check                                 |
+| 5               | supernode    | extract supernode and set it inside the internal datastructure, which will be used later | 
+| 6               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
 
 
-### Running the Bulk Loader Locally
+##### sample commands (for single node L2 with 32 GB memory)
+ | description          |                                                                                                                                commnad                                                                                                                                |
+ |----------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+ | run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrunvertex -verifyvertex |
+ | run all edges task   |    spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrunedge     |
+ 
+##### sample config file
+ ```
+ aerospike_host = 172.31.25.147,172.31.19.243,172.31.30.232
+aerospike_port = 3000
+aerospike_namespace = test
+aerospike_timeout = 70000
+vertex_directory = /home/ubuntu/vertices
+firefly_data_model = packed
+edge_directory = /home/ubuntu/edges
+enable_dataframe_caching = true
+dataframe_storage_type = memory_and_disk
+ ```
+<br />  
 
 #### Setup
 

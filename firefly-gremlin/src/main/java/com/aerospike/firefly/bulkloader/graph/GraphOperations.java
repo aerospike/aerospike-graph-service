@@ -27,28 +27,35 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
 
-    public static void updateEdgeMapAndEdgeCount(final Set<Object> supernodes,
-                                                 final Object vertexId,
-                                                 final FireflyId cachedEdgeId,
-                                                 final String edgeLabel,
-                                                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+    public static void updateEdgeMap(final Set<Object> supernodes,
+                                     final Object vertexId,
+                                     final FireflyId cachedEdgeId,
+                                     final String edgeLabel,
+                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
         synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
-                updateEdgeMap(vertexId, cachedEdgeId, edgeLabel, edgeMap);
+                edgeMap
+                        .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
+                        .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                        .add(Value.get(cachedEdgeId.getCachedId()));
+                edgeMap
+                        .get(vertexId)
+                        .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                        .add(Value.get(cachedEdgeId.getCachedId()));
             }
         }
     }
 
-    private static void updateEdgeMap(Object vertexId, FireflyId cachedEdgeId, String edgeLabel, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
-        edgeMap
-                .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
-                .add(Value.get(cachedEdgeId.getCachedId()));
-        edgeMap
-                .get(vertexId)
-                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
-                .add(Value.get(cachedEdgeId.getCachedId()));
-    }
+//    private static void updateEdgeMap(Object vertexId, FireflyId cachedEdgeId, String edgeLabel, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+//        edgeMap
+//                .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
+//                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+//                .add(Value.get(cachedEdgeId.getCachedId()));
+//        edgeMap
+//                .get(vertexId)
+//                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+//                .add(Value.get(cachedEdgeId.getCachedId()));
+//    }
 
     static private void writeEdgesToFireflyVertex(final FireflyGraph graph,
                                                   final Object vertexId,

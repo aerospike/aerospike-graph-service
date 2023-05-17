@@ -28,10 +28,10 @@ public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
 
     public static void updateEdgeMap(final Set<Object> supernodes,
-                                     final Object vertexId,
-                                     final FireflyId cachedEdgeId,
-                                     final String edgeLabel,
-                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+                                                 final Object vertexId,
+                                                 final FireflyId cachedEdgeId,
+                                                 final String edgeLabel,
+                                                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
         synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
                 edgeMap
@@ -45,17 +45,6 @@ public class GraphOperations {
             }
         }
     }
-
-//    private static void updateEdgeMap(Object vertexId, FireflyId cachedEdgeId, String edgeLabel, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
-//        edgeMap
-//                .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
-//                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
-//                .add(Value.get(cachedEdgeId.getCachedId()));
-//        edgeMap
-//                .get(vertexId)
-//                .computeIfAbsent(edgeLabel, k -> new HashSet<>())
-//                .add(Value.get(cachedEdgeId.getCachedId()));
-//    }
 
     static private void writeEdgesToFireflyVertex(final FireflyGraph graph,
                                                   final Object vertexId,

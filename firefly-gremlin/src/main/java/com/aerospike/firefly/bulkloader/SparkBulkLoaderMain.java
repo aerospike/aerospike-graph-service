@@ -43,7 +43,7 @@ public class SparkBulkLoaderMain {
 
         initializeProgressBar(config);
 
-        //vertex processing
+        // Vertex processing
         VertexOperations vo = null;
         try {
             vo = new VertexOperations(cmd, config, loader.getCsvPaths(VertexOperations.getVertexDirectory(config)));

@@ -63,7 +63,7 @@ public class SparkBulkLoaderMain {
 
         vertexDataset.unpersist();
 
-        //edge processing
+        // Edge processing
         EdgeOperations edges = null;
         try {
             edges = new EdgeOperations(cmd, config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));

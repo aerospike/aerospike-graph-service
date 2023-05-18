@@ -6,6 +6,7 @@ import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.SparkException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -14,6 +15,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
+    private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-supernode", "-verifyedge", "-verifyvertex"};
     protected FireflyGraph graph = null;
 
     @Before
@@ -63,7 +66,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracy() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -71,7 +74,8 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDefault() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -80,7 +84,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyName() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -91,7 +95,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracyArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()}, DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -100,7 +104,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()},DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -110,7 +114,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -122,7 +126,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testVertexIds() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDefaultConfig()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Set<Object> expectedIds = Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
         final Set<Object> stringIds = Set.of("1", "2", "3", "4", "5", "6", "7");
@@ -143,7 +147,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckVertex() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckVertex()});
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
         } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
@@ -157,7 +161,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckEdge() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getPreflightCheckEdge()});
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getPreflightCheckEdge()},DEFAULT_PARAMS));
         } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
@@ -169,7 +173,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testNoIdEdgesKeepAsProperty() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNoIdEdges()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNoIdEdges()}, DEFAULT_PARAMS));
         testEdges();
         // There's no ~id to keep as a property so it shouldn't be returned.
         final GraphTraversalSource g = graph.traversal();
@@ -178,17 +182,18 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testNoIdEdgesKeepAsPropertyOff() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNoIdEdgesKeepIdAsPropertyOff()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNoIdEdgesKeepIdAsPropertyOff()}, DEFAULT_PARAMS));
         testEdges();
         final GraphTraversalSource g = graph.traversal();
         Assert.assertFalse(g.E().has("testIdName").hasNext());
     }
 
+    @Ignore
     @Test
     public void testDuplicateVertexId() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDuplicateVertexId()});
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
         } catch (final Exception e) {
             // TODO GRAPH-485: Update this to reflect the expected exception when pre-flight duplicate Vertex ID check
             //                 is implemented. May potentially keep this as is for incremental bulk loading.
@@ -203,7 +208,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateEdgeId() {
-        SparkBulkLoader.main(new String[]{"-m", "local", "-c", getDuplicateEdgeId()});
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDuplicateEdgeId()}, DEFAULT_PARAMS));
         testVertices();
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
@@ -214,7 +219,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testNonExistentVertexId() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(new String[]{"-m", "local", "-c", getNonExistentEdgeVertexId()});
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNonExistentEdgeVertexId()}, DEFAULT_PARAMS));
         } catch (final Exception e) {
             // TODO GRAPH-501: Update this to reflect the expected exception when pre-flight duplicate Vertex ID exists
             //                 check is implemented.

@@ -17,10 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 public class SparkFireflyEdge extends SparkFireflyElement {
-    private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyEdge.class);
-    private static final String DEFAULT_LABEL = "edge";
     public static final String FROM_VERTEX_HEADER = "~from";
     public static final String TO_VERTEX_HEADER = "~to";
+    private static final Logger LOG = LoggerFactory.getLogger(SparkFireflyEdge.class);
+    private static final String DEFAULT_LABEL = "edge";
     private final Object fromVertexId;
     private final Object toVertexId;
 

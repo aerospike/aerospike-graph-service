@@ -4,11 +4,12 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BulkLoaderConfigHelper {
+public class BulkLoaderConfigHelper implements Serializable {
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "edge_directory";
     // Directory containing the Vertex CSV files.
@@ -27,6 +28,9 @@ public class BulkLoaderConfigHelper {
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "null_value";
 
+    public static final String VERTEX_WRITE_BUFFER = "VERTEX_WRITE_BUFFER".toLowerCase();
+    public static final String EDGE_WRITE_BUFFER = "EDGE_WRITE_BUFFER".toLowerCase();
+
     private static final Map<String, String> DEFAULT_VALUES = new HashMap<>() {{
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
@@ -35,16 +39,18 @@ public class BulkLoaderConfigHelper {
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(SPARK_LOG_LEVEL, "INFO");
         put(NULL_VALUE, "null");
+        put(VERTEX_WRITE_BUFFER, "10000");
+        put(EDGE_WRITE_BUFFER, "10000");
     }};
 
     private BulkLoaderConfigHelper() {
 
     }
 
-    static public String getOrDefault(final String key, final Configuration config) {
+    static public String getOrDefault(final String key, final Map<String, Object> config) {
         final String loweredKey = key.toLowerCase();
         if (config.containsKey(loweredKey)) {
-            return config.get(String.class, loweredKey);
+            return config.get(loweredKey).toString();
         } else if (DEFAULT_VALUES.containsKey(loweredKey)) {
             return DEFAULT_VALUES.get(loweredKey);
         } else {

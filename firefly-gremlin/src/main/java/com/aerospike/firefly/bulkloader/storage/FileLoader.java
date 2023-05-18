@@ -1,25 +1,26 @@
 package com.aerospike.firefly.bulkloader.storage;
 
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
-import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class FileLoader implements ObjectLoader, Serializable {
     private static FileLoader fileLoader;
-    private FileLoader() {}
+
+    private FileLoader() {
+    }
 
     /**
      * Obtain singleton instance of FileLoader to be used across all distributed spark map transformations
+     *
      * @return
      */
     public static synchronized FileLoader getInstance() {
@@ -36,9 +37,10 @@ public class FileLoader implements ObjectLoader, Serializable {
      * @return Configuration object built from config file.
      */
     @Override
-    public Configuration loadConfiguration(final String configPath) {
+    public Map<String, Object> loadConfiguration(final String configPath) {
+
         final Path path = Path.of(configPath);
-        return BulkLoaderConfigHelper.getConfig(path);
+        return ((MapConfiguration) BulkLoaderConfigHelper.getConfig(path)).getMap();
     }
 
     /**
@@ -49,24 +51,11 @@ public class FileLoader implements ObjectLoader, Serializable {
      */
     @Override
     public List<String> getCsvPaths(final String directory) throws IOException {
+
         final File file = new File(directory);
-        try (final Stream<Path> path = Files.list(Paths.get(file.getPath()))) {
-            if (path.findAny().isEmpty())
-                return Collections.emptyList();
-        }
-        return getAllPaths(file);
+        return FileUtils.listFiles(file, new String[]{"csv"}, true)
+                .stream().map(File::getAbsolutePath).collect(Collectors.toList());
     }
 
-    private List<String> getAllPaths(final File file) {
-        final List<String> paths = new ArrayList<>();
-        final File[] directories = file.listFiles(File::isDirectory);
-        final File[] csvs = file.listFiles((dir, name) -> name.toLowerCase().endsWith(".csv"));
-        for (final File csv : csvs) {
-            paths.add(csv.getAbsolutePath());
-        }
-        for (final File directory : directories) {
-            paths.addAll(getAllPaths(directory));
-        }
-        return paths;
-    }
+
 }

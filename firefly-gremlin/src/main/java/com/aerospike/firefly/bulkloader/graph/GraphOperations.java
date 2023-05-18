@@ -12,48 +12,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 
 /**
- * Class containing all graph operation functions (Vertex/Edge load/write)
- * All functions are statically implemented to avoid creations of objects within Spark's distributed computing transformations
+ * Class containing graph operation functions (Vertex/Edge load/write)
  */
 public class GraphOperations {
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphOperations.class);
-    private static final int EDGE_CACHE_FLUSH_THRESHOLD = 100000;
-    private static final int RETRY_LIMIT = 100;
-    
-    public static void loadEdgeMap(final FireflyGraph graph,
-                                   final Set<Object> supernodes,
-                                   final Object vertexId,
-                                   final FireflyId cachedEdgeId,
-                                   final String edgeLabel,
-                                   final Direction direction,
-                                   final AtomicInteger edgeCount,
-                                   final Map<Object, Map<String, List<Value>>> edgeMap) {
+
+    public static void updateEdgeMap(final Set<Object> supernodes,
+                                                 final Object vertexId,
+                                                 final FireflyId cachedEdgeId,
+                                                 final String edgeLabel,
+                                                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
         synchronized (GraphOperations.class) {
             if (!supernodes.contains(vertexId)) {
-                if (!edgeMap.containsKey(vertexId)) {
-                    edgeMap.put(vertexId, new ConcurrentHashMap<>());
-                }
-                final Map<String, List<Value>> labelEdgeIds = edgeMap.get(vertexId);
-                if (!labelEdgeIds.containsKey(edgeLabel)) {
-                    labelEdgeIds.put(edgeLabel, Collections.synchronizedList(new ArrayList<>()));
-                }
-                final List<Value> edgeIds = labelEdgeIds.get(edgeLabel);
-                edgeIds.add(Value.get(cachedEdgeId.getCachedId()));
-                final int count = edgeCount.incrementAndGet();
-                if (count > EDGE_CACHE_FLUSH_THRESHOLD) {
-                    flushEdgeMap(graph, direction, edgeMap);
-                    edgeCount.set(0);
-                }
+                edgeMap
+                        .computeIfAbsent(vertexId, k -> new ConcurrentHashMap<>())
+                        .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                        .add(Value.get(cachedEdgeId.getCachedId()));
+                edgeMap
+                        .get(vertexId)
+                        .computeIfAbsent(edgeLabel, k -> new HashSet<>())
+                        .add(Value.get(cachedEdgeId.getCachedId()));
             }
         }
     }
@@ -99,14 +87,14 @@ public class GraphOperations {
 
     public static void flushEdgeMap(final FireflyGraph graph,
                                     final Direction direction,
-                                    final Map<Object, Map<String, List<Value>>> edgeMap) {
-        for (Map.Entry<Object, Map<String, List<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
+                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+        for (Map.Entry<Object, ConcurrentHashMap<String, Set<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final Object vertexId = vertexIdToLabelMaps.getKey();
-            final Map<String, List<Value>> labelMaps = vertexIdToLabelMaps.getValue();
-            for (Map.Entry<String, List<Value>> labelToEdgeIds : labelMaps.entrySet()) {
+            final ConcurrentHashMap<String, Set<Value>> labelMaps = vertexIdToLabelMaps.getValue();
+            for (Map.Entry<String, Set<Value>> labelToEdgeIds : labelMaps.entrySet()) {
                 try {
-                    writeEdgesToFireflyVertex(
-                            graph, vertexId, direction, labelToEdgeIds.getKey(), labelToEdgeIds.getValue());
+                    writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
+                            new ArrayList<>(labelToEdgeIds.getValue()));
                 } catch (final RuntimeException e) {
                     LOGGER.error("Exception occurred while loading edges '{}' into vertex with id '{}'. Error message '{}'.",
                             labelToEdgeIds.getValue(), vertexId, e.getMessage(), e);

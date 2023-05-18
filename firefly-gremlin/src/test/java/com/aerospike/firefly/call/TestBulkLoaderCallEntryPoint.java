@@ -20,7 +20,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("null", e.getMessage());
+                Assert.assertEquals(null, e.getMessage());
             }
         }
     }

@@ -20,10 +20,24 @@ public abstract class SparkFireflyElement implements Serializable {
     protected final List<Map.Entry<String, Object>> properties;
 
     protected SparkFireflyElement(final Object id, final String label,
-                                  final List<Map.Entry<String, Object>> properties) {
+                                final List<Map.Entry<String, Object>> properties) {
         this.id = id;
         this.label = label;
         this.properties = properties;
+    }
+
+    public abstract FireflyId getFireflyId(final AerospikeConnection db);
+
+    public Object getId() {
+        return this.id;
+    }
+
+    public String getLabel() {
+        return this.label;
+    }
+
+    public List<Map.Entry<String, Object>> getProperties() {
+        return this.properties;
     }
 
     protected static Map.Entry<String, Object> generateProperty(final String header,
@@ -92,19 +106,5 @@ public abstract class SparkFireflyElement implements Serializable {
             }
             return new AbstractMap.SimpleEntry<>(propertyName, propertyValue);
         }
-    }
-
-    public abstract FireflyId getFireflyId(final AerospikeConnection db);
-
-    public Object getId() {
-        return this.id;
-    }
-
-    public String getLabel() {
-        return this.label;
-    }
-
-    public List<Map.Entry<String, Object>> getProperties() {
-        return this.properties;
     }
 }

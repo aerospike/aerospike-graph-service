@@ -91,16 +91,7 @@ public class EdgeOperations implements Serializable {
         return BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, configMap);
     }
 
-    public void dryRunEdges(final Dataset<Row> edgeDataSet) {
-        if (cmd.hasOption("dryrunedge")) {
-            if (!dryRunEdgeRows(edgeDataSet)) {
-                final String preflightFailed = "Detected invalid CSV data in EDGE pre-flight check. See logs for detail on which line number and file caused the failure.";
-                throw new FireflyBulkLoaderException(preflightFailed);
-            }
-        }
-    }
-
-    private boolean dryRunEdgeRows(final Dataset<Row> edgeDataset) {
+    public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final Map<String, Object> config) {
         final List<Integer> failures = edgeDataset.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));

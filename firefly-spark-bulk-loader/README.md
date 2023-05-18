@@ -43,19 +43,19 @@ following configuration options are available:
 ##### params
 | execution order | param name   |                                       description                                        |
 |-----------------|--------------|:----------------------------------------------------------------------------------------:|
-| 1               | dryrunvertex |                               preflight check of vertices                                |
+| 1               | dryrun       |                                     preflight check                                      |
 | 2               | writevertex  |                        write vertices specified by config into db                        |
 | 3               | verifyvertex |                      verify post write the sampled vertices dataset                      |
-| 4               | dryrunedge   |                                pre flight veritces check                                 |
-| 5               | supernode    | extract supernode and set it inside the internal datastructure, which will be used later | 
-| 6               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
+| 4               | supernode    | extract supernode and set it inside the internal datastructure, which will be used later | 
+| 5               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
+| 6               | verifyedge   |                        verify sampled edges after writing into db                        |
 
 
 ##### sample commands (for single node L2 with 32 GB memory)
  | description          |                                                                                                                                commnad                                                                                                                                |
  |----------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
- | run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrunvertex -verifyvertex |
- | run all edges task   |    spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrunedge     |
+ | run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex |
+ | run all edges task   |    spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun     |
  
 ##### sample config file
  ```

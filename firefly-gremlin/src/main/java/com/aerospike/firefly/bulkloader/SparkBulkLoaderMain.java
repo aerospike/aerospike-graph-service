@@ -52,18 +52,6 @@ public class SparkBulkLoaderMain {
         }
         Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vo.vertexPaths, VertexOperations.REQUIRED_VERTEX_HEADERS,
                 DatasetOperations.getDfStorageLevel(config));
-        vo.dryRunVertices(vertexDataset);
-
-
-        vo.writeVerticesToDB(vertexDataset);
-        progressBar.setVertexLoadComplete();
-
-        vo.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
-        progressBar.setVertexValidationComplete();
-
-        vertexDataset.unpersist();
-
-        //edge processing
         EdgeOperations edges = null;
         try {
             edges = new EdgeOperations(cmd, config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));
@@ -73,12 +61,23 @@ public class SparkBulkLoaderMain {
         Dataset<Row> edgeDataset = DatasetOperations.
                 loadDataset(spark, edges.edgePaths, EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-        edges.dryRunEdges(edgeDataset);
-        progressBar.setVertexValidationComplete();
+        //preflight check
+        DatasetOperations.preflightCheck(cmd, edgeDataset, vertexDataset, config);
 
+        //vertex processing
+        progressBar.setVertexLoadStart();
+        vo.writeVerticesToDB(vertexDataset);
+        progressBar.setVertexLoadComplete();
+
+        vo.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
+        progressBar.setVertexValidationComplete();
+        vertexDataset.unpersist();
+
+        //edge processing
         edges.extractSupernodes(edgeDataset);
         progressBar.setSuperNodeExtractionComplete();
 
+        progressBar.setEdgeLoadStart();
         edges.writeEdgeToDB(edgeDataset);
         progressBar.setEdgeLoadComplete();
 

@@ -62,16 +62,16 @@ public class VertexOperations implements Serializable {
         return BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, configMap);
     }
 
-    public void dryRunVertices(Dataset<Row> vertexDataSet) {
-        if (cmd.hasOption("dryrunvertex")) {
-            if (!dryRunVertexRows(vertexDataSet)) {
-                final String preflightFailed = "Detected invalid CSV data in VERTICES pre-flight check. See logs for detail on which line number and file caused the failure.";
-                throw new FireflyBulkLoaderException(preflightFailed);
-            }
-        }
-    }
+//    public static void dryRunVertices(Dataset<Row> vertexDataSet) {
+//
+//            if (!dryRunVertexRows(vertexDataSet)) {
+//                final String preflightFailed = "Detected invalid CSV data in VERTICES pre-flight check. See logs for detail on which line number and file caused the failure.";
+//                throw new FireflyBulkLoaderPreflightException(preflightFailed);
+//            }
+//        }
+//    }
 
-    private boolean dryRunVertexRows(final Dataset<Row> vertices) {
+    public static boolean dryRunVertices(final Dataset<Row> vertices, Map<String, Object> config) {
         final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
         final List<Integer> failures = vertices.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             final AtomicInteger failureCount = new AtomicInteger(0);

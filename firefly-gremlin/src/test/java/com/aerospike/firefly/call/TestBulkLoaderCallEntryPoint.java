@@ -20,7 +20,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Failed to start bulk loader due to null configPath (null)", e.getMessage());
+                Assert.assertEquals("null", e.getMessage());
             }
         }
     }

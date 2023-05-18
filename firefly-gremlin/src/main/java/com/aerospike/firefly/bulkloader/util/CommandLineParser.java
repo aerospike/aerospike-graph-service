@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 public class CommandLineParser {
     private static final Logger LOGGER = LoggerFactory.getLogger(CommandLineParser.class);
-
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
         final Option modeOption = new Option("m", "mode", true, "local when running in IDE, cluster when running spark-submit through CLI or in AWS");
@@ -29,8 +28,7 @@ public class CommandLineParser {
         Option ve = new Option("verifyedge", "verify edge");
         Option vv = new Option("verifyvertex", "verify vertex");
 
-        Option dre = new Option("dryrunedge", "dryrun edge");
-        Option drv = new Option("dryrunvertex", "dryrun vertex");
+        Option dr = new Option("dryrun", "dryrun of edges and vertices");
 
         Option we = new Option("writeedge", "write edge");
         Option wv = new Option("writevertex", "write vertices");
@@ -40,8 +38,8 @@ public class CommandLineParser {
         options.addOption(ve);
         options.addOption(vv);
 
-        options.addOption(dre);
-        options.addOption(drv);
+        options.addOption(dr);
+
 
         options.addOption(we);
         options.addOption(wv);

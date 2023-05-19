@@ -64,7 +64,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
                 configData.put(key, value);
             });
             return configData;
-        } catch (final IOException e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -84,7 +84,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
             ObjectListing response = this.s3Client.listObjects(bucketName, directory);
             List<S3ObjectSummary> objects = response.getObjectSummaries();
             for (final S3ObjectSummary object : objects) {
-                keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+                keys.add("s3://" + object.getBucketName() + "/" + object.getKey());
             }
             // listObjects loads 1000 object keys in one call.
             // If there are multiple directories with more than 1000 files, then need to consume any remaining objects.
@@ -92,7 +92,7 @@ public class S3ObjectLoader implements ObjectLoader, Serializable {
                 response = this.s3Client.listNextBatchOfObjects(response);
                 objects = response.getObjectSummaries();
                 for (S3ObjectSummary object : objects) {
-                    keys.add("s3://" + object.getBucketName() + "/" + object.getKey().substring(0, object.getKey().lastIndexOf("/")));
+                    keys.add("s3://" + object.getBucketName() + "/" + object.getKey());
                 }
             }
             return keys;

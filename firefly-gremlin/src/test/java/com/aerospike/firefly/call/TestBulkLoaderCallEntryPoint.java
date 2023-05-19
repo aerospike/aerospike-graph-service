@@ -51,7 +51,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("config", "src/test/resources/conf/packed/config.properties").with("aws").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Failed to start bulk loader due to null s3BucketName (null)", e.getMessage());
+                Assert.assertEquals("Failed to start bulk loader due to no specified S3 Bucket Name", e.getMessage());
             }
         }
     }

@@ -4,6 +4,7 @@ import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.bulkloader.storage.FileLoader;
+import com.aerospike.firefly.bulkloader.storage.HybridLoader;
 import com.aerospike.firefly.bulkloader.storage.ObjectLoader;
 import com.aerospike.firefly.bulkloader.storage.S3ObjectLoader;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
@@ -61,10 +62,10 @@ public class SparkBulkLoaderMain {
         Dataset<Row> edgeDataset = DatasetOperations.
                 loadDataset(spark, edges.edgePaths, EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-        //preflight check
+        // Preflight check
         DatasetOperations.preflightCheck(cmd, edgeDataset, vertexDataset, config);
 
-        //vertex processing
+        // Vertex processing
         progressBar.setVertexLoadStart();
         vo.writeVerticesToDB(vertexDataset);
         progressBar.setVertexLoadComplete();
@@ -73,7 +74,7 @@ public class SparkBulkLoaderMain {
         progressBar.setVertexValidationComplete();
         vertexDataset.unpersist();
 
-        //edge processing
+        // Edge processing
         edges.extractSupernodes(edgeDataset);
         progressBar.setSuperNodeExtractionComplete();
 
@@ -101,27 +102,41 @@ public class SparkBulkLoaderMain {
     }
 
     public static ObjectLoader buildConfiguration(final CommandLine cmd) {
-        final String ENV = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
-        ObjectLoader loader;
-        if (ENV.equalsIgnoreCase("aws")) {
-            String s3BucketName = cmd.getOptionValue("b");
+        final String env = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
+        final String fileSystem = cmd.hasOption("f") ? cmd.getOptionValue("f") : "";
+        final ObjectLoader loader;
+        if (env.equalsIgnoreCase("aws")) {
+            final String s3BucketName = cmd.getOptionValue("b");
             if (s3BucketName == null) {
-                throw new RuntimeException("Failed to start bulk loader due to null s3BucketName (" + s3BucketName + ")");
+                throw new RuntimeException("Failed to start bulk loader due to no specified S3 Bucket Name");
             }
-            loader = S3ObjectLoader.getInstance();
-            ((S3ObjectLoader) loader).setBucketName(s3BucketName);
+            final S3ObjectLoader s3Loader = S3ObjectLoader.getInstance();
+            s3Loader.setBucketName(s3BucketName);
+            loader = s3Loader;
         } else {
-            loader = FileLoader.getInstance();
+            final ObjectLoader configLoader = FileLoader.getInstance();
+            if (fileSystem.equalsIgnoreCase("s3")) {
+                final String s3BucketName = cmd.getOptionValue("b");
+                if (s3BucketName == null) {
+                    throw new RuntimeException("Failed to start bulk loader due to no specified S3 Bucket Name");
+                }
+                final S3ObjectLoader csvLoader = S3ObjectLoader.getInstance();
+                csvLoader.setBucketName(s3BucketName);
+                HybridLoader.setInstance(configLoader, csvLoader);
+                loader = HybridLoader.getInstance();
+            } else {
+                loader = configLoader;
+            }
         }
         return loader;
     }
 
-    private static SparkSession buildSparkSession(final Map<String, Object> CONFIG, final CommandLine cmd) {
-        Objects.requireNonNull(CONFIG);
+    private static SparkSession buildSparkSession(final Map<String, Object> config, final CommandLine cmd) {
+        Objects.requireNonNull(config);
         SparkConf conf = new SparkConf();
-        String MODE = "cluster";
-        MODE = cmd.hasOption("m") ? cmd.getOptionValue("m") : MODE;
-        if (MODE.equals("local"))
+        final String mode = cmd.hasOption("m") ? cmd.getOptionValue("m") : "cluster";
+        final String fileSystem = cmd.hasOption("f") ? cmd.getOptionValue("f") : "";
+        if (mode.equals("local"))
             conf.setMaster("local[*]");
 
         conf.setAppName("firefly-bulk-loader")
@@ -129,11 +144,18 @@ public class SparkBulkLoaderMain {
                 .set("spark.ui.enabled", "true")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
-        final SparkSession spark = SparkSession
-                .builder()
-                .config(conf)
-                .getOrCreate();
-        final String SPARK_LOG_LEVEL = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SPARK_LOG_LEVEL, CONFIG).toUpperCase();
+        final SparkSession.Builder builder = SparkSession.builder().config(conf);
+        if (fileSystem.equalsIgnoreCase("s3")) {
+            builder.config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+            if (cmd.hasOption("u")) {
+                builder.config("spark.hadoop.fs.s3a.access.key", cmd.getOptionValue("u"));
+            }
+            if (cmd.hasOption("p")) {
+                builder.config("spark.hadoop.fs.s3a.secret.key", cmd.getOptionValue("p"));
+            }
+        }
+        final SparkSession spark = builder.getOrCreate();
+        final String SPARK_LOG_LEVEL = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SPARK_LOG_LEVEL, config).toUpperCase();
         // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
         spark.sparkContext().setLogLevel(SPARK_LOG_LEVEL);
         return spark;

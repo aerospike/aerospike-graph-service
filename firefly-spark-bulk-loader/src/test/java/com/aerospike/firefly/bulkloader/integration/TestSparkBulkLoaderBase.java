@@ -64,6 +64,8 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getNonExistentEdgeVertexId();
 
+    protected abstract String getS3FileSystem();
+
     @Test
     public void testDataAccuracy() {
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -229,6 +231,17 @@ public abstract class TestSparkBulkLoaderBase {
             Assert.assertTrue(cause instanceof ElementNotFoundException);
         }
         Assert.assertFalse(success);
+    }
+
+    @Test
+    public void testS3FileSystem() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-m", "local", "-c", getS3FileSystem(), "-b", "gha-ci-firefly-bulkloader", "-f", "s3", "-u",
+                        System.getenv("AWS_ACCESS_KEY_ID"), "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
+                DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
     }
 
     private void testSupernodes() {

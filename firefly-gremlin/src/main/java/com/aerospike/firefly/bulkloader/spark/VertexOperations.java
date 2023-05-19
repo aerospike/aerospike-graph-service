@@ -1,6 +1,5 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
@@ -61,15 +60,6 @@ public class VertexOperations implements Serializable {
     public static String getVertexDirectory(Map<String, Object> configMap) {
         return BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, configMap);
     }
-
-//    public static void dryRunVertices(Dataset<Row> vertexDataSet) {
-//
-//            if (!dryRunVertexRows(vertexDataSet)) {
-//                final String preflightFailed = "Detected invalid CSV data in VERTICES pre-flight check. See logs for detail on which line number and file caused the failure.";
-//                throw new FireflyBulkLoaderPreflightException(preflightFailed);
-//            }
-//        }
-//    }
 
     public static boolean dryRunVertices(final Dataset<Row> vertices, Map<String, Object> config) {
         final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);

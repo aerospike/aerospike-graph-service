@@ -42,6 +42,7 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
+
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
             public static final String EDGE_AERO_SET = "EDGE_AERO_SET";
@@ -148,6 +149,7 @@ public final class ConfigurationHelper {
         public static final String WARMUP_MODE = "WARMUP_MODE";
         public static final String FAULT_TEST = "FAULT_TEST";
         public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
+        public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
@@ -253,7 +255,9 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
         put(Keys.FAULT_TEST, "false");
+        put(Keys.ASCLIENT_LOG_ENABLED, "false");
     }};
+
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
         // Adds a space if it is empty. Remove the space.

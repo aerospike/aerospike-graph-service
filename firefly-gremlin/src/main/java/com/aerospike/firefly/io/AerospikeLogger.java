@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class AerospikeLogger implements Log.Callback {
-    Logger LOG = LoggerFactory.getLogger(AerospikeClient.class);
+    pritvate static final Logger LOG = LoggerFactory.getLogger(AerospikeClient.class);
 
     @Override
     public void log(final Log.Level level, final String s) {

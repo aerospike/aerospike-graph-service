@@ -357,6 +357,6 @@ public class EdgeOperations implements Serializable {
     }
 
     private int getEdgeWriteBufferSize(Map<String, Object> conf) {
-        return  Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_WRITE_BUFFER, conf));
+        return  Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_WRITE_BUFFER, conf).trim());
     }
 }

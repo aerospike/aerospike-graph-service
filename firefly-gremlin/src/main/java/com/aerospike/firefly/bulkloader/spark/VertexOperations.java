@@ -222,7 +222,7 @@ public class VertexOperations implements Serializable {
     }
 
     private int getVertexWriteBufferSize(Map<String, Object> conf) {
-        return  Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER, conf));
+        return Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER, conf).trim());
     }
 
 }

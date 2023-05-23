@@ -9,7 +9,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.TestLoggerUtil;
+import com.aerospike.firefly.util.TestLogging;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -36,7 +36,7 @@ public class TestWarmup extends AbstractFireflySuite {
         return false;
     }
 
-    private TestLoggerUtil.MemoryAppender memoryAppender;
+    private TestLogging.MemoryAppender memoryAppender;
 
     // https://www.baeldung.com/junit-asserting-logs
     private class MemoryAppender extends ListAppender<ILoggingEvent> {
@@ -82,7 +82,7 @@ public class TestWarmup extends AbstractFireflySuite {
     @Before
     public void setup() {
         Logger logger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-        memoryAppender = new TestLoggerUtil.MemoryAppender();
+        memoryAppender = new TestLogging.MemoryAppender();
         memoryAppender.setContext((LoggerContext) LoggerFactory.getILoggerFactory());
         logger.addAppender(memoryAppender);
         memoryAppender.start();

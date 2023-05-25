@@ -30,64 +30,67 @@ public class SparkBulkLoaderMain {
     private static final Timer progressBarTimer = new Timer();
 
     public static void main(final String[] args) {
-
-        final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
-        LOGGER.info("Command line input: {}", String.join(",", args));
-
-        // Initialize Spark.
-        String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
-        Objects.requireNonNull(configPath);
-        ObjectLoader loader = buildConfiguration(cmd);
-        Map<String, Object> config = loader.loadConfiguration(configPath);
-        LOGGER.info("config: " + config.toString());
-        final SparkSession spark = buildSparkSession(config, cmd);
-
-        initializeProgressBar(config);
-
-        // Vertex processing
-        VertexOperations vo = null;
         try {
-            vo = new VertexOperations(cmd, config, loader.getCsvPaths(VertexOperations.getVertexDirectory(config)));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
+            LOGGER.info("Command line input: {}", String.join(",", args));
+
+            // Initialize Spark.
+            String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
+            Objects.requireNonNull(configPath);
+            ObjectLoader loader = buildConfiguration(cmd);
+            Map<String, Object> config = loader.loadConfiguration(configPath);
+            LOGGER.info("config: " + config.toString());
+            final SparkSession spark = buildSparkSession(config, cmd);
+
+            initializeProgressBar(config);
+
+            // Vertex processing
+            VertexOperations vo = null;
+            try {
+                vo = new VertexOperations(cmd, config, loader.getCsvPaths(VertexOperations.getVertexDirectory(config)));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vo.vertexPaths, VertexOperations.REQUIRED_VERTEX_HEADERS,
+                    DatasetOperations.getDfStorageLevel(config));
+            EdgeOperations edges = null;
+            try {
+                edges = new EdgeOperations(cmd, config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            Dataset<Row> edgeDataset = DatasetOperations.
+                    loadDataset(spark, edges.edgePaths, EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
+
+            // Preflight check
+            DatasetOperations.preflightCheck(cmd, edgeDataset, vertexDataset, config);
+
+            // Vertex processing
+            progressBar.setVertexLoadStart();
+            vo.writeVerticesToDB(vertexDataset);
+            progressBar.setVertexLoadComplete();
+
+            vo.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
+            progressBar.setVertexValidationComplete();
+            vertexDataset.unpersist();
+
+            // Edge processing
+            edges.extractSupernodes(edgeDataset);
+            progressBar.setSuperNodeExtractionComplete();
+
+            progressBar.setEdgeLoadStart();
+            edges.writeEdgeToDB(edgeDataset);
+            progressBar.setEdgeLoadComplete();
+
+            edges.verifySampleEdgeAfterWrite(edgeDataset.sample(DatasetOperations.getSamplingPercent(config)));
+            progressBar.setEdgeValidationComplete();
+            edgeDataset.unpersist();
+
+            // Stop spark session
+            spark.stop();
+        } finally {
+            progressBarTimer.cancel();
         }
-        Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vo.vertexPaths, VertexOperations.REQUIRED_VERTEX_HEADERS,
-                DatasetOperations.getDfStorageLevel(config));
-        EdgeOperations edges = null;
-        try {
-            edges = new EdgeOperations(cmd, config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        Dataset<Row> edgeDataset = DatasetOperations.
-                loadDataset(spark, edges.edgePaths, EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
-
-        // Preflight check
-        DatasetOperations.preflightCheck(cmd, edgeDataset, vertexDataset, config);
-
-        // Vertex processing
-        progressBar.setVertexLoadStart();
-        vo.writeVerticesToDB(vertexDataset);
-        progressBar.setVertexLoadComplete();
-
-        vo.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
-        progressBar.setVertexValidationComplete();
-        vertexDataset.unpersist();
-
-        // Edge processing
-        edges.extractSupernodes(edgeDataset);
-        progressBar.setSuperNodeExtractionComplete();
-
-        progressBar.setEdgeLoadStart();
-        edges.writeEdgeToDB(edgeDataset);
-        progressBar.setEdgeLoadComplete();
-
-        edges.verifySampleEdgeAfterWrite(edgeDataset.sample(DatasetOperations.getSamplingPercent(config)));
-        progressBar.setEdgeValidationComplete();
-        edgeDataset.unpersist();
-
-        // Stop spark session
-        spark.stop();
     }
 
     private static void initializeProgressBar(Map<String, Object> config) {

@@ -1,12 +1,12 @@
 package com.aerospike.firefly.process.call;
 
 import com.aerospike.firefly.bulkloader.BulkLoaderCallEntryPoint;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,7 +45,6 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
         final BulkLoad bulkLoad = new BulkLoaderCallEntryPoint();
-        final Set<Map.Entry> entries = params.entrySet();
         String configPath = "";
         boolean aws = false;
         boolean vertices = true;
@@ -91,7 +90,9 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         }
 
         bulkLoad.perform(configPath, aws, vertices, edges);
-        return CloseableIterator.empty();
+
+        // Return success if it worked, otherwise it will return an exception.
+        return FireflyCloseableIteratorUtils.of((R)"Success");
     }
 
     private boolean getBooleanFromObject(final Object obj, final String name) {

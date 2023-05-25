@@ -2,6 +2,9 @@
 
 # This is used by the Dockerfile. It is not intended to be run directly.
 
+# Inject classpath. Without this gremlin-server doesn't load all the appropriate jars for the bulk loader.
+export CLASSPATH=$(cat /opt/classpath.txt)
+
 # Create trap that redirects a CTRL-C even into the stop_gremlin_server function.
 trap 'stop_gremlin_server' INT
 stop_gremlin_server() {

@@ -380,6 +380,36 @@ jobs:
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
           docker build -t aerospike/firefly .
+  test-bulk-loader-call-docker:
+    name: Test Firefly Docker Bulk Loader Call
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Build Docker Image
+        run: |
+          docker build -t aerospike/firefly .
+          
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
+          
+          docker run -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties \
+            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
+            aerospike/firefly &
+          
+          mvn test -pl firefly-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   benchmark-firefly:
     name: Benchmark Firefly
     timeout-minutes: 240

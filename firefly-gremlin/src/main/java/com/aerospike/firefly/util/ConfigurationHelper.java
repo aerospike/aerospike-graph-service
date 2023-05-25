@@ -150,6 +150,8 @@ public final class ConfigurationHelper {
         public static final String FAULT_TEST = "FAULT_TEST";
         public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
         public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
+        public static final String SUMMARY_TICKER_ENABLED = "SUMMARY_TICKER_ENABLED";
+        public static final String SUMMARY_ENABLED = "SUMMARY_ENABLED";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
@@ -256,6 +258,8 @@ public final class ConfigurationHelper {
         put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
         put(Keys.FAULT_TEST, "false");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
+        put(Keys.SUMMARY_TICKER_ENABLED, "true");
+        put(Keys.SUMMARY_ENABLED, "true");
     }};
 
 

@@ -198,6 +198,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_BATCH_READ_SIZE;
     public final long FIREFLY_READ_THROUGH_CACHE_WEIGHT;
     public final int PHAT_EDGE_SIZE;
+    public final boolean SUMMARY_TICKER_ENABLED;
+    public final boolean SUMMARY_ENABLED;
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
 
@@ -306,6 +308,8 @@ public class AerospikeConnection implements AutoCloseable {
         EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
+        SUMMARY_TICKER_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED, conf));
+        SUMMARY_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUMMARY_ENABLED, conf));
         PHAT_EDGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf));
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);

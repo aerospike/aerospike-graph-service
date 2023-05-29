@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Random;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
@@ -74,7 +74,7 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
 
     @After
     public void afterEach() {
-        CONFIG.clearProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase());
+        CONFIG.clearProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase());
         CONFIG.clearProperty(ON_RECORD_ID_LIMIT.toLowerCase());
     }
 
@@ -91,7 +91,7 @@ public class TestFireflyVertexEdgeLocalCountStrategyIntegration {
     @Test
     public void testLocalCountStrategyEdgeCacheDisabled() {
         // Cache disabled
-        CONFIG.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        CONFIG.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             assertCountStrategyAccuracy(graph);
             assertCountStrategyVertexLabelAccuracy(graph);

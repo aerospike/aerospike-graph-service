@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 
 /**
@@ -40,7 +40,7 @@ public class FireflyGraphProviderUncached extends AbstractGraphProvider {
         // Load config map with base config
         final HashMap<String, Object> configMap = new HashMap<>();
         config.getKeys().forEachRemaining(key -> configMap.put(key, config.get(Object.class, key)));
-        config.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        config.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         // Add GRAPH_ID:graphName and GRAPH:FireflyGraph.
         configMap.put(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), graphName);

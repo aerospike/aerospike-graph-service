@@ -70,7 +70,7 @@ import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 public class EdgeOperations implements Serializable {
@@ -129,7 +129,7 @@ public class EdgeOperations implements Serializable {
             final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
 
             try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
-                LOGGER.info(String.format("graph cache disabled:  %s", graph.getBaseGraph().EDGE_CACHE_DISABLED_GLOBALLY));
+                LOGGER.info(String.format("graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 
@@ -256,8 +256,8 @@ public class EdgeOperations implements Serializable {
 
     public void extractSupernodes(Dataset<Row> edgeDataset) {
         boolean extract = cmd.hasOption("supernode") &&
-                (!Boolean.parseBoolean(
-                        ConfigurationHelper.getOrDefault(EDGE_CACHE_DISABLED_GLOBALLY, new MapConfiguration(config))) ||
+                (Boolean.parseBoolean(
+                        ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, new MapConfiguration(config))) ||
                         Boolean.parseBoolean(
                                 ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, new MapConfiguration(config))));
         if (extract) {

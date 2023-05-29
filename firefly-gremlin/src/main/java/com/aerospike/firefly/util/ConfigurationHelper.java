@@ -42,6 +42,91 @@ public final class ConfigurationHelper {
 
     public static class Keys {
 
+        // External Configs
+        public static final String AEROSPIKE_HOST = "aerospike.client.host";
+        public static final String AEROSPIKE_PORT = "aerospike.client.port";
+        public static final String AEROSPIKE_TIMEOUT = "aerospike.client.timeout";
+        public static final String AEROSPIKE_USER = "aerospike.client.user";
+        public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
+        public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.max.connections.per.node";
+        public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
+        public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
+        public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "aerospike.client.connection.max.retry";
+        public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
+        public static final String TLS = "aerospike.client.tls";
+        public static final String LOG_LEVEL = "aerospike.graph.log.level";
+        public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
+        public static final String ADJACENCY_INDEX_ENABLED = "aerospike.graph.index.adjacency.enabled";
+        public static final String V_LABEL_INDEX_ENABLED = "aerospike.graph.index.vertex.label.enabled";
+        public static final String E_LABEL_INDEX_ENABLED = "aerospike.graph.index.edge.label.enabled";
+        public static final String SUMMARY_ENABLED = "aerospike.graph.summary.enabled";
+        public static final String SUMMARY_TICKER_ENABLED = "aerospike.graph.summary.ticker.enabled";
+        public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
+        public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
+        public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
+
+
+        // Semi internal semi external configs
+        public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
+        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
+        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.cardinality.update.frequency";
+        public static final String ENABLE_FAST_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.enabled";
+        public static final String ENABLE_READ_THROUGH_CACHE = "aerospike.graph.strategy.cache.read.through.enabled";
+        public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
+        public static final String ENABLE_FIREFLY_DROP_STRATEGY = "aerospike.graph.strategy.drop.enabled";
+        public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
+        public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
+        public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
+        public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
+        public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
+        public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
+
+
+        // Internal configs
+        public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
+        public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
+        public static final String GRAPH_ID = "GRAPH_ID";
+        public static final String VERTEX_PROPERTY_NAME_TO_ID = "VERTEX_PROPERTY_NAME_TO_ID";
+        public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
+        public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";
+        public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
+        public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
+        public static final String V_LABEL_INDEX = "V_LABEL_INDEX";
+        public static final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = "EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN";
+        public static final String EDGE_CACHE_DISABLED = "EDGE_CACHE_DISABLED";
+        public static final String E_LABEL_INDEX = "E_LABEL_INDEX";
+        public static final String E_IN_INDEX = "E_IN_INDEX";
+        public static final String E_OUT_INDEX = "E_OUT_INDEX";
+        public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
+        public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
+        public static final String IN_EDGES = "IN_EDGES";
+        public static final String OUT_EDGES = "OUT_EDGES";
+        public static final String VP_PROPERTIES = "VP_PROPERTIES";
+        public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
+        public static final String PROPERTIES = "PROPERTIES";
+        public static final String TYPE_HINTS = "TYPE_HINTS";
+        public static final String COUNTER = "COUNTER";
+        public static final String ID_TYPE = "ID_TYPE";
+        public static final String GLOBAL = "GLOBAL";
+        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
+        public static final String SUPERNODES_IN = "SUPERNODES_IN";
+        public static final String SUPERNODES_OUT = "SUPERNODES_OUT";
+        public static final String INDEX_META = "INDEX_META";
+        public static final String LABEL = "LABEL";
+        public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
+        public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
+        public static final String USER_SUPPLIED_ID_EDGE_CACHE = "USER_SUPPLIED_ID_EDGE_CACHE";
+        public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
+        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
+        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
+        public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
+        public static final String WARMUP_MODE = "WARMUP_MODE";
+        public static final String FAULT_TEST = "FAULT_TEST";
+        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
+        public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
+        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
+
 
         public static class Sets {
             public static final String GRAPH_VARIABLES_SET = "GRAPH_VARIABLES_SET";
@@ -60,98 +145,6 @@ public final class ConfigurationHelper {
             public static final String TEST_SET = "TEST_SET";
             public static final String GRAPH_METADATA_SET = "GRAPH_METADATA_SET";
         }
-
-        public static final String LOG_LEVEL = "LOG_LEVEL";
-        public static final String FIREFLY_DATA_MODEL = "FIREFLY_DATA_MODEL";
-        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
-        public static final String SCAN_MAX_WAIT = "SCAN_MAX_WAIT";
-        public static final String AEROSPIKE_HOST = "AEROSPIKE_HOST";
-        public static final String AEROSPIKE_PORT = "AEROSPIKE_PORT";
-        public static final String AEROSPIKE_TIMEOUT = "AEROSPIKE_TIMEOUT";
-        public static final String AEROSPIKE_USER = "AEROSPIKE_USER";
-        public static final String AEROSPIKE_PASSWORD = "AEROSPIKE_PASSWORD";
-        public static final String AEROSPIKE_NAMESPACE = "AEROSPIKE_NAMESPACE";
-        public static final String MAX_CONNECTIONS_PER_NODE = "MAX_CONNECTIONS_PER_NODE";
-        public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
-        public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
-        public static final String EDGE_ID_KEY = "EDGE_ID_KEY";
-        public static final String EDGE_ID_BIN = "EDGE_ID_BIN";
-        public static final String VERTEX_ID_KEY = "VERTEX_ID_KEY";
-        public static final String VERTEX_ID_BIN = "VERTEX_ID_BIN";
-        public static final String VERTEX_PROPERTY_ID_KEY = "VERTEX_PROPERTY_ID_KEY";
-        public static final String VERTEX_PROPERTY_ID_BIN = "VERTEX_PROPERTY_ID_BIN";
-        public static final String VERTEX_PROPERTY_NAME_TO_ID = "VERTEX_PROPERTY_NAME_TO_ID";
-        public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
-        public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";
-        public static final String VERTEX_PROPERTY_NAME = "VERTEX_PROPERTY_NAME";
-        public static final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = "EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN";
-        public static final String PARENT_VERTEX_ID = "PARENT_VERTEX_ID";
-        public static final String PROPERTIES = "PROPERTIES";
-        public static final String VP_PROPERTIES = "VP_PROPERTIES";
-        public static final String TYPE_HINTS = "TYPE_HINTS";
-        public static final String VP_TYPE_HINTS = "VP_TYPE_HINTS";
-        public static final String COUNTER = "COUNTER";
-        public static final String ID_TYPE = "ID_TYPE";
-        public static final String GLOBAL = "GLOBAL";
-        public static final String IN_EDGE_COUNTER = "IN_EDGE_COUNTER";
-        public static final String OUT_EDGE_COUNTER = "OUT_EDGE_COUNTER";
-        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
-        public static final String GRAPH_ID = "GRAPH_ID";
-        public static final String IN_EDGES = "IN_EDGES";
-        public static final String OUT_EDGES = "OUT_EDGES";
-        public static final String EDGE_CACHE_DISABLED = "EDGE_CACHE_DISABLED";
-        public static final String VP_CACHE_DISABLED = "VP_CACHE_DISABLED";
-        public static final String EDGE_CACHE_DISABLED_GLOBALLY = "EDGE_CACHE_DISABLED_GLOBALLY";
-        public static final String ADJACENCY_INDEX_ENABLED = "ADJACENCY_INDEX_ENABLED";
-        public static final String SUPERNODES_IN = "SUPERNODES_IN";
-        public static final String SUPERNODES_OUT = "SUPERNODES_OUT";
-        public static final String INDEX_META = "INDEX_META";
-        public static final String RELATIONAL_VERTEX_TYPE_HINT = "RELATIONAL_VERTEX_TYPE_HINT";
-        public static final String INDEXED_BINS = "INDEXED_BINS";
-        public static final String LABEL = "LABEL";
-        public static final String V_LABEL_INDEX = "V_LABEL_INDEX";
-        public static final String E_LABEL_INDEX = "E_LABEL_INDEX";
-        public static final String V_LABEL_INDEX_ENABLED = "V_LABEL_INDEX_ENABLED";
-        public static final String E_LABEL_INDEX_ENABLED = "E_LABEL_INDEX_ENABLED";
-        public static final String E_IN_INDEX = "E_IN_INDEX";
-        public static final String E_OUT_INDEX = "E_OUT_INDEX";
-        // User supplied id cache
-        public static final String USER_SUPPLIED_ID_CACHE_SET = "USER_SUPPLIED_ID_CACHE_SET";
-        public static final String USER_SUPPLIED_ID_VERTEX_CACHE = "USER_SUPPLIED_ID_VERTEX_CACHE";
-        public static final String USER_SUPPLIED_ID_EDGE_CACHE = "USER_SUPPLIED_ID_EDGE_CACHE";
-        public static final String USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE = "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE";
-        // Disable fast-count by default as current fast count Info() implementation appears to lag under some circumstances
-        public static final String ENABLE_FAST_COUNT_STRATEGY = "ENABLE_FAST_COUNT_STRATEGY";
-        public static final String ENABLE_READ_THROUGH_CACHE = "ENABLE_READ_THROUGH_CACHE";
-        public static final String ENABLE_PREFETCH_STRATEGY = "ENABLE_PREFETCH_STRATEGY";
-        public static final String ENABLE_FIREFLY_DROP_STRATEGY = "ENABLE_FIREFLY_DROP_STRATEGY";
-        public static final String VERTEX_PROPERTY_INDEXES = "VERTEX_PROPERTY_INDEXES";
-        public static final String EDGE_PROPERTY_INDEXES = "EDGE_PROPERTY_INDEXES";
-        public static final String ENABLE_COMPOSITE_ID_STRATEGY = "ENABLE_COMPOSITE_ID_STRATEGY";
-        public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "ENABLE_BATCH_EDGE_READ_STRATEGY";
-        public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "AEROSPIKE_CONNECTION_MAX_RETRY";
-        public static final String AEROSPIKE_WRITE_MAX_RETRY = "AEROSPIKE_WRITE_MAX_RETRY";
-
-        // BufferedNumericIdManager
-        public static final String VERTEX_ID_BUFFER_SIZE = "VERTEX_ID_BUFFER_SIZE";
-        public static final String EDGE_ID_BUFFER_SIZE = "EDGE_ID_BUFFER_SIZE";
-        public static final String PROPERTY_ID_BUFFER_SIZE = "PROPERTY_ID_BUFFER_SIZE";
-
-        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "CARDINALITY_METADATA_UPDATE_FREQUENCY";
-        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "INDEX_METADATA_UPDATE_FREQUENCY";
-        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
-        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
-        public static final String AEROSPIKE_BATCH_READ_SIZE = "AEROSPIKE_BATCH_READ_SIZE";
-        public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "FIREFLY_READ_THROUGH_CACHE_WEIGHT";
-        public static final String PHAT_EDGE_SIZE = "EDGES_PER_RECORD";
-        public static final String TLS = "TLS";
-        public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
-        public static final String WARMUP_MODE = "WARMUP_MODE";
-        public static final String FAULT_TEST = "FAULT_TEST";
-        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
-        public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
-        public static final String SUMMARY_TICKER_ENABLED = "SUMMARY_TICKER_ENABLED";
-        public static final String SUMMARY_ENABLED = "SUMMARY_ENABLED";
     }
 
     private static final Set<String> environmentVariables = new HashSet<>() {{
@@ -165,27 +158,9 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_NAMESPACE, "test");
         put(Keys.AEROSPIKE_USER, "");
         put(Keys.AEROSPIKE_PASSWORD, "");
-        put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
-        put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
         put(Keys.GRAPH_VARIABLES_RECORD, "G_VAR_REC");
         put(Keys.GRAPH_VARIABLES_MAP, "G_VAR_MAP");
-        put(Keys.Sets.EDGE_AERO_SET, "EDGE");
         put(Keys.PROPERTIES, "PROPERTIES");
-        put(Keys.Sets.VERTEX_AERO_SET, "VERTEX");
-        put(Keys.Sets.IN_VP_SET, "IN_VP");
-        put(Keys.Sets.OUT_VP_SET, "OUT_VP");
-        put(Keys.Sets.IN_IN_SET, "IN_IN");
-        put(Keys.Sets.IN_OUT_SET, "IN_OUT");
-        put(Keys.Sets.OUT_IN_SET, "OUT_IN");
-        put(Keys.Sets.OUT_OUT_SET, "OUT_OUT");
-        put(Keys.Sets.VERTEX_PROPERTY_AERO_SET, "V_PROP");
-        put(Keys.EDGE_ID_KEY, "E_ID_KEY");
-        put(Keys.EDGE_ID_BIN, "E_ID_BIN");
-        put(Keys.VERTEX_ID_KEY, "V_ID_KEY");
-        put(Keys.VERTEX_ID_BIN, "V_ID_BIN");
-        put(Keys.Sets.VERTEX_PROPERTY_SET, "VP");
-        put(Keys.VERTEX_PROPERTY_ID_KEY, "VP_ID_K");
-        put(Keys.VERTEX_PROPERTY_ID_BIN, "VP_P_ID_B");
         put(Keys.VERTEX_PROPERTY_NAME_TO_ID, "VP_N_ID");
         put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE, "VP_N_V");
         put(Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, "VP_N_TH");
@@ -194,12 +169,9 @@ public final class ConfigurationHelper {
         put(Keys.VP_PROPERTIES, "VP_PROP");
         put(Keys.TYPE_HINTS, "TYPE_HINTS");
         put(Keys.VP_TYPE_HINTS, "VP_TYPE_HINTS");
-        put(Keys.PARENT_VERTEX_ID, "PAR_V_ID");
         put(Keys.COUNTER, "COUNTER");
         put(Keys.ID_TYPE, "ID_TYPE");
-        put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
         put(Keys.GLOBAL, "GLOBAL");
-        put(Keys.Sets.TEST_SET, "TEST_SET");
         put(Keys.IN_EDGE_COUNTER, "IN_E_CTR");
         put(Keys.OUT_EDGE_COUNTER, "OUT_E_CTR");
         put(Keys.ON_RECORD_ID_LIMIT, "8000");
@@ -207,21 +179,19 @@ public final class ConfigurationHelper {
         put(Keys.IN_EDGES, "IN_EDGES");
         put(Keys.OUT_EDGES, "OUT_EDGES");
         put(Keys.EDGE_CACHE_DISABLED, "CACHE_DISABLED");
-        put(Keys.VP_CACHE_DISABLED, "VP_C_DISABLED");
         put(Keys.INDEX_META, "INDEX_META");
         put(Keys.RELATIONAL_VERTEX_TYPE_HINT, "V_TYP_HNT");
-        put(Keys.INDEXED_BINS, "indexedBins");
         put(Keys.V_LABEL_INDEX, "V_LABEL_IDX");
         put(Keys.E_LABEL_INDEX, "E_LABEL_IDX");
-        put(Keys.V_LABEL_INDEX_ENABLED, "false");
-        put(Keys.E_LABEL_INDEX_ENABLED, "false");
         put(Keys.E_IN_INDEX, "E_IN_INDEX");
         put(Keys.E_OUT_INDEX, "E_OUT_INDEX");
-        put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.USER_SUPPLIED_ID_CACHE_SET, "USER_SUPPLIED_ID_CACHE_SET");
         put(Keys.USER_SUPPLIED_ID_VERTEX_CACHE, "USER_SUPPLIED_ID_VERTEX_CACHE");
         put(Keys.USER_SUPPLIED_ID_EDGE_CACHE, "USER_SUPPLIED_ID_EDGE_CACHE");
         put(Keys.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE, "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
+        put(Keys.V_LABEL_INDEX_ENABLED, "false");
+        put(Keys.E_LABEL_INDEX_ENABLED, "false");
+        put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
@@ -239,7 +209,7 @@ public final class ConfigurationHelper {
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
-        put(Keys.EDGE_CACHE_DISABLED_GLOBALLY, "false");
+        put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
         put(Keys.ADJACENCY_INDEX_ENABLED, "true");
         put(Keys.SUPERNODES_IN, "SUPERNODES_IN");
         put(Keys.SUPERNODES_OUT, "SUPERNODES_OUT");
@@ -255,11 +225,25 @@ public final class ConfigurationHelper {
         put(Keys.AUTO_PRE_HEAT, "false");
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
-        put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
         put(Keys.FAULT_TEST, "false");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED, "true");
         put(Keys.SUMMARY_ENABLED, "true");
+        put(Keys.Sets.SUMMARY_SET, "G_SUMMARY");
+        put(Keys.Sets.ID_MANAGER_SET, "ID_MGR_SET");
+        put(Keys.Sets.VERTEX_PROPERTY_SET, "VP");
+        put(Keys.Sets.GRAPH_METADATA_SET, "G_META");
+        put(Keys.Sets.GRAPH_VARIABLES_SET, "G_VAR");
+        put(Keys.Sets.EDGE_AERO_SET, "EDGE");
+        put(Keys.Sets.VERTEX_AERO_SET, "VERTEX");
+        put(Keys.Sets.IN_VP_SET, "IN_VP");
+        put(Keys.Sets.OUT_VP_SET, "OUT_VP");
+        put(Keys.Sets.IN_IN_SET, "IN_IN");
+        put(Keys.Sets.IN_OUT_SET, "IN_OUT");
+        put(Keys.Sets.OUT_IN_SET, "OUT_IN");
+        put(Keys.Sets.OUT_OUT_SET, "OUT_OUT");
+        put(Keys.Sets.VERTEX_PROPERTY_AERO_SET, "V_PROP");
+        put(Keys.Sets.TEST_SET, "TEST_SET");
     }};
 
 

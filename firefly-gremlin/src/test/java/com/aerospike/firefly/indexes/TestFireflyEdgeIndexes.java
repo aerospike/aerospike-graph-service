@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
     @Override
     protected void setProperty(final String propertyList) {
-        config.setProperty("edge_property_indexes", propertyList);
+        config.setProperty("aerospike.graph.index.edge.properties", propertyList);
     }
 
     @Override

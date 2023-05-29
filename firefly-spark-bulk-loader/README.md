@@ -59,12 +59,13 @@ following configuration options are available:
  
 ##### sample config file
  ```
- aerospike_host = 172.31.25.147,172.31.19.243,172.31.30.232
-aerospike_port = 3000
-aerospike_namespace = test
-aerospike_timeout = 70000
+aerospike.client.host = 172.31.25.147,172.31.19.243,172.31.30.232
+aerospike.client.port = 3000
+aerospike.client.namespace = test
+aerospike.client.timeout = 70000
+aerospike.graph.data.model = packed
+
 vertex_directory = /home/ubuntu/vertices
-firefly_data_model = packed
 edge_directory = /home/ubuntu/edges
 enable_dataframe_caching = true
 dataframe_storage_type = memory_and_disk

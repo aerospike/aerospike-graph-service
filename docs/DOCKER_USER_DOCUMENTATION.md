@@ -19,8 +19,8 @@ The namespace is set to `test`.
 ```
 docker run -p8182:8182 -e aerospike_namespace="test" -e \
 AEROSPIKE_HOST="aerospike-devel-cluster-host1:3000, aerospike-devel-cluster-host2:3000" \
--e vertex_property_indexes=property1,property2 \
--e v_label_index_enabled=true ghcr.io/citrusleaf/firefly 
+-e aerospike.graph.index.vertex.properties=property1,property2 \
+-e aerospike.graph.index.vertex.label.enabled=true ghcr.io/citrusleaf/firefly 
 ```
 
 ### With a Properties File (recommended for most production cases)
@@ -39,10 +39,10 @@ An example properties file is provided below:
 
 ```
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike_host=aerospike-devel-cluster-host1:3000, aerospike-devel-cluster-host2:3000
-aerospike_namespace=test
-v_label_index_enabled=true
-vertex_property_indexes=property1,property2
+aerospike.client.host=aerospike-devel-cluster-host1:3000, aerospike-devel-cluster-host2:3000
+aerospike.client.namespace=test
+aerospike.graph.index.vertex.label.enabled=true
+aerospike.graph.index.vertex.properties=property1,property2
 ```
 
 ### With a YAML and Properties File (recommended for advanced server configuration)

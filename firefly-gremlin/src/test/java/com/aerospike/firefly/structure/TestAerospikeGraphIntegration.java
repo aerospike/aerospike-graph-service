@@ -69,7 +69,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.aerospike.firefly.structure.FireflyGraph.FIREFLY_CONFIGURATION_VARIABLE_NAME;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
@@ -442,7 +442,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Ignore //@todo
     public void shouldSerializeTreeUncached() throws Exception {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 //        nocacheconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
@@ -495,14 +495,14 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void basic_edge_cache_nocache() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "nocachegraph");
 
         FireflyGraph noCacheGraph = FireflyGraph.open(nocacheconfig);
 
         Configuration cacheConfig = ConfigurationUtils.cloneConfiguration(config);
-        cacheConfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "false");
+        cacheConfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "true");
         cacheConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "cg");
         cacheConfig.setProperty(Graph.GRAPH, "cachegraph");
 

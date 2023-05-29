@@ -78,10 +78,10 @@ public class TestGraphStepHasContainers extends AbstractFireflySuite {
 
         // We insert data then set the cardinality and indexes so that we can force the bvals to be set.
         graph.close();
-        config.setProperty("vertex_property_indexes", indexes);
-        config.setProperty("v_label_index_enabled", labelIndex ? "true" : "false");
-        config.setProperty("cardinality_metadata_update_frequency", "1");
-        config.setProperty("index_metadata_update_frequency", "1");
+        config.setProperty("aerospike.graph.index.vertex.properties", indexes);
+        config.setProperty("aerospike.graph.index.vertex.label.enabled", labelIndex ? "true" : "false");
+        config.setProperty("aerospike.graph.metadata.cardinality.update.frequency", "1");
+        config.setProperty("aerospike.graph.metadata.index.update.frequency", "1");
         graph = FireflyGraph.open(config);
 
         // Give some time for the indexes to be created.

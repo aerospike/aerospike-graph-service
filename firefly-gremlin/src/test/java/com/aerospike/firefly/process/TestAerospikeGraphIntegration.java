@@ -71,7 +71,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData.MODERN;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onCreate;
 import static org.apache.tinkerpop.gremlin.process.traversal.Merge.onMatch;
@@ -1358,7 +1358,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_localXoutE_countX_uncached() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
@@ -1385,7 +1385,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @LoadGraphWith(MODERN)
     public void g_VX2X_optionalXinXknowsXX() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
@@ -1421,7 +1421,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_both_both_dedup_byXlabelX() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
@@ -1483,7 +1483,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_hasLabelXloopsX_bothXselfX() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
@@ -1505,7 +1505,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @LoadGraphWith(MODERN)
     public void g_VX1X_outXcreatedX_valueMap() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");
@@ -1515,7 +1515,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Configuration nostrategyconfig = ConfigurationUtils.cloneConfiguration(config);
 //        nostrategyconfig.setProperty(ENABLE_COMPOSITE_ID_STRATEGY.toLowerCase(), "false");
-        nostrategyconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nostrategyconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
         nostrategyconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "nsg");
         nostrategyconfig.setProperty(Graph.GRAPH, "nsg");
 
@@ -1553,7 +1553,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     @Test
     public void g_V_hasLabelXloopsX_bothEXselfX() {
         Configuration nocacheconfig = ConfigurationUtils.cloneConfiguration(config);
-        nocacheconfig.setProperty(EDGE_CACHE_DISABLED_GLOBALLY.toLowerCase(), "true");
+        nocacheconfig.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
 
         nocacheconfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), "ncg");
         nocacheconfig.setProperty(Graph.GRAPH, "ncg");

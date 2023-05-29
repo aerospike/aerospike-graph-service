@@ -205,7 +205,7 @@ public class TestPerformance extends AbstractFireflySuite {
 
         createOrgChartData();
 
-        config.setProperty("vertex_property_indexes", ORGCHART_NAME);
+        config.setProperty("aerospike.graph.index.vertex.properties", ORGCHART_NAME);
 
         if (graph.getDataModel().equals(PackedGraph.DATA_MODEL)) {
             assertEquals(12, db.getWriteMetric() - writeStart);

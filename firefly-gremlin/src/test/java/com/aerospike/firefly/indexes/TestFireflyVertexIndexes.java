@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 public class TestFireflyVertexIndexes extends TestFireflyIndexes {
     @Override
     protected void setProperty(final String propertyList) {
-        config.setProperty("vertex_property_indexes", propertyList);
+        config.setProperty("aerospike.graph.index.vertex.properties", propertyList);
     }
 
     @Override
@@ -39,7 +39,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
     @Test
     public void testPropertyIndexQuery() {
         // Create indexes on name and age
-        config.setProperty("vertex_property_indexes", "name,age");
+        config.setProperty("aerospike.graph.index.vertex.properties", "name,age");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             Vertex a = g.addV("person").
@@ -83,7 +83,7 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
     @Test
     public void testPropertyScanQuery() {
         // No indexes for this test.
-        config.setProperty("vertex_property_indexes", "");
+        config.setProperty("aerospike.graph.index.vertex.properties", "");
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             g.addV("person").

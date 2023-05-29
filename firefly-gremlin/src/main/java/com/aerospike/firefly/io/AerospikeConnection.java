@@ -112,7 +112,6 @@ public class AerospikeConnection implements AutoCloseable {
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
 
     public final String GRAPH_ID;
-    private final String INDEXED_BINS;
     public final String V_LABEL_INDEX;
     public final String E_LABEL_INDEX;
     public final boolean V_LABEL_INDEX_ENABLED;
@@ -133,7 +132,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String IN_EDGES;
     public final String OUT_EDGES;
     public final String EDGE_CACHE_DISABLED;
-    public final String VP_CACHE_DISABLED;
     public final String RELATIONAL_VERTEX_TYPE_HINT;
     private final String INDEX_METADATA;
 
@@ -151,19 +149,12 @@ public class AerospikeConnection implements AutoCloseable {
     public final String OUT_IN_SET;
     public final String OUT_OUT_SET;
     public final String VERTEX_PROPERTY_AERO_SET;
-    protected final String EDGE_ID_KEY;
-    protected final String EDGE_ID_BIN;
-    protected final String VERTEX_ID_KEY;
-    protected final String VERTEX_ID_BIN;
-    protected final String VERTEX_PROPERTY_ID_KEY;
-    protected final String VERTEX_PROPERTY_ID_BIN;
     public final String SUMMARY_SET;
     public final String VERTEX_PROPERTY_NAME_TO_ID;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT;
     public final String VERTEX_PROPERTY_NAME;
     public final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN;
-    public final String PARENT_VERTEX_ID;
 
     public final String IN_EDGE_COUNTER;
     public final String OUT_EDGE_COUNTER;
@@ -190,7 +181,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ADJACENCY_INDEX_ENABLED;
     public final String SUPERNODES_IN;
     public final String SUPERNODES_OUT;
-    public final boolean EDGE_CACHE_DISABLED_GLOBALLY;
+    public final boolean GLOBAL_EDGE_CACHE_ENABLED;
     public final List<String> OPTIMIZED_TWO_HOP_STEPS; // Optionally: ["out_out", "out_in", "in_out", "in_in"].
     public final List<String> OPTIMIZED_HOP_CONSTRAINT_STEPS; // Optionally: ["out_vp", "in_vp"].
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
@@ -250,18 +241,11 @@ public class AerospikeConnection implements AutoCloseable {
         OUT_IN_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_IN_SET, conf);
         OUT_OUT_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.OUT_OUT_SET, conf);
         VERTEX_PROPERTY_AERO_SET = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.Sets.VERTEX_PROPERTY_AERO_SET, conf);
-        EDGE_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_KEY, conf);
-        EDGE_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BIN, conf);
-        VERTEX_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_KEY, conf);
-        VERTEX_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BIN, conf);
-        VERTEX_PROPERTY_ID_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_KEY, conf);
-        VERTEX_PROPERTY_ID_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_ID_BIN, conf);
         VERTEX_PROPERTY_NAME_TO_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_ID, conf);
         VERTEX_PROPERTY_NAME_TO_VALUE = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE, conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, conf);
         VERTEX_PROPERTY_NAME = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_PROPERTY_NAME, conf);
         EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN, conf);
-        PARENT_VERTEX_ID = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PARENT_VERTEX_ID, conf);
         PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTIES, conf);
         VP_PROPERTIES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_PROPERTIES, conf);
         TYPE_HINTS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.TYPE_HINTS, conf);
@@ -279,7 +263,6 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGE_COUNTER, conf);
         OUT_EDGE_COUNTER = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGE_COUNTER, conf);
         ID_CACHE_SIZE = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
-        INDEXED_BINS = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEXED_BINS, conf);
         V_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX, conf));
         E_LABEL_INDEX = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.E_LABEL_INDEX, conf));
         V_LABEL_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED, conf));
@@ -289,7 +272,6 @@ public class AerospikeConnection implements AutoCloseable {
         IN_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.IN_EDGES, conf);
         OUT_EDGES = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.OUT_EDGES, conf);
         EDGE_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED, conf);
-        VP_CACHE_DISABLED = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VP_CACHE_DISABLED, conf);
         INDEX_METADATA = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.INDEX_META, conf);
         RELATIONAL_VERTEX_TYPE_HINT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.RELATIONAL_VERTEX_TYPE_HINT, conf);
         AEROSPIKE_CONNECTION_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_CONNECTION_MAX_RETRY, conf));
@@ -305,7 +287,7 @@ public class AerospikeConnection implements AutoCloseable {
         ADJACENCY_INDEX_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED, conf));
         SUPERNODES_IN = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_IN, conf);
         SUPERNODES_OUT = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUPERNODES_OUT, conf);
-        EDGE_CACHE_DISABLED_GLOBALLY = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_CACHE_DISABLED_GLOBALLY, conf));
+        GLOBAL_EDGE_CACHE_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf));
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
         SUMMARY_TICKER_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED, conf));
@@ -1546,48 +1528,6 @@ public class AerospikeConnection implements AutoCloseable {
                 throw ae;
             }
         }
-    }
-
-    /**
-     * Create an Index on a particular Bin
-     *
-     * @param indexClass          Firefly Element Class
-     * @param binName             Name of Bin
-     * @param indexType           Type of Index
-     * @param indexCollectionType Type of Index Collection
-     * @param <T>                 FireflyElement Type
-     */
-    public <T extends Element> void createBinIndex(Class<? extends FireflyElement> indexClass,
-                                                   String binName,
-                                                   IndexType indexType,
-                                                   IndexCollectionType indexCollectionType) {
-        Key mKey = new Key(namespace, INDEX_METADATA, setFromElementType(indexClass));
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        Record rec = read(mKey, policy);
-
-        List<String> keys = rec == null ? new ArrayList<>() : (List<String>) rec.getList(INDEXED_BINS);
-        keys.add(binName);
-        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
-        checkedPut(null, mKey, keysBin);
-        createIndex(new ArrayList<>(), setFromElementType(indexClass), binName, binName, indexType, indexCollectionType);
-    }
-
-    /**
-     * @param indexClass
-     * @param key
-     * @param <T>
-     */
-    public <T extends Element> void dropBinIndex(Class<? extends FireflyElement> indexClass, String key) {
-        Key mKey = new Key(namespace, INDEX_METADATA, setFromElementType(indexClass));
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        Record rec = read(mKey, policy);
-        List<String> keys = (List<String>) rec.getList(INDEXED_BINS);
-        keys.remove(key);
-        Bin keysBin = new Bin(INDEXED_BINS, new ArrayList<>(new HashSet<>(keys)));
-        checkedPut(null, mKey, keysBin);
-        dropIndex(setFromElementType(indexClass), key);
     }
 
     /**

@@ -13,18 +13,18 @@ In the configuration file for each Firefly node, you may specify one or more Aer
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike_host=172.17.0.1
-aerospike_port=3000
-aerospike_namespace=test
-firefly_data_model = linked
+aerospike.client.host=172.17.0.1
+aerospike.client.port=3000
+aerospike.client.namespace=test
+aerospike.graph.data.model=packed
 ```
 #### Many
 
 ```properties
 gremlin.graph=com.aerospike.firefly.structure.FireflyGraph
-aerospike_host = 172.18.0.3:3000,172.18.0.2:3000,172.18.0.4:3000
-aerospike_namespace = test
-firefly_data_model = linked
+aerospike.client.host=172.18.0.3:3000,172.18.0.2:3000,172.18.0.4:3000
+aerospike.client.namespace=test
+firefly_data_model=packed
 ```
 
 In this configuration file, you will also specify the `data model` and Aerospike `namespace`

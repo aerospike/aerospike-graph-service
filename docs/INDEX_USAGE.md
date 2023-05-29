@@ -1,16 +1,16 @@
 ## Vertex Property Index Usage
 To create a vertex property index, use the following syntax in the firefly-graph.properties file:
 ```
-vertex_property_indexes=property_key1,property_key2,...
+aerospike.graph.index.vertex.properties=property_key1,property_key2,...
 ```
 Vertex property indexes are taken as a union from all firefly instances.
 This means that if one firefly instance has:
 ```
-vertex_property_indexes=foo
+aerospike.graph.index.vertex.properties=foo
 ```
 And another has:
 ```
-vertex_property_indexes=bar
+aerospike.graph.index.vertex.properties=bar
 ```
 Then the vertex property index will be created for both `foo` and `bar`. Furthermore,
 Firefly will enumerate all indexes periodically, so if one firefly instance creates
@@ -25,7 +25,7 @@ The indexes can be set in the bulk loader before bulk loading as well.
 
 Vertex label indexes can be created by setting the flags:
 ```
-v_label_index_enabled=true
+aerospike.graph.index.vertex.properties=true
 ```
 This flag is taken as a union from all firefly instances. This means if a single firefly instance sets the flag to true, 
 all other firefly instances will be aware of the vertex label index that was created and will be able to use it.
@@ -52,8 +52,8 @@ label: "knows"
 ```
 A sindex on name and age can be created by adding the following line to the firefly-graph.properties file:
 ```
-vertex_property_indexes=name,age
-v_label_index_enabled=true
+aerospike.graph.index.vertex.properties=name,age
+aerospike.graph.index.vertex.label.enabled=true
 ```
 
 #### Impact on Traversals

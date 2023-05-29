@@ -618,7 +618,7 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
-        final boolean isEdgeCacheOverflowed = db.EDGE_CACHE_DISABLED_GLOBALLY || db.ID_CACHE_SIZE <= 0;
+        final boolean isEdgeCacheOverflowed = !db.GLOBAL_EDGE_CACHE_ENABLED || db.ID_CACHE_SIZE <= 0;
         final Map<String, ?> vertexPropertyIds;
         final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;

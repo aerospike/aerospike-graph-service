@@ -9,12 +9,12 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>firefly-spark-bulk-loader</artifactId>
-    <name>Aerospike :: Firefly Spark Bulk Loader</name>
+    <artifactId>aerospike-graph-bulk-loader</artifactId>
+    <name>Aerospike :: Graph Bulk Loader</name>
     <dependencies>
         <dependency>
             <groupId>com.aerospike</groupId>
-            <artifactId>firefly-gremlin</artifactId>
+            <artifactId>aerospike-graph-gremlin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -7,8 +7,8 @@
         <artifactId>firefly</artifactId>
         <version>0.7.0-SNAPSHOT</version>
     </parent>
-    <artifactId>firefly-gremlin</artifactId>
-    <name>Aerospike :: Firefly</name>
+    <artifactId>aerospike-graph-gremlin</artifactId>
+    <name>Aerospike :: Graph</name>
     <dependencies>
         <!-- AEROSPIKE -->
         <dependency>

@@ -21,7 +21,7 @@
         <!-- https://mvnrepository.com/artifact/org.apache.tinkerpop/tinkergraph-gremlin -->
         <dependency>
             <groupId>com.aerospike</groupId>
-            <artifactId>firefly-gremlin</artifactId>
+            <artifactId>aerospike-graph-gremlin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.opencsv/opencsv -->

@@ -32,7 +32,7 @@ public class TestFireflyExceedHeap extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Must set -Djvmheapsize=small when calling maven. For example:
-        // mvn test -pl firefly-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+        // mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
         long heapSize = Runtime.getRuntime().maxMemory();
         long heapSizeMB = heapSize / 1024 / 1024;
         Assert.assertTrue(heapSizeMB < 1020);

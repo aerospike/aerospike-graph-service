@@ -14,7 +14,7 @@ public final class Tokens {
     private Tokens() {
     }
 
-    //Path is relative to module, ie ./firefly-gremlin/
+    //Path is relative to module, ie ./aerospike-graph-gremlin/
     private static final Map<String, Path> INTEGRATION_TEST_CONFIGURATIONS = ImmutableMap.of(
             PackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-packed.properties"),
             PackedGraph.DATA_MODEL + "-sindex", Path.of("../conf/integration-test-settings-packed-sindex.properties"),

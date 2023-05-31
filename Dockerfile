@@ -59,17 +59,17 @@ ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
 # Build Firefly.
-RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script
-RUN mvn -pl firefly-gremlin dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile=/opt/classpath.txt && sed -i 's/root/home\/firefly/g' /opt/classpath.txt
+RUN mvn -pl aerospike-graph-gremlin dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile=/opt/classpath.txt && sed -i 's/root/home\/firefly/g' /opt/classpath.txt
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
-    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0-SNAPSHOT' ;  \
     fi
 
 # Remove source code.

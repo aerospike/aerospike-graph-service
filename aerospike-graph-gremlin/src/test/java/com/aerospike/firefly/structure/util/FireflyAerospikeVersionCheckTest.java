@@ -15,7 +15,7 @@ import static org.junit.Assert.fail;
 public class FireflyAerospikeVersionCheckTest {
     // This test should only be called with an earlier version of Aerospike in it's own workflow and is not included
     // in the standard test suite.
-    // mvn test -pl firefly-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+    // mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
 
     @Test
     public void testVersionCheckFails() {

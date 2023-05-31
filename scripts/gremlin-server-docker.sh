@@ -44,7 +44,7 @@ stop_gremlin_server() {
   fi
 ) <&0 &
 child_pid=$!
-CLASSPATH="/opt/gremlin-server/ext/firefly-gremlin/lib/*" gremlin.sh -e scripts/warmup.groovy 2>&1 > /tmp/warmup.log
+CLASSPATH="/opt/gremlin-server/ext/aerospike-graph-gremlin/lib/*" gremlin.sh -e scripts/warmup.groovy 2>&1 > /tmp/warmup.log
 touch /tmp/firefly-ready
 # Sit here until we get a signal at which point we go to stop_gremlin_server().
 until wait; do :; done

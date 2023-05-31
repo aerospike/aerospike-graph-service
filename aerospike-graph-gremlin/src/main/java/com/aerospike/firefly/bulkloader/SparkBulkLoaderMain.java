@@ -147,7 +147,7 @@ public class SparkBulkLoaderMain {
             conf.setMaster("local[*]");
         }
 
-        conf.setAppName("firefly-bulk-loader")
+        conf.setAppName("aerospike-graph-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
                 .set("spark.ui.enabled", "true")
                 .set("mapreduce.fileoutputcommitter.algorithm.version", "2");

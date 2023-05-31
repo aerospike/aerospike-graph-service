@@ -37,8 +37,8 @@
     </developers>
     <!-- firefly SUBMODULES (COMPILE ORDERED) -->
     <modules>
-        <module>firefly-gremlin</module>
-        <module>firefly-spark-bulk-loader</module>
+        <module>aerospike-graph-gremlin</module>
+        <module>aerospike-graph-bulk-loader</module>
         <module>firefly-generator</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->

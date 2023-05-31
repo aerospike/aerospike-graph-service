@@ -39,6 +39,7 @@ stop_gremlin_server() {
     echo "==== firefly-gremlin-server.yaml ===="
     python3 $CONF_DIR/firefly-graph-configure.py $CONF_DIR/firefly-graph.properties
     cat $CONF_DIR/firefly-gremlin-server.yaml
+    cp $CONF_DIR/firefly-graph.properties /opt/aerospike-firefly/conf/firefly-graph.properties
     gremlin-server.sh $CONF_DIR/firefly-gremlin-server.yaml
   fi
 ) <&0 &

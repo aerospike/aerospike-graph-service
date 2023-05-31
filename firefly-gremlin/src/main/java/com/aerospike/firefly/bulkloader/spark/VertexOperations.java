@@ -7,8 +7,6 @@ import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.sql.Dataset;
@@ -43,26 +41,28 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.DIRECTORY_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERTEX;
 
 public class VertexOperations implements Serializable {
     public static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);
     private static final Logger LOGGER = LoggerFactory.getLogger(VertexOperations.class);
-    private final CommandLine cmd;
-    private final Map<String, Object> config;
+    private final BulkLoaderConfigHelper config;
     public List<String> vertexPaths;
 
-    public VertexOperations(CommandLine cmd, Map<String, Object> config, List<String> vertexCSVFiles) {
-        this.cmd = Objects.requireNonNull(cmd);
+    public VertexOperations(final BulkLoaderConfigHelper config, final List<String> vertexCSVFiles) {
         this.config = Objects.requireNonNull(config);
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    public static String getVertexDirectory(Map<String, Object> configMap) {
-        return BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY, configMap);
+    public static String getVertexDirectory(final BulkLoaderConfigHelper config) {
+        return config.getOrDefault(VERTEX_DIRECTORY_KEY);
     }
 
-    public static boolean dryRunVertices(final Dataset<Row> vertices, Map<String, Object> config) {
-        final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
+    public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
+        final String nullValue = config.getOrDefault(NULL_VALUE);
         final List<Integer> failures = vertices.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             final AtomicInteger failureCount = new AtomicInteger(0);
             while (rowIterator.hasNext()) {
@@ -89,14 +89,14 @@ public class VertexOperations implements Serializable {
     private void writeVertices(final Dataset<Row> unionVertexDS) {
         unionVertexDS.foreachPartition( rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId());
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
-            try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
+            final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
+            try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("vertex-write-partitionid-"+ TaskContext.getPartitionId()));
                 ThreadFactory edgeThreadFactory =
                         new ThreadFactoryBuilder().setNameFormat("vertex-write-thread-for-partition-id-" + TaskContext.getPartitionId()).setDaemon(true).build();
                 final ScheduledExecutorService ses = new ScheduledThreadPoolExecutor(THREAD_POOL_BUFFER_SIZE, edgeThreadFactory);
 
-                int bufferSize = getVertexWriteBufferSize(config);
+                int bufferSize = getVertexWriteBufferSize();
                 LOGGER.info(String.format("vertex write buffer size %d", bufferSize));
 
                 Instant start = Instant.now();
@@ -134,9 +134,9 @@ public class VertexOperations implements Serializable {
 
     private void verifyVertices(final Dataset<Row> sampledVertexDatasets) {
         sampledVertexDatasets.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
+            final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
 
-            try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
+            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
@@ -193,14 +193,14 @@ public class VertexOperations implements Serializable {
     }
 
     public void verifySampleVerticesAfterWrite(Dataset<Row> sampledVertexDataset) {
-        if (cmd.hasOption("verifyvertex")) {
+        if (this.config.hasAction(VERIFY_VERTEX)) {
             sampledVertexDataset.sparkSession().sparkContext().setJobGroup("Verify Vertex", "Verify vertex task", true);
             verifyVertices(sampledVertexDataset);
         }
     }
 
     public void writeVerticesToDB(Dataset<Row> vertexDataSet) {
-        if (cmd.hasOption("writevertex")) {
+        if (this.config.hasAction(WRITE_VERTEX)) {
             final Instant startOfVertexWrite = Instant.now();
             vertexDataSet.sparkSession().sparkContext().setJobGroup("Vertex write", "Vertex write task", true);
             writeVertices(vertexDataSet);
@@ -211,8 +211,7 @@ public class VertexOperations implements Serializable {
 
     }
 
-    private int getVertexWriteBufferSize(Map<String, Object> conf) {
-        return Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER, conf).trim());
+    private int getVertexWriteBufferSize() {
+        return Integer.parseInt(this.config.getOrDefault(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER).trim());
     }
-
 }

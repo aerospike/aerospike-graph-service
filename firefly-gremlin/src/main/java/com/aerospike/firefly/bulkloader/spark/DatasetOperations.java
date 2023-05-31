@@ -3,7 +3,6 @@ package com.aerospike.firefly.bulkloader.spark;
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
 import joptsimple.internal.Strings;
-import org.apache.commons.cli.CommandLine;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -19,10 +18,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 import static org.apache.spark.sql.functions.lit;
@@ -111,11 +113,11 @@ public class DatasetOperations implements Serializable {
     /**
      * Extract dataframe storage level from configuration
      */
-    public static StorageLevel getDfStorageLevel(Map<String, Object> config) {
+    public static StorageLevel getDfStorageLevel(final BulkLoaderConfigHelper config) {
 
         StorageLevel storageLevel = StorageLevel.NONE();
-        if (Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING, config))) {
-            switch (BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE, config).toLowerCase()) {
+        if (Boolean.parseBoolean(config.getOrDefault(ENABLE_DATAFRAME_CACHING))) {
+            switch (config.getOrDefault(DATAFRAME_STORAGE_TYPE).toLowerCase()) {
                 case "memory_only":
                     storageLevel = StorageLevel.MEMORY_ONLY();
                     break;
@@ -135,25 +137,25 @@ public class DatasetOperations implements Serializable {
         return level.isValid() ? data.persist(level) : data;
     }
 
-    public static double getSamplingPercent(Map<String, Object> conf) {
-        return Double.parseDouble(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SAMPLING_PERCENTAGE, conf)) / 100;
+    public static double getSamplingPercent(final BulkLoaderConfigHelper config) {
+        return Double.parseDouble(config.getOrDefault(SAMPLING_PERCENTAGE)) / 100;
     }
 
-    public static void preflightCheck(final CommandLine cmd, final Dataset<Row> edgeDataSet, final Dataset<Row> vertexDataset, Map<String, Object> config){
-
-            if (cmd.hasOption("dryrun")) {
+    public static void preflightCheck(final Dataset<Row> edgeDataSet, final Dataset<Row> vertexDataset,
+                                      final BulkLoaderConfigHelper config) {
+            if (config.hasAction(DRY_RUN)) {
                 final boolean preflightVertexSuccess = VertexOperations.dryRunVertices(vertexDataset, config);
                 final boolean preflightEdgeSuccess = EdgeOperations.dryRunEdgeRows(edgeDataSet, config);
                 final String preflightEdgeFailed = "Detected invalid CSV data in EDGE pre-flight check.";
                 final String preflightVertexFailed = "Detected invalid CSV data in VERTEX pre-flight check.";
 
-                if(!preflightVertexSuccess) {
+                if (!preflightVertexSuccess) {
                     LOGGER.error(preflightVertexFailed);
                 }
-                if(!preflightEdgeSuccess) {
+                if (!preflightEdgeSuccess) {
                     LOGGER.error(preflightEdgeFailed);
                 }
-                if(!(preflightEdgeSuccess && preflightVertexSuccess)) {
+                if (!(preflightEdgeSuccess && preflightVertexSuccess)) {
                     throw new FireflyBulkLoaderPreflightException("Preflight checks failed, check logs for detail on which line number and file caused the failure.");
                 }
 

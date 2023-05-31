@@ -18,8 +18,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -68,6 +67,14 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.SUPERNODE;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_EDGE;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_EDGE;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
@@ -77,26 +84,24 @@ public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeOperations.class);
     public final List<String> edgePaths;
-    private final CommandLine cmd;
+    private final BulkLoaderConfigHelper config;
     public Set<Object> SUPERNODES = new HashSet<>();
-    private final Map<String, Object> config;
 
-    public EdgeOperations(CommandLine cmd, Map<String, Object> config, List<String> edgeCSVFiles) {
+    public EdgeOperations(final BulkLoaderConfigHelper config, final List<String> edgeCSVFiles) {
         this.config = Objects.requireNonNull(config);
-        this.cmd = Objects.requireNonNull(cmd);
         this.edgePaths = Objects.requireNonNull(edgeCSVFiles);
     }
 
-    public static String getEdgeDirectory(Map<String, Object> configMap) {
-        return BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY, configMap);
+    public static String getEdgeDirectory(final BulkLoaderConfigHelper config) {
+        return config.getOrDefault(EDGE_DIRECTORY_KEY);
     }
 
-    public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final Map<String, Object> config) {
+    public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
         final List<Integer> failures = edgeDataset.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));
-            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config);
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
+                    Boolean.parseBoolean(config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+            final String providedIdPropertyName = config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
+            final String nullValue = config.getOrDefault(NULL_VALUE);
             final AtomicInteger failureCount = new AtomicInteger(0);
             while (rowIterator.hasNext()) {
                 final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
@@ -116,7 +121,6 @@ public class EdgeOperations implements Serializable {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -124,11 +128,11 @@ public class EdgeOperations implements Serializable {
         persistedEdgeDS.foreachPartition(rowIterator -> {
             LOGGER.info("starting to write EdgeDataset in PartitionId: " + TaskContext.getPartitionId());
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));
-            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config);
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
+                    Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+            final String providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
+            final String nullValue = this.config.getOrDefault(NULL_VALUE);
 
-            try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
+            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 LOGGER.info(String.format("graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
@@ -137,7 +141,7 @@ public class EdgeOperations implements Serializable {
                         new ThreadFactoryBuilder().setNameFormat("Edge-write-thread-for-partition-id-" + TaskContext.getPartitionId()).setDaemon(true).build();
                 final ScheduledExecutorService ses = new ScheduledThreadPoolExecutor(THREAD_POOL_BUFFER_SIZE, edgeThreadFactory);
                 ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("edge-write-partitionid-" + TaskContext.getPartitionId()));
-                int bufferSize = getEdgeWriteBufferSize(config);
+                int bufferSize = getEdgeWriteBufferSize();
                 LOGGER.info(String.format("edge write buffer size %d", bufferSize));
 
                 Instant start = Instant.now();
@@ -192,14 +196,13 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-
     public void verifySampleEdgesAfterWrite(final Dataset<Row> edgeDatasetsSample) {
         edgeDatasetsSample.foreachPartition( rowIterator -> {
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, config));
-            final String providedIdPropertyName = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME, config);
-            final String nullValue = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE, config);
-            try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
+                    Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+            final String providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
+            final String nullValue = this.config.getOrDefault(NULL_VALUE);
+            try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 final GraphTraversalSource g = graph.traversal();
                 while (rowIterator.hasNext()) {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
@@ -255,11 +258,12 @@ public class EdgeOperations implements Serializable {
     }
 
     public void extractSupernodes(Dataset<Row> edgeDataset) {
-        boolean extract = cmd.hasOption("supernode") &&
+        final Configuration fireflyConfig = this.config.getFireflyConfig();
+        boolean extract = this.config.hasAction(SUPERNODE) &&
                 (Boolean.parseBoolean(
-                        ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, new MapConfiguration(config))) ||
+                        ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig)) ||
                         Boolean.parseBoolean(
-                                ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, new MapConfiguration(config))));
+                                ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, fireflyConfig)));
         if (extract) {
             edgeDataset.sparkSession().sparkContext()
                     .setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
@@ -281,7 +285,7 @@ public class EdgeOperations implements Serializable {
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
             // Get the supernode threshold from Firefly config.
-            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, new MapConfiguration(config)));
+            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, fireflyConfig));
             LOGGER.info("supernodeThreshold: " + supernodeThreshold);
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
@@ -305,8 +309,7 @@ public class EdgeOperations implements Serializable {
     }
 
     private void disableEdgeCacheForSuperNode() {
-        try (final FireflyGraph graph = FireflyGraph.open(new MapConfiguration(config))) {
-
+        try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
             for (final Object supernodeId : SUPERNODES) {
                 final AerospikeConnection db = graph.getBaseGraph();
                 final FireflyId vertexId = graph.getIdFactory().createId(supernodeId, FireflyVertex.class);
@@ -336,7 +339,7 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgeAfterWrite(Dataset<Row> sampledEdgeDataset) {
-        if (cmd.hasOption("verifyedge")) {
+        if (this.config.hasAction(VERIFY_EDGE)) {
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup("Verify Edges", "Verify Edges task", true);
             LOGGER.info("verifyedge is enabled, starting the edge verification write");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
@@ -345,7 +348,7 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdgeToDB(Dataset<Row> edgeDataSet) {
 
-        if (cmd.hasOption("writeedge")) {
+        if (this.config.hasAction(WRITE_EDGE)) {
             final Instant startWriteEdge = Instant.now();
             edgeDataSet.sparkSession().sparkContext().setJobGroup("Edges write",
                     "Edges write task", true);
@@ -356,7 +359,7 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    private int getEdgeWriteBufferSize(Map<String, Object> conf) {
-        return Integer.parseInt(BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.EDGE_WRITE_BUFFER, conf).trim());
+    private int getEdgeWriteBufferSize() {
+        return Integer.parseInt(this.config.getOrDefault(EDGE_WRITE_BUFFER).trim());
     }
 }

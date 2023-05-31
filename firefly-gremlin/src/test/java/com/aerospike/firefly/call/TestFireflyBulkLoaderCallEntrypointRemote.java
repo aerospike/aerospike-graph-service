@@ -12,12 +12,27 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
     private static final String HOST = "172.17.0.1";
     private static final int PORT = 8182;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
+    private static final Cluster CLUSTER = BUILDER.create();
 
     @Test
-    public void testRemoteEntrypoint() {
-        final Cluster cluster = BUILDER.create();
-        final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster));
-        Assert.assertEquals("Success", g.call("bulk-load").
-                with("config", "/opt/aerospike-firefly/etc/config.properties").next());
+    public void testRemoteEntryPoint() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            Assert.assertEquals("Success", g.call("bulk-load").
+                    with("config", "/opt/aerospike-firefly/etc/config.properties").next());
+        }
+    }
+
+    @Test
+    public void testRemoteEntryPointNoConfig() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            Assert.assertEquals("Success", g.call("bulk-load")
+                    .with("vertex_directory", "/opt/aerospike-firefly/etc/sampledata/vertices")
+                    .with("edge_directory", "/opt/aerospike-firefly/etc/sampledata/edges")
+                    .next());
+        }
     }
 }

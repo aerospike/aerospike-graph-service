@@ -136,7 +136,7 @@ public class IdentityGenerator implements Runnable {
         numberOfRecordsPerFile = cmd.hasOption("r") ? Integer.parseInt(cmd.getOptionValue("r")) : numberOfRecordsPerFile;
         variance = cmd.hasOption("v") ? Integer.parseInt(cmd.getOptionValue("v")) : variance;
         if (ENV.equals("aws")) {
-            bucket = cmd.getOptionValue("b");
+            bucket = cmd.getOptionValue("md");
             String accessKey = cmd.getOptionValue("a");
             String secretKey = cmd.getOptionValue("s");
             final AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);

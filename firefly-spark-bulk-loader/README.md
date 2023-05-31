@@ -6,8 +6,20 @@ the [Gremlin data csv format](https://docs.aws.amazon.com/neptune/latest/usergui
 
 ### Requirements
 
+There are two ways of running the bulk loader. The basic method is by invoking the `call` API via a Gremlin Traversal
+to an active instance of Firefly. The more advanced method is by running `spark-submit` to a configured Spark cluster.
+
+#### Call API
+
+* A running instance of Firefly
+* CSV files containing vertices and edges to be loaded
+  in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
+    - These can live locally or in an AWS S3 bucket
+
+#### Spark Submit
+
 * Hardware with minimum 8GB of RAM
-* Locally running Spark cluster
+* A running Spark cluster
 * Java 11+ installed (for building & running locally)
 * CSV files containing vertices and edges to be loaded
   in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
@@ -17,30 +29,78 @@ the [Gremlin data csv format](https://docs.aws.amazon.com/neptune/latest/usergui
 
 ### Configurations
 
+Running the bulk loader comes with configurable options. These configurations can be accessed and set in one of three ways:
+
+1. Via a `.properties` file. The same configurations found in 2 and 3 as 1 will override the value in the `.properties` file.
+2. Call API only: Traversal `.with("configuration_key", configuration_value)` steps appended
+3. Command line arguments in the `spark-submit` 
+
+##### Using a `.properties` file
+
 The Firefly Spark Bulk Loader uses the data models within Firefly to accurately load data into Aerospike, so its
 configuration needs to be based off an identical `.properties` file to the one that is used to launch Firefly that is
-expected to interact with the loaded data.
-Additional Bulk Loader specific configurations should be added to it to create the `.properties` config for it. The
-following configuration options are available:
+expected to interact with the loaded data. In L2 mode, this configuration file is optional and by default will use the 
+running instance's if one is not provided.
 
-* `edge_directory` - `String`: The path to where the CSV files containing the edges are stored
-    - Each type of edge (i.e. the same label and some properties) **must** be in its own sub-directory
-      within `edge_directory`.
-* `vertex_directory` - `String`: The path to where the CSV files containing the vertices are stored
-    - Each type of vertex (i.e. the same label and some properties) **must** also be in its own sub-directory
-      within `vertex_directory`.
-* The bulk loader loads different edges and vertices from the sub-directories within the parent `edge_directory`
-  and `vertex_directory` by scanning each file and applies a `union` transformation to create a bigger `edge`
-  and `vertex` dataset
-* `keep_provided_edge_id_as_property` - `Boolean`: Store the provided edge ID as a property if not to be used
-* `sampling_percentage` - Indicates how much of the input data to be sampled for verifying if the bulk load was
-  successful (default is 0.1%).
-* `vertex_write_buffer` - (default is 10000) Decides how many vertices should be processed i.e. written to DB before accepting new records in each partition. Once we reach this point, we block until prior tasks are successfully completed.  
-* `edge_write_buffer` - (default is 10000) Decides how many edges should be processed i.e. written to DB before accepting new records in each partition. Once we reach this point, we block until prior tasks are successfully completed.  
-   
+Additional Bulk Loader specific configurations should be added to it to create the `.properties` config for it. 
+
+##### Configuration Options
+
+The following configuration options are available:
+
+| Name                              | Flag | Optional                              | Default                                                      | Description                                                  |
+| --------------------------------- | ---- | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| config                            | -c   | Yes if Call API \| No if Spark Submit | Call API: `.properties` of the instance the Call API is made to \| Spark Submit: N/A | Path to config. Local: Absolute path. AWS S3: Path after bucket name. |
+| user                              | -u   | Yes                                   | Local: None required \| AWS: Uses default AWS ecosystem credentials | Username/ID or credential for accessing cloud storage.       |
+| passkey                           | -p   | Yes                                   | Local: None required \| AWS: Uses default AWS ecosystem credentials | Password/Key/Secret or credential for accessing cloud storage. |
+| master_directory                  | -md  | Yes if local \| No if CSVs on AWS S3  | N/A                                                          | AWS S3: Bucket name.                                         |
+| vertex_directory                  | -vd  | No                                    | N/A                                                          | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket. |
+| edge_directory                    | -ed  | No                                    | N/A                                                          | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket. |
+| file_system                       | -fs  | Yes                                   | "local"                                                      | Storage system of CSV files. "local" or "s3".                |
+| keep_provided_edge_id_as_property | -ki  | Yes                                   | false                                                        | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
+| provided_edge_id_property_name    | -ep  | Yes                                   | "~providedId"                                                | Property key/name of provided ID when stored as a Property.  |
+| null_value                        | -nv  | Yes                                   | "null"                                                       | The String value when found in CSV which is parsed to a literal null. |
+| sampling_percentage               | -sp  | Yes                                   | 1                                                            | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete. |
+| spark_log_level                   | -lv  | Yes                                   | "INFO"                                                       | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
+| vertex_write_buffer               | -vb  | Yes                                   | 10000                                                        | Write buffer size for Vertex loading.                        |
+| edge_write_buffer                 | -eb  | Yes                                   | 10000                                                        | Write buffer size for Edge loading.                          |
+
+#### Example Usage
+
+When using the Call API, simply enter the configuration name as the key and the setting as the value in the `with` step. When using Spark Submit, simply specify the flag and then the value.
+
+##### Call API
+
+```java
+g.call("bulk-load").with("file_system", "s3").with("master_directory", "myBulkLoadBucket").with("vertex_directory", "vertices").with("edge_directory", "edges").iterate();
+```
+
+##### Spark Submit
+
+```
+spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex -supernode
+```
+
+##### config.properties
+
+```
+aerospike.client.host = localhost
+aerospike.client.port = 3000
+aerospike.client.namespace = test
+aerospike.graph.data.model = packed
+
+edge_directory = src/test/resources/sampledata/edges
+vertex_directory = src/test/resources/sampledata/vertices
+```
+
+### Internal-Use Only Configurations
+
 ### Command line params
 
-##### params
+##### Actions
+
+These are the steps to run when bulk loading. The Call API abstracts this away from the user and we handle passing these to the user. When running via Spark Submit we provide the customer the required combination of actions. 
+
 | execution order | param name   |                                       description                                        |
 |-----------------|--------------|:----------------------------------------------------------------------------------------:|
 | 1               | dryrun       |                                     preflight check                                      |
@@ -50,13 +110,20 @@ following configuration options are available:
 | 5               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
 | 6               | verifyedge   |                        verify sampled edges after writing into db                        |
 
+##### Configuration Settings
 
-##### sample commands (for single node L2 with 32 GB memory)
- | description          |                                                                                                                                commnad                                                                                                                                |
- |----------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
- | run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex |
- | run all edges task   |    spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun     |
- 
+| Name                     | Flag | Optional | Default     | Description                                                  |
+| ------------------------ | ---- | -------- | ----------- | ------------------------------------------------------------ |
+| enable_dataframe_caching | -dc  | Yes      | false       | Dataframe caching state.                                     |
+| dataframe_storage_type   | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
+
+##### Sample Commands for Spark Submit (32GB Memory)
+
+| description          |                           commnad                            |
+| -------------------- | :----------------------------------------------------------: |
+| run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex -supernode |
+| run all edges task   | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun -supernode |
+
 ##### sample config file
  ```
 aerospike.client.host = 172.31.25.147,172.31.19.243,172.31.30.232
@@ -68,11 +135,9 @@ aerospike.graph.data.model = packed
 vertex_directory = /home/ubuntu/vertices
 edge_directory = /home/ubuntu/edges
 enable_dataframe_caching = true
-dataframe_storage_type = memory_and_disk
+dataframe_storage_type = memory_and_disk  
  ```
-<br />  
-
-#### Setup
+#### Setup For Local Spark Submit Cluster
 
 1. [Download the latest version of Apache Spark](https://spark.apache.org/downloads.html) and extract the files
    somewhere on your local

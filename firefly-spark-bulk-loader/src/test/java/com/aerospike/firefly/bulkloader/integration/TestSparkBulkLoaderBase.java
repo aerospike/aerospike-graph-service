@@ -68,7 +68,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracy() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -76,7 +76,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDefault() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
 
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
@@ -86,7 +86,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyName() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfig()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getKeepIdAsPropertyTrueConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -97,7 +97,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDataAccuracyArtificialSupernodes() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfigArtificialSupernode()}, DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -106,7 +106,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testArtificialSupernodes() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfigArtificialSupernode()},DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfigArtificialSupernode()},DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         final Property providedId = e.property(PROVIDED_ID_PROPERTY_NAME);
@@ -116,7 +116,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testProvidedEdgeIdPropertyNameArtificialSupernodes() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getKeepIdAsPropertyTrueConfigArtificialSupernode()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Edge e = g.V().has("name", "Simon").outE("drives").next();
         Property providedId = e.property("~providedId");
@@ -128,7 +128,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testVertexIds() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
         final GraphTraversalSource g = graph.traversal();
         final Set<Object> expectedIds = Set.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, "lyndon", "grant", "simon", "joe", "GR86", "f150");
         final Set<Object> stringIds = Set.of("1", "2", "3", "4", "5", "6", "7");
@@ -149,7 +149,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckVertex() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
         } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
@@ -163,7 +163,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckEdge() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getPreflightCheckEdge()},DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckEdge()},DEFAULT_PARAMS));
         } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
@@ -175,7 +175,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testNoIdEdgesKeepAsProperty() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNoIdEdges()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNoIdEdges()}, DEFAULT_PARAMS));
         testEdges();
         // There's no ~id to keep as a property so it shouldn't be returned.
         final GraphTraversalSource g = graph.traversal();
@@ -184,7 +184,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testNoIdEdgesKeepAsPropertyOff() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNoIdEdgesKeepIdAsPropertyOff()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNoIdEdgesKeepIdAsPropertyOff()}, DEFAULT_PARAMS));
         testEdges();
         final GraphTraversalSource g = graph.traversal();
         Assert.assertFalse(g.E().has("testIdName").hasNext());
@@ -195,7 +195,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testDuplicateVertexId() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
         } catch (final Exception e) {
             // TODO GRAPH-485: Update this to reflect the expected exception when pre-flight duplicate Vertex ID check
             //                 is implemented. May potentially keep this as is for incremental bulk loading.
@@ -210,7 +210,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateEdgeId() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getDuplicateEdgeId()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId()}, DEFAULT_PARAMS));
         testVertices();
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
@@ -221,7 +221,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testNonExistentVertexId() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-m", "local", "-c", getNonExistentEdgeVertexId()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNonExistentEdgeVertexId()}, DEFAULT_PARAMS));
         } catch (final Exception e) {
             // TODO GRAPH-501: Update this to reflect the expected exception when pre-flight duplicate Vertex ID exists
             //                 check is implemented.
@@ -236,7 +236,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-m", "local", "-c", getS3FileSystem(), "-b", "gha-ci-firefly-bulkloader", "-f", "s3", "-u",
+                new String[]{"-local", "-c", getS3FileSystem(), "-md", "gha-ci-firefly-bulkloader", "-fs", "s3", "-u",
                         System.getenv("AWS_ACCESS_KEY_ID"), "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
                 DEFAULT_PARAMS));
         testEdges();

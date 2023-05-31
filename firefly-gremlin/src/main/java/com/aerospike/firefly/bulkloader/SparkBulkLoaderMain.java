@@ -24,6 +24,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
 
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.FILE_SYSTEM;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.bulkloader.util.CommandLineParser.LOCAL_MODE;
+
 public class SparkBulkLoaderMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
     private static final ProgressBar progressBar = new ProgressBar();
@@ -38,16 +42,17 @@ public class SparkBulkLoaderMain {
             String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
             Objects.requireNonNull(configPath);
             ObjectLoader loader = buildConfiguration(cmd);
-            Map<String, Object> config = loader.loadConfiguration(configPath);
-            LOGGER.info("config: " + config.toString());
+        	Map<String, Object> fileConfig = loader.loadConfiguration(configPath);
+        	LOGGER.info("config: " + fileConfig.toString());
+        	final BulkLoaderConfigHelper config = new BulkLoaderConfigHelper(fileConfig, cmd);
             final SparkSession spark = buildSparkSession(config, cmd);
 
-            initializeProgressBar(config);
+        	initializeProgressBar(fileConfig);
 
             // Vertex processing
             VertexOperations vo = null;
             try {
-                vo = new VertexOperations(cmd, config, loader.getCsvPaths(VertexOperations.getVertexDirectory(config)));
+            	vo = new VertexOperations(config, loader.getCsvPaths(VertexOperations.getVertexDirectory(config)));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -55,7 +60,7 @@ public class SparkBulkLoaderMain {
                     DatasetOperations.getDfStorageLevel(config));
             EdgeOperations edges = null;
             try {
-                edges = new EdgeOperations(cmd, config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));
+            	edges = new EdgeOperations(config, loader.getCsvPaths(EdgeOperations.getEdgeDirectory(config)));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -63,7 +68,7 @@ public class SparkBulkLoaderMain {
                     loadDataset(spark, edges.edgePaths, EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
             // Preflight check
-            DatasetOperations.preflightCheck(cmd, edgeDataset, vertexDataset, config);
+        	DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
 
             // Vertex processing
             progressBar.setVertexLoadStart();
@@ -106,10 +111,10 @@ public class SparkBulkLoaderMain {
 
     public static ObjectLoader buildConfiguration(final CommandLine cmd) {
         final String env = cmd.hasOption("e") ? cmd.getOptionValue("e") : "";
-        final String fileSystem = cmd.hasOption("f") ? cmd.getOptionValue("f") : "";
+        final String fileSystem = cmd.hasOption("fs") ? cmd.getOptionValue("fs") : "";
         final ObjectLoader loader;
         if (env.equalsIgnoreCase("aws")) {
-            final String s3BucketName = cmd.getOptionValue("b");
+            final String s3BucketName = cmd.getOptionValue("md");
             if (s3BucketName == null) {
                 throw new RuntimeException("Failed to start bulk loader due to no specified S3 Bucket Name");
             }
@@ -119,7 +124,7 @@ public class SparkBulkLoaderMain {
         } else {
             final ObjectLoader configLoader = FileLoader.getInstance();
             if (fileSystem.equalsIgnoreCase("s3")) {
-                final String s3BucketName = cmd.getOptionValue("b");
+                final String s3BucketName = cmd.getOptionValue("md");
                 if (s3BucketName == null) {
                     throw new RuntimeException("Failed to start bulk loader due to no specified S3 Bucket Name");
                 }
@@ -134,13 +139,13 @@ public class SparkBulkLoaderMain {
         return loader;
     }
 
-    private static SparkSession buildSparkSession(final Map<String, Object> config, final CommandLine cmd) {
+    private static SparkSession buildSparkSession(final BulkLoaderConfigHelper config, final CommandLine cmd) {
         Objects.requireNonNull(config);
         SparkConf conf = new SparkConf();
-        final String mode = cmd.hasOption("m") ? cmd.getOptionValue("m") : "cluster";
-        final String fileSystem = cmd.hasOption("f") ? cmd.getOptionValue("f") : "";
-        if (mode.equals("local"))
+        final String fileSystem = config.getOrDefault(FILE_SYSTEM);
+        if (cmd.hasOption(LOCAL_MODE)) {
             conf.setMaster("local[*]");
+        }
 
         conf.setAppName("firefly-bulk-loader")
                 .set("spark.driver.allowMultipleContexts", "false")
@@ -158,9 +163,9 @@ public class SparkBulkLoaderMain {
             }
         }
         final SparkSession spark = builder.getOrCreate();
-        final String SPARK_LOG_LEVEL = BulkLoaderConfigHelper.getOrDefault(BulkLoaderConfigHelper.SPARK_LOG_LEVEL, config).toUpperCase();
+        final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
         // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
-        spark.sparkContext().setLogLevel(SPARK_LOG_LEVEL);
+        spark.sparkContext().setLogLevel(logLevel);
         return spark;
     }
 

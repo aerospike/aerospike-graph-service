@@ -15,7 +15,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -190,7 +189,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(g.E().has("testIdName").hasNext());
     }
 
-    @Ignore
+
     @Test
     public void testDuplicateVertexId() {
         boolean success = true;
@@ -200,10 +199,8 @@ public abstract class TestSparkBulkLoaderBase {
             // TODO GRAPH-485: Update this to reflect the expected exception when pre-flight duplicate Vertex ID check
             //                 is implemented. May potentially keep this as is for incremental bulk loading.
             success = false;
-            Assert.assertTrue(e instanceof SparkException);
-            final Exception cause = (Exception) e.getCause();
-            Assert.assertTrue(cause instanceof RuntimeException);
-            Assert.assertEquals(cause.getMessage(), "Error occurred while writing vertices, see logs for more details.");
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(e.getMessage(), "Preflight checks failed, check logs for detail on which line number and file caused the failure.");
         }
         Assert.assertFalse(success);
     }

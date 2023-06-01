@@ -144,8 +144,8 @@ public class DatasetOperations implements Serializable {
     public static void preflightCheck(final Dataset<Row> edgeDataSet, final Dataset<Row> vertexDataset,
                                       final BulkLoaderConfigHelper config) {
             if (config.hasAction(DRY_RUN)) {
-                final boolean preflightVertexSuccess = VertexOperations.dryRunVertices(vertexDataset, config);
-                final boolean preflightEdgeSuccess = EdgeOperations.dryRunEdgeRows(edgeDataSet, config);
+                final boolean preflightVertexSuccess = Validations.dryRunVertices(vertexDataset, config);
+                final boolean preflightEdgeSuccess = Validations.dryRunEdgeRows(edgeDataSet, config);
                 final String preflightEdgeFailed = "Detected invalid CSV data in EDGE pre-flight check.";
                 final String preflightVertexFailed = "Detected invalid CSV data in VERTEX pre-flight check.";
 
@@ -156,6 +156,7 @@ public class DatasetOperations implements Serializable {
                     LOGGER.error(preflightEdgeFailed);
                 }
                 if (!(preflightEdgeSuccess && preflightVertexSuccess)) {
+                    LOGGER.error("throwing error!");
                     throw new FireflyBulkLoaderPreflightException("Preflight checks failed, check logs for detail on which line number and file caused the failure.");
                 }
 

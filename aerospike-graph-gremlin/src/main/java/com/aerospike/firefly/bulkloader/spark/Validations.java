@@ -104,7 +104,7 @@ public class Validations {
         Dataset<Row> dsWithCount = vertices.withColumn(fileAndLineColumn, concat_ws(":", col(FILENAME_COLUMN), col(LINENUMBER_COLUMN).cast("string"))) //create a new column with filename and line number to hint where error might happen
                 .select(idColumn, fileAndLineColumn)
                 .groupBy(idColumn).agg(collect_set(fileAndLineColumn).alias(fileAndLineColumn), count(idColumn).alias(countColumn));
-        Dataset<Row> duplicateID = dsWithCount.filter(col(countColumn).gt(1));
+        final Dataset<Row> duplicateID = dsWithCount.filter(col(countColumn).gt(1));
 
         boolean valid = duplicateID.isEmpty();
         if(!valid){

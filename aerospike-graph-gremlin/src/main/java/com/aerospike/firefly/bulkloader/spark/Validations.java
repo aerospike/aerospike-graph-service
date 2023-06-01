@@ -31,7 +31,6 @@ import static org.apache.spark.sql.functions.concat_ws;
 import static org.apache.spark.sql.functions.count;
 
 public class Validations {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(Validations.class);
 
     private static boolean dryRunEdgeCreation(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {

@@ -189,7 +189,6 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(g.E().has("testIdName").hasNext());
     }
 
-
     @Test
     public void testDuplicateVertexId() {
         boolean success = true;

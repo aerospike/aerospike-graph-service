@@ -65,6 +65,7 @@ public final class ConfigurationHelper {
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
+        public static final String GRAPH_ID = "aerospike.graph.id";
 
 
         // Semi internal semi external configs
@@ -86,7 +87,6 @@ public final class ConfigurationHelper {
         // Internal configs
         public static final String GRAPH_VARIABLES_RECORD = "GRAPH_VARIABLES_RECORD";
         public static final String GRAPH_VARIABLES_MAP = "GRAPH_VARIABLES_MAP";
-        public static final String GRAPH_ID = "GRAPH_ID";
         public static final String VERTEX_PROPERTY_NAME_TO_ID = "VERTEX_PROPERTY_NAME_TO_ID";
         public static final String VERTEX_PROPERTY_NAME_TO_VALUE = "VERTEX_PROPERTY_NAME_TO_VALUE";
         public static final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT = "VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT";

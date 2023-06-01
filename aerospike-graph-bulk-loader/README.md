@@ -48,22 +48,22 @@ Additional Bulk Loader specific configurations should be added to it to create t
 
 The following configuration options are available:
 
-| Name                              | Flag | Optional                              | Default                                                      | Description                                                  |
-| --------------------------------- | ---- | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| config                            | -c   | Yes if Call API \| No if Spark Submit | Call API: `.properties` of the instance the Call API is made to \| Spark Submit: N/A | Path to config. Local: Absolute path. AWS S3: Path after bucket name. |
-| user                              | -u   | Yes                                   | Local: None required \| AWS: Uses default AWS ecosystem credentials | Username/ID or credential for accessing cloud storage.       |
-| passkey                           | -p   | Yes                                   | Local: None required \| AWS: Uses default AWS ecosystem credentials | Password/Key/Secret or credential for accessing cloud storage. |
-| master_directory                  | -md  | Yes if local \| No if CSVs on AWS S3  | N/A                                                          | AWS S3: Bucket name.                                         |
-| vertex_directory                  | -vd  | No                                    | N/A                                                          | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket. |
-| edge_directory                    | -ed  | No                                    | N/A                                                          | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket. |
-| file_system                       | -fs  | Yes                                   | "local"                                                      | Storage system of CSV files. "local" or "s3".                |
-| keep_provided_edge_id_as_property | -ki  | Yes                                   | false                                                        | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
-| provided_edge_id_property_name    | -ep  | Yes                                   | "~providedId"                                                | Property key/name of provided ID when stored as a Property.  |
-| null_value                        | -nv  | Yes                                   | "null"                                                       | The String value when found in CSV which is parsed to a literal null. |
-| sampling_percentage               | -sp  | Yes                                   | 1                                                            | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete. |
-| spark_log_level                   | -lv  | Yes                                   | "INFO"                                                       | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
-| vertex_write_buffer               | -vb  | Yes                                   | 10000                                                        | Write buffer size for Vertex loading.                        |
-| edge_write_buffer                 | -eb  | Yes                                   | 10000                                                        | Write buffer size for Edge loading.                          |
+| Name                                                    | Flag | Optional                        | Default                              | Description                                                                                                    |
+|---------------------------------------------------------| ---- |---------------------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| config                                                  | -c   | Yes if Call API \               | No if Spark Submit                   | Call API: `.properties` of the instance the Call API is made to \                                              | Spark Submit: N/A | Path to config. Local: Absolute path. AWS S3: Path after bucket name. |
+| user                                                    | -u   | Yes                             | Local: None required \               | AWS: Uses default AWS ecosystem credentials                                                                    | Username/ID or credential for accessing cloud storage.       |
+| passkey                                                 | -p   | Yes                             | Local: None required \               | AWS: Uses default AWS ecosystem credentials                                                                    | Password/Key/Secret or credential for accessing cloud storage. |
+| aerospike.graphloader.remote-storage-location           | -md  | Yes if local \                  | No if CSVs on AWS S3                 | N/A                                                                                                            | AWS S3: Bucket name.                                         |
+| aerospike.graphloader.vertices                          | -vd  | No                              | N/A                                  | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket.                    |
+| aerospike.graphloader.edges                             | -ed  | No                              | N/A                                  | Local: Absolute path to directory containing Vertex CSVs. AWS S3: Directory name in bucket.                    |
+| aerospike.graphloader.file-system                       | -fs  | Yes                             | "local"                              | Storage system of CSV files. "local" or "s3".                                                                  |
+| aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                             | false                                | Keep provided ~id value in Edge CSVs as a Property on the Edge.                                                |
+| aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                             | "~providedId"                        | Property key/name of provided ID when stored as a Property.                                                    |
+| aerospike.graphloader.null-value                        | -nv  | Yes                             | "null"                               | The String value when found in CSV which is parsed to a literal null.                                          |
+| aerospike.graphloader.sampling-percentage               | -sp  | Yes                             | 1                                    | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete.                 |
+| aerospike.graphloader.spark-log-level                   | -lv  | Yes                             | "INFO"                               | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
+| aerospike.graphloader.vertex-write-buffer               | -vb  | Yes                             | 10000                                | Write buffer size for Vertex loading.                                                                          |
+| aerospike.graphloader.edge-write-buffer                 | -eb  | Yes                             | 10000                                | Write buffer size for Edge loading.                                                                            |
 
 #### Example Usage
 
@@ -72,7 +72,7 @@ When using the Call API, simply enter the configuration name as the key and the 
 ##### Call API
 
 ```java
-g.call("bulk-load").with("file_system", "s3").with("master_directory", "myBulkLoadBucket").with("vertex_directory", "vertices").with("edge_directory", "edges").iterate();
+g.call("bulk-load").with("aerospike.graphloader.file-system", "s3").with("aerospike.graphloader.remote-storage-location", "myBulkLoadBucket").with("aerospike.graphloader.vertices", "vertices").with("aerospike.graphloader.edges", "edges").iterate();
 ```
 
 ##### Spark Submit
@@ -89,8 +89,8 @@ aerospike.client.port = 3000
 aerospike.client.namespace = test
 aerospike.graph.data.model = packed
 
-edge_directory = src/test/resources/sampledata/edges
-vertex_directory = src/test/resources/sampledata/vertices
+aerospike.graphloader.edges = src/test/resources/sampledata/edges
+aerospike.graphloader.vertices = src/test/resources/sampledata/vertices
 ```
 
 ### Internal-Use Only Configurations
@@ -112,18 +112,17 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 
 ##### Configuration Settings
 
-| Name                     | Flag | Optional | Default     | Description                                                  |
-| ------------------------ | ---- | -------- | ----------- | ------------------------------------------------------------ |
-| enable_dataframe_caching | -dc  | Yes      | false       | Dataframe caching state.                                     |
-| dataframe_storage_type   | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
+| Name                                                | Flag | Optional | Default     | Description                                                  |
+|-----------------------------------------------------| ---- | -------- | ----------- | ------------------------------------------------------------ |
+| aerospike.graphloader.dataframe-caching      | -dc  | Yes      | false       | Dataframe caching state.                                     |
+| aerospike.graphloader.dataframe-storage-type | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
 
-##### Sample Commands for Spark Submit (32GB Memory)
-
-| description          |                           commnad                            |
-| -------------------- | :----------------------------------------------------------: |
-| run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex -supernode |
-| run all edges task   | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun -supernode |
-
+##### sample commands (for single node L2 with 32 GB memory)
+ | description          | commnad                                                                                                                                                                                                                                                         |
+ |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+ | run all vetices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex |
+ | run all edges task   | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun      |
+ 
 ##### sample config file
  ```
 aerospike.client.host = 172.31.25.147,172.31.19.243,172.31.30.232
@@ -132,10 +131,10 @@ aerospike.client.namespace = test
 aerospike.client.timeout = 70000
 aerospike.graph.data.model = packed
 
-vertex_directory = /home/ubuntu/vertices
-edge_directory = /home/ubuntu/edges
-enable_dataframe_caching = true
-dataframe_storage_type = memory_and_disk  
+aerospike.graphloader.vertices = /home/ubuntu/vertices
+aerospike.graphloader.edges = /home/ubuntu/edges
+aerospike.graphloader.dataframe-caching = true
+aerospike.graphloader.dataframe-storage-type = memory_and_disk  
  ```
 #### Setup For Local Spark Submit Cluster
 

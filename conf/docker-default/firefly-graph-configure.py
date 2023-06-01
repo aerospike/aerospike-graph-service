@@ -9,14 +9,16 @@ if "AEROSPIKE_HOST" not in os.environ:
     err = "Error: No AEROSPIKE_HOST was provided."
     print(err)
     raise Exception(err)
-aerospike_host = os.environ.get("AEROSPIKE_HOST")
-aerospike_port = os.environ.get("AEROSPIKE_PORT", default_aerospike_port)
-aerospike_namespace = os.environ.get("AEROSPIKE_NAMESPACE", default_aerospike_namespace)
-firefly_data_model = os.environ.get("FIREFLY_DATA_MODEL", default_firefly_data_model)
+aerospike_host = os.environ.get("aerospike.client.host")
+aerospike_port = os.environ.get("aerospike.client.port", default_aerospike_port)
+aerospike_namespace = os.environ.get("aerospike.client.namespace", default_aerospike_namespace)
+firefly_data_model = os.environ.get("aerospike.graph.data.model", default_firefly_data_model)
+
+print("port " + str(aerospike_port))
 
 # Environment variable could be set to empty string.
 if aerospike_host == "":
-    err = "Error: No AEROSPIKE_HOST was provided."
+    err = "Error: No aerospike.client.host was provided."
     print(err)
     raise Exception(err)
 if aerospike_port == "":

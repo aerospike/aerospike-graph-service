@@ -43,7 +43,7 @@ public class SparkBulkLoaderMain {
             Objects.requireNonNull(configPath);
             ObjectLoader loader = buildConfiguration(cmd);
         	Map<String, Object> fileConfig = loader.loadConfiguration(configPath);
-        	LOGGER.info("config: " + fileConfig.toString());
+        	LOGGER.info("aerospike.graphloader.config: " + fileConfig.toString());
         	final BulkLoaderConfigHelper config = new BulkLoaderConfigHelper(fileConfig, cmd);
             final SparkSession spark = buildSparkSession(config, cmd);
 
@@ -95,6 +95,7 @@ public class SparkBulkLoaderMain {
             spark.stop();
         } finally {
             progressBarTimer.cancel();
+            progressBar.close();
         }
     }
 

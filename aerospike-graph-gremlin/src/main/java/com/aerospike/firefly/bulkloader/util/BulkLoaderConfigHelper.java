@@ -13,28 +13,28 @@ import java.util.Map;
 
 public class BulkLoaderConfigHelper implements Serializable {
     // Master directory for bulk loading job
-    public static final String MASTER_DIRECTORY = "master_directory";
+    public static final String MASTER_DIRECTORY = "aerospike.graphloader.remote-storage-location";
     // Directory containing the Vertex CSV files.
-    public static final String VERTEX_DIRECTORY_KEY = "vertex_directory";
+    public static final String VERTEX_DIRECTORY_KEY = "aerospike.graphloader.vertices";
     // Directory containing the Edge CSV files.
-    public static final String EDGE_DIRECTORY_KEY = "edge_directory";
+    public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
     // File system used for storing CSVs.
-    public static final String FILE_SYSTEM = "file_system";
+    public static final String FILE_SYSTEM = "aerospike.graphloader.file-system";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
-    public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "keep_provided_edge_id_as_property";
+    public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "aerospike.graphloader.keep-provided-edge-id-as-property";
     // The key of the property to store the provided IDs for Edges in.
-    public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "provided_edge_id_property_name";
+    public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "aerospike.graphloader.provided-edge-id-property-name";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
-    public static final String SAMPLING_PERCENTAGE = "sampling_percentage";
+    public static final String SAMPLING_PERCENTAGE = "aerospike.graphloader.sampling-percentage";
     // Flag to enable/disable to caching of dataframe
-    public static final String ENABLE_DATAFRAME_CACHING = "enable_dataframe_caching";
+    public static final String ENABLE_DATAFRAME_CACHING = "aerospike.graphloader.dataframe-caching";
     // Storage type for Dataframe persist operation
-    public static final String DATAFRAME_STORAGE_TYPE = "dataframe_storage_type";
-    public static final String SPARK_LOG_LEVEL = "spark_log_level";
+    public static final String DATAFRAME_STORAGE_TYPE = "aerospike.graphloader.dataframe-storage-type";
+    public static final String SPARK_LOG_LEVEL = "aerospike.graphloader.spark-log-level";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
-    public static final String NULL_VALUE = "null_value";
-    public static final String VERTEX_WRITE_BUFFER = "vertex_write_buffer";
-    public static final String EDGE_WRITE_BUFFER = "edge_write_buffer";
+    public static final String NULL_VALUE = "aerospike.graphloader.null-value";
+    public static final String VERTEX_WRITE_BUFFER = "aerospike.graphloader.vertex-write-buffer";
+    public static final String EDGE_WRITE_BUFFER = "aerospike.graphloader.edge-write-buffer";
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
             Map.entry(MASTER_DIRECTORY, "md"),

@@ -41,14 +41,13 @@ public class CommandLineParser {
         // CommandLine ONLY configurations
         final Option modeOption = new Option(LOCAL_MODE, "Flag to indicate job is running from IDE/JVM");
         options.addOption(modeOption);
-        final Option pathOption = new Option("c", "config", true, "Path to config. Local: Absolute path. AWS S3: Full path after bucket name.");
+        final Option pathOption = new Option("c", "aerospike.graphloader.config", true, "Path to config. Local: Absolute path. AWS S3: Full path after bucket name.");
         options.addOption(pathOption);
-        final Option envOption = new Option("e", "env", true, "Job environment. Optional argument - Default: 'local'. 'aws' when running job in cluster mode in AWS.");
+        final Option envOption = new Option("e", "aerospike.graphloader.env", true, "Job environment. Optional argument - Default: 'local'. 'aws' when running job in cluster mode in AWS.");
         options.addOption(envOption);
-        final Option usernameOption = new Option("u", "user", true, "Username/ID credential for cloud storage. Optional if local.");
+        final Option usernameOption = new Option("u", "aerospike.graphloader.remote-user", true, "Username/ID credential for cloud storage. Optional if local.");
         options.addOption(usernameOption);
-        final Option passKeyOption = new Option("p", "passkey", true, "Password/Key/Secret credential for cloud storage. Optional if local");
-        options.addOption(passKeyOption);
+        final Option passKeyOption = new Option("p", "aerospike.graphloader.remote-passkey", true, "Password/Key/Secret credential for cloud storage. Optional if local");        options.addOption(passKeyOption);
 
         // Configurations shared with config file
         final Option bucketOption = new Option("md", MASTER_DIRECTORY, true, "Top level container name when using cloud storage. Optional if local. AWS S3: Bucket name.");

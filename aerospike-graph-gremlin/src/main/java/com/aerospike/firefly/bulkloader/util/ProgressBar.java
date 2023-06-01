@@ -25,6 +25,12 @@ public class ProgressBar extends TimerTask {
     public ProgressBar() {
     }
 
+    public void close() {
+        if (graph != null) {
+            graph.close();
+        }
+    }
+
     public void setGraph(final FireflyGraph graph) {
         synchronized (ProgressBar.class) {
             this.graph = graph;

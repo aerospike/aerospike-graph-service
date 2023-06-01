@@ -29,7 +29,7 @@ import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERT
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-firefly/conf/firefly-graph.properties";
-    private static final String CONFIG = "config";
+    private static final String CONFIG = "aerospike.graphloader.config";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
@@ -48,8 +48,8 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         KEY_TO_ARG.put(VERTICES, null);
         KEY_TO_ARG.put(EDGES, null);
         KEY_TO_ARG.put(CONFIG, "c");
-        KEY_TO_ARG.put("user", "u");
-        KEY_TO_ARG.put("passkey", "p");
+        KEY_TO_ARG.put("aerospike.graphloader.remote.user", "u");
+        KEY_TO_ARG.put("aerospike.graphloader.remote.passkey", "p");
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 

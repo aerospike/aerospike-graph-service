@@ -5,7 +5,6 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Value;
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
@@ -24,10 +23,8 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.MapPartitionsFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -45,7 +42,6 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -59,7 +55,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET_TO_REMOVE;
@@ -96,33 +91,7 @@ public class EdgeOperations implements Serializable {
         return config.getOrDefault(EDGE_DIRECTORY_KEY);
     }
 
-    public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
-        final List<Integer> failures = edgeDataset.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            final boolean keepProvidedId =
-                    Boolean.parseBoolean(config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
-            final String providedIdPropertyName = config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
-            final String nullValue = config.getOrDefault(NULL_VALUE);
-            final AtomicInteger failureCount = new AtomicInteger(0);
-            while (rowIterator.hasNext()) {
-                final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
-                final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
-                try {
-                    SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, null, true);
-                } catch (FireflyBulkLoaderException e) {
-                    LOGGER.error("Format validation of CSV data failed on line '{}' of file {}.",
-                            metadataRow.get(metadataRow.fieldIndex(DatasetOperations.LINENUMBER_COLUMN)), metadataRow.get(metadataRow.fieldIndex(DatasetOperations.DIRECTORY_COLUMN)));
-                    failureCount.incrementAndGet();
-                }
-            }
-            return Collections.singletonList(failureCount.get()).iterator();
-        }, Encoders.INT()).collectAsList();
-        for (final int failure : failures) {
-            if (failure != 0) {
-                return false;
-            }
-        }
-        return true;
-    }
+
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
         persistedEdgeDS.foreachPartition(rowIterator -> {

@@ -1,6 +1,5 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
@@ -35,13 +34,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET_TO_REMOVE;
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.DIRECTORY_COLUMN;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERTEX;
@@ -59,31 +55,6 @@ public class VertexOperations implements Serializable {
 
     public static String getVertexDirectory(final BulkLoaderConfigHelper config) {
         return config.getOrDefault(VERTEX_DIRECTORY_KEY);
-    }
-
-    public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
-        final String nullValue = config.getOrDefault(NULL_VALUE);
-        final List<Integer> failures = vertices.mapPartitions((MapPartitionsFunction<Row, Integer>) rowIterator -> {
-            final AtomicInteger failureCount = new AtomicInteger(0);
-            while (rowIterator.hasNext()) {
-                final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
-                final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
-                try {
-                    SparkFireflyVertex.createVertex(fireflyRow, nullValue);
-                } catch (FireflyBulkLoaderException e) {
-                    LOGGER.error("Format validation of CSV data failed on line '{}' of file {}.",
-                            metadataRow.get(metadataRow.fieldIndex(DatasetOperations.LINENUMBER_COLUMN)), metadataRow.get(metadataRow.fieldIndex(DIRECTORY_COLUMN)));
-                    failureCount.incrementAndGet();
-                }
-            }
-            return Collections.singletonList(failureCount.get()).iterator();
-        }, Encoders.INT()).collectAsList();
-        for (final int failure : failures) {
-            if (failure != 0) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void writeVertices(final Dataset<Row> unionVertexDS) {

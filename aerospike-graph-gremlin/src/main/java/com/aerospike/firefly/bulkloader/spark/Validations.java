@@ -63,7 +63,7 @@ public class Validations {
     }
     
     public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
-        return  dryRunEdgeCreation(edgeDataset,config);
+        return dryRunEdgeCreation(edgeDataset,config);
     }
 
     public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {

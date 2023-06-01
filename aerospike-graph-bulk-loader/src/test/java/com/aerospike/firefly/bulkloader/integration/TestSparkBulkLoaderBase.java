@@ -189,15 +189,12 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(g.E().has("testIdName").hasNext());
     }
 
-
     @Test
     public void testDuplicateVertexId() {
         boolean success = true;
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
         } catch (final Exception e) {
-            // TODO GRAPH-485: Update this to reflect the expected exception when pre-flight duplicate Vertex ID check
-            //                 is implemented. May potentially keep this as is for incremental bulk loading.
             success = false;
             Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
             Assert.assertEquals(e.getMessage(), "Preflight checks failed, check logs for detail on which line number and file caused the failure.");

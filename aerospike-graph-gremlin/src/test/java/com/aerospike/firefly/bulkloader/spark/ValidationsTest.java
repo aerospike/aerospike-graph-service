@@ -30,9 +30,8 @@ public class ValidationsTest extends TestCase {
     }
 
     public void testTestDupilcateVertices() {
-
         final String groupColumn ="~id";
-        //nertices id 1,2 are present multiple times in dataframe
+        // Vertices with ~id 1 and 2 are present multiple times in dataframe
         Dataset<Row> df = spark.createDataFrame(Arrays.asList(
                 RowFactory.create("1", 1, "file1"),
                 RowFactory.create("1", 5, "file2"),

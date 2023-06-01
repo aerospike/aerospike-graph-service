@@ -66,7 +66,6 @@ public class Validations {
         return  dryRunEdgeCreation(edgeDataset,config);
     }
 
-
     public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         boolean step1 = dryRunVertexCreation(vertices,config);
         boolean step2 = testDupilcateVertices(vertices, config);

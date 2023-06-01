@@ -90,26 +90,25 @@ public class Validations {
             }
             return Collections.singletonList(failureCount.get()).iterator();
         }, Encoders.INT()).collectAsList();
-        for (final int failure : failures) {
-            if (failure != 0) {
-                return false;
-            }
+
+        boolean valid = failures.stream().filter(item -> item > 0).findAny().isEmpty();
+        if(!valid) {
+            LOGGER.error("Format validation of CSV data failed");
         }
-        return true;
+        return valid;
     }
 
     public static boolean testDupilcateVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         final String fileAndLineColumn = "~lineandFile";
         final String countColumn = "~count";
         final String idColumn = SparkFireflyElement.ID_HEADER;
-        Dataset<Row> dsWithCount = vertices
-                .withColumn(fileAndLineColumn,
-                        concat_ws(":", col(FILENAME_COLUMN), col(LINENUMBER_COLUMN).cast("string"))) //create a new column with filename and line number to hint where error might happen
+        Dataset<Row> dsWithCount = vertices.withColumn(fileAndLineColumn, concat_ws(":", col(FILENAME_COLUMN), col(LINENUMBER_COLUMN).cast("string"))) //create a new column with filename and line number to hint where error might happen
                 .select(idColumn, fileAndLineColumn)
                 .groupBy(idColumn).agg(collect_set(fileAndLineColumn).alias(fileAndLineColumn), count(idColumn).alias(countColumn));
         Dataset<Row> duplicateID = dsWithCount.filter(col(countColumn).gt(1));
 
-        if(!duplicateID.isEmpty()){
+        boolean valid = duplicateID.isEmpty();
+        if(!valid){
             final String[] columns = duplicateID.columns();
             final int idIdx = ArrayUtils.indexOf(columns,idColumn);
             final int fileAndLineColumnIdx = ArrayUtils.indexOf(columns,fileAndLineColumn);
@@ -117,9 +116,8 @@ public class Validations {
             duplicateID.foreach( row -> {
                 LOGGER.error("Vertex id: {}, found total {} occurrences in files {}", row.get(idIdx), row.get(countColumnIdx), row.getList(fileAndLineColumnIdx));
             });
-            return false;
-        }else {
-            return true;
+            LOGGER.error("Found duplicate vertex ids in vertex dataset, please check spark worker logs for more details.");
         }
+        return valid;
     }
 }

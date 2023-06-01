@@ -156,7 +156,6 @@ public class DatasetOperations implements Serializable {
                     LOGGER.error(preflightEdgeFailed);
                 }
                 if (!(preflightEdgeSuccess && preflightVertexSuccess)) {
-                    LOGGER.error("throwing error!");
                     throw new FireflyBulkLoaderPreflightException("Preflight checks failed, check logs for detail on which line number and file caused the failure.");
                 }
 

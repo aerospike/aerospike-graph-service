@@ -60,8 +60,8 @@ public class Validations {
             }
         }
         return true;
-
     }
+    
     public static boolean dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
         return  dryRunEdgeCreation(edgeDataset,config);
     }

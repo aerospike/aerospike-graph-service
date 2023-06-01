@@ -70,7 +70,7 @@ public class Validations {
     public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         boolean step1 = dryRunVertexCreation(vertices,config);
         boolean step2 = testDupilcateVertices(vertices, config);
-        return  step1 && step2;
+        return step1 && step2;
     }
 
     private static boolean dryRunVertexCreation(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {

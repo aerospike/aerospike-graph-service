@@ -108,16 +108,16 @@ public class Validations {
                 .groupBy(idColumn).agg(collect_set(fileAndLineColumn).alias(fileAndLineColumn), count(idColumn).alias(countColumn));
         Dataset<Row> duplicateID = dsWithCount.filter(col(countColumn).gt(1));
 
-        if(!duplicateID.isEmpty()){
+        if (!duplicateID.isEmpty()){
             final String[] columns = duplicateID.columns();
             final int idIdx = ArrayUtils.indexOf(columns,idColumn);
             final int fileAndLineColumnIdx = ArrayUtils.indexOf(columns,fileAndLineColumn);
             final int countColumnIdx = ArrayUtils.indexOf(columns,countColumn);
-            duplicateID.foreach( row -> {
+            duplicateID.foreach(row -> {
                 LOGGER.error("Vertex id: {}, found total {} occurrences in files {}", row.get(idIdx), row.get(countColumnIdx), row.getList(fileAndLineColumnIdx));
             });
             return false;
-        }else {
+        } else {
             return true;
         }
     }

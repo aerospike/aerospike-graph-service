@@ -71,6 +71,30 @@ When using the Call API, simply enter the configuration name as the key and the 
 
 ##### Call API
 
+The `call` API runs the bulk load on a single Aerospike Graph instance. Because Aerospike Graph is in docker, 
+any parameters that are passed must be accessible to the docker image. This is particularly important to consider if 
+the `aerospike.graphloader.edges` / `aerospike.graphloader.vertices` are local files. 
+
+In this case you can mount them in the docker container by adding the following to the `docker run` command:
+
+```
+-v /path/to/vertices:/path/to/vertices -v /path/to/edges:/path/to/edges
+```
+A local example:
+```
+# Docker run with files passed in.  
+docker run -p 8182:8182  \
+            -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-firefly/etc/ \
+            ghcr.io/citrusleaf/firefly
+
+# Invoke call API with path to files in docker container.
+g.call("bulk-load")
+    .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
+    .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges")
+```
+
+Most customers will likely use S3 or GCS, which is the recommended way.
+An S3 example is shown below:
 ```java
 g.call("bulk-load").with("aerospike.graphloader.file-system", "s3").with("aerospike.graphloader.remote-storage-location", "myBulkLoadBucket").with("aerospike.graphloader.vertices", "vertices").with("aerospike.graphloader.edges", "edges").iterate();
 ```

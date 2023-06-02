@@ -65,7 +65,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -525,7 +524,7 @@ public class AerospikeConnection implements AutoCloseable {
         return krl;
     }
 
-    public ComparableVersion getDataModelVerion() {
+    public ComparableVersion getDataModelVersion() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
         policy.sendKey = false;

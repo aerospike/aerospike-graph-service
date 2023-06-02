@@ -1084,7 +1084,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
         assertEquals(graph.getBaseGraph().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
-        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
+        assertEquals(graph.getBaseGraph().getDataModelVersion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
     }
 
     @Test

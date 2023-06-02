@@ -94,7 +94,7 @@ public class FireflyMetadataVertex implements Vertex {
                 if (nextKey.equals(graph.getBaseGraph().DATA_MODEL_NAME))
                     nextValue = graph.getBaseGraph().getDataModelName();
                 else if (nextKey.equals(graph.getBaseGraph().DATA_MODEL_VER))
-                    nextValue = String.valueOf(graph.getBaseGraph().getDataModelVerion());
+                    nextValue = String.valueOf(graph.getBaseGraph().getDataModelVersion());
                 else
                     nextValue = config.getString(nextKey);
                 return new VertexProperty<V>() {

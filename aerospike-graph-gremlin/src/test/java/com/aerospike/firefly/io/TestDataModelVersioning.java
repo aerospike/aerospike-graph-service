@@ -13,6 +13,8 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
+import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
@@ -148,6 +150,37 @@ public class TestDataModelVersioning {
     }
 
     @Test
+    public void testVersionMismatchErrors() throws Exception {
+        // Start graph with version 0.0.1.
+        db = AerospikeConnection.connect(config);
+        db.dropDatabase(graph, false);
+        FakeGraph.version = "0.0.1";
+        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+
+        // Now try to open version 0.0.2, this should return that an upgrade is required, however since upgrades
+        // are not currently supported, it should throw an exception when the performUpgrade function is called.
+        db.close();
+        FakeGraph.version = "0.0.2";
+        db = AerospikeConnection.connect(config);
+        Assert.assertTrue(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertThrows(RuntimeException.class, () -> Upgrade.performUpgrade(FakeGraph.class, db));
+
+
+        // Now knock out the current data and place it to version 0.0.2.
+        db.dropDatabase(graph, false);
+        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+
+        // Try to open version 0.0.1, this should throw an exception since you cannot upgrade from 0.0.2 to 0.0.1.
+        FakeGraph.version = "0.0.1";
+        db.close();
+        db = AerospikeConnection.connect(config);
+        Assert.assertThrows(RuntimeException.class, () -> Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+
+    }
+
+    @Test
+    @Ignore
+    // TODO: Once we implement upgrade, add this test back.
     public void TestTriggerUpgrade() throws Exception {
 
         db = AerospikeConnection.connect(config);

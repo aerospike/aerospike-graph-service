@@ -112,6 +112,7 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     private final Map<String, List<Object>> labelToIds = new HashMap<>();
     private final Map<String, List<Object>> labelToEntity = new HashMap<>();
     private final List<Object> rootIds = new ArrayList<>();
+    private final List<Object> householdIds = new ArrayList<>();
 
     private final Map<String, List<String>> labelToInELabels = new HashMap<>();
     private final Map<String, List<String>> labelToOutELabels = new HashMap<>();
@@ -140,6 +141,7 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
             labelToInELabels.put(label, g.V(sample).inE().label().dedup().toList());
             labelToOutELabels.put(label, g.V(sample).outE().label().dedup().toList());
         });
+        g.V().hasLabel(Schema.Household.label).id().limit(5000).forEachRemaining(householdIds::add);
 
         g.V().hasLabel(Schema.GoldenEntity.label).id().limit(5000).forEachRemaining(rootIds::add);
         g.V().hasLabel(Schema.DigitalEntity.label).values(Schema.DigitalEntity.PropertyKeys.macAddress).limit(5000)
@@ -225,14 +227,13 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     }
 
     @Benchmark
-    public void threeHopToIndividualGetProperties(final Blackhole blackhole) {
-        final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
-        g.V(id)
+    public void threeHopToDigitalEntity(final Blackhole blackhole) {
+        final Object houseHoldId = householdIds.stream().skip(random.nextInt(householdIds.size())).findFirst().get();
+        g.V(houseHoldId)
+                .in(Schema.Individual.livesAtEdge)
+                .in(Schema.GoldenEntity.resolvesToIndividualEdge)
                 .out(Schema.GoldenEntity.observedEdge)
-                .out(Schema.DigitalEntity.connectedFromIpEdge)
-                .in(Schema.DigitalEntity.connectedFromIpEdge)
                 .properties().toList();
-
     }
 
     @Benchmark

@@ -50,6 +50,8 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         KEY_TO_ARG.put(CONFIG, "c");
         KEY_TO_ARG.put("aerospike.graphloader.remote.user", "u");
         KEY_TO_ARG.put("aerospike.graphloader.remote.passkey", "p");
+        KEY_TO_ARG.put("aerospike.graphloader.gcs-keyfile", "gck");
+        KEY_TO_ARG.put("aerospike.graphloader.gcs-email", "gem");
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 

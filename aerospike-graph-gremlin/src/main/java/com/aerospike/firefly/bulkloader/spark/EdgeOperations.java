@@ -62,7 +62,6 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
@@ -86,12 +85,6 @@ public class EdgeOperations implements Serializable {
         this.config = Objects.requireNonNull(config);
         this.edgePaths = Objects.requireNonNull(edgeCSVFiles);
     }
-
-    public static String getEdgeDirectory(final BulkLoaderConfigHelper config) {
-        return config.getOrDefault(EDGE_DIRECTORY_KEY);
-    }
-
-
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
         persistedEdgeDS.foreachPartition(rowIterator -> {

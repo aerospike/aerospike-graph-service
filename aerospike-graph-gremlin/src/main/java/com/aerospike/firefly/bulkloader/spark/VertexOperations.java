@@ -38,7 +38,6 @@ import java.util.concurrent.ThreadFactory;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERTEX;
 
@@ -51,10 +50,6 @@ public class VertexOperations implements Serializable {
     public VertexOperations(final BulkLoaderConfigHelper config, final List<String> vertexCSVFiles) {
         this.config = Objects.requireNonNull(config);
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
-    }
-
-    public static String getVertexDirectory(final BulkLoaderConfigHelper config) {
-        return config.getOrDefault(VERTEX_DIRECTORY_KEY);
     }
 
     private void writeVertices(final Dataset<Row> unionVertexDS) {

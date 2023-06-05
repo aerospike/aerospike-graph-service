@@ -1,6 +1,7 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
+import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -15,6 +16,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -64,6 +66,8 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getNonExistentEdgeVertexId();
 
     protected abstract String getS3FileSystem();
+
+    protected abstract String getGcsFileSystem();
 
     @Test
     public void testDataAccuracy() {
@@ -162,7 +166,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testPreflightCheckEdge() {
         boolean success = true;
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckEdge()},DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
         } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
             success = false;
         }
@@ -230,12 +234,68 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-c", getS3FileSystem(), "-md", "gha-ci-firefly-bulkloader", "-fs", "s3", "-u",
-                        System.getenv("AWS_ACCESS_KEY_ID"), "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
+                new String[]{"-local", "-c", getS3FileSystem(), "-u", System.getenv("AWS_ACCESS_KEY_ID"),
+                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testGcsFileSystem() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
+                        "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL")},
+                DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testGcsFileSystemMissingUser() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", getGcsFileSystem(), "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem",
+                            System.getenv("GCS_CLIENT_EMAIL")},
+                    DEFAULT_PARAMS));
+                Assert.fail("No user for GCS mode should fail.");
+        } catch (final FireflyBulkLoaderException e) {
+            Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testGcsFileSystemMissingPasskey() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
+                            "-gem", System.getenv("GCS_CLIENT_EMAIL")},
+                    DEFAULT_PARAMS));
+            Assert.fail("No passkey for GCS mode should fail.");
+        } catch (final FireflyBulkLoaderException e) {
+            Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testGcsFileSystemMissingEmail() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
+                            "-p", System.getenv("GCS_PRIVATE_KEY")},
+                    DEFAULT_PARAMS));
+            Assert.fail("No email for GCS mode should fail.");
+        } catch (final FireflyBulkLoaderException e) {
+            Assert.assertEquals("Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.", e.getMessage());
+        }
+    }
+
+    @Ignore
+    @Test
+    public void testGcsFileSystemKeyFile() {
+        // TODO
     }
 
     private void testSupernodes() {

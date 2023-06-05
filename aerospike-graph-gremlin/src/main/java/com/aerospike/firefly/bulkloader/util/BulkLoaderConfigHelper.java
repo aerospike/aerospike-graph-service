@@ -12,14 +12,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BulkLoaderConfigHelper implements Serializable {
-    // Master directory for bulk loading job
-    public static final String MASTER_DIRECTORY = "aerospike.graphloader.remote-storage-location";
     // Directory containing the Vertex CSV files.
     public static final String VERTEX_DIRECTORY_KEY = "aerospike.graphloader.vertices";
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
-    // File system used for storing CSVs.
-    public static final String FILE_SYSTEM = "aerospike.graphloader.file-system";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
     public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "aerospike.graphloader.keep-provided-edge-id-as-property";
     // The key of the property to store the provided IDs for Edges in.
@@ -37,10 +33,8 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String EDGE_WRITE_BUFFER = "aerospike.graphloader.edge-write-buffer";
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
-            Map.entry(MASTER_DIRECTORY, "md"),
             Map.entry(VERTEX_DIRECTORY_KEY, "vd"),
             Map.entry(EDGE_DIRECTORY_KEY, "ed"),
-            Map.entry(FILE_SYSTEM, "fs"),
             Map.entry(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "ki"),
             Map.entry(PROVIDED_EDGE_ID_PROPERTY_NAME, "ep"),
             Map.entry(NULL_VALUE, "nv"),
@@ -65,7 +59,6 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(NULL_VALUE, "null");
         put(VERTEX_WRITE_BUFFER, "10000");
         put(EDGE_WRITE_BUFFER, "10000");
-        put(FILE_SYSTEM, "local");
     }};
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {

@@ -26,21 +26,6 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
-    public void invalidAwsConfig() {
-        // Right now calling the bulk loader here will fail with null config.
-        // Once the parameters are determined this test can be updated.
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
-            try {
-                fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("aerospike.graphloader.file-system", "s3").iterate();
-                Assert.fail("Expected call to fail.");
-            } catch (final Exception e) {
-                Assert.assertEquals("Failed to start bulk loader due to no specified S3 Bucket Name", e.getMessage());
-            }
-        }
-    }
-
-    @Test
     public void invalidConfigPath() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
@@ -50,7 +35,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.config", "invalid path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("java.nio.file.NoSuchFileException: invalid path", e.getMessage());
+                Assert.assertTrue(e.getMessage().startsWith("[PATH_NOT_FOUND]"));
             }
         }
     }

@@ -31,7 +31,6 @@ import static org.apache.spark.sql.functions.concat_ws;
 import static org.apache.spark.sql.functions.count;
 
 public class Validations {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(Validations.class);
 
     private static boolean dryRunEdgeCreation(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
@@ -46,7 +45,7 @@ public class Validations {
                 final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
                 try {
                     SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, null, true);
-                } catch (FireflyBulkLoaderException e) {
+                } catch (final FireflyBulkLoaderException e) {
                     LOGGER.error("Format validation of CSV data failed on line '{}' of file {}.",
                             metadataRow.get(metadataRow.fieldIndex(LINENUMBER_COLUMN)), metadataRow.get(metadataRow.fieldIndex(DatasetOperations.DIRECTORY_COLUMN)));
                     failureCount.incrementAndGet();
@@ -67,9 +66,9 @@ public class Validations {
     }
 
     public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
-        final boolean successVertexCreation = dryRunVertexCreation(vertices,config);
-        final boolean haveDuplicateVertices = testDupilcateVertices(vertices, config);
-        return successVertexCreation && haveDuplicateVertices;
+        final boolean creationSuccess = dryRunVertexCreation(vertices,config);
+        final boolean noDuplicateIdDetected = validateNoDuplicateVertexIds(vertices);
+        return creationSuccess && noDuplicateIdDetected;
     }
 
     private static boolean dryRunVertexCreation(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
@@ -90,32 +89,33 @@ public class Validations {
             return Collections.singletonList(failureCount.get()).iterator();
         }, Encoders.INT()).collectAsList();
 
-        boolean valid = failures.stream().filter(item -> item > 0).findAny().isEmpty();
-        if(!valid) {
-            LOGGER.error("Format validation of CSV data failed");
+        final boolean valid = failures.stream().filter(item -> item > 0).findAny().isEmpty();
+        if (!valid) {
+            LOGGER.error("Format validation of CSV data failed.");
         }
         return valid;
     }
 
-    public static boolean testDupilcateVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
+    public static boolean validateNoDuplicateVertexIds(final Dataset<Row> vertices) {
         final String fileAndLineColumn = "~lineandFile";
         final String countColumn = "~count";
         final String idColumn = SparkFireflyElement.ID_HEADER;
-        Dataset<Row> dsWithCount = vertices.withColumn(fileAndLineColumn, concat_ws(":", col(FILENAME_COLUMN), col(LINENUMBER_COLUMN).cast("string"))) //create a new column with filename and line number to hint where error might happen
+        // Create a new column with filename and line number to find where error occurred
+        final Dataset<Row> dsWithCount = vertices.withColumn(fileAndLineColumn, concat_ws(":", col(FILENAME_COLUMN), col(LINENUMBER_COLUMN).cast("string")))
                 .select(idColumn, fileAndLineColumn)
                 .groupBy(idColumn).agg(collect_set(fileAndLineColumn).alias(fileAndLineColumn), count(idColumn).alias(countColumn));
         final Dataset<Row> duplicateID = dsWithCount.filter(col(countColumn).gt(1));
 
-        boolean valid = duplicateID.isEmpty();
-        if(!valid){
+        final boolean valid = duplicateID.isEmpty();
+        if (!valid){
             final String[] columns = duplicateID.columns();
             final int idIdx = ArrayUtils.indexOf(columns,idColumn);
             final int fileAndLineColumnIdx = ArrayUtils.indexOf(columns,fileAndLineColumn);
             final int countColumnIdx = ArrayUtils.indexOf(columns,countColumn);
-            duplicateID.foreach( row -> {
+            duplicateID.foreach(row -> {
                 LOGGER.error("Vertex id: {}, found total {} occurrences in files {}", row.get(idIdx), row.get(countColumnIdx), row.getList(fileAndLineColumnIdx));
             });
-            LOGGER.error("Found duplicate vertex ids in vertex dataset, please check spark worker logs for more details.");
+            LOGGER.error("Found duplicate Vertex IDs in Vertex dataset, please check Spark worker logs for more details.");
         }
         return valid;
     }

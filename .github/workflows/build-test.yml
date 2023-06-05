@@ -645,6 +645,9 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID}}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY}}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID}}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL}}
         run: |
           mvn clean install -DskipTests
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress

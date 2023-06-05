@@ -70,4 +70,4 @@ jobs:
       - name: Upload Bulk Loader
         uses: actions/upload-artifact@v3
         with:
-          path: firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-*.jar
+          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar

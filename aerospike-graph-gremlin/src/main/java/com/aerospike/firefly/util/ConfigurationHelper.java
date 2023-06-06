@@ -147,12 +147,6 @@ public final class ConfigurationHelper {
         }
     }
 
-    private static final Set<String> environmentVariables = new HashSet<>() {{
-        add(Keys.AEROSPIKE_USER);
-        add(Keys.AEROSPIKE_PASSWORD);
-        add(Keys.FAULT_TEST);
-    }};
-
     private static final Map<String, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
         put(Keys.AEROSPIKE_NAMESPACE, "test");
@@ -312,14 +306,13 @@ public final class ConfigurationHelper {
 
     public static String getOrDefault(final String key, Configuration config) {
         final String lowerKey = key.toLowerCase();
-        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key)) {
-            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
-        } else if (environmentVariables.contains(key.toUpperCase())) {
-            // Allow username and password to come from environment variables.
+        if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(lowerKey.toUpperCase())) {
             final String envConfig = System.getenv(key.toUpperCase());
             if (envConfig != null && !envConfig.isEmpty()) {
                 return envConfig;
             }
+        } else if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key)) {
+            throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         }
         try {
             Keys.Sets.class.getField(key);

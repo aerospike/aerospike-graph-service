@@ -292,10 +292,14 @@ public abstract class TestSparkBulkLoaderBase {
         }
     }
 
-    @Ignore
     @Test
     public void testGcsFileSystemKeyFile() {
-        // TODO
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json"},
+                DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
     }
 
     private void testSupernodes() {

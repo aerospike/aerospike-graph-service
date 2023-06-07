@@ -81,7 +81,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.sampling-percentage", "invalid").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.sampling-percentage' to be set to a numeric value or numeric String value. Instead value was set with type 'java.lang.String' which cannot be parsed to a numeric value." ,e.getMessage());
+                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.sampling-percentage' to be set to a numeric value or numeric String value. Instead value was set with type 'java.lang.String' which cannot be parsed to a numeric value.", e.getMessage());
             }
         }
     }
@@ -96,7 +96,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.sampling-percentage", true).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.sampling-percentage' to be set to a numeric value or numeric String value. Instead value was set with type 'java.lang.Boolean'." ,e.getMessage());
+                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.sampling-percentage' to be set to a numeric value or numeric String value. Instead value was set with type 'java.lang.Boolean'.", e.getMessage());
             }
         }
     }
@@ -111,7 +111,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.keep-provided-edge-id-as-property", "boolean").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.keep-provided-edge-id-as-property' to be set to a boolean value or boolean String value. Instead value was set with type 'java.lang.String' which cannot be parsed to a boolean value." ,e.getMessage());
+                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.keep-provided-edge-id-as-property' to be set to a boolean value or boolean String value. Instead value was set with type 'java.lang.String' which cannot be parsed to a boolean value.", e.getMessage());
             }
         }
     }
@@ -126,7 +126,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("bulk-load").with("aerospike.graphloader.keep-provided-edge-id-as-property", 123).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.keep-provided-edge-id-as-property' to be set to a boolean value or boolean String value. Instead value was set with type 'java.lang.Integer'." ,e.getMessage());
+                Assert.assertEquals("Expected bulk loader flag 'aerospike.graphloader.keep-provided-edge-id-as-property' to be set to a boolean value or boolean String value. Instead value was set with type 'java.lang.Integer'.", e.getMessage());
             }
         }
     }
@@ -318,6 +318,51 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("aerospike.graphloader.keep-provided-edge-id-as-property", "true").iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void testCsvOnS3() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load")
+                    .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
+                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
+                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
+                    .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                    .iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void testCsvOnGcs() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load")
+                    .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
+                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
+                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
+                    .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }

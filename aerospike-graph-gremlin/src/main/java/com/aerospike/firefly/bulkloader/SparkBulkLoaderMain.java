@@ -196,10 +196,10 @@ public class SparkBulkLoaderMain {
             FILE_SYSTEM = uriFileSystem;
             if (FILE_SYSTEM.equals(S3)) {
                 if (cmd.hasOption("u")) {
-                    spark.conf().set("spark.hadoop.fs.s3a.access.key", cmd.getOptionValue("u"));
+                    spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u"));
                 }
                 if (cmd.hasOption("p")) {
-                    spark.conf().set("spark.hadoop.fs.s3a.secret.key", cmd.getOptionValue("p"));
+                    spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p"));
                 }
             } else if (uriFileSystem.equals(GCS)) {
                 if (cmd.hasOption("gck")) {

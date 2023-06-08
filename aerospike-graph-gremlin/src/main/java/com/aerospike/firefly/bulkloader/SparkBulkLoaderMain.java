@@ -58,9 +58,11 @@ public class SparkBulkLoaderMain {
             }
             LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
 
-            // Initialize Spark.
+            // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             PROGRESS_BAR = new ProgressBar();
-            PROGRESS_BAR_TIMER = new Timer();
+            PROGRESS_BAR_TIMER = new Timer(true);
+
+            // Initialize Spark.
             FILE_SYSTEM = LOCAL;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;

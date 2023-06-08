@@ -1358,6 +1358,12 @@ public class AerospikeConnection implements AutoCloseable {
     public void dropDatabase(final FireflyGraph graph, final boolean dropIndices) {
         LOG.info("Dropping database.");
         try {
+            // Should never be null in production, but some tests don't have a graph object for a legit reason when
+            // calling this function so handle null graph regardless.
+            if (graph != null) {
+                graph.fireflySummaryUpdater.truncate();
+            }
+
             // If using the client APIs to perform the truncate command on a single-threaded application it is
             // suggested to add a millisecond (ms) sleep. The truncate operation has a 1 millisecond resolution and
             // writes occurring within the same millisecond are not deleted.
@@ -1382,11 +1388,6 @@ public class AerospikeConnection implements AutoCloseable {
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
             // we will eventually reach as we wrap around.
-            // Should never be null in production, but some tests don't have a graph object for a legit reason when
-            // calling this function so handle null graph regardless.
-            if (graph != null) {
-                graph.fireflySummaryUpdater.truncate();
-            }
             if (dropIndices)
                 dropGraphIndices(graph);
             Thread.sleep(1);

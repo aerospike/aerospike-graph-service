@@ -17,6 +17,16 @@ stop_gremlin_server() {
 
 # Launch gremlin-server in the background and sets the child_pid to the PID of the process.
 (
+  # A little bit of ascii art to make things fancy.
+  echo "  ___                           _ _           _____                 _       _____                 _           "
+  echo " / _ \\                         (_| |         |  __ \\               | |     /  ___|               (_)          "
+  echo "/ /_\\ \\ ___ _ __ ___  ___ _ __  _| | __ ___  | |  \\/_ __ __ _ _ __ | |__   \\ \`--.  ___ _ ____   ___  ___ ___  "
+  echo "|  _  |/ _ | '__/ _ \\/ __| '_ \\| \| |/ / _ \\ | | __| '__/ _\` | '_ \\| '_ \\   \`--. \\/ _ | '__\\ \\ / | |/ __/ _ \\ "
+  echo "| | | |  __| | | (_) \\__ | |_) | |    |  __/ | |_\\ | | | (_| | |_) | | | | /\\__/ |  __| |   \\ V /| | (_|  __/"
+  echo "\\_| |_/\\___|_|  \\___/|___| .__/|_|_|\\_\\\\___|  \\____|_|  \\__,_| .__/|_| |_| \\____/ \\___|_|    \\_/ |_|\\___\\___|"
+  echo "                         | |                                | |                                             "
+  echo "                         |_|                                |_|                                             "
+
   # If they passed in a server yaml
   if [ -e /opt/aerospike-firefly/conf/firefly-gremlin-server.yaml ]
   then

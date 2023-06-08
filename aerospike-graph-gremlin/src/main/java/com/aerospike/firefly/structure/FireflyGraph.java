@@ -68,6 +68,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -121,7 +122,12 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
+
+    // AerospikeGraphService is a dummy class that allows us to instantiate a logger in FireflyGraph that says
+    // AerospikeGraphService. We can eventually migrate to calling FireflyGraph AerospikeGraphService but this requires
+    // docs changes, config updates, etc, and isn't worth it right now.
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeGraphService.class);
+
     public static String FIREFLY_VERSION = "0.7.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
@@ -219,14 +225,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
             LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
             LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
-            LOG.info("Firefly configuration: {}.", conf);
-            LOG.info("Starting Aerospike Firefly v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+
+            // Straight up printing out conf just provides a class name / memory address.
+            final Iterator<String> keys = conf.getKeys();
+            final Map<String, Object> configurationMap = new HashMap<>();
+            while (keys.hasNext()) {
+                final String key = keys.next();
+                configurationMap.put(key, conf.getProperty(key));
+            }
+            LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
+            LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
-            LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
-            LOG.error("========== Firefly failing to start is usually a result of an incorrect configuration.");
+            LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
+            LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             LOG.error("========== Verify that the Aerospike IP and port are correct.");
             LOG.error("========== See Error message for more details:", e);
 

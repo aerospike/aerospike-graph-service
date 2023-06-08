@@ -1,5 +1,6 @@
 package com.aerospike.firefly.call;
 
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -11,6 +12,7 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.PRETTY_PRINT_FORMAT_SYSTEM;
 
@@ -27,6 +29,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testSummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
         final List<Object> summaryCallEmpty = g.call("summary").toList();
         final List<Object> expectedEmpty = List.of(
                 Map.of(
@@ -74,8 +77,22 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     }
 
     @Test
+    public void testSummaryOverflow() {
+        // Can take a few times to reproduce. We just want to make sure close() doesn't throw.
+        for (int j = 0; j < 5; j++) {
+            graph.fireflySummaryUpdater = new FireflyGraphSummaryUpdater(graph.getBaseGraph());
+            for (int i = 0; i < 75000; i++) {
+                final Set<String> properties = Set.of(String.format("%d", i));
+                graph.fireflySummaryUpdater.addVertexWriteToQueue(String.format("%d", i), properties);
+            }
+            graph.traversal().V().drop().iterate();
+        }
+    }
+
+    @Test
     public void testPrettySummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
         final String summaryCall = (String) g.call("summary").with("pretty").next();
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);

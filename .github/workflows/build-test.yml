@@ -411,7 +411,7 @@ jobs:
           sleep 30
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
             aerospike/firefly &
           

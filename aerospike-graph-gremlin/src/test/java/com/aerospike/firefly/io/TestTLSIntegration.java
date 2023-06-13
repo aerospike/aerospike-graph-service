@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.client.cluster.Cluster;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -26,4 +27,17 @@ public class TestTLSIntegration {
         FireflyGraph graph = FireflyGraph.open(config);
         Vertex v = graph.addVertex();
     }
+    @Test
+    public void testTLSName() {
+        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(TLS.toLowerCase(), "true");
+        config.setProperty(AEROSPIKE_HOST.toLowerCase(), "172.17.0.1");
+        config.setProperty(ConfigurationHelper.Keys.TLS_NAME,"aerospike.test.aerospike.dev");
+        config.setProperty(AEROSPIKE_PORT.toLowerCase(), 4303);
+        AerospikeConnection db = AerospikeConnection.connect(config);
+        final Cluster c = db.getClient().getCluster();
+        FireflyGraph graph = FireflyGraph.open(config);
+        Vertex v = graph.addVertex();
+    }
+
 }

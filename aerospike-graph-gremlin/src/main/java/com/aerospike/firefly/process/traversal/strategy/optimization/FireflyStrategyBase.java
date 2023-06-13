@@ -23,7 +23,7 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
      * @return null, which means this strategy is always enabled.
      */
     protected String getStrategyEnabledKey() {
-        return ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+        return null;
     }
 
     /**

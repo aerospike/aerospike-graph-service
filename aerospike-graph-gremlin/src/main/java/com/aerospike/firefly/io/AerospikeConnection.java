@@ -131,7 +131,6 @@ public class AerospikeConnection implements AutoCloseable {
     private final AerospikeClient client;
     private final String namespace;
 
-
     public final String USER_KEY_BIN;
 
     public final String LABEL_BIN;

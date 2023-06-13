@@ -53,17 +53,4 @@ public abstract class FireflyElement implements Element {
         return hashCode;
     }
 
-    public Map<String, Object> debugStorage() {
-        final byte[] keyHash = id.getKeyHash();
-        final Map<String, Object> results = new HashMap<>();
-        final AerospikeConnection db = ((FireflyGraph) graph()).getBaseGraph();
-        if (Vertex.class.isAssignableFrom(this.getClass())) {
-            results.putAll(AerospikeConnection.InfoOps.debugRecord(db, db.VERTEX_AERO_SET, keyHash).orElseThrow(() -> new RuntimeException("not found")));
-        } else if (Edge.class.isAssignableFrom(this.getClass())) {
-            results.putAll(AerospikeConnection.InfoOps.debugRecord(db, db.EDGE_AERO_SET, keyHash).orElseThrow(() -> new RuntimeException("not found")));
-        } else {
-            throw new RuntimeException("cannot debug element type class " + this.getClass().getName());
-        }
-        return results;
-    }
 }

@@ -577,19 +577,16 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String SET = "set";
             public static final String SETS = "sets";
             public static final String NS = "ns";
-            public static final String NAMESPACE = "namespace";
             public static final String OBJECTS = "objects";
             public static final String SINDEX = "sindex";
             public static final String SINDEX_LIST = "sindex-list";
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
-            public static final String DEBUG_RECORD = "debug-record";
-            public static final String KEYD = "keyd";
         }
 
         //Parse the whole infoResponse and return it as a List of Maps
-        protected static List<Map<String, String>> parseRaw(final String infoResponse) {
+        protected static List<Map<String, String>> parseRaw(String infoResponse) {
             List<Map<String, String>> results = new ArrayList<>();
             Arrays.stream(infoResponse.split(";"))
                     .map(str -> str.split(":"))
@@ -607,57 +604,6 @@ public class AerospikeConnection implements AutoCloseable {
                             results.add(data);
                     });
             return results;
-        }
-        protected static Object processSubKeys(final String infoChunk) {
-            if (infoChunk.contains(",")) {
-                List<String> chunks = Arrays.stream(infoChunk.split(",")).collect(Collectors.toList());
-                if (chunks.stream().filter(it -> !it.contains("=")).iterator().hasNext())
-                    throw new RuntimeException("parse error");
-                final List<AbstractMap.SimpleEntry<String, Object>> x = chunks.stream().map(keyValueString -> {
-                    final String[] split = keyValueString.split("=", 2);
-                    if (split.length == 1)
-                        throw new RuntimeException("parse error");
-                    return new AbstractMap.SimpleEntry<>(split[0], processSubKeys(split[1]));
-                }).collect(Collectors.toList());
-                try {
-                    return x.stream().collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
-                } catch (IllegalStateException e) {
-                    return x.stream().collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue, (a, b) -> b));
-                }
-            }
-            if(!infoChunk.contains("="))
-                return infoChunk.toString();
-            final Iterator<String> i = Arrays.stream(infoChunk.split("=")).iterator();
-            return new HashMap<>(){{put(i.next(), i.next());}};
-        }
-
-        protected static Map<String, Object> parseToNestedMap(final String infoResponse) {
-            final Iterator<String> chunks = Arrays.stream(infoResponse.split(";")).iterator();
-            final Map<String, Object> levelOne = new HashMap<>();
-            while (chunks.hasNext()) {
-                final String chunk = chunks.next();
-                if (!chunk.contains("="))
-                    throw new RuntimeException("parse error");
-                final String[] x = chunk.split("=", 2);
-                final String head = x[0];
-                final String tail = x[1];
-                levelOne.put(head, processSubKeys(tail));
-            }
-            return levelOne;
-        }
-
-        private static Object processValue(String rightHandRemainder) {
-            if (!rightHandRemainder.contains("=")) {
-                return (String) rightHandRemainder;
-            } else {
-                String[] split = rightHandRemainder.split("=");
-                return new AbstractMap.SimpleEntry<>(split[0], processValue(split[1]));
-            }
-        }
-
-        protected static Map<String, String> parseChunkToMap(final String infoResponseChunk) {
-            final String[] chunks = infoResponseChunk.split(",");
-            return new HashMap<>();
         }
 
         //
@@ -706,24 +652,6 @@ public class AerospikeConnection implements AutoCloseable {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
         }
-
-        public static Optional<Map<String, Object>> debugRecord(final AerospikeConnection db, String set, byte[] key) {
-            // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
-            final String command = String.format(Keys.DEBUG_RECORD + ":" +
-                    Keys.NAMESPACE + "=" + db.namespace + ";" +
-                    Keys.SET + "=" + set + ";" +
-                    Keys.KEYD + "=" + toHex(key) + ";");
-            for (Node node : db.client.getNodes()) {
-                final String infoResponse = Info.request(new InfoPolicy(), node, command);
-                if (infoResponse.contains("record-not-found")) continue;
-                if (infoResponse != null && !infoResponse.isEmpty()) {
-                    final Map<String, Object> x = parseToNestedMap(infoResponse);
-                    return Optional.of(x);
-                }
-            }
-            return Optional.empty();
-        }
-
 
         /**
          * Get a list of all the Sets in a namespace that have a number of records > 0

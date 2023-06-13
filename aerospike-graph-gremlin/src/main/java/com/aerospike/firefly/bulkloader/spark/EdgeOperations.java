@@ -225,7 +225,7 @@ public class EdgeOperations implements Serializable {
         if (extract) {
             edgeDataset.sparkSession().sparkContext()
                     .setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
-            LOGGER.info("supernode extraction starting...");
+            LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
             final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
 

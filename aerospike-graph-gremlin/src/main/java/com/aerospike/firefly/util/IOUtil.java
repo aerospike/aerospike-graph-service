@@ -54,6 +54,7 @@ public final class IOUtil {
             throw new RuntimeException(e);
         }
     }
+
     public static String toHex(final byte[] bytes){
         final StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {

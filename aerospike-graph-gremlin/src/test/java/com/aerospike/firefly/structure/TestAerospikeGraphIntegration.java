@@ -1422,6 +1422,5 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
 
-
 }
 

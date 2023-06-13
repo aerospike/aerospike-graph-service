@@ -59,31 +59,33 @@ public class EdgeWriteTask {
     }
 
     public CompletableFuture write(ScheduledExecutorService service) {
-        return
-                retry.withRetries(
-                                CompletableFuture.supplyAsync(() -> {
-                                    SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId, this.providedIdPropertyName, this.nullValue, this.graph, false);
-                                    final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
-                                    final Object inVertexId = sparkEdge.getInVertexId();
-                                    final Object outVertexId = sparkEdge.getOutVertexId();
-                                    final String edgeLabel = sparkEdge.getLabel();
-                                    this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                                            inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
-                                    if (this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG) {
-                                        GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
-                                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                                                edgeLabel, this.vertexOutEdgeMap);
-                                        GraphOperations.updateEdgeMap(this.supernodes, inVertexId,
-                                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                                                edgeLabel, this.vertexInEdgeMap);
-                                    }
-                                    return null;
-                                }, service)
-                                , service)
-                        .exceptionally(e -> {
-                            LOGGER.error(String.format("Exception occurred in writing edge %s", this), e);  //log the error when final failure happens
-                            throw new RuntimeException(e);
-                        });
+        final boolean edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
+        return retry.withRetries(
+                CompletableFuture.supplyAsync(() -> {
+                    SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId,
+                            this.providedIdPropertyName, this.nullValue, this.graph, false);
+                    final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
+                    final Object inVertexId = sparkEdge.getInVertexId();
+                    final Object outVertexId = sparkEdge.getOutVertexId();
+                    final String edgeLabel = sparkEdge.getLabel();
+                    // If the edge cache is not enabled, then every edge must be written as if it were attached to a supernode.
+                    final boolean inVertexSupernode = !edgeCacheEnabled || supernodes.contains(inVertexId);
+                    final boolean outVertexSupernode = !edgeCacheEnabled || supernodes.contains(outVertexId);
+                    this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                            inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);
+                    if (edgeCacheEnabled) {
+                        GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
+                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                                edgeLabel, this.vertexOutEdgeMap);
+                        GraphOperations.updateEdgeMap(this.supernodes, inVertexId,
+                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                                edgeLabel, this.vertexInEdgeMap);
+                    }
+                    return null;
+                }, service), service).exceptionally(e -> {
+                    LOGGER.error(String.format("Exception occurred in writing edge %s", this), e);  // log the error when final failure happens
+                    throw new RuntimeException(e);
+                });
     }
 
     @Override

@@ -58,9 +58,11 @@ public class SparkBulkLoaderMain {
             }
             LOGGER.info("Command line input: {}", String.join(", ", printableArgs));
 
-            // Initialize Spark.
+            // new Timer(true) creates the timer as a daemon, which means that it will not prevent the JVM from exiting.
             PROGRESS_BAR = new ProgressBar();
-            PROGRESS_BAR_TIMER = new Timer();
+            PROGRESS_BAR_TIMER = new Timer(true);
+
+            // Initialize Spark.
             FILE_SYSTEM = LOCAL;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
@@ -196,10 +198,10 @@ public class SparkBulkLoaderMain {
             FILE_SYSTEM = uriFileSystem;
             if (FILE_SYSTEM.equals(S3)) {
                 if (cmd.hasOption("u")) {
-                    spark.conf().set("spark.hadoop.fs.s3a.access.key", cmd.getOptionValue("u"));
+                    spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u"));
                 }
                 if (cmd.hasOption("p")) {
-                    spark.conf().set("spark.hadoop.fs.s3a.secret.key", cmd.getOptionValue("p"));
+                    spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p"));
                 }
             } else if (uriFileSystem.equals(GCS)) {
                 if (cmd.hasOption("gck")) {

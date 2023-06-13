@@ -89,6 +89,9 @@ RUN useradd -m firefly
 # Copy maven repo to firefly user.
 RUN cp -a /root/.m2 /home/firefly/.m2 && chown firefly:firefly -R /home/firefly/.m2
 
+# Make firefly owner of conf dir.
+RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+
 # Set user to firefly.
 USER firefly
 

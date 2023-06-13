@@ -39,9 +39,9 @@ import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.P
  */
 public class FireflyGraphSummaryUpdater implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphSummaryUpdater.class);
-    private static final int BLOCKING_QUEUE_SIZE = 25000;
+    private static final int BLOCKING_QUEUE_SIZE = 50000;
     private static final int WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE = 500;
-    private static final int HIGH_WATERMARK = 1000;
+    private static final int HIGH_WATERMARK = 250;
     private static final String V_SUMMARY_RECORD = "~V_SUMMARY";
     private static final String E_SUMMARY_RECORD = "~E_SUMMARY";
     private static final String VP_PROPERTY_PREFIX = "~VP_";
@@ -50,7 +50,15 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static final String SUMMARY_PROPERTY_BIN = "P_SUM_BIN";
     private final AerospikeConnection db;
     private final BlockingQueue<UpdateInfo> queue = new LinkedBlockingQueue<>(BLOCKING_QUEUE_SIZE);
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    // Create as daemon so it exits with process.
+    private final ExecutorService executorService = Executors.newFixedThreadPool(1,
+            r -> {
+                Thread t = Executors.defaultThreadFactory().newThread(r);
+                t.setDaemon(true);
+                return t;
+            });
+
     private final AtomicBoolean exited = new AtomicBoolean(false);
 
     // Store these locally so that we don't create any that we have already created.
@@ -157,6 +165,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     public void truncate() {
         synchronized (FireflyGraphSummaryUpdater.class) {
+            // Need to nuke the queue otherwise it will continue spilling out updates after we truncate.
+            final List<UpdateInfo> drain = new ArrayList<>();
+            queue.drainTo(drain);
             vertexLabelToProperties.clear();
             edgeLabelToProperties.clear();
         }
@@ -272,17 +283,51 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
         // Add a poison pill to the queue to signal the thread to exit.
-        queue.add(new PoisonPill());
-
         try {
-            // Use shutdowNow so that the waiting is interrupted.
-            executorService.shutdownNow();
-            final boolean exited = executorService.awaitTermination(50, java.util.concurrent.TimeUnit.MILLISECONDS);
-            if (!exited) {
-                LOG.warn("The metadata updater thread did not exit after {} milliseconds. This may cause a dangling thread, but may also just be the metdata lagging behind.", WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 50);
+            queue.add(new PoisonPill());
+            try {
+                // Use shutdowNow so that the waiting is interrupted.
+                executorService.shutdownNow();
+                final boolean exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+                if (!exited) {
+                    LOG.warn("The metadata updater thread did not exit after {} milliseconds. This may cause a dangling thread, but may also just be the metadata lagging behind.", WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000);
+                }
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while waiting for summary updater to exit.");
             }
-        } catch (final InterruptedException e) {
-            LOG.warn("Interrupted while waiting for summary updater to exit.");
+        } catch (final IllegalStateException e) {
+            // This means the queue is full, we should give it some time to clear up.
+            // Use shutdownNow to interrupt the thread if it is waiting.
+            executorService.shutdownNow();
+            boolean exited;
+            try {
+                exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+                if (exited) {
+                    return;
+                }
+            } catch (final InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while waiting for summary updater to exit.");
+            }
+
+            try {
+                queue.add(new PoisonPill());
+            } catch (final IllegalStateException illegalStateException) {
+                // This means the queue is still full after giving it plenty of time, we can just exit and let the daemon die.
+                return;
+            }
+            try {
+                // PoisonPill went in this time, so we should wait for the thread to exit if possible.
+                exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+                if (exited) {
+                    return;
+                }
+                LOG.warn("The metadata updater thread did not exit after {} milliseconds. This may cause a dangling thread, but may also just be the metadata lagging behind.", WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000);
+            } catch (final InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                LOG.warn("Interrupted while waiting for summary updater to exit.");
+            }
         }
     }
 
@@ -498,108 +543,111 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 // If we have not blown over our watermark, wait for some time before we write.
                 // We could blow over the watermark if the user is writing extreme amounts of data with no break,
                 // and we just finished writing and then there was already more data in our queue.
-                queue.drainTo(infoList);
-                infoList.add(info);
-                boolean foundPoisonPill = false;
-                for (final UpdateInfo i : infoList) {
-                    if (i instanceof PoisonPill) {
-                        foundPoisonPill = true;
+
+                synchronized (FireflyGraphSummaryUpdater.class) {
+                    queue.drainTo(infoList);
+                    infoList.add(info);
+                    boolean foundPoisonPill = false;
+                    for (final UpdateInfo i : infoList) {
+                        if (i instanceof PoisonPill) {
+                            foundPoisonPill = true;
+                            break;
+                        }
+                    }
+                    try {
+                        if (!foundPoisonPill && infoList.size() < HIGH_WATERMARK) {
+                            // Only print out ticket if we are not over the watermark (our write load is not large).
+                            // This is because we do not want to add additional stress on the system if we are under heavy
+                            // load. Additionally, if we received a poison pill we should not print out a ticker.
+                            printGraphSummaryTicker();
+                            Thread.sleep(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE);
+                        }
+                    } catch (final InterruptedException ignored) {
+                        // This is likely to be due to a shutdownNow call.
+                    }
+
+                    // Drain the rest of the queue.
+                    queue.drainTo(infoList);
+
+                    // Take the data from update info into a map.
+                    final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
+                    final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
+
+                    // Aggregate UpdateInfo into minimal updates.
+                    for (final UpdateInfo updateInfo : infoList) {
+                        if (updateInfo instanceof PoisonPill) {
+                            // Take the poison pill.
+                            LOG.info("Found poison pill in middle of UpdateInfo stream, completing updates before taking the poison pill.");
+                            foundPoisonPill = true;
+                        } else {
+                            final LabelCountInfo labelCountInfo = (LabelCountInfo) updateInfo;
+                            final Map<String, LabelCountInfo> mapToUpdate = labelCountInfo instanceof VertexCountInfo ? vertexUpdates : edgeUpdates;
+                            if (mapToUpdate.containsKey(labelCountInfo.label)) {
+                                mapToUpdate.get(labelCountInfo.label).mergeOther(labelCountInfo);
+                            } else {
+                                mapToUpdate.put(labelCountInfo.label, labelCountInfo);
+                            }
+                        }
+                    }
+
+                    // Perform the write operations. If these fail put their data back into the queue.
+                    // Could do something fancy like exponential backoff here, but this runs two risks:
+                    //   1. If the failed data is not quickly placed back in queue and given an opportunity to come back
+                    //      around with more data aggregated together, there is a risk of queue overflow in high write
+                    //      volume.
+                    //   2. If a poison pill was injected and Firefly is waiting to exit, the exponential backoff could
+                    //      cause this to take a long time.
+                    boolean failed = false;
+                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(vertexUpdates.values()), V_SUMMARY_KEY))) {
+                        failed = true;
+                        for (final LabelCountInfo labelCountInfo : vertexUpdates.values()) {
+                            if (!queue.offer(info)) {
+                                LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
+                                        " cause summary metadata skew.", labelCountInfo.label);
+                            }
+                        }
+                    }
+
+                    if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(edgeUpdates.values()), E_SUMMARY_KEY))) {
+                        failed = true;
+                        for (final LabelCountInfo labelCountInfo : edgeUpdates.values()) {
+                            if (!queue.offer(info)) {
+                                LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
+                                        " cause summary metadata skew.", labelCountInfo.label);
+                            }
+                        }
+                    }
+
+                    if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(vertexUpdates.values()), vertexLabelToProperties, VP_SUMMARY_KEY))) {
+                        failed = true;
+                        for (final Map.Entry<String, Set<String>> labelToProperties : vertexLabelToProperties.entrySet()) {
+                            if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
+                                LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
+                                        " cause summary metadata skew.", labelToProperties.getKey());
+                            }
+                        }
+                    }
+
+                    if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(edgeUpdates.values()), edgeLabelToProperties, EP_SUMMARY_KEY))) {
+                        failed = true;
+                        for (final Map.Entry<String, Set<String>> labelToProperties : edgeLabelToProperties.entrySet()) {
+                            if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
+                                LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
+                                        " cause summary metadata skew.", labelToProperties.getKey());
+                            }
+                        }
+                    }
+
+                    // If the poison pill is found, exit the loop.
+                    if (foundPoisonPill) {
+                        // This is worst case scenario for timing of poison pill and not having written data. Since the
+                        // write failed, Aerospike could be down. Either way the loop needs to exit.
+                        if (failed) {
+                            LOG.warn("Failed to write all metadata to the summary vertex before taking poison pill. This may cause metadata skew.");
+                        }
+                        LOG.info("Taking poison pill.");
                         break;
                     }
-                }
-                try {
-                    if (!foundPoisonPill && infoList.size() < HIGH_WATERMARK) {
-                        // Only print out ticket if we are not over the watermark (our write load is not large).
-                        // This is because we do not want to add additional stress on the system if we are under heavy
-                        // load. Additionally, if we received a poison pill we should not print out a ticker.
-                        printGraphSummaryTicker();
-                        Thread.sleep(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE);
-                    }
-                } catch (final InterruptedException ignored) {
-                    // This is likely to be due to a shutdownNow call.
-                }
-
-                // Drain the rest of the queue.
-                queue.drainTo(infoList);
-
-                // Take the data from update info into a map.
-                final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
-                final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
-
-                // Aggregate UpdateInfo into minimal updates.
-                for (final UpdateInfo updateInfo : infoList) {
-                    if (updateInfo instanceof PoisonPill) {
-                        // Take the poison pill.
-                        LOG.info("Found poison pill in middle of UpdateInfo stream, completing updates before taking the poison pill.");
-                        foundPoisonPill = true;
-                    } else {
-                        final LabelCountInfo labelCountInfo = (LabelCountInfo) updateInfo;
-                        final Map<String, LabelCountInfo> mapToUpdate = labelCountInfo instanceof VertexCountInfo ? vertexUpdates : edgeUpdates;
-                        if (mapToUpdate.containsKey(labelCountInfo.label)) {
-                            mapToUpdate.get(labelCountInfo.label).mergeOther(labelCountInfo);
-                        } else {
-                            mapToUpdate.put(labelCountInfo.label, labelCountInfo);
-                        }
-                    }
-                }
-
-                // Perform the write operations. If these fail put their data back into the queue.
-                // Could do something fancy like exponential backoff here, but this runs two risks:
-                //   1. If the failed data is not quickly placed back in queue and given an opportunity to come back
-                //      around with more data aggregated together, there is a risk of queue overflow in high write
-                //      volume.
-                //   2. If a poison pill was injected and Firefly is waiting to exit, the exponential backoff could
-                //      cause this to take a long time.
-                boolean failed = false;
-                if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(vertexUpdates.values()), V_SUMMARY_KEY))) {
-                    failed = true;
-                    for (final LabelCountInfo labelCountInfo: vertexUpdates.values()) {
-                        if (!queue.offer(info)) {
-                            LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                                    " cause summary metadata skew.", labelCountInfo.label);
-                        }
-                    }
-                }
-
-                if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(edgeUpdates.values()), E_SUMMARY_KEY))) {
-                    failed = true;
-                    for (final LabelCountInfo labelCountInfo: edgeUpdates.values()) {
-                        if (!queue.offer(info)) {
-                            LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                                    " cause summary metadata skew.", labelCountInfo.label);
-                        }
-                    }
-                }
-
-                if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(vertexUpdates.values()), vertexLabelToProperties, VP_SUMMARY_KEY))) {
-                    failed = true;
-                    for (final Map.Entry<String, Set<String>> labelToProperties: vertexLabelToProperties.entrySet()) {
-                        if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
-                            LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                                    " cause summary metadata skew.", labelToProperties.getKey());
-                        }
-                    }
-                }
-
-                if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(edgeUpdates.values()), edgeLabelToProperties, EP_SUMMARY_KEY))) {
-                    failed = true;
-                    for (final Map.Entry<String, Set<String>> labelToProperties: edgeLabelToProperties.entrySet()) {
-                        if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
-                            LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                                    " cause summary metadata skew.", labelToProperties.getKey());
-                        }
-                    }
-                }
-
-                // If the poison pill is found, exit the loop.
-                if (foundPoisonPill) {
-                    // This is worst case scenario for timing of poison pill and not having written data. Since the
-                    // write failed, Aerospike could be down. Either way the loop needs to exit.
-                    if (failed) {
-                        LOG.warn("Failed to write all metadata to the summary vertex before taking poison pill. This may cause metadata skew.");
-                    }
-                    LOG.info("Taking poison pill.");
-                    break;
                 }
             }
             LOG.info("Exiting worker thread.");

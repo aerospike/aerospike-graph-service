@@ -21,7 +21,6 @@ import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPL
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.LOCAL_MODE;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.SUPERNODE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_EDGE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_EDGE;
@@ -32,6 +31,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     private static final String CONFIG = "aerospike.graphloader.config";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
+    private static final String DRYRUN = "dryrun";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
     private static final Set<String> BOOLEAN_KEYS = Set.of(
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
@@ -47,6 +47,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     static {
         KEY_TO_ARG.put(VERTICES, null);
         KEY_TO_ARG.put(EDGES, null);
+        KEY_TO_ARG.put(DRYRUN, null);
         KEY_TO_ARG.put(CONFIG, "c");
         KEY_TO_ARG.put("aerospike.graphloader.remote.user", "u");
         KEY_TO_ARG.put("aerospike.graphloader.remote.passkey", "p");
@@ -100,6 +101,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         }
         boolean vertices = true;
         boolean edges = true;
+        boolean dryrun = false;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -122,9 +124,13 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
             throw new IllegalArgumentException("Either 'vertices' or 'edges' must be set to true.");
         }
 
+        if (mutableParams.containsKey("dryrun")) {
+            dryrun = getBooleanFromObject(mutableParams.get("dryrun"), "dryrun");
+        }
+
         for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
             final String key = config.getKey();
-            if (key.equals(VERTICES) || key.equals(EDGES)) {
+            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(DRYRUN)) {
                 // Actions are handled elsewhere
                 continue;
             }
@@ -135,9 +141,9 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         // This will be local as far as spark is concerned.
         args.add(formatArg(LOCAL_MODE));
 
-        // Always dry run and detect supernodes.
-        args.add(formatArg(DRY_RUN));
-        args.add(formatArg(SUPERNODE));
+        if (dryrun) {
+            args.add(formatArg(DRY_RUN));
+        }
 
         if (vertices) {
             // If we are loading vertices, add write/verify step.

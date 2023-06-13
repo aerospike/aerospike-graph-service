@@ -31,7 +31,6 @@ public class CommandLineParser {
     public static final String DRY_RUN = "dryrun";
     public static final String WRITE_EDGE = "writeedge";
     public static final String WRITE_VERTEX = "writevertex";
-    public static final String SUPERNODE = "supernode";
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
@@ -89,8 +88,6 @@ public class CommandLineParser {
         options.addOption(we);
         final Option wv = new Option(WRITE_VERTEX, "Write vertices.");
         options.addOption(wv);
-        final Option se = new Option(SUPERNODE, "Handle supernodes.");
-        options.addOption(se);
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

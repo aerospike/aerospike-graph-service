@@ -109,7 +109,5 @@ public class StorageEfficiencyUtil {
             final long ttlOverhead = record.getTimeToLive() > 0 ? ByteSizeConstants.NONZERO_TTL_VALUE : 0;
             return new StorageEfficiencyReport(record);
         }
-
     }
-
 }

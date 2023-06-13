@@ -27,6 +27,30 @@ to an active instance of Firefly. The more advanced method is by running `spark-
 * A running instance of Aerospike
 * `.properties` configuration file for Firefly configured to use that instance
 
+### Vertex and Edge Directories
+
+See configuration below for specifying their location. Local, or cloud (recommended) storage are supported. Currently cloud storage is limited to AWS S3 and Google Cloud Storage.
+
+Within the configured path, both vertices and edges are expected to live in subdirectories that categorize them by type (label). Any amount of CSV files is supported within those subdirectories and the naming under the configured master directory does not need to follow any format. For example:
+
+```
+s3://my-bucket/vertices
+	-people
+		-people_0.csv
+		-people_1.csv
+		-people_2.csv
+    -places
+    	-places0.csv
+s3://my-bucket/edges
+	-livesIn
+		-0livesIn.csv
+		-1livesIn.csv
+		-2livesIn.csv
+		-3livesIn.csv
+    -visited
+    	-visited.csv
+```
+
 ### Configurations
 
 Running the bulk loader comes with configurable options. These configurations can be accessed and set in one of three ways:

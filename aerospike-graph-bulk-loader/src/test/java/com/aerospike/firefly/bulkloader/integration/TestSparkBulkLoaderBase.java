@@ -201,7 +201,7 @@ public abstract class TestSparkBulkLoaderBase {
         } catch (final Exception e) {
             success = false;
             Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
-            Assert.assertEquals(e.getMessage(), "Preflight checks failed, check logs for detail on which line number and file caused the failure.");
+            Assert.assertEquals("Pre-flight checks failed. Check logs for details on which line number and files caused the failure.", e.getMessage());
         }
         Assert.assertFalse(success);
     }

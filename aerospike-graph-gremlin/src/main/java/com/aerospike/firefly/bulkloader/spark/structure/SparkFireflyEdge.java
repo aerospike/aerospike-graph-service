@@ -67,7 +67,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
-                LOG.error("Failed to generate property for header '" + header + "' from value: " + row.getAs(header));
+                LOG.error("Failed to generate Edge property for header '" + header + "' from value: " + row.getAs(header));
                 throw new FireflyBulkLoaderException(e);
             }
         }

@@ -35,14 +35,14 @@ public class ValidationsTest extends TestCase {
         final String groupColumn ="~id";
         // Vertices with ~id 1 and 2 are present multiple times in dataframe
         Dataset<Row> df = SPARK.createDataFrame(Arrays.asList(
-                RowFactory.create("1", 1, "file1"),
-                RowFactory.create("1", 5, "file2"),
-                RowFactory.create("2", 4, "file3"),
-                RowFactory.create("2", 9, "file3"),
-                RowFactory.create("3", 1, "file1")
+                RowFactory.create("1", 1L, "file1"),
+                RowFactory.create("1", 5L, "file2"),
+                RowFactory.create("2", 4L, "file3"),
+                RowFactory.create("2", 9L, "file3"),
+                RowFactory.create("3", 1L, "file1")
         ), new StructType(new StructField[]{
                 new StructField(groupColumn, DataTypes.StringType, false, Metadata.empty()),
-                new StructField(DatasetOperations.LINENUMBER_COLUMN, DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField(DatasetOperations.LINENUMBER_COLUMN, DataTypes.LongType, false, Metadata.empty()),
                 new StructField(DatasetOperations.FILENAME_COLUMN, DataTypes.StringType, false, Metadata.empty())
         }));
 

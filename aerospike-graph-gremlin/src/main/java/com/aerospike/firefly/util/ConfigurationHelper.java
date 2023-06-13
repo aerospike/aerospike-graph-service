@@ -82,6 +82,8 @@ public final class ConfigurationHelper {
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
+        public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
+
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
         public static final String FAULT_TEST = "FAULT_TEST";
@@ -92,7 +94,6 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
-        public static final String STORAGE_DEBUGGER_FLAG = "STORAGE_DEBUGGER_FLAG";
 
 
 

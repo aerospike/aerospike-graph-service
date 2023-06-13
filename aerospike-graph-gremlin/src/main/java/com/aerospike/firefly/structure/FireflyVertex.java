@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.FireflyStorageDebuggingVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -182,7 +183,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         if (propertyKeys.length == 1) {
             if (propertyKeys[0] == null)
                 return Collections.emptyIterator();
-            if (propertyKeys[0].equals(DEBUG_STORAGE_PROPERTY))
+            if (propertyKeys[0].equals(DEBUG_STORAGE_PROPERTY) && graph.getBaseGraph().STORAGE_DEBUGGER_FLAG)
                 return IteratorUtils.of((VertexProperty) new FireflyStorageDebuggingVertexProperty(this));
             return readVertexProperty(propertyKeys[0]);
         }

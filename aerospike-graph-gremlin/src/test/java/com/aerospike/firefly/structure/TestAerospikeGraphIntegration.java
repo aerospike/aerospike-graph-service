@@ -1422,33 +1422,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
 
-    @Test
-    @Ignore
-    public void testDebugRecord() {
-        final String NAME = "name";
-        final String AGE = "age";
-        Map<String, Object> properties = new HashMap<>() {{
-            put(NAME, "grant");
-            put(AGE, 35);
-        }};
 
-
-        final PackedVertex v = (PackedVertex) graph.traversal()
-                .addV()
-                .property(NAME, properties.get(NAME))
-                .property(AGE, properties.get(AGE))
-                .property(T.id,1)
-                .next();
-
-        final Object uid = v.id.getUserId();
-
-        assertEquals(1, uid);
-        final Map<String, Object> debug = v.debugStorage();
-        MapUtils.debugPrint(System.out, "debug", debug);
-        final GraphTraversalSource g = graph.traversal();
-        final Property<Object> x = g.V(v).properties(FireflyElement.DEBUG_STORAGE_PROPERTY).next();
-        final Map<String, Object> debug2 = (Map<String, Object>) x.value();
-        assertEquals(debug, debug2);
-    }
 }
 

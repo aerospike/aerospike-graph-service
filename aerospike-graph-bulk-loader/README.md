@@ -147,7 +147,7 @@ g.call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertic
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex -supernode
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c config.properties -writevertex -dryrun -verifyvertex
 ```
 
 ##### config.properties
@@ -175,9 +175,8 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 | 1               | dryrun       |                                     preflight check                                      |
 | 2               | writevertex  |                        write vertices specified by config into db                        |
 | 3               | verifyvertex |                      verify post write the sampled vertices dataset                      |
-| 4               | supernode    | extract supernode and set it inside the internal datastructure, which will be used later | 
-| 5               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
-| 6               | verifyedge   |                        verify sampled edges after writing into db                        |
+| 4               | writeedge    |        write edges to db, assuming that corresponding vertices are present in db         |
+| 5               | verifyedge   |                        verify sampled edges after writing into db                        |
 
 ##### Configuration Settings
 
@@ -187,10 +186,11 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 | aerospike.graphloader.dataframe-storage-type | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
 
 ##### sample commands (for single node L2 with 32 GB memory)
- | description           | command                                                                                                                                                                                                                                                         |
-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
- | run all vertices task | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writevertex  -dryrun -verifyvertex |
- | run all edges task    | spark-submit --conf  spark.driver.memory=17g  --conf spark.worker.cleanup.enabled=true  --class com.aerospike.firefly.bulkloader.SparkBulkLoader firefly-spark-bulk-loader-0.7.0-SNAPSHOT.jar -m local -c config.properties -writeedge -verifyedge -dryrun      |
+
+| description           | command                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| run all vertices task | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c c:/config/config.properties -writevertex -dryrun -verifyvertex |
+| run all edges task    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c c:/config/config.properties -writeedge -dryrun -verifyedge |
 
 ##### sample config file
  ```

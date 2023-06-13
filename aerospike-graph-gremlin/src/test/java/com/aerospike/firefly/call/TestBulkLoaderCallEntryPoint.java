@@ -260,6 +260,55 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
+    public void dryrunTrue() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", true).iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void dryrunFalse() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", false).iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void dryrunInvalidInput() {
+        // Right now calling the bulk loader here will fail with null config.
+        // Once the parameters are determined this test can be updated.
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", "notABoolean").iterate();
+            Assert.fail("Expected call to fail.");
+        } catch (final Exception e) {
+            Assert.assertEquals("Expected bulk loader flag 'dryrun' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
+        }
+    }
+
+    @Test
     public void numericConfig() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.

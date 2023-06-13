@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
-    private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-supernode", "-verifyedge", "-verifyvertex"};
+    private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-verifyedge", "-verifyvertex"};
     protected FireflyGraph graph = null;
 
     @Before

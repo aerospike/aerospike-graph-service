@@ -66,11 +66,9 @@ import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.SUPERNODE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_EDGE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_EDGE;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
@@ -221,15 +219,13 @@ public class EdgeOperations implements Serializable {
 
     public void extractSupernodes(Dataset<Row> edgeDataset) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
-        boolean extract = this.config.hasAction(SUPERNODE) &&
-                (Boolean.parseBoolean(
-                        ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig)) ||
-                        Boolean.parseBoolean(
-                                ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, fireflyConfig)));
+        // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
+        // creation. No need to find and disable them.
+        boolean extract = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig));
         if (extract) {
             edgeDataset.sparkSession().sparkContext()
                     .setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
-            LOGGER.info("supernode extraction starting...");
+            LOGGER.info("Supernode extraction starting...");
             // Csv format is: ~id, ~from, ~to, ...
             final JavaRDD<Row> edgeRDD = edgeDataset.javaRDD();
 
@@ -248,7 +244,7 @@ public class EdgeOperations implements Serializable {
 
             // Get the supernode threshold from Firefly config.
             final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, fireflyConfig));
-            LOGGER.info("supernodeThreshold: " + supernodeThreshold);
+            LOGGER.info("Supernode threshold: " + supernodeThreshold);
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(

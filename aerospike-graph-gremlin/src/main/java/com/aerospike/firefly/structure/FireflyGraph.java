@@ -162,12 +162,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         this.db = db;
         this.idFactory = db.getIdFactory();
 
-        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)), false);
-        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)), true);
-        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)), false);
+        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE, false);
+        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE, true);
+        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, false);
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
@@ -178,7 +175,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // Grab user defined vertex property indexes from the configuration and create them.
         final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE, db.getVpIndexPrefix(), vertexPropertyIndexes);
+        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
         // Grab user defined edge property indexes from the configuration and create them.
         final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -186,10 +183,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // TODO: Edge indexes.
             throw new RuntimeException("Edge property indexes are not currently supported.");
         }
-        createIndexes(FireflyEdge.class, db.PROPERTIES, db.getEpIndexPrefix(), edgePropertyIndexes);
+        createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
-        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
+        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
@@ -198,9 +195,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
-        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
-        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
+        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf));
+        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
+        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
         try {
             if (clientLogging)
                 Log.setCallback(new AerospikeLogger());
@@ -481,18 +478,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      */
     public Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
         final String name;
-        if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
-            name = AerospikeConnection.LABEL;
+        if (db.LABEL_BIN.equals(indexInfo.key)) {
+            name = db.LABEL_BIN;
         } else if (indexInfo.setName.equals(getBaseGraph().VERTEX_AERO_SET)) {
-            name = db.VERTEX_PROPERTY_NAME_TO_VALUE;
+            name = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
         } else if (indexInfo.setName.equals(getBaseGraph().EDGE_AERO_SET)) {
-            name = db.PROPERTIES;
+            name = db.PROPERTIES_BIN;
         } else {
             throw new IllegalArgumentException(
                     "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
         }
 
-        final IndexCollectionType type = AerospikeConnection.LABEL.equals(indexInfo.key) ?
+        final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
                 IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
         final Object value = predicate.getValue();
         if (Number.class.isAssignableFrom(value.getClass())) {
@@ -519,7 +516,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
+            if (db.LABEL_BIN.equals(indexInfo.key)) {
                 return Filter.contains(name, type, (String) value);
             } else {
                 return Filter.equal(name, (String) value, CTX.mapKey(Value.get(indexInfo.key)));
@@ -539,8 +536,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                       final String mapKey,
                                       final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
-        if (AerospikeConnection.LABEL.equals(binName)) {
-            return Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val((String) predicate.getValue()));
+        if (db.LABEL_BIN.equals(binName)) {
+            return Exp.eq(Exp.stringBin(db.LABEL_BIN), Exp.val((String) predicate.getValue()));
         }
 
         // Need to build a more complex expression for nested map values.
@@ -581,8 +578,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
         final Exp[] exps = hasContainers.stream().map(h ->
                 predicateToExpression(h.getKey().equals("~label") ?
-                                AerospikeConnection.LABEL : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE : db.PROPERTIES,
+                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
+                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
                         h.getKey(),
                         h.getPredicate())).toArray(Exp[]::new);
         return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
@@ -592,8 +589,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
         return hasContainers.stream().map(h ->
                 predicateToExpression(h.getKey().equals("~label") ?
-                                AerospikeConnection.LABEL : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE : db.PROPERTIES,
+                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
+                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
                         h.getKey(),
                         h.getPredicate())).toArray(Exp[]::new);
     }

@@ -18,14 +18,14 @@ public class TestPropertiesLabelIndexed extends TestProperties {
 
     @BeforeClass
     static public void beforeAll() {
-        CONFIG.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        CONFIG.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
     }
 
     @AfterClass
     static public void afterAll() {
-        CONFIG.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase());
+        CONFIG.clearProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase());
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
         SETUP_GRAPH.close();
     }

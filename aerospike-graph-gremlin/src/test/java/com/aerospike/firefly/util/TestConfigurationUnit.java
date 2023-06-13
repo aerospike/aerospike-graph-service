@@ -1,12 +1,14 @@
 package com.aerospike.firefly.util;
 
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -81,8 +83,22 @@ public class TestConfigurationUnit {
     @Test
     public void testConfigToString() {
         String s = ConfigurationHelper.dumpDefaults();
-        assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_HOST));
-        assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_PORT));
-        assertTrue(s.contains(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
+        assertTrue(s.contains(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, new MapConfiguration(new HashMap<>()))));
+        assertTrue(s.contains(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, new MapConfiguration(new HashMap<>()))));
+        assertTrue(s.contains(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, new MapConfiguration(new HashMap<>()))));
     }
+
+
+    @Test
+    public void returnsNormalNameInDebugMode() {
+
+    }
+
+    @Test
+    public void returnNumericNameInNormalMode(){
+
+    }
+
+
+
 }

@@ -10,7 +10,6 @@ import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import org.slf4j.Logger;
@@ -51,9 +50,9 @@ public class PackedEdgeProperty<V> extends FireflyProperty<V> {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
 
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES, Value.get(key()),
+        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(key()),
                 MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(key()),
+        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(key()),
                 MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
 
         try {

@@ -509,9 +509,9 @@ public class StarPackedTest {
                                 final Vertex vertex) {
         FireflyRecord ffr = FireflyRecord.read(db, set, FireflyIdPoly.fromObject(vertex.id(), set));
         if (ffr != null) {
-            final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
-            final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Object>>> vpTypeHintMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            final Map<String, List<Map<String, Long>>> vpIdMap = (Map<String, List<Map<String, Long>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+            final Map<String, List<Map<String, Object>>> vpValueMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+            final Map<String, List<Map<String, Object>>> vpTypeHintMap = (Map<String, List<Map<String, Object>>>) ffr.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
             final Map<String, List<Map<String, Long>>> vpIdMapExpected = new HashMap<>();
             final Map<String, List<Map<String, Object>>> vpValueMapExpected = new HashMap<>();
             final Map<String, List<Map<String, Object>>> vpTypeHintMapExpected = new HashMap<>();
@@ -1205,12 +1205,12 @@ public class StarPackedTest {
         final FireflyRecord outProperties = FireflyRecord.read(db, db.OUT_VP_SET, FireflyIdPoly.fromObject(vertex.id(), db.OUT_VP_SET));
         System.out.println("\tOut Properties:");
         if (outProperties != null) {
-            System.out.println("\t\t " + outProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
+            System.out.println("\t\t " + outProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN));
         }
         final FireflyRecord inProperties = FireflyRecord.read(db, db.IN_VP_SET, FireflyIdPoly.fromObject(vertex.id(), db.IN_VP_SET));
         System.out.println("\tIn Properties:");
         if (inProperties != null) {
-            System.out.println("\t\t " + inProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE));
+            System.out.println("\t\t " + inProperties.record().getValue(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN));
         }
         final FireflyRecord inIn = FireflyRecord.read(db, db.IN_IN_SET, FireflyIdPoly.fromObject(vertex.id(), db.IN_IN_SET));
         System.out.println("\tIn in:");

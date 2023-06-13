@@ -1,14 +1,22 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyElement implements Element {
+    public static final String DEBUG_STORAGE_PROPERTY = "debugStorage";
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;
@@ -45,4 +53,17 @@ public abstract class FireflyElement implements Element {
         return hashCode;
     }
 
+    public Map<String, Object> debugStorage() {
+        final byte[] keyHash = id.getKeyHash();
+        final Map<String, Object> results = new HashMap<>();
+        final AerospikeConnection db = ((FireflyGraph) graph()).getBaseGraph();
+        if (Vertex.class.isAssignableFrom(this.getClass())) {
+            results.putAll(AerospikeConnection.InfoOps.debugRecord(db, db.VERTEX_AERO_SET, keyHash).orElseThrow(() -> new RuntimeException("not found")));
+        } else if (Edge.class.isAssignableFrom(this.getClass())) {
+            results.putAll(AerospikeConnection.InfoOps.debugRecord(db, db.EDGE_AERO_SET, keyHash).orElseThrow(() -> new RuntimeException("not found")));
+        } else {
+            throw new RuntimeException("cannot debug element type class " + this.getClass().getName());
+        }
+        return results;
+    }
 }

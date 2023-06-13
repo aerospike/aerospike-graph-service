@@ -44,8 +44,8 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                         .map(Map.Entry::getKey).filter(s ->
                                 s.startsWith(db.getVpIndexPrefix()) ||
                                         s.startsWith(db.getEpIndexPrefix()) ||
-                                        db.V_LABEL_INDEX.equals(s) ||
-                                        db.E_LABEL_INDEX.equals(s)).
+                                        db.V_LABEL_INDEX_NAME.equals(s) ||
+                                        db.E_LABEL_INDEX_NAME.equals(s)).
                         collect(Collectors.toList());
 
         // Update the index metadata.
@@ -53,11 +53,11 @@ public class FireflyIndexMetadata implements FireflyMetadata {
             indexInfos.clear();
             for (final String indexName : indexes) {
                 // If it is the vertex or edge label index, insert it.
-                if (db.V_LABEL_INDEX.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.V_LABEL_INDEX, AerospikeConnection.LABEL, STRING, db.VERTEX_AERO_SET));
+                if (db.V_LABEL_INDEX_NAME.equals(indexName)) {
+                    indexInfos.add(new IndexInfo(db.V_LABEL_INDEX_NAME,db.LABEL_BIN, STRING, db.VERTEX_AERO_SET));
                     continue;
-                } else if (db.E_LABEL_INDEX.equals(indexName)) {
-                    indexInfos.add(new IndexInfo(db.E_LABEL_INDEX, AerospikeConnection.LABEL, STRING, db.EDGE_AERO_SET));
+                } else if (db.E_LABEL_INDEX_NAME.equals(indexName)) {
+                    indexInfos.add(new IndexInfo(db.E_LABEL_INDEX_NAME,db.LABEL_BIN, STRING, db.EDGE_AERO_SET));
                     continue;
                 }
 
@@ -112,8 +112,8 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         final List<IndexInfo> indexInfosList = getPropertyIndexInfos();
         for (final IndexInfo indexInfo : indexInfosList) {
             if (FireflyVertex.class.isAssignableFrom(elementClass)) {
-                if (indexInfo.setName.equals(db.V_LABEL_INDEX) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
-                    if (indexInfo.key.equals(key) || (AerospikeConnection.LABEL.equals(indexInfo.key) && "~label".equals(key))) {
+                if (indexInfo.setName.equals(db.V_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
+                    if (indexInfo.key.equals(key) || (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key))) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.
                             return Optional.of(indexInfo);
@@ -124,8 +124,8 @@ public class FireflyIndexMetadata implements FireflyMetadata {
                     }
                 }
             } else if (FireflyEdge.class.isAssignableFrom(elementClass)) {
-                if (indexInfo.setName.equals(db.E_LABEL_INDEX) || indexInfo.setName.equals(db.EDGE_AERO_SET)) {
-                    if (indexInfo.key.equals(key) || (AerospikeConnection.LABEL.equals(indexInfo.key) && "~label".equals(key))) {
+                if (indexInfo.setName.equals(db.E_LABEL_INDEX_NAME) || indexInfo.setName.equals(db.EDGE_AERO_SET)) {
+                    if (indexInfo.key.equals(key) || (db.LABEL_BIN.equals(indexInfo.key) && "~label".equals(key))) {
                         if (Number.class.isAssignableFrom(value.getClass()) && indexInfo.indexType.equals(NUMERIC)) {
                             // If value is number, index type must also be numeric.
                             return Optional.of(indexInfo);

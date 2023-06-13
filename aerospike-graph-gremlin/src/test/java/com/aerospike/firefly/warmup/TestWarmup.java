@@ -105,7 +105,7 @@ public class TestWarmup extends AbstractFireflySuite {
     @Test
     public void testWarmupDoesNotCreateIndex() {
         Configuration wc = ConfigurationUtils.cloneConfiguration(config);
-        wc.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), "true");
+        wc.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), "true");
         graph.getBaseGraph().dropDatabase(graph, true);
         List<Map.Entry<String, String>> indexesA = AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace());
         assertEquals(0, indexesA.stream().filter(it ->

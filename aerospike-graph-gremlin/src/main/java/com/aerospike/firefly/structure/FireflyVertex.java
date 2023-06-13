@@ -3,6 +3,7 @@ package com.aerospike.firefly.structure;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.FireflyStorageDebuggingVertexProperty;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -10,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -178,11 +180,11 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     @Override
     public <V> Iterator<VertexProperty<V>> properties(final String... propertyKeys) {
         if (propertyKeys.length == 1) {
-            return (propertyKeys[0] != null) ?
-                    // Read single vertex property.
-                    readVertexProperty(propertyKeys[0]) :
-                    // Null property key is not valid and also can cause null key exception in the map.
-                    Collections.emptyIterator();
+            if (propertyKeys[0] == null)
+                return Collections.emptyIterator();
+            if (propertyKeys[0].equals(DEBUG_STORAGE_PROPERTY))
+                return IteratorUtils.of((VertexProperty) new FireflyStorageDebuggingVertexProperty(this));
+            return readVertexProperty(propertyKeys[0]);
         }
 
 

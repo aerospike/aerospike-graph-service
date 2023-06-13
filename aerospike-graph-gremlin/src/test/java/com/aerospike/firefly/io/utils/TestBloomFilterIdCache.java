@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 /**
- *
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class TestBloomFilterIdCache {
@@ -52,7 +51,7 @@ public class TestBloomFilterIdCache {
 
         // Grab ids from bloom filter and ensure we have no duplicates.
         for (int i = 0; i < ID_COUNT; i++) {
-            if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.getNamespace(), "VERTEX_TEST_ID", i)) {
+            if (BloomFilterIdCache.takeIdIfAvailable(db, db.getNamespace(), "VERTEX_TEST_ID", i)) {
                 ids.add((long) i);
             }
         }
@@ -67,7 +66,7 @@ public class TestBloomFilterIdCache {
 
         // Generate list of tasks.
         List<Callable<Void>> callableTasks = new ArrayList<>();
-        for (int i = 0; i < THREAD_COUNT; i++ ) {
+        for (int i = 0; i < THREAD_COUNT; i++) {
             callableTasks.add(new InsertBloomFilter(i, ids));
         }
 
@@ -92,7 +91,7 @@ public class TestBloomFilterIdCache {
 
         // Generate list of tasks.
         List<Callable<Void>> callableTasks = new ArrayList<>();
-        for (int i = 0; i < THREAD_COUNT; i++ ) {
+        for (int i = 0; i < THREAD_COUNT; i++) {
             callableTasks.add(new InsertBloomFilter(i / 2, ids));
         }
 
@@ -109,7 +108,7 @@ public class TestBloomFilterIdCache {
         assertEquals(ID_COUNT * THREAD_COUNT / 2, ids.size());
     }
 
-    public class InsertBloomFilter implements Callable<Void>{
+    public class InsertBloomFilter implements Callable<Void> {
         private final int index;
         private final Set<Long> ids;
 
@@ -120,7 +119,7 @@ public class TestBloomFilterIdCache {
 
         public Void call() throws IOException {
             for (int i = index * 100; i < (index + 1) * 100; i++) {
-                if (BloomFilterIdCache.takeIdIfAvailable(db.getClient(), db.getNamespace(), "VERTEX_TEST_ID", i)) {
+                if (BloomFilterIdCache.takeIdIfAvailable(db, db.getNamespace(), "VERTEX_TEST_ID", i)) {
                     ids.add((long) i);
                 }
             }

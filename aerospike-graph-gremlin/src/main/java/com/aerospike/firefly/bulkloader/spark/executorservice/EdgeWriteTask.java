@@ -69,7 +69,7 @@ public class EdgeWriteTask {
                                     final String edgeLabel = sparkEdge.getLabel();
                                     this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
                                             inVertexId, outVertexId, supernodes.contains(inVertexId), supernodes.contains(outVertexId));
-                                    if (this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED) {
+                                    if (this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG) {
                                         GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
                                                 this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
                                                 edgeLabel, this.vertexOutEdgeMap);

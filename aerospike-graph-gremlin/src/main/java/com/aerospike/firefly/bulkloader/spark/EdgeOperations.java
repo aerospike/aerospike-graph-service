@@ -70,7 +70,7 @@ import static com.aerospike.firefly.bulkloader.util.CommandLineParser.SUPERNODE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_EDGE;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_EDGE;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
@@ -95,7 +95,7 @@ public class EdgeOperations implements Serializable {
             final String nullValue = this.config.getOrDefault(NULL_VALUE);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                LOGGER.info(String.format("graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED));
+                LOGGER.info(String.format("graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 
@@ -223,9 +223,9 @@ public class EdgeOperations implements Serializable {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         boolean extract = this.config.hasAction(SUPERNODE) &&
                 (Boolean.parseBoolean(
-                        ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig)) ||
+                        ConfigurationHelper.getOrDefaultString(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig)) ||
                         Boolean.parseBoolean(
-                                ConfigurationHelper.getOrDefault(ADJACENCY_INDEX_ENABLED, fireflyConfig)));
+                                ConfigurationHelper.getOrDefaultString(ADJACENCY_INDEX_ENABLED_FLAG, fireflyConfig)));
         if (extract) {
             edgeDataset.sparkSession().sparkContext()
                     .setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
@@ -247,7 +247,7 @@ public class EdgeOperations implements Serializable {
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
             // Get the supernode threshold from Firefly config.
-            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, fireflyConfig));
+            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefaultString(ON_RECORD_ID_LIMIT, fireflyConfig));
             LOGGER.info("supernodeThreshold: " + supernodeThreshold);
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
@@ -276,7 +276,7 @@ public class EdgeOperations implements Serializable {
                 final AerospikeConnection db = graph.getBaseGraph();
                 final FireflyId vertexId = graph.getIdFactory().createId(supernodeId, FireflyVertex.class);
                 final Key key = getKey(db, db.VERTEX_AERO_SET, vertexId);
-                final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
+                final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, true);
                 final Operation disableEdgeCache = Operation.put(cacheDisabledBin);
                 int tryCount = 0;
                 boolean succeeded = false;

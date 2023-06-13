@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.client.util.Crypto;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -1217,7 +1218,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void printConfig() {
         List.of(ConfigurationHelper.Keys.class.getDeclaredFields()).forEach(field -> {
             try {
-                String value = ConfigurationHelper.getOrDefault(field.getName(), config);
+                String value = ConfigurationHelper.getOrDefaultString(field.getName(), config);
                 System.out.printf("%s=%s%n\n", field.getName().toLowerCase(), value);
             } catch (RuntimeException e) {
                 System.out.println(e.getMessage());
@@ -1421,5 +1422,33 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     }
 
 
+    @Test
+    @Ignore
+    public void testDebugRecord() {
+        final String NAME = "name";
+        final String AGE = "age";
+        Map<String, Object> properties = new HashMap<>() {{
+            put(NAME, "grant");
+            put(AGE, 35);
+        }};
+
+
+        final PackedVertex v = (PackedVertex) graph.traversal()
+                .addV()
+                .property(NAME, properties.get(NAME))
+                .property(AGE, properties.get(AGE))
+                .property(T.id,1)
+                .next();
+
+        final Object uid = v.id.getUserId();
+
+        assertEquals(1, uid);
+        final Map<String, Object> debug = v.debugStorage();
+        MapUtils.debugPrint(System.out, "debug", debug);
+        final GraphTraversalSource g = graph.traversal();
+        final Property<Object> x = g.V(v).properties(FireflyElement.DEBUG_STORAGE_PROPERTY).next();
+        final Map<String, Object> debug2 = (Map<String, Object>) x.value();
+        assertEquals(debug, debug2);
+    }
 }
 

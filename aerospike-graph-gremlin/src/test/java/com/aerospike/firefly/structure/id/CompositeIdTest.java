@@ -32,12 +32,12 @@ public class CompositeIdTest extends AbstractFireflySuite {
         final Edge baz = g.addE("baz").from(foo).to(bar).next();
 
         final Record fooRecord = db.getClient().get(new QueryPolicy(), new Key(db.getNamespace(), db.VERTEX_AERO_SET, (Long) foo.id()));
-        final Map<String, List<Object>> fooOutEdges = (Map<String, List<Object>>) fooRecord.getMap(db.OUT_EDGES);
-        final Map<String, List<Object>> fooInEdges = (Map<String, List<Object>>) fooRecord.getMap(db.IN_EDGES);
+        final Map<String, List<Object>> fooOutEdges = (Map<String, List<Object>>) fooRecord.getMap(db.OUT_EDGES_BIN);
+        final Map<String, List<Object>> fooInEdges = (Map<String, List<Object>>) fooRecord.getMap(db.IN_EDGES_BIN);
 
         final Record barRecord = db.getClient().get(new QueryPolicy(), new Key(db.getNamespace(), db.VERTEX_AERO_SET, (Long) bar.id()));
-        final Map<String, List<Object>> barOutEdges = (Map<String, List<Object>>) barRecord.getMap(db.OUT_EDGES);
-        final Map<String, List<Object>> barInEdges = (Map<String, List<Object>>) barRecord.getMap(db.IN_EDGES);
+        final Map<String, List<Object>> barOutEdges = (Map<String, List<Object>>) barRecord.getMap(db.OUT_EDGES_BIN);
+        final Map<String, List<Object>> barInEdges = (Map<String, List<Object>>) barRecord.getMap(db.IN_EDGES_BIN);
 
         Assert.assertTrue(fooInEdges.isEmpty());
         Assert.assertTrue(barOutEdges.isEmpty());

@@ -77,7 +77,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
         final Iterator<? extends Vertex> iterator = elements(
                 graph,
                 graph.getBaseGraph().VERTEX_AERO_SET,
-                graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE,
+                graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                 FireflyVertex.class,
                 new FireflyGraph.GetElements<Vertex>() {
                     @Override
@@ -157,7 +157,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
                 iterator = graph.queryScan(
                         topContainer.getKey(),
                         setName,
-                        topContainer.getKey().equals("~label") ? AerospikeConnection.LABEL : binName,
+                        topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : binName,
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,

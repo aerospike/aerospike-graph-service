@@ -47,7 +47,6 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GRAPH_VARIABLES_RECORD;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -117,7 +116,7 @@ public abstract class RelationalGraph extends FireflyGraph {
         final List<Operation> operations = new ArrayList<>();
         // CREATE and UPDATE are both okay since this is idempotent.
         final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Operation writeLabel = MapOperation.put(mapPolicy, AerospikeConnection.LABEL,
+        final Operation writeLabel = MapOperation.put(mapPolicy,db.LABEL_BIN,
                 Value.get(edgeId), Value.get(label));
         operations.add(writeLabel);
 
@@ -130,20 +129,20 @@ public abstract class RelationalGraph extends FireflyGraph {
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
-            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN,
+            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN_BIN,
                     Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
-            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT,
+            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT_BIN,
                     Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
             operations.add(writeOutVSupernode);
         }
 
-        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES,
+        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES_BIN,
                 Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
         operations.add(writeProperties);
-        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS,
+        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS_BIN,
                 Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
         operations.add(writeTypeHints);
 
@@ -173,8 +172,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Key key = FireflyRecord.getKey(db, this.db.VERTEX_AERO_SET, vertexId);
 
         // Get direction and counter keys. Direction must be IN or OUT.
-        final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES : this.db.OUT_EDGES;
-        final String counterBinName = direction == Direction.IN ? this.db.IN_EDGE_COUNTER : this.db.OUT_EDGE_COUNTER;
+        final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES_BIN : this.db.OUT_EDGES_BIN;
+        final String counterBinName = direction == Direction.IN ? this.db.IN_EDGE_COUNTER_BIN : this.db.OUT_EDGE_COUNTER_BIN;
 
         // Simple bin to increment the edge cache counter.
         final Bin incrementEdgeCountBin = new Bin(counterBinName, edgeIds.size());
@@ -301,10 +300,10 @@ public abstract class RelationalGraph extends FireflyGraph {
         }
         return db.readTypeHintedValueFromMap(
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
-                db.GRAPH_VARIABLES_MAP,
+                FireflyIdPoly.fromObject(db.GRAPH_VARIABLES_REC_KEY, db.GRAPH_VARIABLES_SET),
+                db.GRAPH_VARIABLES_BIN,
                 key,
-                db.TYPE_HINTS);
+                db.TYPE_HINTS_BIN);
     }
 
     /**
@@ -316,9 +315,9 @@ public abstract class RelationalGraph extends FireflyGraph {
     public Set<String> readGraphVariableKeys() {
         final FireflyRecord fireflyRecord = FireflyRecord.read(db,
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET));
+                FireflyIdPoly.fromObject(db.GRAPH_VARIABLES_REC_KEY, db.GRAPH_VARIABLES_SET));
         if (fireflyRecord == null) return new HashSet<>();
-        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.GRAPH_VARIABLES_MAP);
+        final Map<String, ?> m = (Map<String, ?>) fireflyRecord.record().getMap(db.GRAPH_VARIABLES_BIN);
         return m.keySet();
     }
 
@@ -332,11 +331,11 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public <V> void writeGraphVariable(final String key, final V value) {
         db.writeTypeHintedGraphVariable(db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
-                db.GRAPH_VARIABLES_MAP,
+                FireflyIdPoly.fromObject(db.GRAPH_VARIABLES_REC_KEY, db.GRAPH_VARIABLES_SET),
+                db.GRAPH_VARIABLES_BIN,
                 key,
                 value,
-                db.TYPE_HINTS);
+                db.TYPE_HINTS_BIN);
     }
 
     /**
@@ -348,10 +347,10 @@ public abstract class RelationalGraph extends FireflyGraph {
     public void removeGraphVariable(final String key) {
         db.removeTypeHintedValueFromMap(
                 db.GRAPH_VARIABLES_SET,
-                FireflyIdPoly.fromObject(GRAPH_VARIABLES_RECORD, db.GRAPH_VARIABLES_SET),
-                db.GRAPH_VARIABLES_MAP,
+                FireflyIdPoly.fromObject(db.GRAPH_VARIABLES_REC_KEY, db.GRAPH_VARIABLES_SET),
+                db.GRAPH_VARIABLES_BIN,
                 key,
-                db.TYPE_HINTS);
+                db.TYPE_HINTS_BIN);
     }
 
     protected Iterator<FireflyId> scanAllVertices() {

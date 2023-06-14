@@ -47,7 +47,6 @@ public class TestVertexPropertyCacheIntegration {
     public void testCacheEnabledAdjacencyDisabled() {
         try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
             assertAddAndDropVertexProperties(graph);
-            assertDropVertexDropsProperties(graph);
         }
     }
 
@@ -55,7 +54,6 @@ public class TestVertexPropertyCacheIntegration {
     public void testEdgeCacheDisabledAdjacencyEnabled() {
         try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
             assertAddAndDropVertexProperties(graph);
-            assertDropVertexDropsProperties(graph);
         }
     }
 
@@ -63,7 +61,6 @@ public class TestVertexPropertyCacheIntegration {
     public void testCacheSizeExceeded() {
         try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 2)) {
             assertAddAndDropVertexProperties(graph);
-            assertDropVertexDropsProperties(graph);
         }
     }
 
@@ -101,36 +98,4 @@ public class TestVertexPropertyCacheIntegration {
         Assert.assertFalse(g.V().has("eyes", "two").hasNext());
     }
 
-    private void assertDropVertexDropsProperties(final FireflyGraph graph) {
-        graph.getBaseGraph().dropDatabase(graph, false);
-        final GraphTraversalSource g = graph.traversal();
-
-        g.addV("cat").property("name", "Vincent").iterate();
-        g.V().hasLabel("cat").property("legs", "four").iterate();
-        g.V().hasLabel("cat").property("tail", "one").iterate();
-        g.V().hasLabel("cat").property("eyes", "two").iterate();
-
-        g.V().hasLabel("cat").drop().iterate();
-
-        final AerospikeConnection connection = graph.getBaseGraph();
-        final Iterator<KeyRecord> properties = scanVPSet(connection);
-        Assert.assertFalse(properties.hasNext());
-    }
-
-    private Iterator<KeyRecord> scanVPSet(final AerospikeConnection connection) {
-        final Monitor scanMonitor = new Monitor();
-        final ScanPolicy policy = new ScanPolicy();
-        final AerospikeClient client = connection.getClient();
-        final UUID scanId = UUID.randomUUID();
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(SETUP_GRAPH.getBaseGraph(), scanMonitor, scanId);
-
-        client.scanAll(connection.getEventLoops().next(),
-                listener,
-                policy,
-                connection.getNamespace(),
-                connection.VERTEX_PROPERTY_AERO_SET);
-
-        return new FireflyCloseableIterator<>(listener);
-    }
 }

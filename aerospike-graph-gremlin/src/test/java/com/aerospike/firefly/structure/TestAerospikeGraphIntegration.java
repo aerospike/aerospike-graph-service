@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.client.util.Crypto;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -1217,7 +1218,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void printConfig() {
         List.of(ConfigurationHelper.Keys.class.getDeclaredFields()).forEach(field -> {
             try {
-                String value = ConfigurationHelper.getOrDefault(field.getName(), config);
+                String value = ConfigurationHelper.getOrDefaultString(field.getName(), config);
                 System.out.printf("%s=%s%n\n", field.getName().toLowerCase(), value);
             } catch (RuntimeException e) {
                 System.out.println(e.getMessage());

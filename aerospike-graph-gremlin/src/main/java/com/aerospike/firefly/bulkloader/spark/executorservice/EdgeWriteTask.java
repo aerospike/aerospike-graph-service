@@ -59,7 +59,7 @@ public class EdgeWriteTask {
     }
 
     public CompletableFuture write(ScheduledExecutorService service) {
-        final boolean edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED;
+        final boolean edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
         return retry.withRetries(
                 CompletableFuture.supplyAsync(() -> {
                     SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId,

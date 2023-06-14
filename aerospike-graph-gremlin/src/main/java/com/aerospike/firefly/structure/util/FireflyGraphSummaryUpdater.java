@@ -158,7 +158,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         this.EP_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, EP_PROPERTY_PREFIX + SUMMARY_PROPERTY_BIN);
         this.V_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, V_SUMMARY_RECORD);
         this.E_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, E_SUMMARY_RECORD);
-        if (db.SUMMARY_ENABLED) {
+        if (db.SUMMARY_ENABLED_FLAG) {
             this.executorService.submit(getUpdateRunnable());
         }
     }
@@ -180,7 +180,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the vertex to update.
      */
     public void addVertexWriteToQueue(final String label, final Set<String> properties) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -197,7 +197,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label      The label of the vertex or edge to update.
      */
     public void addVertexRemoveToQueue(final String label) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -215,7 +215,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the edge to update.
      */
     public void addEdgeWriteToQueue(final String label, final Set<String> properties) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -232,7 +232,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param label      The label of the vertex or edge to update.
      */
     public void addEdgeRemoveToQueue(final String label) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -250,7 +250,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the vertex to update.
      */
     public void addVertexPropertiesWriteToQueue(final String label, final Set<String> properties) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -267,7 +267,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
      * @param properties The properties of the edge to update.
      */
     public void addEdgePropertiesWriteToQueue(final String label, final Set<String> properties) {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
 
@@ -279,7 +279,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
     @Override
     public void close() {
-        if (!db.SUMMARY_ENABLED) {
+        if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
         // Add a poison pill to the queue to signal the thread to exit.
@@ -491,7 +491,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     }
 
     private void printGraphSummaryTicker() {
-        if (!db.SUMMARY_TICKER_ENABLED) {
+        if (!db.SUMMARY_TICKER_ENABLED_FLAG) {
             return;
         }
 

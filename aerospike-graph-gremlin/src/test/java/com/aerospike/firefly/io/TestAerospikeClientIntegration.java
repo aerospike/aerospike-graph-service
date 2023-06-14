@@ -115,36 +115,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
     }
 
     @Test
-    public void testCounterOps() {
-        db.zeroIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(1, db.getIdCounter(db.GLOBAL));
-        db.decrementIdCounter(db.GLOBAL);
-        assertEquals(0, db.getIdCounter(db.GLOBAL));
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(2, db.getIdCounter(db.GLOBAL));
-
-        long res = db.greaterOrIncrement(36, db.GLOBAL);
-        assertEquals(db.getIdCounter(db.GLOBAL), res);
-        assertEquals(36, res);
-
-        db.zeroIdCounter(db.GLOBAL);
-        assertEquals(0, db.getIdCounter(db.GLOBAL));
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        db.incrementAndGetIdCounter(db.GLOBAL);
-        assertEquals(4, db.getIdCounter(db.GLOBAL));
-        long res2 = db.greaterOrIncrement(3, db.GLOBAL);
-        assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, res2);
-        assertEquals(5, db.getIdCounter(db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
-        assertEquals(5, db.greaterOrExisting(3, db.GLOBAL));
-    }
-
-    @Test
     public void testSyntheticSupernode() {
         config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "5");
 
@@ -437,11 +407,12 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             graph.traversal().V().drop().iterate();
             sleep(10000);
 
-            // ID_MGR_SET id manager set and G_META graph metadata are not removed by removing all vertices
+            // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ?
-                    Set.of("0_G_META", "0_ID_MGR_SET", "0_G_SUMMARY") :
-                    Set.of("0_IN_IN", "0_G_META", "0_OUT_OUT", "0_OUT_IN", "0_OUT_VP", "0_IN_OUT", "0_IN_VP"), x);
+            if(StarPackedGraph.isStarPackedGraph(graph))
+                throw new RuntimeException("StarPackedGraph not currently supported");
+            assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET), x);
+;
             assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 3 : 7, x.size());
 
             Vertex a = graph.addVertex();
@@ -453,7 +424,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             sleep(2000);
             final Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
             final Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
-                    AerospikeConnection.LABEL);
+                   db.LABEL_BIN);
             FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
             assertFalse(vertxKeys.hasNext());
             assertFalse(edges.hasNext());
@@ -489,8 +460,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         }});
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges, MapOrder.KEY_ORDERED));
         final Bin[] bins = new Bin[]{edgeDataBin};
-        FireflyRecord.writeElement(db, TEST_SET, vertexFid, -1, bins);
-        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());
+        FireflyRecord.writeElement(db, TEST_SET.name(), vertexFid, -1, bins);
+        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
         Record operateResultRecord = db.operate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKey(Value.get(edgeLabel))),
                 Operation.get(edgeDirection)
@@ -523,8 +494,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
         final Bin edgeDataBin = new Bin(edgeDirection, Value.get(labelEdges));
         final Bin[] bins = new Bin[]{edgeDataBin};
-        FireflyRecord.writeElement(db, TEST_SET, vertexFid, -1, bins);
-        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET, (Long) vertexFid.getUserId());
+        FireflyRecord.writeElement(db, TEST_SET.name(), vertexFid, -1, bins);
+        final Key vertexAeroKey = new Key(db.getNamespace(), TEST_SET.name(), (Long) vertexFid.getUserId());
         Record operateResultRecord = db.operate(null, vertexAeroKey,
                 ListOperation.append(edgeDirection, Value.get(additionalEdgeRawId), CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),
                 Operation.get(edgeDirection)

@@ -8,6 +8,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.WritePolicy;
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnel;
 import com.google.common.hash.Funnels;
@@ -16,7 +17,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USER_SUPPLIED_ID_CACHE_SET;
 
 /**
  * We need our expected insertion count to grow with the database, so to do that we can use multiple
@@ -44,16 +44,17 @@ public final class BloomFilterIdCache {
     /**
      * Check if id is available using bloom filter. If it is, take it.
      *
-     * @param client    Aerospike client.
+     * @param db    AerospikeConnection.
      * @param namespace namespace of graph.
      * @param name      name of id cache.
      * @param id        id to use.
      * @return true if id is available and is now in use, false otherwise.
      * @throws IOException If unable to determine whether id is available.
      */
-    public static boolean takeIdIfAvailable(final AerospikeClient client, final String namespace, final String name, long id) {
+    public static boolean takeIdIfAvailable(final AerospikeConnection db, final String namespace, final String name, long id) {
+        final AerospikeClient client = db.getClient();
         // Generate key and ClientPolicy.
-        final Key key = new Key(namespace, USER_SUPPLIED_ID_CACHE_SET, name);
+        final Key key = new Key(namespace, db.USER_SUPPLIED_ID_CACHE_SET, name);
         final ClientPolicy clientPolicy = new ClientPolicy();
 
         // To ensure concurrent accesses do not result in corruption, we need to use GenerationPolicy.EXPECT_GEN_EQUAL.

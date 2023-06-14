@@ -30,7 +30,7 @@ public class FireflyVertexEdgeLocalCountStep extends MapStep<Vertex, Long> {
         final Traverser.Admin<Vertex> traverser = this.starts.next();
         final FireflyVertex vertex = (FireflyVertex) traverser.get();
         final long result;
-        if (vertex.isEdgeCacheOverflowed() || !Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, ((FireflyGraph) traversal.getGraph().get()).configuration()))) {
+        if (vertex.isEdgeCacheOverflowed() || !Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, ((FireflyGraph) traversal.getGraph().get()).configuration()))) {
             result = vertex.getEdgeIdsFromVertex(direction).size();
         } else {
             result = vertex.getEdgeCount(direction);

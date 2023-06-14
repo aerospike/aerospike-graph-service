@@ -90,7 +90,7 @@ public class EdgeOperations implements Serializable {
             final String nullValue = this.config.getOrDefault(NULL_VALUE);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED));
+                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 
@@ -237,7 +237,7 @@ public class EdgeOperations implements Serializable {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
-        boolean extract = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig));
+        boolean extract = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig));
         if (extract) {
             String taskName= "Compute Supernodes";
             edgeDataset.sparkSession().sparkContext()
@@ -260,7 +260,7 @@ public class EdgeOperations implements Serializable {
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
             // Get the supernode threshold from Firefly config.
-            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefault(ON_RECORD_ID_LIMIT, fireflyConfig));
+            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefaultString(ON_RECORD_ID_LIMIT, fireflyConfig));
             LOGGER.info("Supernode threshold: " + supernodeThreshold);
 
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
@@ -289,7 +289,7 @@ public class EdgeOperations implements Serializable {
                 final AerospikeConnection db = graph.getBaseGraph();
                 final FireflyId vertexId = graph.getIdFactory().createId(supernodeId, FireflyVertex.class);
                 final Key key = getKey(db, db.VERTEX_AERO_SET, vertexId);
-                final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED, true);
+                final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, true);
                 final Operation disableEdgeCache = Operation.put(cacheDisabledBin);
                 int tryCount = 0;
                 boolean succeeded = false;

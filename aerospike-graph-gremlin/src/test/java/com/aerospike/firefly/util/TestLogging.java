@@ -14,10 +14,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.assertEquals;
@@ -112,18 +114,20 @@ public class TestLogging {
     }
 
     @Test
-    public void testCanSetASClientLogLevel(){
+    public void testCanSetASClientLogLevel() {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "DEBUG");
         conf.setProperty(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED.toLowerCase(), "true");
         FireflyGraph graph = FireflyGraph.open(conf);
         final AerospikeClient client = graph.getBaseGraph().getClient();
-        final Key key = new Key("test", "test","test");
+        final Key key = new Key("test", "test", "test");
         client.put(null, key, new Bin("test", "test"));
         final Key keyDoesNotExist = new Key("test", "negative", "negative");
         client.get(null, keyDoesNotExist);
         AtomicBoolean passed = new AtomicBoolean(false);
-        memoryAppender.getLoggedEvents().forEach(event -> {
+        final ArrayList<ILoggingEvent> eventSnapshot = new ArrayList<>();
+        eventSnapshot.addAll(memoryAppender.getLoggedEvents());
+        eventSnapshot.forEach(event -> {
             if (event.getLoggerName().equals(AerospikeClient.class.getName()))
                 passed.set(true);
         });

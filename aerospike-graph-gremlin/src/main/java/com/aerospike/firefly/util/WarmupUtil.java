@@ -58,7 +58,7 @@ public class WarmupUtil {
     }
 
     public void preheat(int passes) {
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
             final String message = "Fault Test. The FAULT_TEST configuration key has been enabled. This intentionally causes the warmup routine to fail.";
             System.out.println(message);
             throw new AerospikeException(message);

@@ -80,6 +80,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -195,7 +196,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-
+    public final Optional<String[]> TLS_NAMES;
     private final FireflyIdFactory idFactory;
 
     /**
@@ -213,7 +214,22 @@ public class AerospikeConnection implements AutoCloseable {
         this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
 
         this.eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
-        final Host[] hosts = Host.parseHosts(host, port);
+
+        if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
+            TLS_NAMES = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
+            if (Host.parseHosts(host, port).length != TLS_NAMES.get().length) {
+                throw new IllegalArgumentException("Number of TLS names must match number of hosts");
+            }
+        } else {
+            TLS_NAMES = Optional.empty();
+        }
+        final Host[] hosts = TLS_NAMES
+                .map(tlsNameArray -> Arrays.stream(tlsNameArray)
+                        .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
+                        .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
+                        .collect(Collectors.toList()))
+                .orElse(Arrays.stream(Host.parseHosts(host, port)).collect(Collectors.toList()))
+                .toArray(new Host[0]);
         this.clientPolicy = new ClientPolicy();
         this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
@@ -227,10 +243,15 @@ public class AerospikeConnection implements AutoCloseable {
             this.clientPolicy.user = user;
             this.clientPolicy.password = password;
         }
-        final String tlsConfig = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
-        if (Boolean.parseBoolean(tlsConfig))
+        final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
+        if (Boolean.parseBoolean(tlsEnabled))
             this.clientPolicy.tlsPolicy = new TlsPolicy();
-        this.client = new AerospikeClient(clientPolicy, hosts);
+        try {
+            this.client = new AerospikeClient(clientPolicy, hosts);
+        } catch (Exception e) {
+            LOG.error("Error connecting to Aerospike", e);
+            throw e;
+        }
         FireflyAerospikeVersionCheck.validateVersion(client);
         FireflyAerospikeGraphServiceCheck.checkFeatureKey(client);
 

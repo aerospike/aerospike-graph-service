@@ -2,7 +2,8 @@ package com.aerospike.firefly.bulkloader.spark;
 
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
-import joptsimple.internal.Strings;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -14,12 +15,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
@@ -27,20 +35,16 @@ import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPL
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
-import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.monotonically_increasing_id;
 
 public class DatasetOperations implements Serializable {
-    public static final int RETRY_LIMIT = 20; // not provided through config
+    public static final int RETRY_LIMIT = 20; // Not provided through config
     public static final String FILENAME_COLUMN = "~fileName";
     public static final String LINENUMBER_COLUMN = "~line";
-    public static final String DIRECTORY_COLUMN = "~directory";
-    public static final Set<String> COLUMNSET_TO_REMOVE = new HashSet<>((Arrays.asList(DIRECTORY_COLUMN, FILENAME_COLUMN, LINENUMBER_COLUMN)));
-    public static final int THREAD_POOL_BUFFER_SIZE = 4;
+    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, LINENUMBER_COLUMN);
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
 
-    public DatasetOperations() {
-    }
+    public DatasetOperations() {}
 
     /**
      * Function to merge Datasets.
@@ -49,21 +53,18 @@ public class DatasetOperations implements Serializable {
      * @param datasets List of Datasets to merge
      * @return Merged Dataset<Row> from all the given Datasets
      */
-    public static Dataset<Row> mergeDatasets(final SparkSession spark,
+    private static Dataset<Row> mergeDatasets(final SparkSession spark,
                                              final List<Dataset<Row>> datasets) {
-        Objects.requireNonNull(datasets);
-        Dataset<Row> unionDs = spark.emptyDataFrame();
-        for (final Dataset<Row> dataset : datasets) {
-            if (unionDs.isEmpty()) {
-                unionDs = dataset.select(input_file_name().as(FILENAME_COLUMN), col("*"))
-                        .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
-            } else {
-                unionDs = unionDs.unionByName(dataset.select(input_file_name().as(FILENAME_COLUMN), col("*"))
-                        .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id()), true);
+        Objects.nonNull(datasets);
+        if (datasets.isEmpty()) {
+            return spark.emptyDataFrame();
+        } else {
+            Dataset<Row> unionDs = datasets.get(0);
+            for (int i = 1; i < datasets.size(); i++) {
+                unionDs = unionDs.unionByName(datasets.get(i), true);
             }
+            return unionDs;
         }
-        return unionDs;
-//        return unionDs.persist(level);
     }
 
     /**
@@ -77,44 +78,48 @@ public class DatasetOperations implements Serializable {
     public static List<Dataset<Row>> createDatasets(final SparkSession spark, final List<String> csvPaths,
                                                     final List<String> requiredHeaders) {
 
-        LOGGER.info("csvPaths: {}", Strings.join(csvPaths, ", "));
         final List<Dataset<Row>> datasets = new ArrayList<>();
         for (final String csv : csvPaths) {
-            final Dataset<Row> dataset = spark.read().option("header", "true").csv(csv)
-                    .withColumn(DIRECTORY_COLUMN, lit(csv));
-            final Set<String> headers = Set.of(dataset.columns());
-            for (final String requiredHeader : requiredHeaders) {
-                if (!headers.contains(requiredHeader)) {
-                    throw new RuntimeException("Unable to find the required column header values '" +
-                            requiredHeaders + "' in source file '" + csv + "'.");
-                }
-            }
+            final Dataset<Row> dataset = spark.read()
+                    .option("header", "true")
+                    .option("recursiveFileLookup", "true").csv(csv)
+                    .select(input_file_name().as(FILENAME_COLUMN), col("*"))
+                    .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
+            testHeaders(requiredHeaders, csv, dataset);
             datasets.add(dataset);
         }
         return datasets;
     }
 
+    private static void testHeaders(List<String> requiredHeaders, String csv, Dataset<Row> dataset) {
+        final Set<String> headers = Set.of(dataset.columns());
+        for (final String requiredHeader : requiredHeaders) {
+            if (!headers.contains(requiredHeader)) {
+                throw new RuntimeException(String.format("Unable to find the required column header values %s in directory %s files", requiredHeader, csv));
+            }
+        }
+    }
+
     public static GenericRowWithSchema removeColumns(final GenericRowWithSchema row, final Set<String> columnsToRemove) {
-        Object[] values = new Object[row.size() - columnsToRemove.size()];
+        ArrayList<Object> values = new ArrayList<>();
         StructType oldSchema = row.schema();
         StructType newSchema = new StructType(Arrays.stream(oldSchema.fields())
                 .filter(field -> !columnsToRemove.contains(field.name()))
                 .toArray(StructField[]::new));
-        int index = 0;
         for (int i = 0; i < row.size(); i++) {
             if (!columnsToRemove.contains(row.schema().fields()[i].name())) {
-                values[index] = row.get(i);
-                index++;
+                values.add(row.get(i));
             }
         }
-        return new GenericRowWithSchema(values, newSchema);
+        String[] array = new String[values.size()];
+        array = values.toArray(array);
+        return new GenericRowWithSchema(array, newSchema);
     }
 
     /**
      * Extract dataframe storage level from configuration
      */
     public static StorageLevel getDfStorageLevel(final BulkLoaderConfigHelper config) {
-
         StorageLevel storageLevel = StorageLevel.NONE();
         if (Boolean.parseBoolean(config.getOrDefault(ENABLE_DATAFRAME_CACHING))) {
             switch (config.getOrDefault(DATAFRAME_STORAGE_TYPE).toLowerCase()) {
@@ -141,25 +146,66 @@ public class DatasetOperations implements Serializable {
         return Double.parseDouble(config.getOrDefault(SAMPLING_PERCENTAGE)) / 100;
     }
 
-    public static void preflightCheck(final Dataset<Row> edgeDataSet, final Dataset<Row> vertexDataset,
+    public static void preflightCheck(final Dataset<Row> edgeDataset, final Dataset<Row> vertexDataset,
                                       final BulkLoaderConfigHelper config) {
-            if (config.hasAction(DRY_RUN)) {
-                final boolean preflightVertexSuccess = Validations.dryRunVertices(vertexDataset, config);
-                final boolean preflightEdgeSuccess = Validations.dryRunEdgeRows(edgeDataSet, config);
-                final String preflightEdgeFailed = "Detected invalid CSV data in EDGE pre-flight check.";
-                final String preflightVertexFailed = "Detected invalid CSV data in VERTEX pre-flight check.";
+        if (config.hasAction(DRY_RUN)) {
+            final String taskName = "Preflight check";
+            edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, taskName + " task", true);
+            final Instant start = Instant.now();
+            LOGGER.info("Starting preflightCheck, partition-id:{}", TaskContext.getPartitionId());
+            LOGGER.info("Number of partitions in vertexDataset: {}, number of partitions in edgeDataset {}", Arrays.stream(vertexDataset.rdd().getPartitions()).count(), Arrays.stream(edgeDataset.rdd().getPartitions()).count());
+            final boolean preflightVertexSuccess = Validations.dryRunVertices(vertexDataset, config);
+            final boolean preflightEdgeSuccess = Validations.dryRunEdgeRows(edgeDataset, config);
+            final String preflightEdgeFailed = "Detected invalid CSV data in Edge pre-flight check.";
+            final String preflightVertexFailed = "Detected invalid CSV data in Vertex pre-flight check.";
 
-                if (!preflightVertexSuccess) {
-                    LOGGER.error(preflightVertexFailed);
-                }
-                if (!preflightEdgeSuccess) {
-                    LOGGER.error(preflightEdgeFailed);
-                }
-                if (!(preflightEdgeSuccess && preflightVertexSuccess)) {
-                    throw new FireflyBulkLoaderPreflightException("Preflight checks failed, check logs for detail on which line number and file caused the failure.");
-                }
+            if (!preflightVertexSuccess) {
+                LOGGER.error(preflightVertexFailed);
+            }
+            if (!preflightEdgeSuccess) {
+                LOGGER.error(preflightEdgeFailed);
+            }
+            if (!preflightEdgeSuccess || !preflightVertexSuccess) {
+                throw new FireflyBulkLoaderPreflightException("Pre-flight checks failed. Check logs for details on which line number and files caused the failure.");
+            }
 
-                LOGGER.info("Completed dryrun/preflight check.");
+            edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
+            final Instant end = Instant.now();
+            LOGGER.info("Completed preflightCheck. Time taken (in seconds): ", Duration.between(start, end).getSeconds());
+        }
+    }
+
+    protected static int processBatch(int bufferSize, int batch, List<Future<?>> futures, final String errorMessage) {
+        if (futures.size() >= bufferSize) {
+            CompletableFuture<?> megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+            megaTask.join();
+            futures.clear();
+            batch = batch + 1;
+            if (megaTask.isCompletedExceptionally()) {
+                throw new RuntimeException(errorMessage);
             }
         }
+        return batch;
+    }
+
+    private static final Supplier<ScheduledExecutorService> THREADPOOL_SUPPLIER = new Supplier<>() {
+        private ScheduledThreadPoolExecutor instance = null;
+        @Override
+        public ScheduledThreadPoolExecutor get() {
+            if (instance == null) {
+                synchronized (this) {
+                    if (instance == null || instance.isShutdown()) {
+                        final ThreadFactory threadFactory =
+                                new ThreadFactoryBuilder().setNameFormat("common-dataset-operation-pool").setDaemon(true).build();
+                        instance = new ScheduledThreadPoolExecutor( Runtime.getRuntime().availableProcessors() * 2, threadFactory);
+                    }
+                }
+            }
+            return instance;
+        }
+    };
+
+    public static ScheduledExecutorService getScheduledThreadPoolService() {
+        return THREADPOOL_SUPPLIER.get();
+    }
 }

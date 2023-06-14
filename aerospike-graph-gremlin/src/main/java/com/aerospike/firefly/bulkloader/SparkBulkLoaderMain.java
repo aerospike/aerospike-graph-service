@@ -13,6 +13,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.functions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,10 @@ public class SparkBulkLoaderMain {
     private static Timer PROGRESS_BAR_TIMER;
 
     public static void main(final String[] args) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOGGER.info("Shutting down DatasetOperations executor service");
+            DatasetOperations.getScheduledThreadPoolService().shutdown();
+        }));
         try {
             final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
             final List<String> printableArgs = new ArrayList();
@@ -76,14 +81,14 @@ public class SparkBulkLoaderMain {
             spark.sparkContext().setLogLevel(logLevel);
 
             // Pre-processing
-            final VertexOperations vertexOperations =
-                    new VertexOperations(config, getCsvPaths(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY)));
-            final Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vertexOperations.vertexPaths,
+            final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
+            final VertexOperations vertexOperations = new VertexOperations(config, vertexDirectories);
+            final Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vertexDirectories,
                     VertexOperations.REQUIRED_VERTEX_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            final EdgeOperations edgeOperations =
-                    new EdgeOperations(config, getCsvPaths(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY)));
-            final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeOperations.edgePaths,
+            final List<String> edgeDirectories = getDirectories(spark, cmd, config.getOrDefault(EDGE_DIRECTORY_KEY));
+            final EdgeOperations edgeOperations = new EdgeOperations(config, edgeDirectories);
+            final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
             initializeProgressBar(fileConfig);
@@ -168,14 +173,20 @@ public class SparkBulkLoaderMain {
         return new MapConfiguration(prop).getMap();
     }
 
-    private static List<String> getCsvPaths(final SparkSession spark, final CommandLine cmd, final String directory) {
+    private static List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {
         configureFileSystem(spark, cmd, directory);
-        final List<String> filePaths = spark.read().format("csv").option("recursiveFileLookup", "true")
+
+        final Dataset<Row> directories = spark.read().format("csv").option("recursiveFileLookup", "true")
                 .load(directory)
                 .withColumn( "~temp", org.apache.spark.sql.functions.input_file_name())
-                .select("~temp").distinct().collectAsList().stream().map( row -> row.get(0).toString()).collect(Collectors.toList());
-        LOGGER.debug("CSV file paths: {}", String.join(",", filePaths));
-        return filePaths;
+                .select("~temp")
+                .withColumnRenamed("~temp", "fname")
+                .withColumn("fname", functions.expr("substring(fname, 1, length(fname) - length(substring_index(fname, '/', -1)))")) // Extract directory
+                .distinct();
+
+        final List<String> directoryPaths = directories.collectAsList().stream().map( row -> row.get(0).toString()).collect(Collectors.toList());
+        LOGGER.info("CSV directories: {}", String.join(", ", directoryPaths));
+        return directoryPaths;
     }
 
     /**
@@ -198,10 +209,10 @@ public class SparkBulkLoaderMain {
             FILE_SYSTEM = uriFileSystem;
             if (FILE_SYSTEM.equals(S3)) {
                 if (cmd.hasOption("u")) {
-                    spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u"));
+                    spark.conf().set("fs.s3a.access.key", cmd.getOptionValue("u").trim());
                 }
                 if (cmd.hasOption("p")) {
-                    spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p"));
+                    spark.conf().set("fs.s3a.secret.key", cmd.getOptionValue("p").trim());
                 }
             } else if (uriFileSystem.equals(GCS)) {
                 if (cmd.hasOption("gck")) {
@@ -210,9 +221,9 @@ public class SparkBulkLoaderMain {
                     spark.conf().set("google.cloud.auth.service.account.json.keyfile", keyFilePath);
                 } else if (cmd.hasOption("u") && cmd.hasOption("p") && cmd.hasOption("gem")) {
                     LOGGER.info("Google Cloud Service credentials passed in directly.");
-                    spark.conf().set("fs.gs.auth.service.account.private.key.id", cmd.getOptionValue("u"));
-                    spark.conf().set("fs.gs.auth.service.account.private.key", cmd.getOptionValue("p"));
-                    spark.conf().set("fs.gs.auth.service.account.email", cmd.getOptionValue("gem"));
+                    spark.conf().set("fs.gs.auth.service.account.private.key.id", cmd.getOptionValue("u").trim());
+                    spark.conf().set("fs.gs.auth.service.account.private.key", cmd.getOptionValue("p").trim());
+                    spark.conf().set("fs.gs.auth.service.account.email", cmd.getOptionValue("gem").trim());
                 } else {
                     // Credentials are only necessary in JVM/Local mode.
                     if (cmd.hasOption(LOCAL_MODE)) {
@@ -223,7 +234,6 @@ public class SparkBulkLoaderMain {
                 }
             }
         } else {
-            throw new IllegalArgumentException("Multiple remote file systems detected for parameters: 'aerospike.graphloader.config', 'aerospike.graphloader.vertices', 'aerospike.graphloader.edges'. Cross-platform is not supported in a single bulk load.");
         }
     }
 

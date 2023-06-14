@@ -55,6 +55,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "aerospike.client.connection.max.retry";
         public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
         public static final String TLS = "aerospike.client.tls";
+        public static final String TLS_NAMES = "aerospike.client.tls.name";
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
         public static final String ADJACENCY_INDEX_ENABLED_FLAG = "aerospike.graph.index.adjacency.enabled";

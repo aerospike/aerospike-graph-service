@@ -16,7 +16,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -53,13 +52,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNSET_TO_REMOVE;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.THREAD_POOL_BUFFER_SIZE;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
@@ -86,23 +83,21 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
-            LOGGER.info("starting to write EdgeDataset in PartitionId: " + TaskContext.getPartitionId());
+            LOGGER.info("Starting to write EdgeDataset in PartitionId: " + TaskContext.getPartitionId());
             final boolean keepProvidedId =
                     Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
             final String providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
             final String nullValue = this.config.getOrDefault(NULL_VALUE);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
-                LOGGER.info(String.format("graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
+                LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 
-                ThreadFactory edgeThreadFactory =
-                        new ThreadFactoryBuilder().setNameFormat("Edge-write-thread-for-partition-id-" + TaskContext.getPartitionId()).setDaemon(true).build();
-                final ScheduledExecutorService ses = new ScheduledThreadPoolExecutor(THREAD_POOL_BUFFER_SIZE, edgeThreadFactory);
+                final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("edge-write-partitionid-" + TaskContext.getPartitionId()));
                 int bufferSize = getEdgeWriteBufferSize();
-                LOGGER.info(String.format("edge write buffer size %d", bufferSize));
+                LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
 
                 Instant start = Instant.now();
                 int batch = 1;
@@ -115,7 +110,7 @@ public class EdgeOperations implements Serializable {
                         GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
                         GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
                         final Instant end = Instant.now();
-                        LOGGER.info(String.format("edge write, partitionId=%d, batch= %d, time taken(in milli-seconds)= %d, super node size: %d, cleaning all cached vertex maps", partitionId,
+                        LOGGER.info(String.format("Edge write, partitionId=%d, batch= %d, time taken(in milli-seconds)= %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, end).toMillis(), SUPERNODES.size()));
                         start = Instant.now();
                         batch = batch + 1;
@@ -127,28 +122,27 @@ public class EdgeOperations implements Serializable {
                     }
 
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
-                    final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
+                    final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
 
                     final EdgeWriteTask ewt = new EdgeWriteTask(retry, SUPERNODES, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
                             fireflyRow, TaskContext.getPartitionId(), metadataRow);
-                    futures.add(ewt.write(ses));
+                    futures.add(ewt.write(executor));
                 }
 
-                LOGGER.info(String.format("done submitting edge write task, waiting for their completion in partitionId %d", TaskContext.getPartitionId()));
+                LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", TaskContext.getPartitionId()));
                 CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
-                LOGGER.info(String.format("completed edge write task in partitionId %d", TaskContext.getPartitionId()));
+                LOGGER.info(String.format("Completed edge write task in partitionId %d", TaskContext.getPartitionId()));
                 futures.clear();
-                ses.shutdown();
                 if (megaTask.isCompletedExceptionally()) {
-                    throw new RuntimeException("Error occurred while writing edges, see logs for more details");
+                    throw new RuntimeException("Error occurred while writing edges; see logs for more details");
                 } else {
                     //write everything to disk in case of everything completed
                     try {
                         GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
                         GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
-                    } catch (RuntimeException e) {
-                        LOGGER.error("Failed to flush edge maps", e);
+                    } catch (final RuntimeException e) {
+                        LOGGER.error("Failed to flush Vertex Edge cache maps", e);
                         throw e;
                     }
                 }
@@ -157,6 +151,8 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgesAfterWrite(final Dataset<Row> edgeDatasetsSample) {
+        final String errorMessage= "Error occurred while verifying edges; see logs for more details.";
+        final int bufferSize = getEdgeWriteBufferSize();
         edgeDatasetsSample.foreachPartition( rowIterator -> {
             final boolean keepProvidedId =
                     Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
@@ -164,57 +160,77 @@ public class EdgeOperations implements Serializable {
             final String nullValue = this.config.getOrDefault(NULL_VALUE);
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 final GraphTraversalSource g = graph.traversal();
+                int batch = 1;
+                final List<Future<?>> futures = new ArrayList<>();
+                final ScheduledExecutorService ses = DatasetOperations.getScheduledThreadPoolService();
                 while (rowIterator.hasNext()) {
-                    final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
-                    final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNSET_TO_REMOVE);
-                    final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
+                    batch = processBatch(bufferSize, batch, futures, errorMessage);
+                    GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                                verifyEdge(metadataRow, keepProvidedId, providedIdPropertyName, nullValue, graph, g);
+                                return null;
+                            }, ses).exceptionally(e -> {
+                                LOGGER.error(String.format("Exception occurred in verifying Edge row"), e);  // Log the error when final failure happens
+                                throw new RuntimeException(e);
+                            }));
+                }
+                final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                megaTask.join();
+                if (megaTask.isCompletedExceptionally()) {
+                    throw new RuntimeException("Error occurred while verifying Edges, see logs for more details");
+                }
+                futures.clear();
+            }
+        });
+    }
 
-                    final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
-                            .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
-                    final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
+    private static void verifyEdge(GenericRowWithSchema metadataRow, boolean keepProvidedId, String providedIdPropertyName, String nullValue, FireflyGraph graph, GraphTraversalSource g) {
+        final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
+        final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
 
-                    // Multiple edges can exist that match the label between the FROM and TO vertices.
-                    // Assume if one is found with all the properties we've succeeded.
-                    boolean isEdgeFound = false;
+        final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
+                .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
+        final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
 
-                    edgeCheck:
-                    while (edgeTraversal.hasNext() && !isEdgeFound) {
-                        final Edge edge = edgeTraversal.next();
+        // Multiple edges can exist that match the label between the FROM and TO vertices.
+        // Assume if one is found with all the properties we've succeeded.
+        boolean isEdgeFound = false;
 
-                        for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
-                            try {
-                                // TODO: Handle null (when supported in Firefly) and cardinality.
-                                boolean isList = property.getValue() instanceof List<?>;
-                                if (isList) {
-                                    final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
-                                    for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
-                                        propertyValues.remove(propertyValue);
-                                    }
-                                    if (!propertyValues.isEmpty()) {
-                                        continue edgeCheck;
-                                    }
-                                } else {
-                                    if (property.getValue() != null) {
-                                        final Object propertyValue = edge.value(property.getKey());
-                                        if (!property.getValue().equals(propertyValue)) {
-                                            continue edgeCheck;
-                                        }
-                                    }
-                                }
-                            } catch (final Exception e) {
+        edgeCheck:
+        while (edgeTraversal.hasNext() && !isEdgeFound) {
+            final Edge edge = edgeTraversal.next();
+
+            for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
+                try {
+                    // TODO: Handle null (when supported in Firefly) and cardinality.
+                    boolean isList = property.getValue() instanceof List<?>;
+                    if (isList) {
+                        final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
+                        for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
+                            propertyValues.remove(propertyValue);
+                        }
+                        if (!propertyValues.isEmpty()) {
+                            continue edgeCheck;
+                        }
+                    } else {
+                        if (property.getValue() != null) {
+                            final Object propertyValue = edge.value(property.getKey());
+                            if (!property.getValue().equals(propertyValue)) {
                                 continue edgeCheck;
                             }
                         }
-                        isEdgeFound = true;
                     }
-                    if (!isEdgeFound) {
-                        throw new AssertionError("Validation failed: Could not find edge with label "
-                                + sparkEdge.getLabel() + " from vertex ID " + sparkEdge.getOutVertexId() + " to vertex ID "
-                                + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
-                    }
+                } catch (final Exception e) {
+                    continue edgeCheck;
                 }
             }
-        });
+            isEdgeFound = true;
+        }
+        if (!isEdgeFound) {
+            throw new AssertionError("Validation failed: Could not find Edge with label "
+                    + sparkEdge.getLabel() + " from Vertex ID " + sparkEdge.getOutVertexId() + " to Vertex ID "
+                    + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
+        }
     }
 
     public void extractSupernodes(Dataset<Row> edgeDataset) {
@@ -223,6 +239,7 @@ public class EdgeOperations implements Serializable {
         // creation. No need to find and disable them.
         boolean extract = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(GLOBAL_EDGE_CACHE_ENABLED, fireflyConfig));
         if (extract) {
+            String taskName= "Compute Supernodes";
             edgeDataset.sparkSession().sparkContext()
                     .setJobGroup("Compute Supernodes", "Compute Supernodes RDD operation", true);
             LOGGER.info("Supernode extraction starting...");
@@ -296,23 +313,26 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    public void verifySampleEdgeAfterWrite(Dataset<Row> sampledEdgeDataset) {
+    public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
         if (this.config.hasAction(VERIFY_EDGE)) {
-            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup("Verify Edges", "Verify Edges task", true);
-            LOGGER.info("verifyedge is enabled, starting the edge verification write");
+            final String taskName = "Verify Edges";
+            sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
+            LOGGER.info("verifyedge is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
+            sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         }
     }
 
-    public void writeEdgeToDB(Dataset<Row> edgeDataSet) {
-
+    public void writeEdgeToDB(final Dataset<Row> edgeDataSet) {
         if (this.config.hasAction(WRITE_EDGE)) {
             final Instant startWriteEdge = Instant.now();
-            edgeDataSet.sparkSession().sparkContext().setJobGroup("Edges write",
+            final String taskName = "Edges write";
+            edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                     "Edges write task", true);
             writeEdges(edgeDataSet);
             final Instant endWriteEdge = Instant.now();
-            Duration edgeInterval = Duration.between(startWriteEdge, endWriteEdge);
+            final Duration edgeInterval = Duration.between(startWriteEdge, endWriteEdge);
+            edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge write task: " + edgeInterval.getSeconds());
         }
     }

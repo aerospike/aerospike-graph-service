@@ -68,8 +68,8 @@ RUN mvn -pl aerospike-graph-gremlin dependency:build-classpath -DincludeScope=co
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT' ;  \
     fi
 
 # Remove source code.

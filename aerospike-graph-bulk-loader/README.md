@@ -171,7 +171,7 @@ g.call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertic
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c config.properties -writevertex -dryrun -verifyvertex
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.0.0-SNAPSHOT.jar -c config.properties -writevertex -dryrun -verifyvertex
 ```
 
 ##### config.properties
@@ -213,8 +213,8 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 
 | description           | command                                                      |
 | --------------------- | ------------------------------------------------------------ |
-| run all vertices task | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c c:/config/config.properties -writevertex -dryrun -verifyvertex |
-| run all edges task    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar -c c:/config/config.properties -writeedge -dryrun -verifyedge |
+| run all vertices task | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.0.0-SNAPSHOT.jar -c c:/config/config.properties -writevertex -dryrun -verifyvertex |
+| run all edges task    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.0.0-SNAPSHOT.jar -c c:/config/config.properties -writeedge -dryrun -verifyedge |
 
 ##### sample config file
  ```

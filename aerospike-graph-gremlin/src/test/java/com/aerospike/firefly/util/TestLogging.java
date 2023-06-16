@@ -128,7 +128,7 @@ public class TestLogging {
         final ArrayList<ILoggingEvent> eventSnapshot = new ArrayList<>();
         eventSnapshot.addAll(memoryAppender.getLoggedEvents());
         eventSnapshot.forEach(event -> {
-            if (event.getLoggerName().equals(AerospikeClient.class.getName()))
+            if (event.getLoggerName().equals(AerospikeClient.class.getName()) && event.getLevel().toString().equals("DEBUG"))
                 passed.set(true);
         });
         assertTrue(passed.get());

@@ -52,7 +52,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     private static final Map<String, String> DEFAULT_VALUES = new HashMap<>() {{
         put(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "false");
         put(PROVIDED_EDGE_ID_PROPERTY_NAME, "~providedId");
-        put(SAMPLING_PERCENTAGE, "1");
+        put(SAMPLING_PERCENTAGE, "0");
         put(ENABLE_DATAFRAME_CACHING, "false");
         put(DATAFRAME_STORAGE_TYPE, "disk_only");
         put(SPARK_LOG_LEVEL, "INFO");

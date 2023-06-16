@@ -137,7 +137,7 @@ public class EdgeOperations implements Serializable {
                 if (megaTask.isCompletedExceptionally()) {
                     throw new RuntimeException("Error occurred while writing edges; see logs for more details");
                 } else {
-                    //write everything to disk in case of everything completed
+                    // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
                         GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
                         GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);

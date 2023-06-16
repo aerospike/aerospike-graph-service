@@ -83,7 +83,7 @@ public class EdgeWriteTask {
                     }
                     return null;
                 }, service), service).exceptionally(e -> {
-                    LOGGER.error(String.format("Exception occurred in writing edge %s", this), e);  // log the error when final failure happens
+                    LOGGER.error(String.format("Exception occurred in writing edge %s", this), e);  // Log the error when no longer retrying
                     throw new RuntimeException(e);
                 });
     }

@@ -36,17 +36,15 @@ public class VertexWriteTask {
 
 
     public CompletableFuture<?> write(ScheduledExecutorService service) {
-        return
-                retry.withRetries(
-                        CompletableFuture.supplyAsync(() -> {
-                                    SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
-                                    this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(),false);
-                                    return null;
-                                }, service)
-                                .exceptionally(e -> {
-                                    LOGGER.error(String.format("Exception occurred in writing vertex %s", this), e);  //log the error when final failure happens
-                                    throw new RuntimeException(e);
-                                }), service);
+        return retry.withRetries(
+                CompletableFuture.supplyAsync(() -> {
+                    SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
+                    this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(),false);
+                    return null;
+                }, service), service).exceptionally(e -> {
+                    LOGGER.error(String.format("Exception occurred in writing vertex %s", this), e);  // Log the error when no longer retrying
+                    throw new RuntimeException(e);
+                });
     }
 
     @Override

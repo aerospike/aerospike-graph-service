@@ -1,0 +1,123 @@
+package com.aerospike.firefly.call;
+
+import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.util.AbstractFireflySuite;
+import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.PRETTY_PRINT_FORMAT_SYSTEM;
+
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
+public class FireflySummaryCallTest extends AbstractFireflySuite {
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
+    @Test
+    public void testSummary() throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        final List<Object> summaryCallEmpty = g.call("summary").toList();
+        final List<Object> expectedEmpty = List.of(
+                Map.of(
+                        "Vertex count by label", Map.of(),
+                        "Edge count by label", Map.of(),
+                        "Edge properties by label", Map.of(),
+                        "Vertex properties by label", Map.of(),
+                        "Total vertex count", 0L,
+                        "Total edge count", 0L));
+        Assert.assertEquals(expectedEmpty, summaryCallEmpty);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
+        Thread.sleep(1000);
+        final long vertexCount = g.V().count().next();
+        final long edgeCount = g.E().count().next();
+        final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
+        final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
+        final Map<Object, Object> vertexProperties = g.V().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+        final Map<Object, Object> edgeProperties = g.E().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+        for (final Object key: edgeLabels.keySet()) {
+            if (!edgeProperties.containsKey(key)) {
+                edgeProperties.put(key, List.of());
+            }
+        }
+        for (final Object key: vertexProperties.keySet()) {
+            if (!vertexProperties.containsKey(key)) {
+                vertexProperties.put(key, List.of());
+            }
+        }
+        for (final Object key: vertexProperties.keySet()) {
+            vertexProperties.put(key, new HashSet((List<Object>) vertexProperties.get(key)));
+        }
+        for (final Object key: edgeProperties.keySet()) {
+            edgeProperties.put(key, new HashSet((List<Object>) edgeProperties.get(key)));
+        }
+        final List<Object> expectedGrateful = List.of(
+                Map.of(
+                        "Vertex count by label", vertexLabels,
+                        "Edge count by label", edgeLabels,
+                        "Edge properties by label", edgeProperties,
+                        "Vertex properties by label", vertexProperties,
+                        "Total vertex count", vertexCount,
+                        "Total edge count", edgeCount));
+        final List<Object> summaryCallGrateful = g.call("summary").toList();
+        Assert.assertEquals(expectedGrateful, summaryCallGrateful);
+    }
+
+    @Test
+    public void testSummaryOverflow() {
+        // Can take a few times to reproduce. We just want to make sure close() doesn't throw.
+        for (int j = 0; j < 5; j++) {
+            graph.fireflySummaryUpdater = new FireflyGraphSummaryUpdater(graph.getBaseGraph());
+            for (int i = 0; i < 75000; i++) {
+                final Set<String> properties = Set.of(String.format("%d", i));
+                graph.fireflySummaryUpdater.addVertexWriteToQueue(String.format("%d", i), properties);
+            }
+            graph.traversal().V().drop().iterate();
+        }
+    }
+
+    @Test
+    public void testPrettySummary() throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        g.V().drop().iterate();
+        final String summaryCall = (String) g.call("summary").with("pretty").next();
+        final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
+        Assert.assertEquals(expectedOutputEmpty, summaryCall);
+        GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
+        Thread.sleep(1000);
+        final long vertexCount = g.V().count().next();
+        final long edgeCount = g.E().count().next();
+
+        // Can't check properties in an automated way cause lists / sets / maps get reordered.
+        // final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
+        // final Map<Object, Object> edgeLabels = g.E().group().by(__.label()).by(__.count()).next();
+        // final Map<Object, Object> vertexProperties = g.V().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+        // final Map<Object, Object> edgeProperties = g.E().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
+
+        final String actualOutputGrateful = (String) g.call("summary").with("pretty").next();
+        final String[] gratefulDelimiterSplit = actualOutputGrateful.split("\n");
+        for (int i = 0; i < gratefulDelimiterSplit.length; i += 2) {
+            if (gratefulDelimiterSplit[i].contains("Total vertex count:")) {
+                final String totalVertexCountString = gratefulDelimiterSplit[i].split("Total vertex count:")[1].trim();
+                Assert.assertEquals(vertexCount, Long.parseLong(totalVertexCountString.substring(0, totalVertexCountString.length() - 1)));
+            } else if (gratefulDelimiterSplit[i].contains("Total edge count:")) {
+                final String totalEdgeCountString = gratefulDelimiterSplit[i].split("Total edge count:")[1].trim();
+                Assert.assertEquals(vertexCount, Long.parseLong(totalEdgeCountString.substring(0, totalEdgeCountString.length() - 1)));
+                Assert.assertEquals(edgeCount, Long.parseLong(gratefulDelimiterSplit[i].split("Total edge count:")[1].trim()));
+            }
+        }
+    }
+}

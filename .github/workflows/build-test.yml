@@ -225,6 +225,30 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
+  start-runner-invalid-feature-key:
+    name: Start Invalid Feature Key
+    runs-on: ubuntu-latest
+    needs: build-firefly-maven
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ec2-image-id: ami-0d006286a6209f4bc
+          ec2-instance-type: t2.2xlarge
+          subnet-id: subnet-0bdbb4255fbffb239
+          security-group-id: sg-005fce4b475465f9e
   start-runner-docker:
     name: Start Docker Build Runner
     runs-on: ubuntu-latest
@@ -356,6 +380,42 @@ jobs:
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
           docker build -t aerospike/firefly .
+  test-bulk-loader-call-docker:
+    name: Test Firefly Docker Bulk Loader Call
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Build Docker Image
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          docker build -t aerospike/firefly .
+          
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
+          
+          docker run -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
+            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
+            aerospike/firefly &
+          
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   benchmark-firefly:
     name: Benchmark Firefly
     timeout-minutes: 240
@@ -387,8 +447,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
-
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -397,13 +456,13 @@ jobs:
           sleep 30
           
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestFlightsData -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
-          output-file-path: firefly-gremlin/target/jmh-result.json
+          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
           auto-push: true
           alert-threshold: '105%'
           comment-on-alert: true
@@ -433,7 +492,7 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -DskipTests clean compile test-compile package
-          mvn -pl firefly-gremlin -Djavax.net.ssl.trustStore=$(realpath firefly-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath firefly-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Djavax.net.ssl.trustStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
     timeout-minutes: 120
@@ -453,9 +512,15 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl firefly-gremlin  -Dintegration.test.properties=packed test --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-packed-sindex:
     name: Test Packed Sindex
     timeout-minutes: 120
@@ -475,9 +540,15 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl firefly-gremlin  -Dintegration.test.properties=packed-sindex test --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed-sindex test --no-transfer-progress
   test-firefly-movielens-packed:
     name: Test Movielens Packed
     timeout-minutes: 120
@@ -499,7 +570,7 @@ jobs:
       - name: Test with Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl firefly-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-small-memory-packed:
     name: Test Small Memory Packed
     timeout-minutes: 120
@@ -522,7 +593,7 @@ jobs:
       - name: Test with Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl firefly-gremlin  -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
@@ -545,7 +616,30 @@ jobs:
       - name: Test with Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl firefly-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
+  test-firefly-invalid-feature-key:
+    name: Test Aerospike Invalid Feature Key
+    timeout-minutes: 120
+    needs: start-runner-invalid-feature-key
+    runs-on: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE_WITHOUT_GRAPH_SERVICE }}
+          firefly-path: /actions-runner/_work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Test with Maven
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
     timeout-minutes: 15
@@ -566,9 +660,18 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
+          GH_WORKSPACE: ${{ github.workspace}}
         run: |
+          sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
           mvn clean install -DskipTests
-          mvn -pl firefly-spark-bulk-loader test --no-transfer-progress
+          mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
   benchmark-internal dataset-flow-firefly:
     name: Benchmark internal dataset Flow Firefly
     timeout-minutes: 240
@@ -600,8 +703,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
-
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -610,13 +712,13 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestSyntheticinternaldataset -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark internal dataset Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
-          output-file-path: firefly-gremlin/target/jmh-result.json
+          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
           auto-push: true
           alert-threshold: '105%'
           comment-on-alert: true
@@ -655,8 +757,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0'
-
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -665,13 +766,13 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=BenchmarkTestIdentifiesTraversal -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=BenchmarkTestIdentifiesTraversal -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Identifies Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Publish Benchmark Results
           tool: 'customSmallerIsBetter'
-          output-file-path: firefly-gremlin/target/jmh-result.json
+          output-file-path: aerospike-graph-gremlin/target/jmh-result.json
           auto-push: true
           alert-threshold: '105%'
           comment-on-alert: true
@@ -679,6 +780,36 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
+  run-prometheus-test:
+    name: Prometheus Runner
+    timeout-minutes: 30
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.2.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Launch Firefly in Gremlin-Server and Test Prometheus
+        run: |
+          echo "Starting gremlin-server"
+          docker build -t firefly .
+          
+          echo "Running docker image with custom yaml file"
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running Prometheus Test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
   test-docker-with-custom-yaml:
     name: Test Docker Image with Custom yaml
     timeout-minutes: 30
@@ -692,7 +823,6 @@ jobs:
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
@@ -707,8 +837,9 @@ jobs:
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
+          
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
   test-docker-with-custom-properties:
     name: Test Docker Image with Custom properties
     timeout-minutes: 30
@@ -740,7 +871,7 @@ jobs:
           sleep 30
 
           echo "Running benchmark"
-          mvn test -pl firefly-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
   stop-runner-movielens-packed:
     name: Stop Movielens Packed Runner
     needs:
@@ -825,6 +956,27 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-aerospike-version-minimum.outputs.ec2-instance-id }}
+  stop-runner-invalid-feature-key:
+    name: Stop Aerospike Minimum Version Runner
+    needs:
+      - test-firefly-invalid-feature-key
+      - start-runner-invalid-feature-key
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-invalid-feature-key.outputs.ec2-instance-id }}
   stop-runner-packed:
     name: Stop Packed Runner
     needs:

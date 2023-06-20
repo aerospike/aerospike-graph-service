@@ -1,0 +1,2 @@
+~id,defaultText,defaultNumber,defaultBoolean,invalidType:invalid[],nullValue,nullInt:int,nullInList:string[]
+1,hello world,17,true,42,null,null,null;secondElement

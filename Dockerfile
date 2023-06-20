@@ -59,15 +59,19 @@ ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
 # Build Firefly.
-RUN mvn -pl firefly-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+
+# Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script
+RUN mvn -pl aerospike-graph-gremlin dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile=/opt/classpath.txt && sed -i 's/root/home\/firefly/g' /opt/classpath.txt
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
-    else gremlin-server.sh install 'com.aerospike firefly-gremlin 0.7.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT' ;  \
     fi
+
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
@@ -79,8 +83,16 @@ ADD scripts /opt/aerospike-firefly/scripts
 RUN chmod +x scripts/gremlin-server-docker.sh
 RUN chmod -R 777 $CONF_DIR
 
-# Add user firefly and set user to firefly.
+# Add user firefly.
 RUN useradd -m firefly
+
+# Copy maven repo to firefly user.
+RUN cp -a /root/.m2 /home/firefly/.m2 && chown firefly:firefly -R /home/firefly/.m2
+
+# Make firefly owner of conf dir.
+RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+
+# Set user to firefly.
 USER firefly
 
 HEALTHCHECK CMD ls /tmp/firefly-ready

@@ -379,7 +379,7 @@ jobs:
       - name: Build Docker Image
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
-          docker build -t aerospike/firefly .
+          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
   test-bulk-loader-call-docker:
     name: Test Firefly Docker Bulk Loader Call
     timeout-minutes: 120
@@ -405,7 +405,7 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          docker build -t aerospike/firefly .
+          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
           
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
@@ -801,7 +801,7 @@ jobs:
       - name: Launch Firefly in Gremlin-Server and Test Prometheus
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -831,7 +831,8 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
+          
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -862,7 +863,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom properties file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &

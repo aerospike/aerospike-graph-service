@@ -6,22 +6,20 @@ import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(ExponentialBackoffRetry.class);
     private final Retry retry;
 
-    public ExponentialBackoffRetry(Optional<String> name) {
+    public ExponentialBackoffRetry(final String taskName) {
         final Predicate<Throwable> quotaPredicate = e ->
                 (e instanceof FireflyLoadingException) && ((FireflyLoadingException) e).isRetryable();
 
@@ -31,13 +29,13 @@ public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
                 .retryOnException(quotaPredicate)
                 .build();
         final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
-        retry = retryRegistry.retry(name.orElse("aerospike-bulkloader-retry"), retryConfig);
+        retry = retryRegistry.retry(taskName==null ? "aerospike-bulkloader-retry" : taskName, retryConfig);
         subscribe();
     }
 
-    public CompletableFuture<T> withRetries(final CompletableFuture task,
-                                            final ScheduledExecutorService sc) {
-        return retry.executeCompletionStage(sc, () -> task).toCompletableFuture();
+    public <T> CompletionStage<T> withRetries(final Supplier<CompletionStage<T>> supplier,
+                                              final ScheduledExecutorService sc) {
+        return retry.executeCompletionStage(sc, supplier);
     }
 
     private void subscribe() {

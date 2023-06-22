@@ -3,9 +3,11 @@ package com.aerospike.firefly.bulkloader.integration;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
+import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.SparkException;
@@ -68,6 +70,7 @@ public abstract class TestSparkBulkLoaderBase {
     protected abstract String getS3FileSystem();
 
     protected abstract String getGcsFileSystem();
+    protected abstract String getFailingClient();
 
     @Test
     public void testDataAccuracy() {
@@ -300,6 +303,30 @@ public abstract class TestSparkBulkLoaderBase {
         testEdges();
         testVertices();
         testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testRetryLogic() {
+        // Set this to a really high number in case of failure randomness being really unlucky and triggering the limit
+        DatasetOperations.RETRY_LIMIT = Integer.MAX_VALUE;
+        // Since this test operates on probabilities run it more than once just to be safe
+        final int repeatCount = 3;
+        int runCount = 0;
+        while (runCount < repeatCount) {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getFailingClient()}, DEFAULT_PARAMS));
+            testEdges();
+            testVertices();
+            testVertexEdgeConnections();
+            try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(getDefaultConfig()))) {
+                Assert.assertNotEquals(0, (long) graph.traversal().V().count().next());
+                Assert.assertNotEquals(0, (long) graph.traversal().E().count().next());
+                graph.traversal().V().drop().iterate();
+                graph.traversal().E().drop().iterate();
+                Assert.assertEquals(0, (long) graph.traversal().V().count().next());
+                Assert.assertEquals(0, (long) graph.traversal().E().count().next());
+            }
+            runCount++;
+        }
     }
 
     private void testSupernodes() {

@@ -85,6 +85,7 @@ public final class ConfigurationHelper {
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
 
+        // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
         public static final String FAULT_TEST = "FAULT_TEST";
@@ -95,8 +96,8 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
-
-
+        public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
+        public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
 
         public enum Bins {
             GRAPH_VARIABLES_BIN((byte) 1),
@@ -281,6 +282,8 @@ public final class ConfigurationHelper {
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.FAULT_TEST, "false");
+        put(Keys.CLIENT_FAILURE_TEST, "false");
+        put(Keys.CLIENT_FAILURE_RATE, "0");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");

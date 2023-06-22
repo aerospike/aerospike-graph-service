@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 public class VertexWriteTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(VertexWriteTask.class);
@@ -34,17 +36,17 @@ public class VertexWriteTask {
         this.metadataRow = metadataRow;
     }
 
-
-    public CompletableFuture<?> write(ScheduledExecutorService service) {
-        return retry.withRetries(
-                CompletableFuture.supplyAsync(() -> {
-                    SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
-                    this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(),false);
-                    return null;
-                }, service), service).exceptionally(e -> {
-                    LOGGER.error(String.format("Exception occurred in writing vertex %s", this), e);  // Log the error when no longer retrying
-                    throw new RuntimeException(e);
-                });
+    public CompletionStage<Void> write(final ScheduledExecutorService service) {
+        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
+            final SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(this.fireflyRow, this.nullValue);
+            this.graph.bulkWriteVertex(sparkVertex.getFireflyId(this.graph.getBaseGraph()), sparkVertex.getLabel(), sparkVertex.getProperties(),false);
+            return null;
+        }, service);
+        return retry.withRetries(supplier, service).exceptionally(e -> {
+            // Log the error when no longer retrying
+            LOGGER.error(String.format("Exception occurred during Vertex writing %s", this), e);
+            throw new RuntimeException(e);
+        });
     }
 
     @Override

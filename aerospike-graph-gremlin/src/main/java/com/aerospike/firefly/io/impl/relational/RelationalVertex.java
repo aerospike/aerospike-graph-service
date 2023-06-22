@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io.impl.relational;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -380,7 +380,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
-        final AerospikeClient client = db.getClient();
+        final IAerospikeClient client = db.getClient();
         final UUID scanId = UUID.randomUUID();
         final ConcurrentScanRecordSequenceListener listener =
                 ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);

@@ -46,9 +46,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -95,14 +95,14 @@ public class EdgeOperations implements Serializable {
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
 
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
-                ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("edge-write-partitionid-" + TaskContext.getPartitionId()));
+                ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + TaskContext.getPartitionId());
                 int bufferSize = getEdgeWriteBufferSize();
                 LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
 
                 Instant start = Instant.now();
                 int batch = 1;
                 int partitionId = TaskContext.getPartitionId();
-                final List<Future<?>> futures = new ArrayList<>();
+                final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     if (futures.size() >= bufferSize) {
                         CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));

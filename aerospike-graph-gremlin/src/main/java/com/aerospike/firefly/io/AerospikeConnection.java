@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -69,6 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -129,7 +131,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final String host;
     private final int port;
-    private final AerospikeClient client;
+    private final IAerospikeClient client;
     private final String namespace;
 
     public final String USER_KEY_BIN;
@@ -246,14 +248,30 @@ public class AerospikeConnection implements AutoCloseable {
         final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
         if (Boolean.parseBoolean(tlsEnabled))
             this.clientPolicy.tlsPolicy = new TlsPolicy();
+
+        final AerospikeClient aerospikeClient;
         try {
-            this.client = new AerospikeClient(clientPolicy, hosts);
-        } catch (Exception e) {
+            aerospikeClient = new AerospikeClient(clientPolicy, hosts);
+        } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);
             throw e;
         }
-        FireflyAerospikeVersionCheck.validateVersion(client);
-        FireflyAerospikeGraphServiceCheck.checkFeatureKey(client);
+        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient);
+        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf))) {
+            try {
+                final double clientFailureRate = Double.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_RATE, conf));
+                final Class clientFailureClass = Class.forName("com.aerospike.firefly.bulkloader.integration.util.FailingAerospikeClient");
+                final Method method = clientFailureClass.getMethod("clientWithWriteFails", IAerospikeClient.class, double.class);
+                this.client = (IAerospikeClient) method.invoke(null, aerospikeClient, clientFailureRate);
+            } catch (final Exception e) {
+                LOG.error("Error instantiating failure client for testing", e);
+                throw new RuntimeException(e);
+            }
+        } else {
+            this.client = aerospikeClient;
+        }
 
         V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
         E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
@@ -649,7 +667,7 @@ public class AerospikeConnection implements AutoCloseable {
          * First item of map entry is index
          * Second item of map entry is set the index belongs to
          */
-        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+        public static List<Map.Entry<String, String>> listExistingIndexes(final IAerospikeClient client, final String namespace) {
             // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             return parseRaw(infoResponse).stream()
@@ -665,7 +683,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client AerospikeClient connection instance
          * @return enterprise or not
          */
-        public static boolean isEnterprise(final AerospikeClient client) {
+        public static boolean isEnterprise(final IAerospikeClient client) {
             // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
@@ -678,7 +696,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
-        public static Set<String> getNonEmptySetList(final String namespace, final AerospikeClient client) {
+        public static Set<String> getNonEmptySetList(final String namespace, final IAerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
 
             // Need to loop all nodes here in case one of the sets only has data on a single node.
@@ -828,7 +846,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @return AerospikeClient instance
      */
-    public AerospikeClient getClient() {
+    public IAerospikeClient getClient() {
         return this.client;
     }
 

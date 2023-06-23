@@ -50,20 +50,16 @@ jobs:
             echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
           
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=1"
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64
-            docker tag $DOCKER_IMAGE $OUTPUT_IMAGE
-            docker push $OUTPUT_IMAGE
-            docker push $DOCKER_IMAGE  
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
           else
             DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
 
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64
-            docker tag $DOCKER_IMAGE $OUTPUT_IMAGE
-            docker push $OUTPUT_IMAGE
-            docker push $DOCKER_IMAGE            
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
           fi
 
       - name: Java 11 Install

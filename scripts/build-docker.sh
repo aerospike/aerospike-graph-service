@@ -4,7 +4,7 @@ set -o pipefail
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
-    echo "Usage: $0 <tag> [platform]"
+    echo "Usage: $0 <tag> [platform] [--push]"
     exit 1
 fi
 
@@ -13,7 +13,12 @@ if [[ -z "$PLATFORM" ]]; then
     PLATFORM="linux/amd64"
 fi
 
-BUILD_IMAGE="aerospike-graph-build:latest"
+PUSH_FLAG="$3"
+if [[ -z "PUSH_FLAG" ]]; then
+    PUSH_FLAG=""
+fi
+
+BUILD_IMAGE="aerospike-graph-build:$(echo $PLATFORM | tr '/' '-')"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
 
 #do the initial build
@@ -27,4 +32,4 @@ NEW_IMAGE=$(docker export "$CTR_ID" | docker import -)
 docker tag "$NEW_IMAGE" "$SQUASH_IMAGE"
 
 #add the runtime configuration to the stripped image
-docker build $EXTRA_BUILD_ARGS -f docker/prod.Dockerfile --tag "$OUTPUT_TAG" .
+docker buildx build $PUSH_FLAG --platform "$PLATFORM" $EXTRA_BUILD_ARGS -f docker/prod.Dockerfile --tag "$OUTPUT_TAG" .

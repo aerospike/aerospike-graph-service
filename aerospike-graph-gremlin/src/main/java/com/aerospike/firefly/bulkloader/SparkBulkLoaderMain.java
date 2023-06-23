@@ -97,14 +97,14 @@ public class SparkBulkLoaderMain {
             // Preflight check
             try {
                 DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // We are limiting stacktrace size by DRYRUN_STACKTRACE_LIMIT
-                    StackTraceElement[] originalStackTrace = e.getStackTrace();
+                StackTraceElement[] originalStackTrace = e.getStackTrace();
                     StackTraceElement[] limitedStackTrace =
-                            Arrays.copyOf(originalStackTrace, Math.min(originalStackTrace.length, DRYRUN_STACKTRACE_LIMIT));
-                    e.setStackTrace(limitedStackTrace);
-                    throw  e;
-                }
+                        Arrays.copyOf(originalStackTrace, Math.min(originalStackTrace.length, DRYRUN_STACKTRACE_LIMIT));
+                e.setStackTrace(limitedStackTrace);
+                throw e;
+            }
 
             // Vertex processing
             PROGRESS_BAR.setVertexLoadStart();

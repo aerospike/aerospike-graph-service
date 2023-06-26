@@ -7,11 +7,15 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Map;
 
+import static com.aerospike.firefly.structure.FireflyGraph.DOCKER_SETTINGS_FILE_LOCATION;
+import static com.aerospike.firefly.structure.FireflyGraph.getSettings;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
 
 /**
@@ -37,7 +41,7 @@ final public class GraphFactory {
                 final Class<? extends FireflyGraph> graphClass = DATA_MODEL_MAP.get(dataModel);
                 if (Upgrade.checkNeedsUpgrade(graphClass, db))
                     Upgrade.performUpgrade(graphClass, db);
-                return graphClass.getConstructor(AerospikeConnection.class, Configuration.class).newInstance(db, config);
+                return graphClass.getConstructor(AerospikeConnection.class, Configuration.class, Settings.class).newInstance(db, config, getSettings());
             } catch (Exception e) {
                 // This should never happen, but this prevents us from having to put a throws on the function signature.
                 // Gotta love Java...

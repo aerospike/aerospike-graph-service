@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
@@ -43,8 +44,8 @@ public class StarPackedGraph extends PackedGraph {
      * @param db   AerospikeConnection.
      * @param conf Configuration.
      */
-    public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
+    public StarPackedGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        super(db, conf, gremlinServerSettings);
         this.enableOutVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_OUT_VP);
         this.enableInVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_IN_VP);
         this.enableOutOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_OUT);

@@ -49,7 +49,6 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.max.connections.per.node";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "aerospike.client.connection.max.retry";
@@ -254,7 +253,6 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
-        put(Keys.MAX_CONNECTIONS_PER_NODE, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");

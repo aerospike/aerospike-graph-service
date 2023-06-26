@@ -31,6 +31,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,8 +63,8 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @param db   AerospikeConnection.
      * @param conf Configuration.
      */
-    public RelationalGraph(AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
+    public RelationalGraph(AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        super(db, conf, gremlinServerSettings);
     }
 
     /**

@@ -181,7 +181,8 @@ public class StarPackedGraph extends PackedGraph {
                                      final List<Map.Entry<String, Object>> properties) {
         // We only need to add this vertex itself. At this point it has no edges.
         // The actual vertex date is stored the same as the packed model so we can use that code here.
-        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || this.db.ON_RECORD_ID_LIMIT <= 0;
+        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
     /**

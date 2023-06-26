@@ -95,7 +95,6 @@ import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
-import static com.aerospike.firefly.util.IOUtil.toHex;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

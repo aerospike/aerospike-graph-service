@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.Timer;
 import java.util.stream.Collectors;
 
@@ -105,10 +106,15 @@ public class SparkBulkLoaderMain {
                 e.setStackTrace(limitedStackTrace);
                 throw e;
             }
+			PROGRESS_BAR.setPreflightCheckComplete();
+
+            // Supernode processing
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset);
+            PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
             PROGRESS_BAR.setVertexLoadStart();
-            vertexOperations.writeVerticesToDB(vertexDataset);
+            vertexOperations.writeVerticesToDB(vertexDataset, supernodes);
             PROGRESS_BAR.setVertexLoadComplete();
 
             vertexOperations.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
@@ -116,9 +122,6 @@ public class SparkBulkLoaderMain {
             vertexDataset.unpersist();
 
             // Edge processing
-            edgeOperations.extractSupernodes(edgeDataset);
-            PROGRESS_BAR.setSuperNodeExtractionComplete();
-
             PROGRESS_BAR.setEdgeLoadStart();
             edgeOperations.writeEdgeToDB(edgeDataset);
             PROGRESS_BAR.setEdgeLoadComplete();

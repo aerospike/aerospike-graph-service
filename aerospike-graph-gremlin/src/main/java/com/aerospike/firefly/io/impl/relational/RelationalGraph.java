@@ -212,16 +212,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || this.db.ON_RECORD_ID_LIMIT <= 0;
+        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
     @Override
     public void bulkWriteVertex(final FireflyId idValue,
                                    final String label,
                                    final List<Map.Entry<String, Object>> properties,
-                                   final boolean createOnly) {
+                                   final boolean supernode) {
         try {
-            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
+            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }

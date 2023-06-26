@@ -14,7 +14,6 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
@@ -50,8 +50,8 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS) {
-        unionVertexDS.foreachPartition( rowIterator -> {
+    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
+        unionVertexDS.foreachPartition(rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId());
             final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
@@ -80,7 +80,7 @@ public class VertexOperations implements Serializable {
                     }
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
-                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow);
+                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow, supernodes);
                     futures.add(vwt.write(executor));
                 }
 
@@ -183,12 +183,12 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
         if (this.config.hasAction(WRITE_VERTEX)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet);
+            writeVertices(vertexDataSet, supernodes);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

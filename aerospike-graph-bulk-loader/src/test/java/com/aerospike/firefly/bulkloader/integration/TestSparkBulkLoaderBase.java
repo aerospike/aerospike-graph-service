@@ -18,7 +18,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;

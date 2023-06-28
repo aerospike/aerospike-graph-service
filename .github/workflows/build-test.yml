@@ -375,6 +375,8 @@ jobs:
     needs: start-runner-docker
     runs-on: ${{ needs.start-runner-docker.outputs.label }}
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: actions/checkout@v3
       - name: Build Docker Image
         run: |

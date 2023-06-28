@@ -18,7 +18,7 @@ if [[ -z "PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
-BUILD_IMAGE="aerospike-graph-build:$(echo $PLATFORM | tr '/' '-')"
+BUILD_IMAGE="aerospike-graph-build:latest"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
 
 #do the initial build

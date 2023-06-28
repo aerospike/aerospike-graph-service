@@ -49,6 +49,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -64,6 +65,7 @@ import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -147,6 +149,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public FireflyIndexMetadata fireflyIndexMetadata = null;
     public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
+    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml";
+
+    // Note, this should be overwritten by the settings file contents, but for testing we need a default.
+    private final Settings gremlinServerSettings;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -157,12 +163,13 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
     }
 
-    protected FireflyGraph(final Configuration conf) {
-        this(AerospikeConnection.connect(conf), conf);
+    protected FireflyGraph(final Configuration conf, final Settings gremlinServerSettings) {
+        this(AerospikeConnection.connect(conf, gremlinServerSettings), conf, gremlinServerSettings);
     }
 
 
-    protected FireflyGraph(final AerospikeConnection db, final Configuration conf) {
+    protected FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
@@ -258,6 +265,19 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new ComparableVersion(FIREFLY_VERSION);
     }
 
+    public static Settings getSettings() {
+        // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
+        if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
+            LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
+            try {
+                return Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
+            } catch (Exception e) {
+                LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+            }
+        }
+        return new Settings();
+    }
+
     /**
      * Return the FireflyIdFactory
      *
@@ -275,7 +295,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
     public abstract void bulkWriteVertex(final FireflyId id, final String label,
-                                         final List<Map.Entry<String, Object>> properties, final boolean createOnly);
+                                         final List<Map.Entry<String, Object>> properties, final boolean supernode);
 
     public abstract void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                                      final List<Value> edgeIds, final String edgeLabel);

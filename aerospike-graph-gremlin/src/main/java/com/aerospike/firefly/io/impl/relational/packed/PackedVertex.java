@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +46,6 @@ import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIn
 public class PackedVertex extends RelationalVertex {
     private static final Logger LOG = LoggerFactory.getLogger(PackedVertex.class);
     public static final int VERTEX_TYPE_HINT = 1;
-
     private Map<String, FireflyId> vertexPropertyIds;
     private Map<String, Object> vertexPropertyValues;
     private Map<String, Object> vertexPropertyValuesTypeHints;

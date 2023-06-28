@@ -78,7 +78,7 @@ public class GraphOperations {
                 } else {
                     LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId +
-                            ". Write was not in doubt; retrying with all IDs. Attempt count: " + tryCount, e);
+                            ". Attempt count: " + tryCount, e);
                     exponentialBackoff(tryCount);
                 }
             }

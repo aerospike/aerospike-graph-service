@@ -3,16 +3,8 @@ FROM amazoncorretto:11
 # Set input arguments.
 ARG RELEASE_BUILD
 ENV RELEASE_BUILD=$RELEASE_BUILD
-ARG AEROSPIKE_HOST
-ENV AEROSPIKE_HOST=$AEROSPIKE_HOST
 ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
-ARG AEROSPIKE_PORT
-ENV AEROSPIKE_PORT=$AEROSPIKE_PORT
-ARG AEROSPIKE_NAMESPACE
-ENV AEROSPIKE_NAMESPACE=$AEROSPIKE_NAMESPACE
-ARG FIREFLY_DATA_MODEL
-ENV FIREFLY_DATA_MODEL=$FIREFLY_DATA_MODEL
 
 # Set environment variables.
 ENV TINKERPOP_VERSION='3.6.3'
@@ -22,7 +14,6 @@ ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/a
 ENV GREMLIN_SERVER_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
-ENV AIR_ROUTES_50K_URL="https://raw.githubusercontent.com/krlawrence/graph/master/sample-data/air-routes-latest.graphml"
 ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
 
 # Install things required to create image.
@@ -33,15 +24,12 @@ RUN yum -y update &&\
     yum -y install unzip &&\
     yum -y install util-linux
 
-# Download air-routes, maven, gremlin-console, gremlin-server, and move/unzip/untar them.
+# Download maven, gremlin-console, gremlin-server, and move/unzip/untar them.
 RUN cd /tmp &&\
-  curl -L -o air-routes-50k.graphml $AIR_ROUTES_50K_URL &&\
   curl -L -o maven.tar.gz $MAVEN_URL &&\
   curl -L -o gremlin-console.zip $GREMLIN_CONSOLE_URL &&\
   curl -L -o gremlin-server.zip $GREMLIN_SERVER_URL &&\
   curl -L -o jansi-$JANSI_VERSION.jar $JANSI_URL &&\
-  mkdir /opt/air-routes &&\
-  mv air-routes-50k.graphml /opt/air-routes/ &&\
   tar -zxvf maven.tar.gz -C /opt/ &&\
   unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
   unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server &&\

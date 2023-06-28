@@ -36,50 +36,6 @@ public class TestConfigurationUnit {
         assertEquals(ConfigurationHelper.aerospikeNamespace(c), "test");
     }
 
-    private static Map<String, String> getModifiableEnvironment() throws Exception {
-        Class pe = Class.forName("java.lang.ProcessEnvironment");
-        Method getenv = pe.getDeclaredMethod("getenv");
-        getenv.setAccessible(true);
-        Object unmodifiableEnvironment = getenv.invoke(null);
-        Class map = Class.forName("java.util.Collections$UnmodifiableMap");
-        Field m = map.getDeclaredField("m");
-        m.setAccessible(true);
-        return (Map) m.get(unmodifiableEnvironment);
-    }
-
-    @Test
-    @Ignore
-    // some JVM distributions may not allow getModifiableEnvironment to succeed
-    public void testLoadConfigurationFromEnv() throws Exception {
-        Map<String, String> env = getModifiableEnvironment();
-        env.put(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, "test");
-        env.put(ConfigurationHelper.Keys.AEROSPIKE_HOST, "aerospike-dev.phaseshift.internal");
-        env.put(ConfigurationHelper.Keys.AEROSPIKE_PORT, "3000");
-        final Configuration c = ConfigurationHelper.loadFromEnv();
-        assertEquals(ConfigurationHelper.aerospikePort(c), 3000);
-        assertEquals(ConfigurationHelper.aerospikeNamespace(c), "test");
-    }
-
-    @Test
-    @Ignore
-    // some JVM distributions may not allow getModifiableEnvironment to succeed
-    public void testLoadConfigurationFromEnvNegative() throws Exception {
-        boolean success = false;
-        Map<String, String> env = getModifiableEnvironment();
-        env.remove(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE);
-        env.remove(ConfigurationHelper.Keys.AEROSPIKE_HOST);
-        env.remove(ConfigurationHelper.Keys.AEROSPIKE_PORT);
-        try {
-            ConfigurationHelper.loadFromEnv();
-        } catch (RuntimeException re) {
-            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_HOST));
-            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_PORT));
-            assertTrue(re.getMessage().contains(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE));
-            success = true;
-        }
-        assertTrue(success);
-    }
-
     @Test
     public void testConfigToString() {
         String s = ConfigurationHelper.dumpDefaults();

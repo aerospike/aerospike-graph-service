@@ -13,7 +13,7 @@ import static org.junit.Assert.fail;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class FireflyAerospikeVersionCheckTest {
-    // This test should only be called with an earlier version of Aerospike in it's own workflow and is not included
+    // This test should only be called with an earlier version of Aerospike in its own workflow and is not included
     // in the standard test suite.
     // mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
 

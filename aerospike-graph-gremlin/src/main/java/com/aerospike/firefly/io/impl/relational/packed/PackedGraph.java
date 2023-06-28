@@ -8,6 +8,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.Map;
@@ -29,8 +30,8 @@ public class PackedGraph extends RelationalGraph {
      * @param db   AerospikeConnection.
      * @param conf Configuration.
      */
-    public PackedGraph(final AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
+    public PackedGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        super(db, conf, gremlinServerSettings);
         synchronized (PackedGraph.class) {
             TraversalStrategies.GlobalCache.registerStrategies(
                     PackedGraph.class,

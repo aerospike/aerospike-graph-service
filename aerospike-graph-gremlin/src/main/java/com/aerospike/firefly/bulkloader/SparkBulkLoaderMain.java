@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.Timer;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,7 @@ public class SparkBulkLoaderMain {
     private static String FILE_SYSTEM;
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
+    private static final int DRYRUN_STACKTRACE_LIMIT = 5;
 
     public static void main(final String[] args) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -94,11 +96,25 @@ public class SparkBulkLoaderMain {
             initializeProgressBar(fileConfig);
 
             // Preflight check
-            DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
+            try {
+                DatasetOperations.preflightCheck(edgeDataset, vertexDataset, config);
+            } catch (final Exception e) {
+                // We are limiting stacktrace size by DRYRUN_STACKTRACE_LIMIT
+                StackTraceElement[] originalStackTrace = e.getStackTrace();
+                StackTraceElement[] limitedStackTrace =
+                    Arrays.copyOf(originalStackTrace, Math.min(originalStackTrace.length, DRYRUN_STACKTRACE_LIMIT));
+                e.setStackTrace(limitedStackTrace);
+                throw e;
+            }
+			PROGRESS_BAR.setPreflightCheckComplete();
+
+            // Supernode processing
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset);
+            PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
             PROGRESS_BAR.setVertexLoadStart();
-            vertexOperations.writeVerticesToDB(vertexDataset);
+            vertexOperations.writeVerticesToDB(vertexDataset, supernodes);
             PROGRESS_BAR.setVertexLoadComplete();
 
             vertexOperations.verifySampleVerticesAfterWrite(vertexDataset.sample(DatasetOperations.getSamplingPercent(config)));
@@ -106,9 +122,6 @@ public class SparkBulkLoaderMain {
             vertexDataset.unpersist();
 
             // Edge processing
-            edgeOperations.extractSupernodes(edgeDataset);
-            PROGRESS_BAR.setSuperNodeExtractionComplete();
-
             PROGRESS_BAR.setEdgeLoadStart();
             edgeOperations.writeEdgeToDB(edgeDataset);
             PROGRESS_BAR.setEdgeLoadComplete();

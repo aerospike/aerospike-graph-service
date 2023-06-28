@@ -13,9 +13,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 public class EdgeWriteTask {
     final ExponentialBackoffRetry retry;
@@ -58,34 +60,35 @@ public class EdgeWriteTask {
         this.fireflyMetadataRow = fireflyMetadataRow;
     }
 
-    public CompletableFuture write(ScheduledExecutorService service) {
+    public CompletionStage<Void> write(ScheduledExecutorService service) {
         final boolean edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
-        return retry.withRetries(
-                CompletableFuture.supplyAsync(() -> {
-                    SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId,
-                            this.providedIdPropertyName, this.nullValue, this.graph, false);
-                    final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
-                    final Object inVertexId = sparkEdge.getInVertexId();
-                    final Object outVertexId = sparkEdge.getOutVertexId();
-                    final String edgeLabel = sparkEdge.getLabel();
-                    // If the edge cache is not enabled, then every edge must be written as if it were attached to a supernode.
-                    final boolean inVertexSupernode = !edgeCacheEnabled || supernodes.contains(inVertexId);
-                    final boolean outVertexSupernode = !edgeCacheEnabled || supernodes.contains(outVertexId);
-                    this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
-                            inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);
-                    if (edgeCacheEnabled) {
-                        GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
-                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
-                                edgeLabel, this.vertexOutEdgeMap);
-                        GraphOperations.updateEdgeMap(this.supernodes, inVertexId,
-                                this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
-                                edgeLabel, this.vertexInEdgeMap);
-                    }
-                    return null;
-                }, service), service).exceptionally(e -> {
-                    LOGGER.error(String.format("Exception occurred in writing edge %s", this), e);  // Log the error when no longer retrying
-                    throw new RuntimeException(e);
-                });
+        final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
+            SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(this.fireflyRow, this.keepProvidedId,
+                    this.providedIdPropertyName, this.nullValue, this.graph, false);
+            final FireflyId edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
+            final Object inVertexId = sparkEdge.getInVertexId();
+            final Object outVertexId = sparkEdge.getOutVertexId();
+            final String edgeLabel = sparkEdge.getLabel();
+            // If the edge cache is not enabled, then every edge must be written as if it were attached to a supernode.
+            final boolean inVertexSupernode = !edgeCacheEnabled || supernodes.contains(inVertexId);
+            final boolean outVertexSupernode = !edgeCacheEnabled || supernodes.contains(outVertexId);
+            this.graph.bulkWriteEdge((byte[]) sparkEdge.getId(), edgeLabel, sparkEdge.getProperties(),
+                    inVertexId, outVertexId, inVertexSupernode, outVertexSupernode);
+            if (edgeCacheEnabled) {
+                GraphOperations.updateEdgeMap(this.supernodes, outVertexId,
+                        this.graph.getIdFactory().createCompositeEdgeId(edgeId, graph.getIdFactory().createId(inVertexId, FireflyVertex.class)),
+                        edgeLabel, this.vertexOutEdgeMap);
+                GraphOperations.updateEdgeMap(this.supernodes, inVertexId,
+                        this.graph.getIdFactory().createCompositeEdgeId(edgeId, this.graph.getIdFactory().createId(outVertexId, FireflyVertex.class)),
+                        edgeLabel, this.vertexInEdgeMap);
+            }
+            return null;
+        }, service);
+        return retry.withRetries(supplier, service).exceptionally(e -> {
+            // Log the error when no longer retrying
+            LOGGER.error(String.format("Exception occurred during Edge writing %s", this), e);
+            throw new RuntimeException(e);
+        });
     }
 
     @Override

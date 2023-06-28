@@ -1,8 +1,8 @@
 package com.aerospike.firefly.io.utils;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.policy.ClientPolicy;
@@ -52,7 +52,7 @@ public final class BloomFilterIdCache {
      * @throws IOException If unable to determine whether id is available.
      */
     public static boolean takeIdIfAvailable(final AerospikeConnection db, final String namespace, final String name, long id) {
-        final AerospikeClient client = db.getClient();
+        final IAerospikeClient client = db.getClient();
         // Generate key and ClientPolicy.
         final Key key = new Key(namespace, db.USER_SUPPLIED_ID_CACHE_SET, name);
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -110,7 +110,7 @@ public final class BloomFilterIdCache {
         return ((Long) (id & BLOOM_FILTER_BIT_MASK)).toString();
     }
 
-    private static BloomFilter<Long> getBloomFilter(final AerospikeClient client, final Key key, final String binKey, ClientPolicy clientPolicy) throws IOException {
+    private static BloomFilter<Long> getBloomFilter(final IAerospikeClient client, final Key key, final String binKey, ClientPolicy clientPolicy) throws IOException {
         // Check if it exists, if it does not create it.
         boolean exists = client.exists(clientPolicy.readPolicyDefault, key);
         if (!exists) {
@@ -133,7 +133,7 @@ public final class BloomFilterIdCache {
         return BloomFilter.readFrom(new ByteArrayInputStream(data), FUNNEL);
     }
 
-    private static void putBloomFilter(final AerospikeClient client, final Key key, final String binKey, final BloomFilter<Long> bloomFilter, ClientPolicy clientPolicy) throws IOException {
+    private static void putBloomFilter(final IAerospikeClient client, final Key key, final String binKey, final BloomFilter<Long> bloomFilter, ClientPolicy clientPolicy) throws IOException {
         // Convert bloom filter to byte array.
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         bloomFilter.writeTo(outputStream);

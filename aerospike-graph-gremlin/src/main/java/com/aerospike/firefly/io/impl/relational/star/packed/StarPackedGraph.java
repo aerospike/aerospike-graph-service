@@ -11,6 +11,7 @@ import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
@@ -43,8 +44,8 @@ public class StarPackedGraph extends PackedGraph {
      * @param db   AerospikeConnection.
      * @param conf Configuration.
      */
-    public StarPackedGraph(final AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
+    public StarPackedGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        super(db, conf, gremlinServerSettings);
         this.enableOutVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_OUT_VP);
         this.enableInVp = db.OPTIMIZED_HOP_CONSTRAINT_STEPS.contains(ENABLE_IN_VP);
         this.enableOutOut = db.OPTIMIZED_TWO_HOP_STEPS.contains(ENABLE_OUT_OUT);
@@ -180,7 +181,8 @@ public class StarPackedGraph extends PackedGraph {
                                      final List<Map.Entry<String, Object>> properties) {
         // We only need to add this vertex itself. At this point it has no edges.
         // The actual vertex date is stored the same as the packed model so we can use that code here.
-        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || this.db.ON_RECORD_ID_LIMIT <= 0;
+        return PackedVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
     /**

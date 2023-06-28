@@ -49,7 +49,6 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.max.connections.per.node";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
         public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "aerospike.client.connection.max.retry";
@@ -85,6 +84,7 @@ public final class ConfigurationHelper {
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
 
+        // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
         public static final String WARMUP_MODE = "WARMUP_MODE";
         public static final String FAULT_TEST = "FAULT_TEST";
@@ -95,8 +95,8 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
-
-
+        public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
+        public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
 
         public enum Bins {
             GRAPH_VARIABLES_BIN((byte) 1),
@@ -197,12 +197,6 @@ public final class ConfigurationHelper {
         }
     }
 
-    private static final Set<String> environmentVariables = new HashSet<>() {{
-        add(Keys.AEROSPIKE_USER);
-        add(Keys.AEROSPIKE_PASSWORD);
-        add(Keys.FAULT_TEST);
-    }};
-
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
         put(Keys.AEROSPIKE_NAMESPACE, "test");
@@ -211,7 +205,7 @@ public final class ConfigurationHelper {
         put(Keys.GRAPH_ID, "0");
         put(Keys.ON_RECORD_ID_LIMIT, "8000");
         put(Keys.STORAGE_DEBUGGER_FLAG, "false");
-
+        put(Keys.FIREFLY_DATA_MODEL, "packed");
 
         put(Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), "G_VAR_REC");
         put(Keys.Bins.GRAPH_VARIABLES_BIN.name(), "G_VAR_MAP");
@@ -259,7 +253,6 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
-        put(Keys.MAX_CONNECTIONS_PER_NODE, "2000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");
@@ -281,6 +274,8 @@ public final class ConfigurationHelper {
         put(Keys.WARMUP_MODE, "false");
         put(Keys.ENABLE_CUSTOM_PROFILE, "true");
         put(Keys.FAULT_TEST, "false");
+        put(Keys.CLIENT_FAILURE_TEST, "false");
+        put(Keys.CLIENT_FAILURE_RATE, "0");
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
@@ -346,24 +341,6 @@ public final class ConfigurationHelper {
         }
     }
 
-    public static Configuration loadFromEnv() {
-        ArrayList<String> missingVariables = new ArrayList<>();
-        if (System.getenv(Keys.AEROSPIKE_HOST) == null || System.getenv(Keys.AEROSPIKE_HOST).isEmpty())
-            missingVariables.add(Keys.AEROSPIKE_HOST);
-        if (System.getenv(Keys.AEROSPIKE_PORT) == null || System.getenv(Keys.AEROSPIKE_PORT).isEmpty())
-            missingVariables.add(Keys.AEROSPIKE_PORT);
-        if (System.getenv(Keys.AEROSPIKE_NAMESPACE) == null || System.getenv(Keys.AEROSPIKE_NAMESPACE).isEmpty())
-            missingVariables.add(Keys.AEROSPIKE_NAMESPACE);
-        if (!missingVariables.isEmpty())
-            throw new RuntimeException("Required environment variable(s) not set: " + missingVariables);
-        return new MapConfiguration(new HashMap<>() {{
-            put(Keys.AEROSPIKE_HOST.toLowerCase(), System.getenv(Keys.AEROSPIKE_HOST));
-            put(Keys.AEROSPIKE_PORT.toLowerCase(), Integer.valueOf(System.getenv(Keys.AEROSPIKE_PORT)));
-            put(Keys.AEROSPIKE_NAMESPACE.toLowerCase(), System.getenv(Keys.AEROSPIKE_NAMESPACE));
-        }});
-    }
-
-
     protected static boolean checkInternalKeys(final String key) {
         return Keys.InternalConfigs.keys().contains(key) ||
                 Keys.Sets.keys().contains(key) ||
@@ -372,8 +349,18 @@ public final class ConfigurationHelper {
 
     public static Object getOrDefault(final String key, final Configuration config) {
         final String lowerKey = key.toLowerCase();
+        final String upperKey = key.toUpperCase();
         final boolean debugMode = config.containsKey(Keys.DEBUG_MODE_FLAG) && config.getBoolean(Keys.DEBUG_MODE_FLAG);
-        if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key) && !checkInternalKeys(key)) {
+
+        if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
+            String envConfig = System.getenv(upperKey);
+            if (envConfig == null || envConfig.isEmpty()) {
+                envConfig = System.getenv(lowerKey);
+            }
+            if (envConfig != null && !envConfig.isEmpty()) {
+                return envConfig;
+            }
+        } else if (!config.containsKey(lowerKey) && !defaultValues.containsKey(key) && !checkInternalKeys(key)) {
             throw new ConfigurationRuntimeException("no default value available for key: " + lowerKey);
         } else if (config.containsKey(lowerKey)) {
             return config.getString(lowerKey);
@@ -395,12 +382,6 @@ public final class ConfigurationHelper {
                 return Keys.Bins.valueOf(key).name();
             } else {
                 return Keys.Bins.valueOf(key).getValue();
-            }
-        } else if (environmentVariables.contains(key.toUpperCase())) {
-            // Allow username and password to come from environment variables.
-            final String envConfig = System.getenv(key.toUpperCase());
-            if (envConfig != null && !envConfig.isEmpty()) {
-                return envConfig;
             }
         }
         return defaultValues.get(key);

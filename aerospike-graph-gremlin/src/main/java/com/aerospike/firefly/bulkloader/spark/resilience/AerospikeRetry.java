@@ -1,8 +1,9 @@
 package com.aerospike.firefly.bulkloader.spark.resilience;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 
 public interface AerospikeRetry {
-    CompletableFuture withRetries(final CompletableFuture supplier, final ScheduledExecutorService sec);
+    <T> CompletionStage<T> withRetries(final Supplier<CompletionStage<T>> task, final ScheduledExecutorService sec);
 }

@@ -38,7 +38,7 @@ import static org.apache.spark.sql.functions.input_file_name;
 import static org.apache.spark.sql.functions.monotonically_increasing_id;
 
 public class DatasetOperations implements Serializable {
-    public static final int RETRY_LIMIT = 20; // Not provided through config
+    public static int RETRY_LIMIT = 20; // Not provided through config
     public static final String FILENAME_COLUMN = "~fileName";
     public static final String LINENUMBER_COLUMN = "~line";
     public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, LINENUMBER_COLUMN);

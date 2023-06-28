@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -64,22 +65,22 @@ import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -94,7 +95,6 @@ import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
-import static com.aerospike.firefly.util.IOUtil.toHex;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -129,7 +129,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     private final String host;
     private final int port;
-    private final AerospikeClient client;
+    private final IAerospikeClient client;
     private final String namespace;
 
     public final String USER_KEY_BIN;
@@ -204,7 +204,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param conf Apache Configuration
      */
-    public AerospikeConnection(final Configuration conf) {
+    private AerospikeConnection(final Configuration conf, final Settings gremlinServerSettings) {
         LOG.info("Initializing AerospikeConnection.");
         LOG.debug("CONFIGURATION:");
         conf.getKeys().forEachRemaining(key -> LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
@@ -231,7 +231,21 @@ public class AerospikeConnection implements AutoCloseable {
                 .orElse(Arrays.stream(Host.parseHosts(host, port)).collect(Collectors.toList()))
                 .toArray(new Host[0]);
         this.clientPolicy = new ClientPolicy();
-        this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
+
+        // Max and min connections per node should be the thread pool size.
+        // In batching we may use up to 1 connection per node per thread at a time.
+        // Also, we don't want connections recycled, so keep min == max true.
+        // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
+        //
+        // The bulk loader uses 2 * availableProcessors (+ 2 for the metadata updater thread and the cardinality metadata thread).
+        //
+        // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
+        final int threadPoolSize = Math.max(2 * Runtime.getRuntime().availableProcessors() + 2, gremlinServerSettings.gremlinPool + 2);
+        this.clientPolicy.maxConnsPerNode = threadPoolSize;
+        this.clientPolicy.minConnsPerNode = threadPoolSize;
+
+        // While our writes are not idempotent, we should not be retrying.
+        this.clientPolicy.writePolicyDefault.maxRetries = 0;
         this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         this.clientPolicy.eventLoops = this.eventLoops;
 
@@ -246,14 +260,30 @@ public class AerospikeConnection implements AutoCloseable {
         final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
         if (Boolean.parseBoolean(tlsEnabled))
             this.clientPolicy.tlsPolicy = new TlsPolicy();
+
+        final AerospikeClient aerospikeClient;
         try {
-            this.client = new AerospikeClient(clientPolicy, hosts);
-        } catch (Exception e) {
+            aerospikeClient = new AerospikeClient(clientPolicy, hosts);
+        } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);
             throw e;
         }
-        FireflyAerospikeVersionCheck.validateVersion(client);
-        FireflyAerospikeGraphServiceCheck.checkFeatureKey(client);
+        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient);
+        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf))) {
+            try {
+                final double clientFailureRate = Double.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_RATE, conf));
+                final Class clientFailureClass = Class.forName("com.aerospike.firefly.bulkloader.integration.util.FailingAerospikeClient");
+                final Method method = clientFailureClass.getMethod("clientWithWriteFails", IAerospikeClient.class, double.class);
+                this.client = (IAerospikeClient) method.invoke(null, aerospikeClient, clientFailureRate);
+            } catch (final Exception e) {
+                LOG.error("Error instantiating failure client for testing", e);
+                throw new RuntimeException(e);
+            }
+        } else {
+            this.client = aerospikeClient;
+        }
 
         V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
         E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
@@ -409,10 +439,21 @@ public class AerospikeConnection implements AutoCloseable {
      * Connect to an Aerospike instance
      *
      * @param conf Apache Configuration
+     * @param gremlinServerSettings Gremlin Server Settings
+     * @return Database connection handle
+     */
+    public static AerospikeConnection connect(final Configuration conf, final Settings gremlinServerSettings) {
+        return new AerospikeConnection(conf, gremlinServerSettings);
+    }
+
+    /**
+     * Connect to an Aerospike instance without settings. Used in testing.
+     *
+     * @param conf Apache Configuration
      * @return Database connection handle
      */
     public static AerospikeConnection connect(final Configuration conf) {
-        return new AerospikeConnection(conf);
+        return new AerospikeConnection(conf, FireflyGraph.getSettings());
     }
 
     /**
@@ -649,7 +690,7 @@ public class AerospikeConnection implements AutoCloseable {
          * First item of map entry is index
          * Second item of map entry is set the index belongs to
          */
-        public static List<Map.Entry<String, String>> listExistingIndexes(final AerospikeClient client, final String namespace) {
+        public static List<Map.Entry<String, String>> listExistingIndexes(final IAerospikeClient client, final String namespace) {
             // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
             return parseRaw(infoResponse).stream()
@@ -665,7 +706,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client AerospikeClient connection instance
          * @return enterprise or not
          */
-        public static boolean isEnterprise(final AerospikeClient client) {
+        public static boolean isEnterprise(final IAerospikeClient client) {
             // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
@@ -678,7 +719,7 @@ public class AerospikeConnection implements AutoCloseable {
          * @param client    AerospikeClient instance
          * @return Set of namespaces
          */
-        public static Set<String> getNonEmptySetList(final String namespace, final AerospikeClient client) {
+        public static Set<String> getNonEmptySetList(final String namespace, final IAerospikeClient client) {
             final Set<String> allSets = new HashSet<>();
 
             // Need to loop all nodes here in case one of the sets only has data on a single node.
@@ -828,7 +869,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @return AerospikeClient instance
      */
-    public AerospikeClient getClient() {
+    public IAerospikeClient getClient() {
         return this.client;
     }
 

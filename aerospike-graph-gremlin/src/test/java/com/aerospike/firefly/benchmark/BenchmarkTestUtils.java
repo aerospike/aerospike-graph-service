@@ -19,7 +19,6 @@ import static com.aerospike.firefly.Tokens.AIR_ROUTES_50K_URL;
  */
 public class BenchmarkTestUtils {
     private static final String LOCALHOST = "127.0.0.1";
-    private static final String FLIGHTS_DATASET_DOCKER = "/opt/air-routes/air-routes-50k.graphml";
     private static final String internaldataset = "/opt/internal dataset/internal dataset.graphml";
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestUtils.class);
 
@@ -84,7 +83,7 @@ public class BenchmarkTestUtils {
         String urlLocation = null;
         File tempFile = null;
         if (dataset == DATASET.FLIGHTS) {
-            ioLocation = FLIGHTS_DATASET_DOCKER;
+            ioLocation = null;
             urlLocation = AIR_ROUTES_50K_URL;
         } else if (dataset == DATASET.internaldataset) {
             ioLocation = internaldataset;

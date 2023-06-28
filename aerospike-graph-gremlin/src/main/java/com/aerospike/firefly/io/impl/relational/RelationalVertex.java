@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io.impl.relational;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -380,7 +380,7 @@ public abstract class RelationalVertex extends FireflyVertex {
         policy.sendKey = true;
         if (exp != null)
             policy.filterExp = exp;
-        final AerospikeClient client = db.getClient();
+        final IAerospikeClient client = db.getClient();
         final UUID scanId = UUID.randomUUID();
         final ConcurrentScanRecordSequenceListener listener =
                 ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
@@ -599,11 +599,12 @@ public abstract class RelationalVertex extends FireflyVertex {
      * This function is static because it is used by the RelationalGraph
      * to write a new FireflyVertex.
      *
-     * @param graph      FireflyGraph to use.
-     * @param vertexId   id of vertex,.
-     * @param label      String label of vertex.
-     * @param properties Map of properties to add to vertex.
-     * @param createOnly Flag that allows only new IDs to be written. Disable only for retry purposes.
+     * @param graph                 FireflyGraph to use.
+     * @param vertexId              Id of vertex,.
+     * @param label                 String label of vertex.
+     * @param properties            Map of properties to add to vertex.
+     * @param createOnly            Flag that allows only new IDs to be written. Disable only for retry purposes.
+     * @param isEdgeCacheOverflowed Initial state of edge cache to set.
      * @return FireflyVertex.
      */
     public static FireflyVertex writeVertex(final FireflyGraph graph,
@@ -611,12 +612,12 @@ public abstract class RelationalVertex extends FireflyVertex {
                                             final String label,
                                             final List<Map.Entry<String, Object>> properties,
                                             final int vertexTypeHint,
-                                            final boolean createOnly) {
+                                            final boolean createOnly,
+                                            final boolean isEdgeCacheOverflowed) {
         LOG.debug("Writing Vertex {} {}.", vertexId, properties);
 
         // Get database connection.
         final AerospikeConnection db = graph.getBaseGraph();
-        final boolean isEdgeCacheOverflowed = !db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || db.ON_RECORD_ID_LIMIT <= 0;
         final Map<String, ?> vertexPropertyIds;
         final Map<String, ?> vertexPropertyIdsWritable;
         final Map<String, Object> vertexPropertyValueMap;

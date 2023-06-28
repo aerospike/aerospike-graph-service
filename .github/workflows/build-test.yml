@@ -642,7 +642,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: start-runner-spark-bulk-loader
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:

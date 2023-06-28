@@ -11,7 +11,7 @@ import com.aerospike.client.BatchRead;
 import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
-import com.aerospike.client.IAerospikeClient;
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Language;
 import com.aerospike.client.Log;
@@ -67,9 +67,9 @@ import com.aerospike.client.task.IndexTask;
 import com.aerospike.client.task.RegisterTask;
 import com.aerospike.client.util.Util;
 
-public class FailingAerospikeClient implements IAerospikeClient {
+public class FailingAerospikeClient implements AerospikeClient {
     private final FailureProfile failureProfile;
-    private final IAerospikeClient delegate;
+    private final AerospikeClient delegate;
 
     private interface Invoker<T extends Policy> {
         Object invoke(T policy);
@@ -172,13 +172,13 @@ public class FailingAerospikeClient implements IAerospikeClient {
         }
     }
 
-    static public IAerospikeClient clientWithWriteFails(final IAerospikeClient aerospikeClient, final double failChance) {
+    static public AerospikeClient clientWithWriteFails(final AerospikeClient aerospikeClient, final double failChance) {
         final FailureProfile profile = new FailureProfile().chanceOfWriteTimeout(failChance);
         profile.enable();
         return new FailingAerospikeClient(aerospikeClient, profile);
     }
 
-    public FailingAerospikeClient(final IAerospikeClient aerospikeClient, FailureProfile failureProfile)
+    public FailingAerospikeClient(final AerospikeClient aerospikeClient, FailureProfile failureProfile)
             throws AerospikeException {
         this.delegate = aerospikeClient;
         this.failureProfile = failureProfile;

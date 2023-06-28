@@ -100,7 +100,7 @@ public class TestDataModelVersioning {
          * @param conf Configuration.
          */
         public FakeGraph(AerospikeConnection db, Configuration conf) {
-            super(db, conf, getSettings());
+            super(db, conf, getGremlinServerSettings());
         }
 
         @Override

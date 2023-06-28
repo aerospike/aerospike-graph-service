@@ -7,7 +7,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
-import com.aerospike.client.IAerospikeClient;
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
@@ -119,7 +119,7 @@ public class TestLogging {
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "DEBUG");
         conf.setProperty(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED.toLowerCase(), "true");
         FireflyGraph graph = FireflyGraph.open(conf);
-        final IAerospikeClient client = graph.getBaseGraph().getClient();
+        final AerospikeClient client = graph.getBaseGraph().getClient();
         final Key key = new Key("test", "test", "test");
         client.put(null, key, new Bin("test", "test"));
         final Key keyDoesNotExist = new Key("test", "negative", "negative");

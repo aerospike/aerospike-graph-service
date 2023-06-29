@@ -1653,7 +1653,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     @Override
     public final String toString() {
-        return String.format("aerospike graph on namespace %s", namespace);
+        return String.format("Aerospike Graph on namespace %s", namespace);
     }
 
     /**
@@ -1693,19 +1693,21 @@ public class AerospikeConnection implements AutoCloseable {
 
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
-            if(!client.isConnected()){
+            if (!client.isConnected()) {
                 init.set(false);
                 connect(conf);
             }
-            if (!init.get() || !client.isConnected())
+            if (!init.get() || !client.isConnected()) {
                 throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
             return client;
         }
 
         @Override
         public EventLoops getEventLoops(final Configuration conf) {
-            if (!init.get())
+            if (!init.get()) {
                 throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
             return eventLoops;
         }
 

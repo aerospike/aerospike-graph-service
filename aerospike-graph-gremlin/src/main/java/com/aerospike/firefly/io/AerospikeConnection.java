@@ -1692,12 +1692,13 @@ public class AerospikeConnection implements AutoCloseable {
 
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
-            if(!client.isConnected()){
+            if (!client.isConnected()) {
                 init.set(false);
                 connect(conf);
             }
-            if (!init.get() || !client.isConnected())
+            if (!init.get() || !client.isConnected()) {
                 throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
             return client;
         }
 

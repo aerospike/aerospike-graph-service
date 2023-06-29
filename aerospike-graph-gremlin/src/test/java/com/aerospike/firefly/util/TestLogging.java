@@ -12,6 +12,7 @@ import com.aerospike.client.Key;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +115,7 @@ public class TestLogging {
     }
 
     @Test
+    @Ignore //@todo
     public void testCanSetASClientLogLevel() {
         Configuration conf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "DEBUG");

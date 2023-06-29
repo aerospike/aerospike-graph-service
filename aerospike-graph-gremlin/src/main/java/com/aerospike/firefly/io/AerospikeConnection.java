@@ -192,7 +192,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
-    private static AtomicLong instanceCounter = new AtomicLong(0);
+    private static final AtomicLong instanceCounter = new AtomicLong(0);
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
@@ -1659,7 +1659,8 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * close the connection to Aerospike
      */
-    public void close() {
+    @Override
+    public void close() throws Exception {
         LOG.debug("Close called on AerospikeConnection, will not close shared client.");
     }
 

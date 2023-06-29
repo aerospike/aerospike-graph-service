@@ -212,7 +212,7 @@ public class AerospikeConnection implements AutoCloseable {
         // If username and password are not null or empty strings, then set the user and password on the client policy.
         final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
         final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
-        if (user != null && !"".equals(user) && password != null && !"".equals(password)) {
+        if (user != null && !user.equals("") && password != null && !password.equals("")) {
             LOG.info("Setting Aerospike user and password.");
             clientPolicy.user = user;
             clientPolicy.password = password;

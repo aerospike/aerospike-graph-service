@@ -1653,7 +1653,7 @@ public class AerospikeConnection implements AutoCloseable {
 
     @Override
     public final String toString() {
-        return String.format("aerospike graph on namespace %s", namespace);
+        return String.format("Aerospike Graph on namespace %s", namespace);
     }
 
     /**

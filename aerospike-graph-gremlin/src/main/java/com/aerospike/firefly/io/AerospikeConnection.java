@@ -228,16 +228,16 @@ public class AerospikeConnection implements AutoCloseable {
         final String host = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
         final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
 
-        final Optional<String[]> TLS_NAMES;
+        final Optional<String[]> tlsNames;
         if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
-            TLS_NAMES = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(host, port).length != TLS_NAMES.get().length) {
+            tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
+            if (Host.parseHosts(host, port).length != tlsNames.get().length) {
                 throw new IllegalArgumentException("Number of TLS names must match number of hosts");
             }
         } else {
-            TLS_NAMES = Optional.empty();
+            tlsNames = Optional.empty();
         }
-        final Host[] hosts = TLS_NAMES
+        final Host[] hosts = tlsNames
                 .map(tlsNameArray -> Arrays.stream(tlsNameArray)
                         .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
                         .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))

@@ -12,6 +12,7 @@ import com.aerospike.client.BatchRecord;
 import com.aerospike.client.BatchResults;
 import com.aerospike.client.Bin;
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.IAerospikeClient;
 import com.aerospike.client.Key;
 import com.aerospike.client.Language;
 import com.aerospike.client.Log;
@@ -67,7 +68,7 @@ import com.aerospike.client.task.IndexTask;
 import com.aerospike.client.task.RegisterTask;
 import com.aerospike.client.util.Util;
 
-public class FailingAerospikeClient implements AerospikeClient {
+public class FailingAerospikeClient implements IAerospikeClient {
     private final FailureProfile failureProfile;
     private final AerospikeClient delegate;
 
@@ -172,7 +173,7 @@ public class FailingAerospikeClient implements AerospikeClient {
         }
     }
 
-    static public AerospikeClient clientWithWriteFails(final AerospikeClient aerospikeClient, final double failChance) {
+    static public IAerospikeClient clientWithWriteFails(final AerospikeClient aerospikeClient, final double failChance) {
         final FailureProfile profile = new FailureProfile().chanceOfWriteTimeout(failChance);
         profile.enable();
         return new FailingAerospikeClient(aerospikeClient, profile);

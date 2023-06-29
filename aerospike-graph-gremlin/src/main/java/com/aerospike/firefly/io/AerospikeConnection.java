@@ -218,8 +218,9 @@ public class AerospikeConnection implements AutoCloseable {
             clientPolicy.password = password;
         }
         final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
-        if (Boolean.parseBoolean(tlsEnabled))
+        if (Boolean.parseBoolean(tlsEnabled)) {
             clientPolicy.tlsPolicy = new TlsPolicy();
+        }
         return clientPolicy;
     }
 

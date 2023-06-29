@@ -1704,8 +1704,9 @@ public class AerospikeConnection implements AutoCloseable {
 
         @Override
         public EventLoops getEventLoops(final Configuration conf) {
-            if (!init.get())
+            if (!init.get()) {
                 throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
             return eventLoops;
         }
 

@@ -6,10 +6,6 @@ ENV RELEASE_BUILD=$RELEASE_BUILD
 ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
-# Set container labels.
-LABEL org.opencontainers.image.description = "Docker image for Aerospike's graph database, Firefly."
-LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
-
 # Set environment variables.
 ENV TINKERPOP_VERSION='3.6.3'
 ENV MAVEN_VERSION='3.8.8'
@@ -63,6 +59,9 @@ RUN \
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
+# Remove extra packages
+RUN yum remove -y vim-minimal vim-data
+
 # Add scripts and conf to container.
 ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
 ADD scripts /opt/aerospike-firefly/scripts
@@ -80,10 +79,3 @@ RUN cp -a /root/.m2 /home/firefly/.m2 && chown firefly:firefly -R /home/firefly/
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
 
-# Set user to firefly.
-USER firefly
-
-HEALTHCHECK CMD ls /tmp/firefly-ready
-
-# Entry point, run script.
-ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

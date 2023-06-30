@@ -1,3 +1,4 @@
+aerospike-graph-gremlin/file:*
 #venv for python cluster runner
 .github/aerospike/venv
 #features file for ci

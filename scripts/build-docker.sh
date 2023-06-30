@@ -18,7 +18,7 @@ if [[ -z "$PLATFORM" ]]; then
 fi
 
 PUSH_FLAG="$3"
-if [[ -z "PUSH_FLAG" ]]; then
+if [[ -z "$PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
@@ -38,5 +38,6 @@ docker tag "$NEW_IMAGE" "$SQUASH_IMAGE"
 docker images
 #add the runtime configuration to the stripped image
 docker build $EXTRA_BUILD_ARGS -f $DOCKERFILE_B --tag "$OUTPUT_TAG" .
-
-docker push $OUTPUT_TAG
+if [[ -n "$PUSH_FLAG" ]]; then
+  docker push $OUTPUT_TAG
+fi

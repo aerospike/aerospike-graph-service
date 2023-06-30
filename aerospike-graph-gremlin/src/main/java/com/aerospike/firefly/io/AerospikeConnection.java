@@ -1660,7 +1660,7 @@ public class AerospikeConnection implements AutoCloseable {
      * close the connection to Aerospike
      */
     @Override
-    public void close() throws Exception {
+    public void close() {
         LOG.debug("Close called on AerospikeConnection, will not close shared client.");
     }
 

@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.IAerospikeClient;
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.policy.InfoPolicy;
 
@@ -11,7 +11,7 @@ public class FireflyAerospikeGraphServiceCheck {
     private FireflyAerospikeGraphServiceCheck() {
     }
 
-    public static void checkFeatureKey(final IAerospikeClient client) {
+    public static void checkFeatureKey(final AerospikeClient client) {
         final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "feature-key");
         validateInfoResponse(infoResponse);
     }

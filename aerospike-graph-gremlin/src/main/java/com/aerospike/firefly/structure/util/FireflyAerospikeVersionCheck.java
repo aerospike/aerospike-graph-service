@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure.util;
 
-import com.aerospike.client.IAerospikeClient;
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import org.slf4j.Logger;
@@ -80,7 +80,7 @@ public class FireflyAerospikeVersionCheck {
         extension = extension1;
     }
 
-    public static void validateVersion(final IAerospikeClient client) {
+    public static void validateVersion(final AerospikeClient client) {
         final Node node = client.getNodes()[0];
         final String response = Info.request(null, node, "build");
         final FireflyAerospikeVersionCheck version = new FireflyAerospikeVersionCheck(response);

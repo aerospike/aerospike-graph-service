@@ -163,9 +163,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
     }
 
-    protected FireflyGraph(final Configuration conf, final Settings gremlinServerSettings) {
-        this(AerospikeConnection.connect(conf, gremlinServerSettings), conf, gremlinServerSettings);
-    }
+
 
 
     protected FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
@@ -265,7 +263,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         return new ComparableVersion(FIREFLY_VERSION);
     }
 
-    public static Settings getSettings() {
+    public static Settings getGremlinServerSettings() {
         // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
         if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
             LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");

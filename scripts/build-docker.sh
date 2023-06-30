@@ -26,7 +26,7 @@ BUILD_IMAGE="aerospike-graph-build:latest"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
 
 #do the initial build
-docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE -f $DOCKERFILE_A .
+docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE --output=type=docker -f $DOCKERFILE_A .
 
 #instantiate container and get container id
 CTR_ID=$(docker run -d -t -i --entrypoint=/bin/echo $BUILD_IMAGE)

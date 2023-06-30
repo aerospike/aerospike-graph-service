@@ -24,7 +24,7 @@ fi
 
 BUILD_IMAGE="aerospike-graph-build:latest"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
-docker buildx create --use --name mybuilder
+#docker buildx create --use --name mybuilder
 
 #do the initial build
 docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE  --output=type=docker -f $DOCKERFILE_A .

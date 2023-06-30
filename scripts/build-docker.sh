@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
+DOCKERFILE_A=${DOCKERFILE_A:-"docker/build.Dockerfile"}
+DOCKERFILE_B=${DOCKERFILE_B:-"docker/prod.Dockerfile"}
+
+
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
@@ -22,7 +26,7 @@ BUILD_IMAGE="aerospike-graph-build:latest"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
 
 #do the initial build
-docker build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE -f docker/build.Dockerfile .
+docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE -f $DOCKERFILE_A .
 
 #instantiate container and get container id
 CTR_ID=$(docker run -d -t -i --entrypoint=/bin/echo $BUILD_IMAGE)
@@ -30,6 +34,6 @@ CTR_ID=$(docker run -d -t -i --entrypoint=/bin/echo $BUILD_IMAGE)
 #export container filesystem to new image stripping historic layers
 NEW_IMAGE=$(docker export "$CTR_ID" | docker import -)
 docker tag "$NEW_IMAGE" "$SQUASH_IMAGE"
-
+docker images
 #add the runtime configuration to the stripped image
-docker buildx build $PUSH_FLAG --platform "$PLATFORM" $EXTRA_BUILD_ARGS -f docker/prod.Dockerfile --tag "$OUTPUT_TAG" .
+docker buildx build $PUSH_FLAG --platform "$PLATFORM" $EXTRA_BUILD_ARGS -f $DOCKERFILE_B --tag "$OUTPUT_TAG" .

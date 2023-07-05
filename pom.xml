@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -42,7 +42,7 @@
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>1.0.1-SNAPSHOT</firefly.version>
+        <firefly.version>1.0.1</firefly.version>
         <aerospike.version>6.1.7</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>

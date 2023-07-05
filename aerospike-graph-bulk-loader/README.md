@@ -204,10 +204,11 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 
 ##### Configuration Settings
 
-| Name                                                | Flag | Optional | Default     | Description                                                  |
-|-----------------------------------------------------| ---- | -------- | ----------- | ------------------------------------------------------------ |
+| Name                                         | Flag | Optional | Default     | Description                                                  |
+| -------------------------------------------- | ---- | -------- | ----------- | ------------------------------------------------------------ |
 | aerospike.graphloader.dataframe-caching      | -dc  | Yes      | false       | Dataframe caching state.                                     |
 | aerospike.graphloader.dataframe-storage-type | -dt  | Yes      | "disk_only" | Dataframe storage type. Allowed values: "disk_only", "memory_only", "memory_and_disk" |
+| aerospike.graphloader.s3-endpoint            | -s3e | Yes      | N/A         | Custom S3 endpoint for QE testing                            |
 
 ##### sample commands (for single node L2 with 32 GB memory)
 

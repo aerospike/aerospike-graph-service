@@ -164,6 +164,12 @@ public class SparkBulkLoaderMain {
         builder.config("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
                 .config("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem")
                 .config("google.cloud.auth.service.account.enable", true);
+
+        // Internal use configurations
+        if (cmd.hasOption("s3e")) {
+            builder.config("fs.s3a.endpoint", cmd.getOptionValue("s3e")).config("fs.s3a.connection.ssl.enabled", "false");
+        }
+
         return builder.getOrCreate();
     }
 
@@ -247,6 +253,7 @@ public class SparkBulkLoaderMain {
                 }
             }
         } else {
+            throw new IllegalArgumentException("Multiple remote file systems detected for parameters: 'aerospike.graphloader.config', 'aerospike.graphloader.vertices', 'aerospike.graphloader.edges'. Cross-platform is not supported in a single bulk load.");
         }
     }
 

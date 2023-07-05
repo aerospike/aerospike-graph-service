@@ -77,6 +77,10 @@ public class CommandLineParser {
         final Option dataframeStorageOption = new Option("dt", DATAFRAME_STORAGE_TYPE, true, "Dataframe storage type. Optional argument - Default: 'disk_only'.");
         options.addOption(dataframeStorageOption);
 
+        // Internal use configurations
+        final Option s3EndPointOption = new Option("s3e", "aerospike.graphloader.s3-endpoint", true, "Custom S3 endpoint.");
+        options.addOption(s3EndPointOption);
+
         // Actions
         final Option ve = new Option(VERIFY_EDGE, "Verify edges.");
         options.addOption(ve);

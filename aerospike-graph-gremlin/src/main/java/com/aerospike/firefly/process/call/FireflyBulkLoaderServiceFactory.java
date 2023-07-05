@@ -54,6 +54,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         KEY_TO_ARG.put("aerospike.graphloader.gcs-keyfile", "gck");
         KEY_TO_ARG.put("aerospike.graphloader.gcs-email", "gem");
         KEY_TO_ARG.putAll(KEY_TO_CMD);
+        KEY_TO_ARG.put("aerospike.graphloader.s3-endpoint", "s3e");
     }
 
     @Override

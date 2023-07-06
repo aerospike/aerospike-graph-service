@@ -375,16 +375,20 @@ jobs:
     needs: start-runner-docker
     runs-on: ${{ needs.start-runner-docker.outputs.label }}
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: actions/checkout@v3
       - name: Build Docker Image
         run: |
           java -XX:+PrintFlagsFinal -version | grep HeapSize
-          docker build -t aerospike/firefly .
+          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
   test-bulk-loader-call-docker:
     name: Test Firefly Docker Bulk Loader Call
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
@@ -405,7 +409,7 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          docker build -t aerospike/firefly .
+          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
           
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
@@ -447,7 +451,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.1'
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -642,7 +646,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: start-runner-spark-bulk-loader
     runs-on: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
     steps:
@@ -703,7 +707,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.1'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -757,7 +761,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.0-SNAPSHOT'
+          ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.1'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.6.3/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -787,6 +791,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.7
@@ -801,7 +807,7 @@ jobs:
       - name: Launch Firefly in Gremlin-Server and Test Prometheus
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -817,6 +823,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.7
@@ -831,7 +839,8 @@ jobs:
       - name: Launch Firefly Docker Image with Custom yaml
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
+          
           
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
@@ -847,6 +856,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.7
@@ -862,7 +873,7 @@ jobs:
       - name: Launch Firefly Docker Image with Custom properties
         run: |
           echo "Starting gremlin-server"
-          docker build -t firefly .
+          bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom properties file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &

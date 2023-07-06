@@ -31,6 +31,7 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,8 +63,8 @@ public abstract class RelationalGraph extends FireflyGraph {
      * @param db   AerospikeConnection.
      * @param conf Configuration.
      */
-    public RelationalGraph(AerospikeConnection db, final Configuration conf) {
-        super(db, conf);
+    public RelationalGraph(AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        super(db, conf, gremlinServerSettings);
     }
 
     /**
@@ -211,16 +212,17 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true);
+        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || this.db.ON_RECORD_ID_LIMIT <= 0;
+        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
     @Override
     public void bulkWriteVertex(final FireflyId idValue,
                                    final String label,
                                    final List<Map.Entry<String, Object>> properties,
-                                   final boolean createOnly) {
+                                   final boolean supernode) {
         try {
-            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), createOnly);
+            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }

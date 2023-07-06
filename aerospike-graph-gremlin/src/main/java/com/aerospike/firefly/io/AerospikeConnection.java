@@ -4,6 +4,7 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
+import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -57,22 +58,25 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.structure.util.FireflyAerospikeGraphServiceCheck;
 import com.aerospike.firefly.structure.util.FireflyAerospikeVersionCheck;
+import com.aerospike.firefly.util.AerospikeClientProvider;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.Tokens;
 import com.aerospike.firefly.util.WarmupUtil;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -80,11 +84,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -94,7 +98,6 @@ import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
-import static com.aerospike.firefly.util.IOUtil.toHex;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -124,11 +127,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final int NumLoops = 2;
     private static final int CommandsPerEventLoop = 50;
     private static final int DelayQueueSize = 50;
-
     private final EventLoops eventLoops;
-
-    private final String host;
-    private final int port;
     private final AerospikeClient client;
     private final String namespace;
 
@@ -193,67 +192,106 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
+    private static final AtomicLong instanceCounter = new AtomicLong(0);
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    public final Optional<String[]> TLS_NAMES;
     private final FireflyIdFactory idFactory;
 
-    /**
-     * Construct a new AerospikeConnection
-     *
-     * @param conf Apache Configuration
-     */
-    public AerospikeConnection(final Configuration conf) {
-        LOG.info("Initializing AerospikeConnection.");
-        LOG.debug("CONFIGURATION:");
-        conf.getKeys().forEachRemaining(key -> LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
-        this.conf = conf;
-        this.host = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
-        this.port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
-        this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
+    public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
+        final ClientPolicy clientPolicy = new ClientPolicy();
 
-        this.eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
+        clientPolicy.maxConnsPerNode = threadPoolSize * 2;
+        clientPolicy.minConnsPerNode = threadPoolSize;
 
+        // While our writes are not idempotent, we should not be retrying.
+        clientPolicy.writePolicyDefault.maxRetries = 0;
+        clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
+        clientPolicy.eventLoops = eventLoops;
+
+        // If username and password are not null or empty strings, then set the user and password on the client policy.
+        final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
+        final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
+        if (user != null && !user.equals("") && password != null && !password.equals("")) {
+            LOG.info("Setting Aerospike user and password.");
+            clientPolicy.user = user;
+            clientPolicy.password = password;
+        }
+        final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
+        if (Boolean.parseBoolean(tlsEnabled)) {
+            clientPolicy.tlsPolicy = new TlsPolicy();
+        }
+        return clientPolicy;
+    }
+
+    public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
+        final String host = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
+
+        final Optional<String[]> tlsNames;
         if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
-            TLS_NAMES = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(host, port).length != TLS_NAMES.get().length) {
+            tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
+            if (Host.parseHosts(host, port).length != tlsNames.get().length) {
                 throw new IllegalArgumentException("Number of TLS names must match number of hosts");
             }
         } else {
-            TLS_NAMES = Optional.empty();
+            tlsNames = Optional.empty();
         }
-        final Host[] hosts = TLS_NAMES
+        final Host[] hosts = tlsNames
                 .map(tlsNameArray -> Arrays.stream(tlsNameArray)
                         .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
                         .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
                         .collect(Collectors.toList()))
                 .orElse(Arrays.stream(Host.parseHosts(host, port)).collect(Collectors.toList()))
                 .toArray(new Host[0]);
-        this.clientPolicy = new ClientPolicy();
-        this.clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
-        this.clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
-        this.clientPolicy.eventLoops = this.eventLoops;
 
-        // If username and password are not null or empty strings, then set the user and password on the client policy.
-        final String user = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_USER, conf);
-        final String password = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PASSWORD, conf);
-        if (user != null && !"".equals(user) && password != null && !"".equals(password)) {
-            LOG.info("Setting Aerospike user and password.");
-            this.clientPolicy.user = user;
-            this.clientPolicy.password = password;
-        }
-        final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
-        if (Boolean.parseBoolean(tlsEnabled))
-            this.clientPolicy.tlsPolicy = new TlsPolicy();
+        final AerospikeClient aerospikeClient;
         try {
-            this.client = new AerospikeClient(clientPolicy, hosts);
-        } catch (Exception e) {
+            aerospikeClient = new AerospikeClient(policy, hosts);
+        } catch (final Exception e) {
             LOG.error("Error connecting to Aerospike", e);
             throw e;
         }
-        FireflyAerospikeVersionCheck.validateVersion(client);
-        FireflyAerospikeGraphServiceCheck.checkFeatureKey(client);
+        FireflyAerospikeVersionCheck.validateVersion(aerospikeClient);
+        FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
+
+        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf))) {
+            return DiagnosticUtil.enableWriteFails(aerospikeClient, conf);
+        } else {
+            return aerospikeClient;
+        }
+    }
+
+    public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {
+        // Max and min connections per node should be the thread pool size.
+        // In batching we may use up to 1 connection per node per thread at a time.
+        // Also, we don't want connections recycled, so keep min == max true.
+        // We must add 2 because both the metadata updater thread and the cardinality metadata threads using the connection.
+        //
+        // The bulk loader uses 2 * availableProcessors (+ 2 for the metadata updater thread and the cardinality metadata thread).
+        //
+        // Because of this, we need to use the greatest of either what the bulk loader would use or what gremlin-server would use.
+        return Math.max(2 * Runtime.getRuntime().availableProcessors() + 2, gremlinServerSettings.gremlinPool + 2);
+    }
+
+
+    /**
+     * Construct a new AerospikeConnection
+     *
+     * @param conf Apache Configuration
+     */
+    private AerospikeConnection(final Configuration conf,
+                                final AerospikeClient client,
+                                final EventLoops eventLoops) {
+        LOG.info("Initializing AerospikeConnection.");
+        LOG.debug("CONFIGURATION:");
+        conf.getKeys().forEachRemaining(key -> LOG.debug("\tconfig: [{}]:[{}]", key, conf.get(String.class, key)));
+        LOG.debug("Instance counter: {}", instanceCounter.incrementAndGet());
+
+        this.conf = conf;
+        this.namespace = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_NAMESPACE, conf);
+        this.eventLoops = eventLoops;
+        this.client = client;
 
         V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
         E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
@@ -351,6 +389,33 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Connect to an Aerospike cluster while specifying a client.
+     *
+     * @param conf       Apache Configuration
+     * @param client     Aerospike Client
+     * @param eventLoops Aerospike Event Loops
+     * @return Database connection handle
+     */
+    public static AerospikeConnection connect(final Configuration conf,
+                                              final AerospikeClient client,
+                                              final EventLoops eventLoops) {
+        return new AerospikeConnection(conf, client, eventLoops);
+    }
+
+
+    /**
+     * Connect to an Aerospike cluster.
+     *
+     * @param conf Apache Configuration
+     * @return Database connection handle
+     */
+    public static AerospikeConnection connect(final Configuration conf) {
+        final AerospikeClientProvider provider = DefaultAerospikeClientProvider.connect(conf);
+        return connect(conf, provider.getAerospikeClient(conf), provider.getEventLoops(conf));
+    }
+
+
+    /**
      * Aerospike put with exception handling
      *
      * @param policy write configuration parameters, pass in null for defaults
@@ -405,15 +470,6 @@ public class AerospikeConnection implements AutoCloseable {
         return idFactory;
     }
 
-    /**
-     * Connect to an Aerospike instance
-     *
-     * @param conf Apache Configuration
-     * @return Database connection handle
-     */
-    public static AerospikeConnection connect(final Configuration conf) {
-        return new AerospikeConnection(conf);
-    }
 
     /**
      * Get a list of currently valid ids
@@ -722,7 +778,6 @@ public class AerospikeConnection implements AutoCloseable {
         put(7L, ArrayList.class);
     }};
 
-    private final ClientPolicy clientPolicy;
     static AtomicLong readMetric = new AtomicLong(0);
     static AtomicLong writeMetric = new AtomicLong(0);
 
@@ -850,7 +905,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param maxCommandsInQueue
      * @return
      */
-    private EventLoops initializeEventLoops(
+    private static EventLoops initializeEventLoops(
             final EventLoopType eventLoopType,
             final int numLoops,
             final int commandsPerEventLoop,
@@ -1598,16 +1653,71 @@ public class AerospikeConnection implements AutoCloseable {
 
     @Override
     public final String toString() {
-        return String.format("aerospike://%s:%s/%s", host, port, namespace);
+        return String.format("Aerospike Graph on namespace %s", namespace);
     }
 
     /**
      * close the connection to Aerospike
      */
+    @Override
     public void close() {
-        LOG.debug("Closing client.");
-        this.client.close();
-        LOG.debug("Closing event loop.");
-        this.eventLoops.close();
+        LOG.debug("Close called on AerospikeConnection, will not close shared client.");
+    }
+
+    /**
+     * Aerospike client is a singleton per JVM.
+     */
+    public static class DefaultAerospikeClientProvider implements AerospikeClientProvider , AutoCloseable{
+        private static final AtomicBoolean init = new AtomicBoolean(false);
+        private static AerospikeClient client;
+        private static EventLoops eventLoops;
+
+        final static DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
+
+        private DefaultAerospikeClientProvider() {
+        }
+
+        public static DefaultAerospikeClientProvider getInstance() {
+            return INSTANCE;
+        }
+
+        public static AerospikeClientProvider connect(final Configuration conf) {
+            if (init.compareAndSet(false, true)) {
+                eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
+                final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
+                final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
+                client = setupDefaultClient(conf, clientPolicy);
+            }
+            return INSTANCE;
+        }
+
+        @Override
+        public AerospikeClient getAerospikeClient(final Configuration conf) {
+            if (!client.isConnected()) {
+                init.set(false);
+                connect(conf);
+            }
+            if (!init.get() || !client.isConnected()) {
+                throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
+            return client;
+        }
+
+        @Override
+        public EventLoops getEventLoops(final Configuration conf) {
+            if (!init.get()) {
+                throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            }
+            return eventLoops;
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (init.get()) {
+                client.close();
+                eventLoops.close();
+                init.set(false);
+            }
+        }
     }
 }

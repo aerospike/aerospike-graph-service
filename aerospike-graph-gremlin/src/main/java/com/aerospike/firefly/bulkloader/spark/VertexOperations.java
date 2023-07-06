@@ -27,8 +27,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -49,12 +50,12 @@ public class VertexOperations implements Serializable {
         this.vertexPaths = Objects.requireNonNull(vertexCSVFiles);
     }
 
-    private void writeVertices(final Dataset<Row> unionVertexDS) {
-        unionVertexDS.foreachPartition( rowIterator -> {
+    private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
+        unionVertexDS.foreachPartition(rowIterator -> {
             LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId());
             final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
-                ExponentialBackoffRetry retry = new ExponentialBackoffRetry(Optional.of("vertex-write-partitionid-"+ TaskContext.getPartitionId()));
+                ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ TaskContext.getPartitionId());
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 int bufferSize = getVertexWriteBufferSize();
                 LOGGER.info(String.format("vertex write buffer size %d", bufferSize));
@@ -62,7 +63,7 @@ public class VertexOperations implements Serializable {
                 Instant start = Instant.now();
                 int batch = 1;
                 int partitionId = TaskContext.getPartitionId();
-                final List<Future<?>> futures = new ArrayList<>();
+                final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     if (futures.size() >= bufferSize) {
                         CompletableFuture<Void> megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
@@ -79,7 +80,7 @@ public class VertexOperations implements Serializable {
                     }
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
-                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow);
+                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, TaskContext.getPartitionId(), metadataRow, supernodes);
                     futures.add(vwt.write(executor));
                 }
 
@@ -182,12 +183,12 @@ public class VertexOperations implements Serializable {
         }
     }
 
-    public void writeVerticesToDB(final Dataset<Row> vertexDataSet) {
+    public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
         if (this.config.hasAction(WRITE_VERTEX)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);
-            writeVertices(vertexDataSet);
+            writeVertices(vertexDataSet, supernodes);
             vertexDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant endOfVertexWrite = Instant.now();
             Duration vertexInterval = Duration.between(startOfVertexWrite, endOfVertexWrite);

@@ -51,7 +51,6 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
         public static final String SCAN_MAX_WAIT = "aerospike.client.scan.max.wait";
         public static final String AEROSPIKE_BATCH_READ_SIZE = "aerospike.client.batch.read.size";
-        public static final String AEROSPIKE_CONNECTION_MAX_RETRY = "aerospike.client.connection.max.retry";
         public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
         public static final String TLS = "aerospike.client.tls";
         public static final String TLS_NAMES = "aerospike.client.tls.name";
@@ -244,7 +243,6 @@ public final class ConfigurationHelper {
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
-        put(Keys.AEROSPIKE_CONNECTION_MAX_RETRY, "10");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");

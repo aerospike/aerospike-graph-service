@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -e
 ###########################################################
 # Help                                                     #
 ############################################################
@@ -7,7 +7,6 @@ Help() {
 
    # Display Help
    echo "
-   Bulk load on gcp dataproc
    Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>]
 
    Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar
@@ -20,14 +19,17 @@ Help() {
 
    Note II: In an effort to not have a bunch of extra options, this just hardcodes the instance types and regions ¯\_(ツ)_/¯
 
-   Helpful Hints:
-    Check status of job with 'gcloud  dataproc jobs wait ${name}-job --region=us-central1'
-    when done clean job with 'gcloud dataproc jobs delete ${name}-job --region=us-central1'
-    when done with spark cluster remove it with 'gcloud dataproc clusters delete ${name} --region us-central1'
    "
-
+  Hint
 }
-
+Hint() {
+  echo    "
+    Helpful Hints:
+      * Check status of job with 'gcloud  dataproc jobs wait ${name}-job --region=us-central1'
+      * When done clean job with 'gcloud dataproc jobs delete ${name}-job --region=us-central1'
+      * When done with spark cluster remove it with 'gcloud dataproc clusters delete ${name} --region us-central1'
+"
+}
 name=spark${USER}${1}
 workers=${2:-20}
 bulk_jar_uri=XXX
@@ -35,7 +37,6 @@ bulk_jar_uri=XXX
 properties_file_uri=XXX
 
 parsed=$(getopt -a -n minimal-spark.sh -o j:c:n:w: -- "$@")
-echo "parsed=$parsed"
 eval set -- "$parsed"
 
 while :
@@ -66,7 +67,8 @@ done
 
 if [ ${bulk_jar_uri} = XXX ] || [ ${properties_file_uri} = XXX ]
 then
-    echo "bulk jar is ${bulk_jar_uri} props is  ${properties_file_uri}"
+    echo "Missing mandatory options."
+    echo
     Help
     exit
 fi

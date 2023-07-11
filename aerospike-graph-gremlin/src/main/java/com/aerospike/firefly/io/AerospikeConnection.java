@@ -4,7 +4,6 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Host;
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -73,7 +72,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1665,7 +1663,7 @@ public class AerospikeConnection implements AutoCloseable {
     /**
      * Aerospike client is a singleton per JVM.
      */
-    public static class DefaultAerospikeClientProvider implements AerospikeClientProvider , AutoCloseable{
+    public static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
         private static final AtomicBoolean init = new AtomicBoolean(false);
         private static AerospikeClient client;
         private static EventLoops eventLoops;
@@ -1679,7 +1677,7 @@ public class AerospikeConnection implements AutoCloseable {
             return INSTANCE;
         }
 
-        public static AerospikeClientProvider connect(final Configuration conf) {
+        synchronized public static AerospikeClientProvider connect(final Configuration conf) {
             if (init.compareAndSet(false, true)) {
                 eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
                 final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
@@ -1691,11 +1689,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
-            if (!client.isConnected()) {
-                init.set(false);
-                connect(conf);
-            }
-            if (!init.get() || !client.isConnected()) {
+            if (!init.get() || client == null || !client.isConnected()) {
                 throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
             }
             return client;
@@ -1711,10 +1705,9 @@ public class AerospikeConnection implements AutoCloseable {
 
         @Override
         public void close() throws Exception {
-            if (init.get()) {
+            if (init.getAndSet(false)) {
                 client.close();
                 eventLoops.close();
-                init.set(false);
             }
         }
     }

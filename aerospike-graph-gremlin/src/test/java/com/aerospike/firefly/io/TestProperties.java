@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io;
 
+import com.aerospike.firefly.io.utils.PropertyInsertionBenchmark;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -17,6 +18,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -505,6 +507,17 @@ public class TestProperties {
         g.E().hasLabel("bought").property("listProperty", listValue).iterate();
         returnedListValue = (List<Object>) g.E().hasLabel("bought").properties("listProperty").next().value();
         assertListPropertyValue(listValue, returnedListValue);
+    }
+
+    @Ignore
+    @Test
+    public void benchmarkPropertyInsertion() {
+        final GraphTraversalSource g = this.graph.traversal();
+        final int propertyCount = 5000;
+        final int edgePackSize = 5;
+        final int reportingGroupSize = 500;
+        final PropertyInsertionBenchmark benchmark = new PropertyInsertionBenchmark(g, propertyCount, edgePackSize, reportingGroupSize);
+        benchmark.benchmark();
     }
 
     private static void assertCollectionEquals(final Collection<Object> expected, final Collection<Object> actual) {

@@ -13,11 +13,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEY_TO_CMD;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
 import static com.aerospike.firefly.bulkloader.util.CommandLineParser.LOCAL_MODE;
@@ -33,6 +35,17 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     private static final String EDGES = "edges";
     private static final String DRYRUN = "dryrun";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
+    private static final Set<String> INTERNAL_CONFIGS = Set.of(
+            VERTICES,
+            EDGES,
+            DRYRUN,
+            CONFIG,
+            "aerospike.graphloader.s3-endpoint",
+            SPARK_LOG_LEVEL,
+            ENABLE_DATAFRAME_CACHING,
+            DATAFRAME_STORAGE_TYPE
+    );
+
     private static final Set<String> BOOLEAN_KEYS = Set.of(
             KEEP_PROVIDED_EDGE_ID_AS_PROPERTY,
             ENABLE_DATAFRAME_CACHING
@@ -90,7 +103,8 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         // Get any provided parameters that are not allowed.
         final Sets.SetView<String> diff = Sets.difference(params.keySet(), KEY_TO_ARG.keySet());
         if (!diff.isEmpty()) {
-            throw new IllegalArgumentException("The bulk loader allows the following parameters: " + KEY_TO_ARG.keySet() + ". " +
+            final Sets.SetView<String> publicParams = Sets.symmetricDifference(INTERNAL_CONFIGS, KEY_TO_ARG.keySet());
+            throw new IllegalArgumentException("The bulk loader allows the following parameters: " + publicParams + ". " +
                     "The following provided parameters are not allowed: " + diff + ".");
         }
 

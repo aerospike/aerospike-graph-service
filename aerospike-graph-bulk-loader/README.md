@@ -73,14 +73,14 @@ Additional Bulk Loader specific configurations should be added to it to create t
 The following configuration options are available:
 
 | Name                                                    | Flag | Optional          | Default            | Description                                                  |
-| ------------------------------------------------------- | ---- | ----------------- | ------------------ | ------------------------------------------------------------ |
+| ------------------------------------------------------- | ---- | ----------------- |--------------------| ------------------------------------------------------------ |
 | aerospike.graphloader.config                            | -c   | Yes if Call API \ | No if Spark Submit | Call API: `.properties` of the instance the Call API is made to. |
 | aerospike.graphloader.vertices                          | -vd  | No                | N/A                | Local: Absolute path to directory containing Vertex CSVs. AWS S3: s3:// URI. |
 | aerospike.graphloader.edges                             | -ed  | No                | N/A                | Local: Absolute path to directory containing Vertex CSVs. AWS S3: s3:// URI. |
 | aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes               | false              | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
 | aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes               | "~providedId"      | Property key/name of provided ID when stored as a Property.  |
 | aerospike.graphloader.null-value                        | -nv  | Yes               | "null"             | The String value when found in CSV which is parsed to a literal null. |
-| aerospike.graphloader.sampling-percentage               | -sp  | Yes               | 1                  | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete. |
+| aerospike.graphloader.sampling-percentage               | -sp  | Yes               | 0                  | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete. |
 | aerospike.graphloader.spark-log-level                   | -lv  | Yes               | "INFO"             | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
 | aerospike.graphloader.vertex-write-buffer               | -vb  | Yes               | 10000              | Write buffer size for Vertex loading.                        |
 | aerospike.graphloader.edge-write-buffer                 | -eb  | Yes               | 10000              | Write buffer size for Edge loading.                          |
@@ -140,6 +140,10 @@ When using the Call API, simply enter the configuration name as the key and the 
 
 ##### Call API
 
+Note: The traversal that invokes the call API must have `.with("evaluationTimeout", 24 * 60 * 60 * 1000)` as a modifier
+to the traversal itself, *and not on the call step*, since a bulk loader is a long-running process that exceeds the 
+typical expected lifetime of a traversal. See examples below.
+
 The `call` API runs the bulk load on a single Aerospike Graph instance. Because Aerospike Graph is in docker, 
 any parameters that are passed must be accessible to the docker image. This is particularly important to consider if 
 the `aerospike.graphloader.edges` / `aerospike.graphloader.vertices` are local files. 
@@ -157,7 +161,7 @@ docker run -p 8182:8182  \
             ghcr.io/citrusleaf/firefly
 
 # Invoke call API with path to files in docker container.
-g.call("bulk-load")
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
     .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
     .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges")
 ```
@@ -165,7 +169,7 @@ g.call("bulk-load")
 Most customers will likely use S3 or GCS, which is the recommended way.
 An S3 example is shown below:
 ```java
-g.call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote.user", "myAwsId").with("aerospike.graphloader.remote.passkey", "myAwsSecretKey").iterate();
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote.user", "myAwsId").with("aerospike.graphloader.remote.passkey", "myAwsSecretKey").iterate();
 ```
 
 ##### Spark Submit

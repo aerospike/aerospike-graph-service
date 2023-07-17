@@ -1657,57 +1657,69 @@ public class AerospikeConnection implements AutoCloseable {
      */
     @Override
     public void close() {
-        LOG.debug("Close called on AerospikeConnection, will not close shared client.");
+        try {
+            DefaultAerospikeClientProvider.INSTANCE.close();
+        } catch (final Exception e) {
+            LOG.error("Error closing Aerospike client", e);
+        }
     }
 
     /**
      * Aerospike client is a singleton per JVM.
      */
     public static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
-        private static final AtomicBoolean init = new AtomicBoolean(false);
+        private static final AtomicLong OPEN_COUNT = new AtomicLong(0);
         private static AerospikeClient client;
         private static EventLoops eventLoops;
 
-        final static DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
+        private static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
         private DefaultAerospikeClientProvider() {
         }
 
-        public static DefaultAerospikeClientProvider getInstance() {
-            return INSTANCE;
-        }
-
-        synchronized public static AerospikeClientProvider connect(final Configuration conf) {
-            if (init.compareAndSet(false, true)) {
-                eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
-                final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
-                final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
-                client = setupDefaultClient(conf, clientPolicy);
+        public static AerospikeClientProvider connect(final Configuration conf) {
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.get() == 0) {
+                    eventLoops = initializeEventLoops(EventLoopType.NETTY_NIO, NumLoops, CommandsPerEventLoop, DelayQueueSize);
+                    final int threadPoolSize = getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings());
+                    final ClientPolicy clientPolicy = setupClientPolicy(conf, threadPoolSize, eventLoops);
+                    client = setupDefaultClient(conf, clientPolicy);
+                }
+                OPEN_COUNT.incrementAndGet();
+                return INSTANCE;
             }
-            return INSTANCE;
         }
 
         @Override
         public AerospikeClient getAerospikeClient(final Configuration conf) {
-            if (!init.get() || client == null || !client.isConnected()) {
-                throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.get() <= 0 || client == null || !client.isConnected()) {
+                    throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+                }
+                return client;
             }
-            return client;
         }
 
         @Override
         public EventLoops getEventLoops(final Configuration conf) {
-            if (!init.get()) {
-                throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.get() <= 0) {
+                    throw new RuntimeException("AerospikeClientProvider not connected, call connect(Configuration) first");
+                }
+                return eventLoops;
             }
-            return eventLoops;
         }
 
         @Override
         public void close() throws Exception {
-            if (init.getAndSet(false)) {
-                client.close();
-                eventLoops.close();
+            synchronized (DefaultAerospikeClientProvider.class) {
+                if (OPEN_COUNT.decrementAndGet() == 0) {
+                    client.close();
+                    eventLoops.close();
+                }
+                if (OPEN_COUNT.get() < 0) {
+                    OPEN_COUNT.set(0);
+                }
             }
         }
     }

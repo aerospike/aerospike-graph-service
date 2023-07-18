@@ -22,7 +22,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.process.call.FireflyBulkLoaderServiceFactory;
+import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory;
 import com.aerospike.firefly.process.call.FireflyMetadataServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;

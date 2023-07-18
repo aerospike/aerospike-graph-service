@@ -4,9 +4,11 @@ import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
-import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
+import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.SparkConf;
@@ -29,12 +31,12 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.LOCAL_MODE;
 
-public class SparkBulkLoaderMain {
+public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
     private static final String LOCAL = "local";
     private static final String S3 = "s3";
@@ -45,12 +47,17 @@ public class SparkBulkLoaderMain {
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
 
     public static void main(final String[] args) {
+        // Create new Object so we can invoke non-static method load()
+        new SparkBulkLoaderMain().load(args);
+    }
+
+    public void load(final String[] args) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOGGER.info("Shutting down DatasetOperations executor service");
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
         try {
-            final CommandLine cmd = com.aerospike.firefly.bulkloader.util.CommandLineParser.parseCmdArgs(args);
+            final CommandLine cmd = CommandLineParser.parseCmdArgs(args);
             final List<String> printableArgs = new ArrayList();
             String previous = "";
             for (final String current : args) {

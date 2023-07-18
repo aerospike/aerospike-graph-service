@@ -1,7 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.Dataset;

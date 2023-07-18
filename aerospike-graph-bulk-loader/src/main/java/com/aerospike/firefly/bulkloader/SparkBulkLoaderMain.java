@@ -1,12 +1,12 @@
 package com.aerospike.firefly.bulkloader;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import org.apache.commons.cli.CommandLine;

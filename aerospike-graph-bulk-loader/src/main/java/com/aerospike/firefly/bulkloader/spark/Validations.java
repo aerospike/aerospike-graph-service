@@ -1,10 +1,10 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;

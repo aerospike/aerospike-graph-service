@@ -46,7 +46,7 @@ ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
 # Build Firefly.
-RUN mvn -pl aerospike-graph-gremlin -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.

@@ -409,7 +409,7 @@ jobs:
           java -XX:+PrintFlagsFinal -version | grep HeapSize
           bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
   test-bulk-loader-call-docker:
-    name: Test Firefly Docker Bulk Loader Call
+    name: Bulk Loader Call with Spark
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
@@ -447,7 +447,7 @@ jobs:
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   negative-test-bulk-loader-call-docker:
-    name: Test Firefly Docker Bulk Loader Call without Spark Fails
+    name: Bulk Loader Call without Spark Fails
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:

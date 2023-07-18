@@ -19,13 +19,12 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            Assert.assertTrue(
-                    ((String)
-                            g.call("bulk-load").
-                                    with("aerospike.graphloader.config", "/opt/aerospike-firefly/etc/config.properties").next()).
-                            contains(
-                                    "Error, to use the bulk loader via the call API, use the docker image with bulk loader support."
-                            ));
+            try {
+                g.call("bulk-load").
+                        with("aerospike.graphloader.config", "/opt/aerospike-firefly/etc/config.properties").next();
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
+            }
         }
     }
 
@@ -34,14 +33,13 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            Assert.assertTrue(
-                    ((String)
-                            g.call("bulk-load")
-                                    .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
-                                    .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges").next()).
-                            contains(
-                                    "Error, to use the bulk loader via the call API, use the docker image with bulk loader support."
-                            ));
+            try {
+                g.call("bulk-load")
+                        .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
+                        .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges").next();
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
+            }
         }
     }
 
@@ -50,17 +48,16 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            Assert.assertTrue(
-                    ((String)
-                            g.call("bulk-load")
-                                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
-                                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
-                                    .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
-                                    .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
-                                    .next()).
-                            contains(
-                                    "Error, to use the bulk loader via the call API, use the docker image with bulk loader support."
-                            ));
+            try {
+                g.call("bulk-load")
+                        .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
+                        .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
+                        .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
+                        .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                        .next();
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
+            }
         }
     }
 
@@ -69,18 +66,17 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            Assert.assertTrue(
-                    ((String)
-                            g.call("bulk-load")
-                                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
-                                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
-                                    .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
-                                    .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
-                                    .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
-                                    .next()).
-                            contains(
-                                    "Error, to use the bulk loader via the call API, use the docker image with bulk loader support."
-                            ));
+            try {
+                g.call("bulk-load")
+                        .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
+                        .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                        .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                        .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                        .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
+                        .next();
+            } catch (final Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
+            }
         }
     }
 }

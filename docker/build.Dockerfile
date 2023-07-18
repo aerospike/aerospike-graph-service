@@ -10,11 +10,13 @@ ENV ENTRYPOINT=$ENTRYPOINT
 ENV TINKERPOP_VERSION='3.6.3'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
+ENV SPARK_VERSION='3.4.1'
 ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
+ENV SPARK_URL="https://dlcdn.apache.org/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop3.tgz"
 
 # Install things required to create image.
 RUN yum -y update &&\
@@ -33,7 +35,10 @@ RUN cd /tmp &&\
   tar -zxvf maven.tar.gz -C /opt/ &&\
   unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
   unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server &&\
-  mv jansi-$JANSI_VERSION.jar /opt/gremlin-console/lib
+  mv jansi-$JANSI_VERSION.jar /opt/gremlin-console/lib && \
+  rm -rf gremlin-console.zip &&\
+  rm -rf gremlin-server.zip &&\
+  rm -rf maven.tar.gz
 
 # Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
@@ -46,13 +51,16 @@ WORKDIR /opt/aerospike-firefly
 RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script
-RUN mvn -pl aerospike-graph-gremlin dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile=/opt/classpath.txt && sed -i 's/root/home\/firefly/g' /opt/classpath.txt
+RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
+    tar zxvf /opt/spark.tgz -C /opt/ &&\
+    mv /opt/spark-$SPARK_VERSION-bin-hadoop3 /opt/spark &&\
+    python3 scripts/generate_classpath.py
 
 # Setup gremlin console and gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0-SNAPSHOT' ;  \
     fi
 
@@ -60,7 +68,7 @@ RUN \
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
 # Remove extra packages
-RUN yum remove -y vim-minimal vim-data
+RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
 
 # Add scripts and conf to container.
 ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
@@ -74,8 +82,9 @@ RUN chmod -R 777 $CONF_DIR
 RUN useradd -m firefly
 
 # Copy maven repo to firefly user.
-RUN cp -a /root/.m2 /home/firefly/.m2 && chown firefly:firefly -R /home/firefly/.m2
+RUN chown firefly:firefly -R /opt/spark
 
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
 
+RUN rm -rf /root/.m2

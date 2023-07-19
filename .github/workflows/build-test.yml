@@ -796,7 +796,6 @@ jobs:
           GH_WORKSPACE: ${{ github.workspace}}
         run: |
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
-          mvn clean install -DskipTests
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
   benchmark-internal dataset-flow-firefly:
     name: Benchmark internal dataset Flow Firefly

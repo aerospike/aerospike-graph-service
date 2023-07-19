@@ -219,25 +219,30 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.warn("Failed to set log level {}", e.getMessage());
         }
         try {
-            final Runtime javaRuntime = Runtime.getRuntime();
-            LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
-            LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
-            LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
-            LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
-            LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
-            LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
-            LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
-            LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
-            LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
+            // FIREFLY_TESTING is set strictly by surefire plugin so not in any customer systems.
+            // This makes our testing logs 100x smaller.
+            if (System.getenv("FIREFLY_TESTING") == null ||
+                !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                final Runtime javaRuntime = Runtime.getRuntime();
+                LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
+                LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
+                LOG.info("Java Runtime: {} MB total memory.", javaRuntime.totalMemory() / (1024 * 1024));
+                LOG.info("Java Runtime: {} MB free memory.", javaRuntime.freeMemory() / (1024 * 1024));
+                LOG.info("JVM Vendor: {}.", System.getProperty("java.vm.vendor"));
+                LOG.info("JVM Specification Vendor: {}.", System.getProperty("java.vm.specification.vendor"));
+                LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
+                LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
+                LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
 
-            // Straight up printing out conf just provides a class name / memory address.
-            final Iterator<String> keys = conf.getKeys();
-            final Map<String, Object> configurationMap = new HashMap<>();
-            while (keys.hasNext()) {
-                final String key = keys.next();
-                configurationMap.put(key, conf.getProperty(key));
+                // Straight up printing out conf just provides a class name / memory address.
+                final Iterator<String> keys = conf.getKeys();
+                final Map<String, Object> configurationMap = new HashMap<>();
+                while (keys.hasNext()) {
+                    final String key = keys.next();
+                    configurationMap.put(key, conf.getProperty(key));
+                }
+                LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }
-            LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);

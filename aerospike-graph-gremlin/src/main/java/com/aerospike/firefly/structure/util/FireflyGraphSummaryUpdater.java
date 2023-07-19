@@ -19,16 +19,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -39,9 +39,9 @@ import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.P
  */
 public class FireflyGraphSummaryUpdater implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphSummaryUpdater.class);
-    private static final int BLOCKING_QUEUE_SIZE = 50000;
-    private static final int WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE = 500;
     private static final int HIGH_WATERMARK = 250;
+    public static final int MAP_RECYCLE_SIZE = 5000;
+    private static final int LATCH_BREAK_TIME_MILLISECONDS = 1000;
     private static final String V_SUMMARY_RECORD = "~V_SUMMARY";
     private static final String E_SUMMARY_RECORD = "~E_SUMMARY";
     private static final String VP_PROPERTY_PREFIX = "~VP_";
@@ -49,67 +49,40 @@ public class FireflyGraphSummaryUpdater implements Closeable {
     private static final String SUMMARY_LABEL_BIN = "L_SUM_BIN";
     private static final String SUMMARY_PROPERTY_BIN = "P_SUM_BIN";
     private final AerospikeConnection db;
-    private final BlockingQueue<UpdateInfo> queue = new LinkedBlockingQueue<>(BLOCKING_QUEUE_SIZE);
+    private static final AtomicBoolean EXITED = new AtomicBoolean(false);
+    private static CountDownLatch COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
+    private static CountDownLatch SHUTDOWN_LATCH = new CountDownLatch(1);
+    private static final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
 
     // Create as daemon so it exits with process.
-    private final ExecutorService executorService = Executors.newFixedThreadPool(1,
+    private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(1,
             r -> {
                 Thread t = Executors.defaultThreadFactory().newThread(r);
                 t.setDaemon(true);
                 return t;
             });
-
-    private final AtomicBoolean exited = new AtomicBoolean(false);
+    private static final AtomicLong RUNNING_COUNT = new AtomicLong(0);
 
     // Store these locally so that we don't create any that we have already created.
-    private final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
-    private final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
-    private AtomicLong lastTicketOutputTime = new AtomicLong(0);
-    private final Long TICKER_OUTPUT_INTERVAL_MS = 60000L;
+    private static final Map<String, Set<String>> vertexLabelToProperties = new HashMap<>();
+    private static final Map<String, Set<String>> edgeLabelToProperties = new HashMap<>();
+    private static final AtomicLong lastTickerOutputTime = new AtomicLong(0);
 
     public boolean exited() {
-        return this.exited.get();
+        return EXITED.get();
     }
 
-    public static class VertexCountInfo extends LabelCountInfo {
+    // These are public strictly for testing. Don't mess with them outside of this class.
+    public static Map<String, Set<String>> edgeProperties = new ConcurrentHashMap<>();
+    public static Map<String, Set<String>> vertexProperties = new ConcurrentHashMap<>();
+    public static Map<String, AtomicLong> edgeCounts = new ConcurrentHashMap<>();
+    public static Map<String, AtomicLong> vertexCounts = new ConcurrentHashMap<>();
 
-        private VertexCountInfo(final String label, final long count, final Set<String> properties) {
-            super(label, count, properties);
-        }
-
-        @Override
-        public String toString() {
-            return "VertexCountInfo{label='" + label + "',count=" + count + "}";
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            final VertexCountInfo that = (VertexCountInfo) o;
-            return label.equals(that.label);
-        }
-    }
-
-    public static class EdgeCountInfo extends LabelCountInfo {
-
-        private EdgeCountInfo(final String label, final long count, final Set<String> properties) {
-            super(label, count, properties);
-        }
-
-        @Override
-        public String toString() {
-            return "EdgeCountInfo{label='" + label + "',count=" + count + "}";
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            final EdgeCountInfo that = (EdgeCountInfo) o;
-            return label.equals(that.label);
-        }
-    }
+    private final Key V_SUMMARY_KEY;
+    private final Key E_SUMMARY_KEY;
+    private final Key VP_SUMMARY_KEY;
+    private final Key EP_SUMMARY_KEY;
+    private static final AtomicBoolean TRUNCATION = new AtomicBoolean(false);
 
     public static class LabelCountInfo implements UpdateInfo {
         public final String label;
@@ -120,14 +93,6 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             this.label = label;
             this.count = count;
             this.properties = new HashSet<>(properties);
-        }
-
-        public void mergeOther(final LabelCountInfo other) {
-            if (other == null) {
-                return;
-            }
-            count += other.count;
-            properties.addAll(other.properties);
         }
 
         @Override
@@ -141,16 +106,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         }
     }
 
-    private static class PoisonPill implements UpdateInfo {
-    }
-
     interface UpdateInfo {
     }
-
-    private final Key V_SUMMARY_KEY;
-    private final Key E_SUMMARY_KEY;
-    private final Key VP_SUMMARY_KEY;
-    private final Key EP_SUMMARY_KEY;
 
     public FireflyGraphSummaryUpdater(final AerospikeConnection db) {
         this.db = db;
@@ -159,17 +116,27 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         this.V_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, V_SUMMARY_RECORD);
         this.E_SUMMARY_KEY = new Key(db.getNamespace(), db.SUMMARY_SET, E_SUMMARY_RECORD);
         if (db.SUMMARY_ENABLED_FLAG) {
-            this.executorService.submit(getUpdateRunnable());
+            synchronized (EXECUTOR_SERVICE) {
+                if (RUNNING_COUNT.addAndGet(1) == 1) {
+                    EXITED.set(false);
+                    SHUTDOWN.set(false);
+                    EXECUTOR_SERVICE.submit(getUpdateRunnable());
+                }
+            }
         }
     }
 
     public void truncate() {
+        TRUNCATION.set(true);
         synchronized (FireflyGraphSummaryUpdater.class) {
             // Need to nuke the queue otherwise it will continue spilling out updates after we truncate.
-            final List<UpdateInfo> drain = new ArrayList<>();
-            queue.drainTo(drain);
             vertexLabelToProperties.clear();
             edgeLabelToProperties.clear();
+            vertexProperties.clear();
+            edgeProperties.clear();
+            vertexCounts.clear();
+            edgeCounts.clear();
+            TRUNCATION.set(false);
         }
     }
 
@@ -184,11 +151,11 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        // If the queue is full, drop the update and let the summary skew a little.
-        if (!queue.offer(new VertexCountInfo(label, 1, properties))) {
-            LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                    " cause summary metadata skew.", label);
-        }
+        vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        vertexCounts.get(label).addAndGet(1);
+        vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        vertexProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
     }
 
     /**
@@ -201,11 +168,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        // If the queue is full, drop the update and let the summary skew a little.
-        if (!queue.offer(new VertexCountInfo(label, -1, Set.of()))) {
-            LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                    " cause summary metadata skew.", label);
-        }
+        vertexCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        vertexCounts.get(label).addAndGet(-1);
+        COUNTDOWN_LATCH.countDown();
     }
 
     /**
@@ -219,11 +184,11 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        // If the queue is full, drop the update and let the summary skew a little.
-        if (!queue.offer(new EdgeCountInfo(label, 1, properties))) {
-            LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                    " cause summary metadata skew.", label);
-        }
+        edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        edgeCounts.get(label).addAndGet(1);
+        edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        edgeProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
     }
 
     /**
@@ -236,11 +201,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        // If the queue is full, drop the update and let the summary skew a little.
-        if (!queue.offer(new EdgeCountInfo(label, -1, Set.of()))) {
-            LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                    " cause summary metadata skew.", label);
-        }
+        edgeCounts.computeIfAbsent(label, k -> new AtomicLong(0));
+        edgeCounts.get(label).addAndGet(-1);
+        COUNTDOWN_LATCH.countDown();
     }
 
     /**
@@ -254,10 +217,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        if (!queue.offer(new VertexCountInfo(label, 0, properties))) {
-            LOG.warn("The metadata queue is full. Dropping update for vertex properties {} with vertex label {}. Note this will" +
-                    " cause summary metadata skew.", properties, label);
-        }
+        vertexProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        vertexProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
     }
 
     /**
@@ -271,10 +233,9 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        if (!queue.offer(new EdgeCountInfo(label, 0, properties))) {
-            LOG.warn("The metadata queue is full. Dropping update for edge properties {} with edge label {}. Note this will" +
-                    " cause summary metadata skew.", properties, label);
-        }
+        edgeProperties.computeIfAbsent(label, k -> ConcurrentHashMap.newKeySet());
+        edgeProperties.get(label).addAll(properties);
+        COUNTDOWN_LATCH.countDown();
     }
 
     @Override
@@ -282,56 +243,37 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         if (!db.SUMMARY_ENABLED_FLAG) {
             return;
         }
-        // Add a poison pill to the queue to signal the thread to exit.
-        try {
-            queue.add(new PoisonPill());
-            try {
-                // Use shutdowNow so that the waiting is interrupted.
-                executorService.shutdownNow();
-                final boolean exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
-                if (!exited) {
-                    LOG.warn("The metadata updater thread did not exit after {} milliseconds. This may cause a dangling thread, but may also just be the metadata lagging behind.", WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000);
-                }
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOG.warn("Interrupted while waiting for summary updater to exit.");
-            }
-        } catch (final IllegalStateException e) {
-            // This means the queue is full, we should give it some time to clear up.
-            // Use shutdownNow to interrupt the thread if it is waiting.
-            executorService.shutdownNow();
-            boolean exited;
-            try {
-                exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
-                if (exited) {
-                    return;
-                }
-            } catch (final InterruptedException interruptedException) {
-                Thread.currentThread().interrupt();
-                LOG.warn("Interrupted while waiting for summary updater to exit.");
-            }
 
-            try {
-                queue.add(new PoisonPill());
-            } catch (final IllegalStateException illegalStateException) {
-                // This means the queue is still full after giving it plenty of time, we can just exit and let the daemon die.
+        synchronized (EXECUTOR_SERVICE) {
+            // If all firefly instances are not closed, exit.
+            if (RUNNING_COUNT.addAndGet(-1) != 0) {
                 return;
             }
-            try {
-                // PoisonPill went in this time, so we should wait for the thread to exit if possible.
-                exited = executorService.awaitTermination(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000, java.util.concurrent.TimeUnit.MILLISECONDS);
-                if (exited) {
-                    return;
-                }
-                LOG.warn("The metadata updater thread did not exit after {} milliseconds. This may cause a dangling thread, but may also just be the metadata lagging behind.", WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE + 3000);
-            } catch (final InterruptedException interruptedException) {
-                Thread.currentThread().interrupt();
-                LOG.warn("Interrupted while waiting for summary updater to exit.");
+        }
+
+        SHUTDOWN_LATCH = new CountDownLatch(1);
+        SHUTDOWN.set(true);
+
+        // Just in case the thread is waiting for the countdown to finish, drive it to 0.
+        while (COUNTDOWN_LATCH.getCount() > 0) {
+            COUNTDOWN_LATCH.countDown();
+        }
+
+        try {
+            // Wait for the shutdown latch.
+            final boolean exited = SHUTDOWN_LATCH.await(3 * LATCH_BREAK_TIME_MILLISECONDS, TimeUnit.MILLISECONDS);
+            if (!exited) {
+                LOG.warn("The metadata updater thread did not exit after {} milliseconds. " +
+                                "This may just be the metadata lagging behind, however since it is a daemon we can exit anyway.",
+                        3 * LATCH_BREAK_TIME_MILLISECONDS);
             }
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn("Interrupted while waiting for summary updater to exit.");
         }
     }
 
-    public class FireflyElementMetadata {
+    public static class FireflyElementMetadata {
         public final Map<String, FireflyPropertiesAndCount> vertexInfo;
         public final Map<String, FireflyPropertiesAndCount> edgeInfo;
 
@@ -495,7 +437,8 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             return;
         }
 
-        if (lastTicketOutputTime.get() + TICKER_OUTPUT_INTERVAL_MS > System.currentTimeMillis()) {
+        final long TICKER_OUTPUT_INTERVAL_MS = 60000L;
+        if (lastTickerOutputTime.get() + TICKER_OUTPUT_INTERVAL_MS > System.currentTimeMillis()) {
             return;
         }
 
@@ -507,7 +450,7 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                 fireflyElementMetadata.totalEdgeCount(),
                 fireflyElementMetadata.edgeCountByLabel(),
                 fireflyElementMetadata.edgePropertiesByLabel());
-        lastTicketOutputTime.set(System.currentTimeMillis());
+        lastTickerOutputTime.set(System.currentTimeMillis());
     }
 
     public Runnable getUpdateRunnable() {
@@ -521,12 +464,16 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
             boolean hadError = false;
             while (true) {
-                final UpdateInfo info;
-                final List<UpdateInfo> infoList = new ArrayList<>();
                 try {
-                    info = queue.take();
+                    // If shutdown is initiated, go through the map and then exit (i.e skip CountDownLatch).
+                    if (!SHUTDOWN.get()) {
+                        // Wait for the countdown latch to complete.
+                        // We don't really care whether it completed because of a timeout or because the watermark
+                        // was hit, either way we should continue on and check what's in our maps.
+                        COUNTDOWN_LATCH.await(LATCH_BREAK_TIME_MILLISECONDS, TimeUnit.MILLISECONDS);
+                    }
                 } catch (final InterruptedException e) {
-                    // queue.take() should break before the interrupted exception comes in, therefore this is unexpected.
+                    // countDownLatch.await() should break before the interrupted exception comes in, therefore this is unexpected.
                     if (!hadError) {
                         hadError = true;
                         LOG.error("Error while updating summary vertex", e);
@@ -534,63 +481,48 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     continue;
                 }
 
-                if (info instanceof PoisonPill) {
-                    // Take the poison pill.
-                    LOG.info("Taking poison pill.");
-                    break;
-                }
-
-                // If we have not blown over our watermark, wait for some time before we write.
-                // We could blow over the watermark if the user is writing extreme amounts of data with no break,
-                // and we just finished writing and then there was already more data in our queue.
-
                 synchronized (FireflyGraphSummaryUpdater.class) {
-                    queue.drainTo(infoList);
-                    infoList.add(info);
-                    boolean foundPoisonPill = false;
-                    for (final UpdateInfo i : infoList) {
-                        if (i instanceof PoisonPill) {
-                            foundPoisonPill = true;
-                            break;
-                        }
-                    }
-                    try {
-                        if (!foundPoisonPill && infoList.size() < HIGH_WATERMARK) {
-                            // Only print out ticket if we are not over the watermark (our write load is not large).
-                            // This is because we do not want to add additional stress on the system if we are under heavy
-                            // load. Additionally, if we received a poison pill we should not print out a ticker.
-                            printGraphSummaryTicker();
-                            Thread.sleep(WAIT_TIME_BETWEEN_FIRST_WRITE_AND_BATCH_WRITE);
-                        }
-                    } catch (final InterruptedException ignored) {
-                        // This is likely to be due to a shutdownNow call.
-                    }
-
-                    // Drain the rest of the queue.
-                    queue.drainTo(infoList);
-
                     // Take the data from update info into a map.
                     final Map<String, LabelCountInfo> vertexUpdates = new HashMap<>();
                     final Map<String, LabelCountInfo> edgeUpdates = new HashMap<>();
 
-                    // Aggregate UpdateInfo into minimal updates.
-                    for (final UpdateInfo updateInfo : infoList) {
-                        if (updateInfo instanceof PoisonPill) {
-                            // Take the poison pill.
-                            LOG.info("Found poison pill in middle of UpdateInfo stream, completing updates before taking the poison pill.");
-                            foundPoisonPill = true;
-                        } else {
-                            final LabelCountInfo labelCountInfo = (LabelCountInfo) updateInfo;
-                            final Map<String, LabelCountInfo> mapToUpdate = labelCountInfo instanceof VertexCountInfo ? vertexUpdates : edgeUpdates;
-                            if (mapToUpdate.containsKey(labelCountInfo.label)) {
-                                mapToUpdate.get(labelCountInfo.label).mergeOther(labelCountInfo);
-                            } else {
-                                mapToUpdate.put(labelCountInfo.label, labelCountInfo);
-                            }
-                        }
+                    // At this point we are about to take all the data out of the maps and put them into a new map.
+                    // We did not synchronize this, but we don't care about exacts, only roughly how much is coming in,
+                    // so now is an appropriate time to reset the latch.
+                    COUNTDOWN_LATCH = new CountDownLatch(HIGH_WATERMARK);
+
+                    final Map<String, AtomicLong> vertexCountsToUse = vertexCounts;
+                    final Map<String, Set<String>> vertexPropertiesToUse = vertexProperties;
+                    if (vertexCounts.keySet().size() > MAP_RECYCLE_SIZE ||
+                            vertexProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                        // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
+                        // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
+                        vertexCounts = new ConcurrentHashMap<>();
+                        vertexProperties = new ConcurrentHashMap<>();
+                    }
+                    for (final String key: vertexCountsToUse.keySet()) {
+                        final long count = vertexCountsToUse.get(key).getAndSet(0);
+                        final Set<String> properties = vertexPropertiesToUse.get(key);
+                        vertexUpdates.put(key, new LabelCountInfo(key, count, properties));
                     }
 
-                    // Perform the write operations. If these fail put their data back into the queue.
+                    final Map<String, AtomicLong> edgeCountsToUse = edgeCounts;
+                    final Map<String, Set<String>> edgePropertiesToUse = edgeProperties;
+                    if (edgeCounts.keySet().size() > MAP_RECYCLE_SIZE ||
+                            edgeProperties.keySet().size() > MAP_RECYCLE_SIZE) {
+                        // Ideally we don't want to have to do this, but we don't want the map to grow infinitely in the case
+                        // that firefly never gets shut down and the customer for some odd reason keeps using new labels.
+                        edgeCounts = new ConcurrentHashMap<>();
+                        edgeProperties = new ConcurrentHashMap<>();
+                    }
+
+                    for (final String key: edgeCountsToUse.keySet()) {
+                        final long count = edgeCountsToUse.get(key).getAndSet(0);
+                        final Set<String> properties = edgePropertiesToUse.get(key);
+                        edgeUpdates.put(key, new LabelCountInfo(key, count, properties));
+                    }
+
+                    // Perform the write operations. If these fail put their data back into the map.
                     // Could do something fancy like exponential backoff here, but this runs two risks:
                     //   1. If the failed data is not quickly placed back in queue and given an opportunity to come back
                     //      around with more data aggregated together, there is a risk of queue overflow in high write
@@ -601,57 +533,52 @@ public class FireflyGraphSummaryUpdater implements Closeable {
                     if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(vertexUpdates.values()), V_SUMMARY_KEY))) {
                         failed = true;
                         for (final LabelCountInfo labelCountInfo : vertexUpdates.values()) {
-                            if (!queue.offer(info)) {
-                                LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                                        " cause summary metadata skew.", labelCountInfo.label);
-                            }
+                            vertexCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                            vertexCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
                         }
                     }
 
                     if (didFunctionFail(() -> writeLabelCountOperations(new HashSet<>(edgeUpdates.values()), E_SUMMARY_KEY))) {
                         failed = true;
                         for (final LabelCountInfo labelCountInfo : edgeUpdates.values()) {
-                            if (!queue.offer(info)) {
-                                LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                                        " cause summary metadata skew.", labelCountInfo.label);
-                            }
+                            edgeCounts.putIfAbsent(labelCountInfo.label, new AtomicLong(0));
+                            edgeCounts.get(labelCountInfo.label).addAndGet(labelCountInfo.count);
                         }
                     }
 
                     if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(vertexUpdates.values()), vertexLabelToProperties, VP_SUMMARY_KEY))) {
                         failed = true;
-                        for (final Map.Entry<String, Set<String>> labelToProperties : vertexLabelToProperties.entrySet()) {
-                            if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
-                                LOG.warn("The metadata queue is full. Dropping update for vertex with label {}. Note this will" +
-                                        " cause summary metadata skew.", labelToProperties.getKey());
-                            }
-                        }
+                        // We don't need to re-insert these because they weren't removed.
                     }
 
                     if (didFunctionFail(() -> writeLabelPropertiesOperations(new HashSet<>(edgeUpdates.values()), edgeLabelToProperties, EP_SUMMARY_KEY))) {
                         failed = true;
-                        for (final Map.Entry<String, Set<String>> labelToProperties : edgeLabelToProperties.entrySet()) {
-                            if (!queue.offer(new VertexCountInfo(labelToProperties.getKey(), 0, labelToProperties.getValue()))) {
-                                LOG.warn("The metadata queue is full. Dropping update for edge with label {}. Note this will" +
-                                        " cause summary metadata skew.", labelToProperties.getKey());
-                            }
-                        }
+                        // We don't need to re-insert these because they weren't removed.
                     }
 
-                    // If the poison pill is found, exit the loop.
-                    if (foundPoisonPill) {
-                        // This is worst case scenario for timing of poison pill and not having written data. Since the
+                    // If shutdown signal have been asserted, exit the loop.
+                    //
+                    // We also check that the countdown has not been moved. Now this isn't a perfect system since we
+                    // actually re-assign the CountDownLatch before we empty the maps, so we can't say for sure we need
+                    // to loop again, but if the countdown is equal to the HIGH_WATERMARK, we can say for sure that we
+                    // don't need to loop again, therefore if we come around again we will exit properly.
+                    //
+                    // We add an or failed check because if Aerospike is seemingly not responding and firefly has been
+                    // signaled to shut down, we should just exit.
+                    if (SHUTDOWN.get() && (COUNTDOWN_LATCH.getCount() == HIGH_WATERMARK || failed)) {
+                        // This is worst case scenario for timing of a shutdown signal and not having written data. Since the
                         // write failed, Aerospike could be down. Either way the loop needs to exit.
                         if (failed) {
                             LOG.warn("Failed to write all metadata to the summary vertex before taking poison pill. This may cause metadata skew.");
                         }
-                        LOG.info("Taking poison pill.");
                         break;
                     }
                 }
             }
-            LOG.info("Exiting worker thread.");
-            exited.set(true);
+            EXITED.set(true);
+
+            // Unblock the calling task.
+            SHUTDOWN_LATCH.countDown();
         };
     }
 
@@ -674,6 +601,11 @@ public class FireflyGraphSummaryUpdater implements Closeable {
 
         // Write the updates to the summary record.
         for (final LabelCountInfo countInfo : updates) {
+            // If we are truncating, we can just exit out and let it happen.
+            if (TRUNCATION.get()) {
+                break;
+            }
+
             // Count can be 0 if we are adding a property to an existing vertex/edge.
             if (countInfo.count == 0) {
                 continue;
@@ -684,6 +616,10 @@ public class FireflyGraphSummaryUpdater implements Closeable {
             final Operation createOp = MapOperation.put(createOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(0));
             final Operation updateOp = MapOperation.increment(updateOnlyPolicy, SUMMARY_LABEL_BIN, Value.get(countInfo.label), Value.get(countInfo.count));
             db.getClient().operate(writePolicy, key, createOp, updateOp);
+
+            // Remove count so that if one in the loop fails and we re-add these values to the map, they aren't all
+            // added erroneously.
+            countInfo.count = 0;
         }
     }
 
@@ -694,9 +630,15 @@ public class FireflyGraphSummaryUpdater implements Closeable {
         // Write the updates to the summary record.
         for (final LabelCountInfo updateInfo : updates) {
             for (final String property : updateInfo.properties) {
+                // If we are truncating, we can just exit out and let it happen.
+                if (TRUNCATION.get()) {
+                    break;
+                }
+
                 // Check if we have already inserted this mapping.
                 synchronized (FireflyGraphSummaryUpdater.class) {
-                    if (propertyMappings.containsKey(updateInfo.label) && propertyMappings.get(updateInfo.label).contains(property)) {
+                    if (propertyMappings.containsKey(updateInfo.label) &&
+                            propertyMappings.get(updateInfo.label).contains(property)) {
                         // Skip it.
                         continue;
                     }

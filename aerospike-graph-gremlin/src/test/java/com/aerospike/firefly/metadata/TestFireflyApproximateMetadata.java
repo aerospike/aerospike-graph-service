@@ -239,12 +239,14 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             for (int j = 0; j < 5000; j++) {
                 g.addV("person").property("name", "person" + i).next();
             }
+
             // Poison pill injected on close, should be mid-stream.
             // Just in case it doesn't end up that way this is looped.
             firefly.close();
-            Assert.assertTrue(firefly.fireflySummaryUpdater.exited());
         }
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
+
 
     @Test
     public void testEdgeMixedProperties() {

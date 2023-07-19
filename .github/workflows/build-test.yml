@@ -437,13 +437,13 @@ jobs:
         run: |
           bash -x scripts/build-docker-bulk-loader.sh aerospike/firefly-bulk-load linux/amd64
           
+          docker run -p 8182:8182  \
+            -v /home/lyndon/github/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
+            -v /home/lyndon/github/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
+            aerospike/firefly-bulk-load &
+          
           echo "Sleeping for 30 seconds while docker image starts"
           sleep 30
-          
-          docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
-            aerospike/firefly-bulk-load &
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   negative-test-bulk-loader-call-docker:
@@ -475,13 +475,13 @@ jobs:
         run: |
           bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
           
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
-          
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
             aerospike/firefly &
+          
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark -DfailIfNoTests=false --no-transfer-progress
   test-heap-usage:

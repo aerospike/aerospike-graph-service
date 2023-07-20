@@ -480,10 +480,7 @@ jobs:
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
             aerospike/firefly &
           
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
-          
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   test-heap-usage:
     name: Test Firefly Heap Usage
     timeout-minutes: 120
@@ -796,6 +793,7 @@ jobs:
           GH_WORKSPACE: ${{ github.workspace}}
         run: |
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
+          mvn clean install -DskipTests
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
   benchmark-internal dataset-flow-firefly:
     name: Benchmark internal dataset Flow Firefly

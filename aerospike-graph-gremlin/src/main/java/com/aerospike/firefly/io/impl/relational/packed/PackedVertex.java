@@ -192,10 +192,6 @@ public class PackedVertex extends RelationalVertex {
         final Operation getVertexPropertyProperties = Operation.get(this.db.PROPERTIES_BIN);
         final Operation getVertexPropertyTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
 
-        final FireflyCache cache = this.db.transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(opKey);
-        }
         final Record result = this.db.operate(null, opKey, removeProperty, removePropertyTypeHint,
                 removeVertexPropertyValue, removeVertexPropertyId, removeVertexPropertyTypeHint,
                 getVertexPropertyValues, getVertexPropertyValuesTypeHints, getVertexPropertyIds,
@@ -260,10 +256,6 @@ public class PackedVertex extends RelationalVertex {
         final Operation getKeyProperties = Operation.get(this.db.PROPERTIES_BIN);
         final Operation getKeyPropertiesTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
 
-        final FireflyCache cache = db.transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(key);
-        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         final Record result = this.db.operate(writePolicy, key, putValue, putId, putTypeHint, addKeyProperties, addKeyPropertiesTypeHints, getValues, getTypeHints,
@@ -290,8 +282,6 @@ public class PackedVertex extends RelationalVertex {
     protected Set<String> readVertexPropertyKeys() {
         return vertexPropertyValues.keySet();
     }
-
-
 
     public static class PackedVertexFactory {
         public static PackedVertex create(final FireflyId fid,

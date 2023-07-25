@@ -5,7 +5,6 @@ import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -673,10 +672,6 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void shouldNotGetConcurrentModificationException() {
-        if (StarPackedGraph.isStarPackedGraph(graph)) {
-            // StarPackedGraph does not concurrent modifications.
-            return;
-        }
         for (int i = 0; i < 25; ++i) {
             graph.addVertex("myId", i);
         }

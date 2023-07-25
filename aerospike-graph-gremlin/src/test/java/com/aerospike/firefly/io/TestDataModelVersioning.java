@@ -3,7 +3,6 @@ package com.aerospike.firefly.io;
 import com.aerospike.firefly.io.impl.Upgrade;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -52,14 +51,6 @@ public class TestDataModelVersioning {
         db.dropDatabase(graph, false);
     }
 
-    public static void openGraphStarPacked() {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), StarPackedGraph.DATA_MODEL);
-        db = AerospikeConnection.connect(config);
-        graph = FireflyGraph.open(config);
-        g = graph.traversal();
-    }
-
     public static void openGraphLinkedNewVersion() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), PackedGraph.DATA_MODEL);
@@ -75,18 +66,6 @@ public class TestDataModelVersioning {
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
-
-    @Test
-    public void TestFailOnDiffModel() {
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-        openGraphStarPacked();
-        graph.close();
-        db.close();
-        exit.expectSystemExitWithStatus(1);
-        openGraphPacked();
-    }
-
 
     public static class FakeGraph extends RelationalGraph {
 

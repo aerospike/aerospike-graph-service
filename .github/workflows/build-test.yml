@@ -11,7 +11,6 @@ on:
 # - Build Firefly Docker
 # - Test Spark Bulk Loader
 # - Test Packed Data Model
-# - Test Star Packed Data Model
 
 jobs:
   start-runner-build:

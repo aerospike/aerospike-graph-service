@@ -495,12 +495,14 @@ jobs:
           path: ${{ github.workspace }}/scripts/l3_config.properties
           destination: gha-ci-firefly-bulkloader
           gzip: false
+          process_gcloudignore: false
       - name: Upload Bulk Loader JAR to GCP
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar
           destination: gha-ci-firefly-bulkloader
           gzip: false
+          process_gcloudignore: false
       - name: Run L3 Bulk Loading Job
         run: |
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${GITHUB_SHA::7} -w 4 -j gs://gha-ci-firefly-bulkloader/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/l3_config.properties

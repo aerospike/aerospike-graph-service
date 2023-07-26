@@ -11,7 +11,6 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.client.util.Crypto;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -44,8 +43,6 @@ import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -1079,8 +1076,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         graph = GraphFactory.createGraph(db, config);
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
-        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
-        assertEquals(graph.getBaseGraph().getDataModelVersion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
+        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
+        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelVersion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
     }
 
     @Test

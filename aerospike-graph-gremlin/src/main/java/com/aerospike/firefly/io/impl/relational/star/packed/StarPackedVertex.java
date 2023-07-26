@@ -111,9 +111,9 @@ public class StarPackedVertex extends PackedVertex {
             vertexPropertyTypeHints = new TreeMap<>();
         } else {
             // Read existing maps.
-            vertexPropertyIds = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
-            vertexPropertyValues = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            vertexPropertyTypeHints = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
+            vertexPropertyIds = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+            vertexPropertyValues = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+            vertexPropertyTypeHints = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
 
             // If any bins happen to be null, initialize them.
             if (vertexPropertyIds == null) {
@@ -150,9 +150,9 @@ public class StarPackedVertex extends PackedVertex {
         vertexPropertyTypeHints.get(label).add(vertexPropertyTypeHintMap);
 
         // Create bins for the maps.
-        final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexPropertyIds, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexPropertyTypeHints, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(vertexPropertyIds, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, Value.get(vertexPropertyValues, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, Value.get(vertexPropertyTypeHints, MapOrder.KEY_ORDERED));
 
         // Write element. This isn't really an element, but the logic holds.
         FireflyRecord.writeElement(db, set, vertex.id, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
@@ -242,7 +242,7 @@ public class StarPackedVertex extends PackedVertex {
                     // First entry, generate empty map.
                     adjacentVertexEdges = new TreeMap<>();
                 } else {
-                    final String adjacentVertexDirBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
+                    final String adjacentVertexDirBin = direction.equals(Direction.IN) ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
                     adjacentVertexEdges = (Map<String, List<Object>>) adjacentVertexRecord.record().getMap(adjacentVertexDirBin);
 
                     // If the bin is null it must be initialized.
@@ -350,20 +350,20 @@ public class StarPackedVertex extends PackedVertex {
             adjacentId = outVertex.id;
             if (secondaryDirection.equals(Direction.IN)) {
                 dirSet = db.IN_IN_SET;
-                edgeDir = db.IN_EDGES;
+                edgeDir = db.IN_EDGES_BIN;
             } else {
                 dirSet = db.IN_OUT_SET;
-                edgeDir = db.OUT_EDGES;
+                edgeDir = db.OUT_EDGES_BIN;
             }
         } else {
             id = outVertex.id;
             adjacentId = inVertex.id;
             if (secondaryDirection.equals(Direction.IN)) {
                 dirSet = db.OUT_IN_SET;
-                edgeDir = db.IN_EDGES;
+                edgeDir = db.IN_EDGES_BIN;
             } else {
                 dirSet = db.OUT_OUT_SET;
-                edgeDir = db.OUT_EDGES;
+                edgeDir = db.OUT_EDGES_BIN;
             }
         }
 
@@ -432,9 +432,9 @@ public class StarPackedVertex extends PackedVertex {
 
             }
 
-            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Object>>> vertexVPTypeHint = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+            final Map<String, List<Map<String, Object>>> vertexVPTypeHint = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
 
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
                     vertexVPTypeHint == null || !vertexVPTypeHint.containsKey(edge.label()) ||
@@ -444,7 +444,7 @@ public class StarPackedVertex extends PackedVertex {
             }
 
             // To get our entry, we need to find which position this edge exists in in the master list of the vertex.
-            final Map<String, List<Object>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES : db.IN_EDGES);
+            final Map<String, List<Object>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES_BIN : db.IN_EDGES_BIN);
             if (!edgeLabelToId.containsKey(edge.label())) {
                 LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), vertex.id(), vpId);
                 throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), vertex.id(), vpId));
@@ -469,9 +469,9 @@ public class StarPackedVertex extends PackedVertex {
             vertexVPId.put(edge.label(), vertexPropertyIds);
 
             // Create bins for the maps.
-            final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
-            final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
-            final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
 
             // Write element. This isn't really an element, but the logic holds.
             FireflyRecord.writeElement(db, set, vpId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
@@ -498,9 +498,9 @@ public class StarPackedVertex extends PackedVertex {
 
             }
 
-            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+            final Map<String, List<Map<String, Object>>> vertexVPValue = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+            final Map<String, List<Map<String, Long>>> vertexVPTypeHint = (Map<String, List<Map<String, Long>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+            final Map<String, List<Map<String, Object>>> vertexVPId = (Map<String, List<Map<String, Object>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
 
             if (vertexVPValue == null || !vertexVPValue.containsKey(edge.label()) ||
                     vertexVPTypeHint == null || !vertexVPTypeHint.containsKey(edge.label()) ||
@@ -510,7 +510,7 @@ public class StarPackedVertex extends PackedVertex {
             }
 
             // To get our entry, we need to find which position this edge exists in in the master list of the vertex.
-            final Map<String, List<Object>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES : db.IN_EDGES);
+            final Map<String, List<Object>> edgeLabelToId = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vpId, direction.equals(Direction.IN) ? db.OUT_EDGES_BIN : db.IN_EDGES_BIN);
             if (!edgeLabelToId.containsKey(edge.label())) {
                 LOG.error("Could not find edge label {} in vertex {} when adding properties to adjacent lists of vertex {}.", edge.label(), this.id(), vpId);
                 throw new RuntimeException(String.format("Could not find edge label %s in vertex %s when adding properties to adjacent lists of vertex %s.", edge.label(), this.id(), vpId));
@@ -534,9 +534,9 @@ public class StarPackedVertex extends PackedVertex {
             vertexVPId.put(edge.label(), vertexPropertyIds);
 
             // Create bins for the maps.
-            final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
-            final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
-            final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
+            final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
 
             // Write element. This isn't really an element, but the logic holds.
             FireflyRecord.writeElement(db, set, vpId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
@@ -574,9 +574,9 @@ public class StarPackedVertex extends PackedVertex {
         }
 
         //
-        final Map<String, List<Map<String, ?>>> vertexVPValue = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE);
-        final Map<String, List<Map<String, ?>>> vertexVPTypeHint = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT);
-        final Map<String, List<Map<String, ?>>> vertexVPId = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID);
+        final Map<String, List<Map<String, ?>>> vertexVPValue = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+        final Map<String, List<Map<String, ?>>> vertexVPTypeHint = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+        final Map<String, List<Map<String, ?>>> vertexVPId = (Map<String, List<Map<String, ?>>>) record.record().getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
 
         // The tricky part is what entry of the list inside the map. Using the edge label we can get the list from the map,
         // but we still need to know the index to remove. To get that we must read the vertex and get the index from the
@@ -588,7 +588,7 @@ public class StarPackedVertex extends PackedVertex {
             return;
         }
 
-        final String vertexEdgeMapBin = direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES;
+        final String vertexEdgeMapBin = direction.equals(Direction.IN) ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
         final Map<String, List<Object>> vertexEdgeLabelToId = (Map<String, List<Object>>) vertexRecord.record().getMap(vertexEdgeMapBin);
         final List<Object> edgeIds = vertexEdgeLabelToId.get(edge.label());
         final int edgeIndex = findInList(db.getIdFactory(), edgeIds, edge.id.getStorageId(),
@@ -601,9 +601,9 @@ public class StarPackedVertex extends PackedVertex {
         removeFromMap(vertexVPTypeHint, edge.label(), edgeIndex, edgeIds.size() <= 1, errorMessageFormat, "vertex property type hints", vertexId, edge);
 
         // Create bins for the maps.
-        final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
-        final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyIdMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(vertexVPId, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyValueMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, Value.get(vertexVPValue, MapOrder.KEY_ORDERED));
+        final Bin vertexPropertyTypeHintMapBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, Value.get(vertexVPTypeHint, MapOrder.KEY_ORDERED));
 
         // Write element. This isn't really an element, but the logic holds.
         FireflyRecord.writeElement(db, vertexVPSet, vertexId, -1, vertexPropertyIdMapBin, vertexPropertyValueMapBin, vertexPropertyTypeHintMapBin);
@@ -632,7 +632,7 @@ public class StarPackedVertex extends PackedVertex {
                 // If the edge is `this` edge, skip it. It is removed elsewhere.
                 if (!edge.id().equals(compoundEdge.id())) {
                     // This set is in regard to the adjacent vertex so flip initial IN to OUT.
-                    removeCompoundEdge(db, edge, compoundEdge, inVertex, Direction.IN, db.OUT_IN_SET, db.OUT_EDGES);
+                    removeCompoundEdge(db, edge, compoundEdge, inVertex, Direction.IN, db.OUT_IN_SET, db.OUT_EDGES_BIN);
                 }
             });
         }
@@ -642,7 +642,7 @@ public class StarPackedVertex extends PackedVertex {
                 // If the edge is `this` edge, skip it. It is removed elsewhere.
                 if (!edge.id().equals(compoundEdge.id())) {
                     // This set is in regard to the adjacent vertex so flip initial OUT to IN.
-                    removeCompoundEdge(db, edge, compoundEdge, inVertex, Direction.OUT, db.IN_IN_SET, db.IN_EDGES);
+                    removeCompoundEdge(db, edge, compoundEdge, inVertex, Direction.OUT, db.IN_IN_SET, db.IN_EDGES_BIN);
                 }
             });
         }
@@ -653,7 +653,7 @@ public class StarPackedVertex extends PackedVertex {
                 // If the edge is `this` edge, skip it. It is removed elsewhere.
                 if (!edge.id().equals(compoundEdge.id())) {
                     // This set is in regard to the adjacent vertex so flip initial IN to OUT.
-                    removeCompoundEdge(db, edge, compoundEdge, outVertex, Direction.IN, db.OUT_OUT_SET, db.OUT_EDGES);
+                    removeCompoundEdge(db, edge, compoundEdge, outVertex, Direction.IN, db.OUT_OUT_SET, db.OUT_EDGES_BIN);
                 }
             });
         }
@@ -663,7 +663,7 @@ public class StarPackedVertex extends PackedVertex {
                 // If the edge is `this` edge, skip it. It is removed elsewhere.
                 if (!edge.id().equals(compoundEdge.id())) {
                     // This set is in regard to the adjacent vertex so flip initial OUT to IN.
-                    removeCompoundEdge(db, edge, compoundEdge, outVertex, Direction.OUT, db.IN_OUT_SET, db.IN_EDGES);
+                    removeCompoundEdge(db, edge, compoundEdge, outVertex, Direction.OUT, db.IN_OUT_SET, db.IN_EDGES_BIN);
                 }
             });
         }
@@ -768,7 +768,7 @@ public class StarPackedVertex extends PackedVertex {
         final Map<String, List<Map<String, List<Object>>>> vertexDirEdgeMap = getOrDefaultHashMap(db, dirSet, vertex.id, db.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN);
 
         // This adjacent vertex edgeLabel->edgeIds map.
-        final Map<String, List<Object>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction.equals(Direction.IN) ? db.IN_EDGES : db.OUT_EDGES);
+        final Map<String, List<Object>> vertexEdgeMap = getOrDefaultHashMap(db, db.VERTEX_AERO_SET, vertex.id, direction.equals(Direction.IN) ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN);
         final List<Object> edges = vertexEdgeMap.getOrDefault(edge.label(), new ArrayList<>());
         final int listIndex = findInList(db.getIdFactory(), edges, ((FireflyEdge) edge).id.getStorageId(), "Failed to find edge %s in vertex %s", edge.id(), vertex.id);
 

@@ -48,13 +48,18 @@ jobs:
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-            docker buildx build --build-arg RELEASE_BUILD=1 --push --platform linux/amd64,linux/arm64 --tag $DOCKER_IMAGE --tag $OUTPUT_IMAGE .
+          
+            export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=1"
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
           else
             DOCKER_IMAGE=$REGISTRY_URL/$REPOSITORY_NAME/$IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
-            echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-            docker buildx build --push --platform linux/amd64,linux/arm64 --tag $DOCKER_IMAGE --tag $OUTPUT_IMAGE .
+            echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
           fi
 
       - name: Java 11 Install
@@ -70,4 +75,4 @@ jobs:
       - name: Upload Bulk Loader
         uses: actions/upload-artifact@v3
         with:
-          path: firefly-spark-bulk-loader/target/firefly-spark-bulk-loader-*.jar
+          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar

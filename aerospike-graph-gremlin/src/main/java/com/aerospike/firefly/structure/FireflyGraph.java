@@ -49,6 +49,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.OptionsStrategy;
+import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -64,10 +65,12 @@ import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -121,8 +124,13 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraph.class);
-    public static String FIREFLY_VERSION = "0.7.0-SNAPSHOT";
+
+    // AerospikeGraphService is a dummy class that allows us to instantiate a logger in FireflyGraph that says
+    // AerospikeGraphService. We can eventually migrate to calling FireflyGraph AerospikeGraphService but this requires
+    // docs changes, config updates, etc, and isn't worth it right now.
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeGraphService.class);
+
+    public static String FIREFLY_VERSION = "1.1.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);
@@ -141,6 +149,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public FireflyIndexMetadata fireflyIndexMetadata = null;
     public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
+    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml";
+
+    // Note, this should be overwritten by the settings file contents, but for testing we need a default.
+    private final Settings gremlinServerSettings;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -151,23 +163,19 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
     }
 
-    protected FireflyGraph(final Configuration conf) {
-        this(AerospikeConnection.connect(conf), conf);
-    }
 
 
-    protected FireflyGraph(final AerospikeConnection db, final Configuration conf) {
+
+    protected FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+        this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;
         db.createGraphIndexes();
         this.db = db;
         this.idFactory = db.getIdFactory();
 
-        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, configuration)), false);
-        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, configuration)), true);
-        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER,
-                Long.parseLong(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, configuration)), false);
+        this.vertexPropertyIdManager = new BufferedNumericIdManager(VERTEX_PROPERTY_ID_COUNTER, db.PROPERTY_ID_BUFFER_SIZE, false);
+        this.vertexIdManager = new BufferedNumericIdManager(VERTEX_ID_COUNTER, db.VERTEX_ID_BUFFER_SIZE, true);
+        this.edgeIdManager = new RecyclingBufferedNumericIdManager(EDGE_RECYCLED_ID_COUNTER, EDGE_UNIQUE_ID_COUNTER, db.EDGE_ID_BUFFER_SIZE, false);
         this.variables = new FireflyGraphVariables(this);
         this.features = new FireflyGraphFeatures(this);
 
@@ -178,7 +186,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // Grab user defined vertex property indexes from the configuration and create them.
         final List<String> vertexPropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.VERTEX_PROPERTY_INDEXES, configuration);
-        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE, db.getVpIndexPrefix(), vertexPropertyIndexes);
+        createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), vertexPropertyIndexes);
 
         // Grab user defined edge property indexes from the configuration and create them.
         final List<String> edgePropertyIndexes = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.EDGE_PROPERTY_INDEXES, configuration);
@@ -186,10 +194,10 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // TODO: Edge indexes.
             throw new RuntimeException("Edge property indexes are not currently supported.");
         }
-        createIndexes(FireflyEdge.class, db.PROPERTIES, db.getEpIndexPrefix(), edgePropertyIndexes);
+        createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
-        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX, db.E_LABEL_INDEX, fireflyIndexMetadata);
+        fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
@@ -198,14 +206,16 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public static FireflyGraph open(final Configuration conf) {
-        final Level logLevel = Level.toLevel(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.LOG_LEVEL, conf));
-        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
-        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
+        final String logLevel = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
+        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
+        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
         try {
-            if (clientLogging)
+            if (clientLogging) {
                 Log.setCallback(new AerospikeLogger());
-            LoggerUtil.setLogLevel(logLevel);
-        } catch (Exception e) {
+                Log.setLevel(Log.Level.valueOf(logLevel));
+            }
+            LoggerUtil.setLogLevel(Level.toLevel(logLevel));
+        } catch (final Exception e) {
             LOG.warn("Failed to set log level {}", e.getMessage());
         }
         try {
@@ -219,14 +229,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("Java Specification Version: {}.", System.getProperty("java.specification.version"));
             LOG.info("JVM Runtime: {}.", System.getProperty("java.runtime.name"));
             LOG.info("JVM Runtime Version: {}.", System.getProperty("java.runtime.version"));
-            LOG.info("Firefly configuration: {}.", conf);
-            LOG.info("Starting Aerospike Firefly v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+
+            // Straight up printing out conf just provides a class name / memory address.
+            final Iterator<String> keys = conf.getKeys();
+            final Map<String, Object> configurationMap = new HashMap<>();
+            while (keys.hasNext()) {
+                final String key = keys.next();
+                configurationMap.put(key, conf.getProperty(key));
+            }
+            LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
+            LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
-            LOG.error("=================== FAILED TO START FIREFLY GRAPH ===================");
-            LOG.error("========== Firefly failing to start is usually a result of an incorrect configuration.");
+            LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
+            LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             LOG.error("========== Verify that the Aerospike IP and port are correct.");
             LOG.error("========== See Error message for more details:", e);
 
@@ -243,6 +261,19 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
+    }
+
+    public static Settings getGremlinServerSettings() {
+        // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
+        if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
+            LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
+            try {
+                return Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
+            } catch (Exception e) {
+                LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+            }
+        }
+        return new Settings();
     }
 
     /**
@@ -262,7 +293,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public abstract FireflyVertex writeVertex(final FireflyId idValue, final String label, final List<Map.Entry<String, Object>> properties);
 
     public abstract void bulkWriteVertex(final FireflyId id, final String label,
-                                         final List<Map.Entry<String, Object>> properties, final boolean createOnly);
+                                         final List<Map.Entry<String, Object>> properties, final boolean supernode);
 
     public abstract void bulkWriteEdgesToVertexCache(final FireflyId vertexId, final Direction direction,
                                                      final List<Value> edgeIds, final String edgeLabel);
@@ -481,18 +512,18 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      */
     public Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
         final String name;
-        if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
-            name = AerospikeConnection.LABEL;
+        if (db.LABEL_BIN.equals(indexInfo.key)) {
+            name = db.LABEL_BIN;
         } else if (indexInfo.setName.equals(getBaseGraph().VERTEX_AERO_SET)) {
-            name = db.VERTEX_PROPERTY_NAME_TO_VALUE;
+            name = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
         } else if (indexInfo.setName.equals(getBaseGraph().EDGE_AERO_SET)) {
-            name = db.PROPERTIES;
+            name = db.PROPERTIES_BIN;
         } else {
             throw new IllegalArgumentException(
                     "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
         }
 
-        final IndexCollectionType type = AerospikeConnection.LABEL.equals(indexInfo.key) ?
+        final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
                 IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
         final Object value = predicate.getValue();
         if (Number.class.isAssignableFrom(value.getClass())) {
@@ -519,7 +550,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 throw new RuntimeException(String.format("%s not a supported predicate", predicate));
             }
         } else {
-            if (AerospikeConnection.LABEL.equals(indexInfo.key)) {
+            if (db.LABEL_BIN.equals(indexInfo.key)) {
                 return Filter.contains(name, type, (String) value);
             } else {
                 return Filter.equal(name, (String) value, CTX.mapKey(Value.get(indexInfo.key)));
@@ -539,8 +570,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                                       final String mapKey,
                                       final P<?> predicate) {
         // If the bin is the label bin, we can make a very simple predicate.
-        if (AerospikeConnection.LABEL.equals(binName)) {
-            return Exp.eq(Exp.stringBin(AerospikeConnection.LABEL), Exp.val((String) predicate.getValue()));
+        if (db.LABEL_BIN.equals(binName)) {
+            return Exp.eq(Exp.stringBin(db.LABEL_BIN), Exp.val((String) predicate.getValue()));
         }
 
         // Need to build a more complex expression for nested map values.
@@ -581,8 +612,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
         final Exp[] exps = hasContainers.stream().map(h ->
                 predicateToExpression(h.getKey().equals("~label") ?
-                                AerospikeConnection.LABEL : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE : db.PROPERTIES,
+                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
+                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
                         h.getKey(),
                         h.getPredicate())).toArray(Exp[]::new);
         return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
@@ -592,8 +623,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
         return hasContainers.stream().map(h ->
                 predicateToExpression(h.getKey().equals("~label") ?
-                                AerospikeConnection.LABEL : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE : db.PROPERTIES,
+                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
+                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
                         h.getKey(),
                         h.getPredicate())).toArray(Exp[]::new);
     }

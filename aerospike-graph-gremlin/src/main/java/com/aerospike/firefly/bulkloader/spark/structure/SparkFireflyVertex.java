@@ -46,7 +46,7 @@ public class SparkFireflyVertex extends SparkFireflyElement {
                 final Map.Entry<String, Object> property = generateProperty(header, value, nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
-                LOG.error("Failed to generate property for header '" + header + "' from value: " + row.getAs(header));
+                LOG.error("Failed to generate Vertex property for header '" + header + "' from value: " + row.getAs(header));
                 throw new FireflyBulkLoaderException(e);
             }
         }

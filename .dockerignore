@@ -1,3 +1,4 @@
-.github/aerospike/venv
-Dockerfile
+.github/
 target/
+docker/
+scripts/build-docker.sh

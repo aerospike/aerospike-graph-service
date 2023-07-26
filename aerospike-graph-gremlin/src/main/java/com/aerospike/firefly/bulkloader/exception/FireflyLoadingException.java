@@ -24,7 +24,9 @@ public class FireflyLoadingException extends RuntimeException {
             ResultCode.QUOTA_EXCEEDED,
             ResultCode.SERVER_ERROR,
             ResultCode.SERVER_NOT_AVAILABLE,
-            ResultCode.TIMEOUT
+            ResultCode.TIMEOUT,
+            ResultCode.NO_MORE_CONNECTIONS,
+            ResultCode.INVALID_NODE_ERROR
     );
 
     final private AerospikeException aerospikeException;

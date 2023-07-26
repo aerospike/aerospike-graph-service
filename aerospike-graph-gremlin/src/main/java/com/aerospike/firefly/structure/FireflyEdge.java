@@ -211,15 +211,15 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
         // the property key if a null value is given.
         if (value == null) {
-            valueOp = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey), MapReturnType.NONE,
+            valueOp = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey), MapReturnType.NONE,
+            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(edgeIdMapKey));
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            valueOp = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(value),
+            valueOp = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(value),
                     CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
+            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
                     Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey));
         }
 

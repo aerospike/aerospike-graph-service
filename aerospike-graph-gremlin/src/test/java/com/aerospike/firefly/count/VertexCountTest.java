@@ -47,7 +47,7 @@ public class VertexCountTest {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(ConfigurationHelper.Keys.ENABLE_FAST_COUNT_STRATEGY.toLowerCase(), "true");
         if (labelIndex) {
-            config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), "true");
+            config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), "true");
         }
         if (hasIndex1 || hasIndex2) {
             if (!hasIndex2) {

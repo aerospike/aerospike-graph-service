@@ -44,8 +44,6 @@ import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -1083,8 +1081,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
         graph = GraphFactory.createGraph(db, config);
 
         Vertex it = graph.traversal().V(FIREFLY_CONFIGURATION_VARIABLE_NAME).next();
-        assertEquals(graph.getBaseGraph().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
-        assertEquals(graph.getBaseGraph().getDataModelVerion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
+        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelName(), it.property(AerospikeConnection.DATA_MODEL_NAME).value());
+        assertEquals(graph.getBaseGraph().getDataModelMetadata().getDataModelVersion().toString(), it.property(AerospikeConnection.DATA_MODEL_VER).value());
     }
 
     @Test
@@ -1217,7 +1215,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
     public void printConfig() {
         List.of(ConfigurationHelper.Keys.class.getDeclaredFields()).forEach(field -> {
             try {
-                String value = ConfigurationHelper.getOrDefault(field.getName(), config);
+                String value = ConfigurationHelper.getOrDefaultString(field.getName(), config);
                 System.out.printf("%s=%s%n\n", field.getName().toLowerCase(), value);
             } catch (RuntimeException e) {
                 System.out.println(e.getMessage());

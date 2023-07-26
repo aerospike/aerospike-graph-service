@@ -1,14 +1,22 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyElement implements Element {
+    public static final String DEBUG_STORAGE_PROPERTY = "debugStorage";
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;

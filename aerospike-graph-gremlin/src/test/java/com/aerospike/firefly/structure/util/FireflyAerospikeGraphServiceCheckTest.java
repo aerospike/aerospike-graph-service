@@ -25,7 +25,7 @@ public class FireflyAerospikeGraphServiceCheckTest {
             fail("Connecting to Aerospike without graph-service support should have thrown an exception");
         } catch (final RuntimeException e) {
             Assert.assertEquals("Failed to initialize graph-service due to missing feature-key. " +
-                    "Please ensure you're licensed for graph-service", e.getMessage());
+                    "Please ensure you're licensed for graph-service on all Aerospike nodes in the cluster.", e.getMessage());
         }
     }
 

@@ -210,7 +210,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsUserSuppliedIds() {
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.WARMUP_MODE, fireflyGraph.configuration())))
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, fireflyGraph.configuration())))
                 return false;
             return FireflyGraphFeatures.USER_SUPPLIED_IDS;
         }

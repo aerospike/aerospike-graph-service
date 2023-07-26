@@ -20,7 +20,6 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
     private final FireflyStrategyBase fireflyGraphDropStrategy;
     private final FireflyStrategyBase fireflyGraphStepStrategy;
     private final FireflyStrategyBase fireflyMergeStepStrategy;
-    private final FireflyStrategyBase fireflyPrefetchStrategy;
     private final FireflyStrategyBase fireflyReadThroughCacheStrategy;
     private final FireflyStrategyBase fireflyVertexEdgeLocalCountStrategy;
     private final FireflyStrategyBase fireflyScanProfileStrategy;
@@ -35,7 +34,6 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         this.fireflyGraphDropStrategy = new FireflyGraphDropStrategy();
         this.fireflyGraphStepStrategy = new FireflyGraphStepStrategy();
         this.fireflyMergeStepStrategy = new FireflyMergeStepStrategy();
-        this.fireflyPrefetchStrategy = new FireflyPrefetchStrategy();
         this.fireflyReadThroughCacheStrategy = new FireflyReadThroughCacheStrategy();
         this.fireflyVertexEdgeLocalCountStrategy = new FireflyVertexEdgeLocalCountStrategy();
         this.fireflyScanProfileStrategy = new FireflyScanProfileStrategy();
@@ -86,7 +84,6 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         // Steps that are generally applicable to most all traversals.
         applyStrategy(traversal, fireflyGraphStepStrategy);
         applyStrategy(traversal, fireflyReadThroughCacheStrategy);
-        applyStrategy(traversal, fireflyPrefetchStrategy);
 
         // Steps that replace specific internal steps.
         applyStrategy(traversal, fireflyMergeStepStrategy);

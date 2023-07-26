@@ -228,8 +228,8 @@ public class FireflyIdFactory {
         final long typeHint;
         if (record.key().userKey.getObject() != null) {
             origId = record.key().userKey.getObject();
-        } else if (record.record().getValue(AerospikeConnection.USER_KEY) != null) {
-            origId = record.record().getValue(AerospikeConnection.USER_KEY);
+        } else if (record.record().getValue(db.USER_KEY_BIN) != null) {
+            origId = record.record().getValue(db.USER_KEY_BIN);
         } else { //@todo list of cases
             throw new RuntimeException("no key available"); //maybe a pure hash id
         }

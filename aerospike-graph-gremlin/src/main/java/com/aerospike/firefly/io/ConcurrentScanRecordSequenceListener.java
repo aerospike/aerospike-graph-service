@@ -72,7 +72,7 @@ public class ConcurrentScanRecordSequenceListener implements RecordSequenceListe
             return null;
         };
         return new ConcurrentScanRecordSequenceListener(scanMonitor,
-                Integer.parseInt(ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)),
+                Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SCAN_MAX_WAIT, db.conf)),
                 metricsCallback);
     }
 

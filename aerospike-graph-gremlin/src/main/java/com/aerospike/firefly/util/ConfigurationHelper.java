@@ -99,7 +99,7 @@ public final class ConfigurationHelper {
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
 
         public static class Pair {
-            public final byte numeric;
+            public final int numeric;
             public final String english;
 
             private Pair(final byte key, final String value) {

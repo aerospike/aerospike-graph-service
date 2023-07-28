@@ -9,7 +9,9 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static junit.framework.TestCase.assertEquals;
 
@@ -30,6 +32,20 @@ public class TestConfigurationIntegration {
         assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.IN_VP_SET.getValue().numeric, a.IN_VP_SET);
         assertEquals(ConfigurationHelper.getPrefix(config) + ConfigurationHelper.Keys.Sets.OUT_VP_SET.getValue().numeric, a.OUT_VP_SET);
 
+    }
+    @Test
+    public void testNamesUnique(){
+        final Set<String> uniqueNames = new HashSet<>();
+        ConfigurationHelper.Keys.Bins.keys().forEach(it -> {
+            if(!uniqueNames.add(ConfigurationHelper.Keys.Bins.valueOf(it).getValue().english)){
+                Assert.fail("Duplicate bin name: " + ConfigurationHelper.Keys.Bins.valueOf(it).getValue().english);
+            }
+        });
+        ConfigurationHelper.Keys.InternalConfigs.keys().forEach(it -> {
+            if(!uniqueNames.add(ConfigurationHelper.Keys.InternalConfigs.valueOf(it).getValue().english)){
+                Assert.fail("Duplicate internal config name: " + ConfigurationHelper.Keys.InternalConfigs.valueOf(it).getValue().english);
+            }
+        });
     }
 
     @Test
@@ -52,9 +68,15 @@ public class TestConfigurationIntegration {
         final AerospikeConnection a = fireflyGraph.getBaseGraph();
         a.dropDatabase(fireflyGraph,true);
         final GraphTraversalSource g = fireflyGraph.traversal();
-        Vertex lemon = g.addV("lemon").property("color", "yellow").property("type", "plant").next();
+
+
+
+        Vertex lemon = g.addV("lemon").next();
+        g.V(lemon).property("color", "yellow").next();
+        g.V(lemon).property("type", "plant").next();
         Vertex lime = g.addV("lime").property("color", "green").property("type", "plant").next();
         Vertex fruit = g.addV("fruit").property("type", "taxonomy").next();
+        g.V(lime).addE("IsA").to(fruit).property("genus", "citrus").next();
         g.V()
                 .has("type", "taxonomy").as("a")
                 .V().has("type", "plant").as("b")
@@ -62,7 +84,7 @@ public class TestConfigurationIntegration {
         Vertex s1 = g.V().has("type", "taxonomy").next();
         List<Vertex> s2 = g.V().has("type", "plant").next(2);
         List<Edge> things = g.E().has("a", "b").toList();
-        Assert.assertEquals(2, (long) g.V(fruit.id()).inE().count().next());
+        Assert.assertEquals(3, (long) g.V(fruit.id()).inE().count().next());
         a.dropDatabase(fireflyGraph,true);
     }
 }

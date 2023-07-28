@@ -146,26 +146,18 @@ public final class ConfigurationHelper {
         }
 
         public enum InternalConfigs {
-            GRAPH_VARIABLES_REC_KEY(Pair.of((byte) 0, "GRAPH_VARS")),
-            VERTEX_PROPERTY_NAME(Pair.of((byte) 3, "VP_NAME")),
+            GRAPH_VARIABLES_REC_KEY(Pair.of((byte) 0, "GRAPH_VARS_REC")),
             V_LABEL_INDEX_NAME(Pair.of((byte) 4, "V_LABEL_IDX")),
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
-            VP_PROPERTIES(Pair.of((byte) 8, "VP_PROPS")),
-            VP_TYPE_HINTS(Pair.of((byte) 9, "VP_TYPE_HINTS")),
-            GLOBAL(Pair.of((byte) 10, "GLOBAL")),
             SUPERNODES_IN(Pair.of((byte) 11, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 12, "SUPERNODE_OUT")),
-            INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA")),
-            LABEL(Pair.of((byte) 14, "LABEL")),
-            USER_SUPPLIED_ID_VERTEX_CACHE(Pair.of((byte) 15, "V_ID_CACHE")),
-            USER_SUPPLIED_ID_EDGE_CACHE(Pair.of((byte) 16, "E_ID_CACHE")),
-            USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE(Pair.of((byte) 17, "VP_ID_CACHE"));
+            INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA"));
 
             private final Pair value;
 
-            private InternalConfigs(Pair value) {
+            InternalConfigs(Pair value) {
                 this.value = value;
             }
 

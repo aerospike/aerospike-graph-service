@@ -17,8 +17,6 @@ import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedEdge;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -260,11 +258,7 @@ public class RelationalEdge extends FireflyEdge {
         private static RelationalEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
                                              final FireflyId outVertex, final FireflyId inVertex,
                                              final Map<String, Object> properties, final Map<String, Object> typeHints) {
-            if (StarPackedGraph.isStarPackedGraph(graph)) {
-                return new StarPackedEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
-            } else {
-                return new RelationalEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
-            }
+            return new RelationalEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
         }
 
         private static RelationalEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,

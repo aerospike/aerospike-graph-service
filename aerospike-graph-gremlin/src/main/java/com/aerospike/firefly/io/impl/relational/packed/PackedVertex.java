@@ -14,8 +14,6 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -308,15 +306,9 @@ public class PackedVertex extends RelationalVertex {
                                           final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
                                           final boolean isEdgeCacheOverflowed,
                                           final AerospikeConnection db) {
-            if (StarPackedGraph.isStarPackedGraph(graph)) {
-                return new StarPackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
-                        vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
-            } else {
-                return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                        vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
-                        vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
-            }
+            return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
+                    vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
+                    vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
         }
     }
 }

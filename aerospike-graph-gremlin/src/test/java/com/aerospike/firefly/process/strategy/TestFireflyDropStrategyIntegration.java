@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.strategy;
 
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -205,18 +204,6 @@ public class TestFireflyDropStrategyIntegration {
 
     @Test
     public void testDropStrategyWithEdgeDrop() {
-        if (SETUP_GRAPH.getDataModel().equals(StarPackedGraph.DATA_MODEL)) {
-            // TODO: Not sure how robust this is long-term and if it needs to be addressed.
-            //       A stray edge is the only way to check whether or not the database was dropped versus an iterated
-            //       removal of elements via a traversal. In the StarPacked model, trying to remove compound edges
-            //       chained off of the removal of the stray edge causes exceptions due to the stray edge not having
-            //       valid vertices attached to it which would not be possible when an edge is inserted through the
-            //       proper interfaces. Skipping this test is "safe" since we're testing whether or not the strategy
-            //       applies given a traversal pattern, so as long as we know the strategy is registered to this model,
-            //       which we do from the other tests on this model, and we know that the pattern matches, which we do
-            //       from this test on other models, we can transitively say this is functional.
-            return;
-        }
         CONFIG.setProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();

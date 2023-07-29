@@ -36,9 +36,11 @@ public class Upgrade {
      * @return does it need to run upgrade?
      * @throws Exception if the data model is not compatible with the current version.
      */
-    public static boolean checkNeedsUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
-        final ComparableVersion driveVersion = db.getDataModelMetadata().getDataModelVersion();
-        final String driveDataModel = db.getDataModelMetadata().getDataModelName();
+    public static boolean checkNeedsUpgrade(final Class<? extends FireflyGraph> dataModel, final AerospikeConnection db)
+            throws Exception {
+        final AerospikeConnection.GraphMetadata driveGraph = db.getDataModelMetadata();
+        final ComparableVersion driveVersion = driveGraph.getDataModelVersion();
+        final String driveDataModel = driveGraph.getDataModelName();
         final String classDataModel = (String) dataModel.getMethod(GETDATAMODELNAME).invoke(null);
         final ComparableVersion classVersion = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
 

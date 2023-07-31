@@ -451,6 +451,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Clamp Start Time to Environment
+        run: |
+          echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
+          echo "MONTH=$(date +%m)" >> $GITHUB_ENV
+          echo "DAY=$(date +%d)" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:
@@ -488,31 +493,43 @@ jobs:
           cd ${{ github.workspace }} && mvn clean install -DskipTests
           ls -l ${{ github.workspace }}/scripts
           cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
-      - name: Upload Bulk Loading Configuration to GCP
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ github.workspace }}/scripts/l3_config.properties
-          destination: gha-ci-firefly-bulkloader
-          gzip: false
-          process_gcloudignore: false
-      - name: Upload Bulk Loader JAR to GCP
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar
-          destination: gha-ci-firefly-bulkloader
-          gzip: false
-          process_gcloudignore: false
+      - name: Upload Bulk Loading Artifacts to GCP
+        run: |
+          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}/l3_config.properties
+          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}/aerospike-graph-bulk-loader.jar
       - name: Run L3 Bulk Loading Job
         run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${GITHUB_SHA::7} -w 4 -j gs://gha-ci-firefly-bulkloader/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/l3_config.properties
+          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${GITHUB_SHA::7} -w 4 -j gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}/l3_config.properties
+      - name: Archive L3 Bulk Loading Job Log
+        if: success() || failure()
+        run: |
+          cd ${{ github.workspace }}/scripts
+          mkdir ${{ env.YEAR }}
+          mkdir ${{ env.YEAR }}/${{ env.MONTH }}
+          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
+          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${GITHUB_SHA::7}
+          gcloud dataproc jobs wait ci-${GITHUB_SHA::7}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${GITHUB_SHA::7}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${GITHUB_SHA::7}/l3_job_log.txt
+          gcloud storage mv gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${GITHUB_SHA::7}/l3_config.properties
+      - name: Upload L3 Bulk Loading Job Log to GCP
+        if: success() || failure()
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
+          destination: gha-ci-firefly-bulkloader/archive
+          gzip: false
+          process_gcloudignore: false
       - name: Delete Compute Instances (Cleanup)
         if: always()
         run: |
           aerolab cluster destroy -f -n ${GITHUB_SHA::7}
-      - name: Delete Dataproc Clusters (CLeanup)
+      - name: Delete Dataproc Clusters (Cleanup)
         if: always()
         run: |
           gcloud dataproc clusters delete --region us-central1 -q ci-${GITHUB_SHA::7}
+      - name: Delete Cloud Storage Artifacts (Cleanup)
+        if: always()
+        run: |
+          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${GITHUB_SHA::7}
   test-heap-usage:
     name: Test Firefly Heap Usage
     timeout-minutes: 120

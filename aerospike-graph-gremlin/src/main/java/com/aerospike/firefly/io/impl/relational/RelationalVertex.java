@@ -32,7 +32,6 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedVertex;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -657,9 +656,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         switch (vertexTypeHint) {
-            case StarPackedVertex.VERTEX_TYPE_HINT:
-                // Star specific
-                // Fall through
             case PackedVertex.VERTEX_TYPE_HINT:
                 final PropertyValueIdMaps propertyValueIdMaps = getPropertyValueIdMaps(graph, validProperties);
                 vertexPropertyIds = propertyValueIdMaps.idMap;
@@ -685,9 +681,6 @@ public abstract class RelationalVertex extends FireflyVertex {
         final Operation writeEdgeCacheOut = Operation.put(edgeCacheOutBin);
 
         switch (vertexTypeHint) {
-            case StarPackedVertex.VERTEX_TYPE_HINT:
-                // Star specific
-                // Fall through
             case PackedVertex.VERTEX_TYPE_HINT:
                 final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
                         Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
@@ -840,8 +833,6 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Create vertex based on type hint.
         switch (vertexTypeHint) {
-            case StarPackedVertex.VERTEX_TYPE_HINT:
-                // The type hint of StarPackedVertex is currently not used and is stored in DB as Packed - fall through
             case PackedVertex.VERTEX_TYPE_HINT:
                 // Get vertex properties and vertex property counter from record.
                 final Map<String, Object> vertexPropertyValues =

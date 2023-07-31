@@ -724,7 +724,7 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-packed-lz4:
-    name: Test Packed
+    name: Test Packed lz4
     timeout-minutes: 120
     needs: start-runner-packed-lz4
     runs-on: ${{ needs.start-runner-packed-lz4.outputs.label }}
@@ -1319,7 +1319,7 @@ jobs:
           label: ${{ needs.start-runner-packed.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
   stop-runner-packed-lz4:
-    name: Stop Packed Runner
+    name: Stop Packed Runner lz4
     needs:
       - test-firefly-packed-lz4
       - start-runner-packed-lz4
@@ -1466,7 +1466,7 @@ jobs:
           label: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader.outputs.ec2-instance-id }}
   stop-runner-spark-bulk-loader-lz4:
-    name: Stop Spark Bulk Loader Runner
+    name: Stop Spark Bulk Loader Runner lz4
     needs:
       - test-firefly-spark-bulk-loader-lz4
       - start-runner-spark-bulk-loader-lz4

@@ -215,8 +215,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                                      final List<Map.Entry<String, Object>> properties) {
         // If the supernode property flag is set on the vertex write, remove it from the write steam and assign it.
         final Map.Entry supernodeFlag = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_KEY)).findFirst().orElse(null);
-        if (entry != null) {
-            properties.remove(entry);
+        if (supernodeFlag != null) {
+            properties.remove(supernodeFlag);
         }
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;

@@ -29,6 +29,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     protected FireflyGraph graph;
+    public static final String SUPERNODE_KEY = "~supernode";
 
     public FireflyVertex(final FireflyId fid, final String label, final FireflyGraph graph) {
         super(fid, label);
@@ -53,6 +54,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels);
 
     protected abstract Set<String> readVertexPropertyKeys();
+
+    protected abstract void setCacheDisabled();
 
     /**
      * Function to remove vertex properties.
@@ -89,6 +92,12 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
         if (this.removed)
             throw elementAlreadyRemoved(Vertex.class, this.id);
+
+        if (key.equals(SUPERNODE_KEY)) {
+            setCacheDisabled();
+            return VertexProperty.empty();
+        }
+
         ElementHelper.legalPropertyKeyValueArray(keyValues);
         ElementHelper.validateProperty(key, value);
 

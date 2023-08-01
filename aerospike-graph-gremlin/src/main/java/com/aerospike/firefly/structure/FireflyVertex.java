@@ -93,7 +93,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
         if (this.removed)
             throw elementAlreadyRemoved(Vertex.class, this.id);
 
-        if (key.equals(SUPERNODE_KEY)) {
+        if (SUPERNODE_KEY.equals(key)) {
             setCacheDisabled();
             return VertexProperty.empty();
         }

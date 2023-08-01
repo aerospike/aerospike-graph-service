@@ -213,13 +213,13 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        // If the supernode flag is set on the vertex write, remove it from the write steam and assign it.
-        final Map.Entry entry = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_KEY)).findFirst().orElse(null);
+        // If the supernode property flag is set on the vertex write, remove it from the write steam and assign it.
+        final Map.Entry supernodeFlag = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_KEY)).findFirst().orElse(null);
         if (entry != null) {
             properties.remove(entry);
         }
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
-                this.db.ON_RECORD_ID_LIMIT <= 0 || entry != null;
+                this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
         return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 

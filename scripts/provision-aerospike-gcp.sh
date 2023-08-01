@@ -84,11 +84,11 @@ aerolab cluster create -c ${instances} --instance ${instance_type}  -f $features
 --zone=us-central1-a --disk=pd-ssd:40 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd \
 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd --name=${name} --start=n;
 
-# Create partitions and blkdiscard
-aerolab cluster partition create --filter-type=local --name=${name}
+# Create partitions
+aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
 
 # Update configuration to use devices
-aerolab cluster partition conf --namespace=test --configure=device  --filter-type=nvme --filter-partitions=0 --name=${name}
+aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
 
 # Start the Aerospikes
 aerolab aerospike start --name=${name}

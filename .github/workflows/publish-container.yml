@@ -18,7 +18,6 @@ env:
 jobs:
   build-firefly-maven:
     name: Build Firefly Maven
-    needs: start-runner-build
     timeout-minutes: 120
     runs-on: ${{ needs.start-runner-build.outputs.label }}
     steps:

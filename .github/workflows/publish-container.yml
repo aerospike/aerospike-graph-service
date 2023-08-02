@@ -19,7 +19,7 @@ jobs:
   build-firefly-maven:
     name: Build Firefly Maven
     timeout-minutes: 120
-    runs-on: ${{ needs.start-runner-build.outputs.label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 11

@@ -12,7 +12,7 @@ env:
   GITHUB_IMAGE_NAME: firefly
   GITHUB_REGISTRY_URL: ghcr.io
   DOCKERHUB_IMAGE_NAME: test #aerospike-graph-service
-  DOCKERHUB_REPOSITORY_NAME: lyndonbauto/test
+  DOCKERHUB_REPOSITORY_NAME: lyndonbauto
 
 
 jobs:
@@ -58,9 +58,9 @@ jobs:
           
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=1"
             bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
+            #bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
+            #bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            #bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
           else
             DOCKER_IMAGE=$IMAGE_BASE:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
@@ -68,9 +68,9 @@ jobs:
             echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
 
             bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
+            #bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
+            #bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            #bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
           fi
 
   #publish-github:

@@ -1,0 +1,85 @@
+package com.aerospike.firefly.io.cache;
+
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
+import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.util.AbstractFireflySuite;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
+
+    @Override
+    protected boolean clearData() {
+        return true;
+    }
+
+    @Test
+    public void testSupernodeFlagSetAfterVertexCreation() {
+        final GraphTraversalSource g = graph.traversal();
+
+        // Create vertex.
+        PackedVertex v = (PackedVertex) g.addV("test").next();
+
+        // Validate ~supernode flag does not exist on vertex as it is virtual
+        Assert.assertFalse(v.property("~supernode").isPresent());
+
+        // Validate vertex supernode flag is not set.
+        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
+        Record r = graph.getBaseGraph().getClient().get(null, key);
+        Assert.assertFalse(v.isEdgeCacheOverflowed());
+        Assert.assertFalse(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+
+        // Set supernode flag and grab vertex.
+        v = (PackedVertex) g.V(v.id()).property("~supernode", true).next();
+
+        // Validate ~supernode flag does not exist on vertex as it is virtual
+        Assert.assertFalse(v.property("~supernode").isPresent());
+
+        // Validate cache overflowed flag is set.
+        Assert.assertTrue(v.isEdgeCacheOverflowed());
+        r = graph.getBaseGraph().getClient().get(null, key);
+        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+
+        // Grab vertex through id.
+        v = (PackedVertex) g.V(v.id()).next();
+
+        // Validate ~supernode flag does not exist on vertex as it is virtual
+        Assert.assertFalse(v.property("~supernode").isPresent());
+
+        // Validate cache overflowed flag is set.
+        Assert.assertTrue(v.isEdgeCacheOverflowed());
+        r = graph.getBaseGraph().getClient().get(null, key);
+        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+    }
+
+    @Test
+    public void testSupernodeFlagSetOnVertexCreation() {
+        final GraphTraversalSource g = graph.traversal();
+
+        // Create vertex.
+        PackedVertex v = (PackedVertex) g.addV("test").property("~supernode", true).next();
+
+        // Validate ~supernode flag does not exist on vertex as it is virtual
+        Assert.assertFalse(v.property("~supernode").isPresent());
+
+        // Validate vertex supernode flag is set.
+        final Key key = FireflyRecord.getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v.id);
+        Record r = graph.getBaseGraph().getClient().get(null, key);
+        Assert.assertTrue(v.isEdgeCacheOverflowed());
+        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+
+        v = (PackedVertex) g.V().hasLabel("test").next();
+
+        // Validate ~supernode flag does not exist on vertex as it is virtual
+        Assert.assertFalse(v.property("~supernode").isPresent());
+
+        // Validate vertex supernode flag is set.
+        r = graph.getBaseGraph().getClient().get(null, key);
+        Assert.assertTrue(v.isEdgeCacheOverflowed());
+        Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
+        Assert.assertFalse(v.property("~supernode").isPresent());
+    }
+}

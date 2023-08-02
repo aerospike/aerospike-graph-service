@@ -4,10 +4,10 @@ name: Publish Firefly Container
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [GRAPH-684]
 
 env:
+  VERSION: v0.0.0.0.1-rc1
   GITHUB_REPOSITORY_NAME: citrusleaf
   GITHUB_IMAGE_NAME: firefly
   GITHUB_REGISTRY_URL: ghcr.io

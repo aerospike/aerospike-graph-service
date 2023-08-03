@@ -54,7 +54,7 @@ jobs:
           
           # Find the release candidate number from ghcr.io.
           GITHUB_IMAGE_BASE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME
-          source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION
+          source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION || true
           
           # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME

@@ -10,7 +10,6 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
 
 env:
-  VERSION: v0.0.0.0.1-rc1
   GITHUB_REPOSITORY_NAME: citrusleaf
   GITHUB_IMAGE_NAME: firefly
   GITHUB_REGISTRY_URL: ghcr.io
@@ -39,8 +38,7 @@ jobs:
       - name: Publish Container
         run: |
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION="v0.0.0.0.1-rc1"
-          #VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
   
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')

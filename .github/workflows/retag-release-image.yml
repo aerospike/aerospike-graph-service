@@ -3,10 +3,10 @@ name: Publish Firefly Container
 # Publish the container if a tag of 'v*' is made.
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
-  #push:
-  #  branches: [main]
   pull_request:
     branches: [GRAPH-684]
+  #push:
+  #  branches: [main]
 
 env:
   VERSION: v0.0.0.0.1-rc1

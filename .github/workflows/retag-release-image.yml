@@ -1,0 +1,74 @@
+name: Publish Firefly Container
+
+# Publish the container if a tag of 'v*' is made.
+# Example: v0.0.1, v0.1.0, v1.0.0, etc.
+on:
+  push:
+    branches: [GRAPH-684]
+  pull_request:
+    branches: [GRAPH-684]
+
+env:
+  VERSION: v0.0.0.0.1-rc1
+  GITHUB_REPOSITORY_NAME: citrusleaf
+  GITHUB_IMAGE_NAME: firefly
+  GITHUB_REGISTRY_URL: ghcr.io
+  DOCKERHUB_IMAGE_NAME: test #aerospike-graph-service
+  DOCKERHUB_REPOSITORY_NAME: lyndonbauto #aerospike
+
+
+jobs:
+  publish-dockerhub:
+    name: Publish Firefly Docker Image - Dockerhub
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION="1.0.0"
+          #VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # Find the release candidate number from ghcr.io.
+          GITHUB_IMAGE_BASE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME
+          source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION
+          
+          # Get registry URL and convert to lower case.
+          DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
+          
+          # Set output image name.
+          OUTPUT_IMAGE=$IMAGE_BASE:$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          # Set latest tag
+          LATEST_IMAGE=$IMAGE_BASE:latest
+          LATEST_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+        
+          docker pull $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
+          docker tag $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG $OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG $LATEST_IMAGE
+          docker push $OUTPUT_IMAGE
+          docker push $LATEST_IMAGE

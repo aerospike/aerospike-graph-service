@@ -56,6 +56,8 @@ jobs:
           GITHUB_IMAGE_BASE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME
           source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION || true
           
+          GITHUB_IMAGE=$GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
+          
           # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           
@@ -66,9 +68,13 @@ jobs:
           # Set latest tag
           LATEST_IMAGE=$IMAGE_BASE:latest
           LATEST_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "output imge: $OUTPUT_IMAGE"
+          echo "latest image: $LATEST_IMAGE"
+          echo "github image: $GITHUB_IMAGE"
         
-          docker pull $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
-          docker tag $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG $OUTPUT_IMAGE
-          docker tag $GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG $LATEST_IMAGE
+          docker pull $GITHUB_IMAGE
+          docker tag $GITHUB_IMAGE $OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE $LATEST_IMAGE
           docker push $OUTPUT_IMAGE
           docker push $LATEST_IMAGE

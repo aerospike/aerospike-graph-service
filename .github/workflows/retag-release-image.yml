@@ -3,8 +3,8 @@ name: Publish Firefly Container
 # Publish the container if a tag of 'v*' is made.
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
-  push:
-    branches: [GRAPH-684]
+  #push:
+  #  branches: [main]
   pull_request:
     branches: [GRAPH-684]
 
@@ -62,11 +62,11 @@ jobs:
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
           
           # Set output image name.
-          OUTPUT_IMAGE=$IMAGE_BASE:$VERSION
+          OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
           OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
           
           # Set latest tag
-          LATEST_IMAGE=$IMAGE_BASE:latest
+          LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
           LATEST_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "output imge: $OUTPUT_IMAGE"

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
@@ -9,7 +10,10 @@ import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -23,6 +27,7 @@ public class HealthcheckServer {
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
     private final AerospikeConnection ac;
+    private static HealthcheckServer INSTANCE;
 
     private HealthcheckServer(final Configuration config, final int port) {
         this.port = port;
@@ -30,7 +35,29 @@ public class HealthcheckServer {
     }
 
     public static HealthcheckServer create(final Configuration config, final int port) {
-        return new HealthcheckServer(config, port);
+        if (started.compareAndExchange(false, true))
+            INSTANCE = new HealthcheckServer(config, port);
+        return INSTANCE;
+    }
+
+    public static HealthcheckServer get() {
+        if(started.get())
+            return INSTANCE;
+        else
+            throw new IllegalStateException("HealthcheckServer not started.");
+    }
+
+    public void stop(final Function<Optional<Throwable>, Void> onStopped) {
+        final Future<Void> f = vertx.close().andThen(it -> {
+            try {
+                onStopped.apply(Optional.ofNullable(it.cause()));
+                started.set(false);
+                INSTANCE = null;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
     }
 
     public void start() {

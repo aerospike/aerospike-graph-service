@@ -75,6 +75,14 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         HealthcheckServer.create(config, port).start();
     }
 
+    public static void stopHealthcheckServer() {
+        HealthcheckServer.get().stop(maybeError -> {
+            if (maybeError.isPresent())
+                throw new RuntimeException(maybeError.get());
+            return null;
+        });
+    }
+
     public static GremlinPlugin instance() {
         return instance;
     }

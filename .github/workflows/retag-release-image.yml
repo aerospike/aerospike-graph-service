@@ -1,20 +1,20 @@
 name: Publish Firefly Container
 
-# Publish the container if a tag of 'v*' is made.
+# Publish the container if a tag of 'vX.Y.Z' is made.
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
+# THIS WILL NOT RUN ON TAGS WITH A DASH IN THEM (no release candidates)
+
 on:
-  pull_request:
-    branches: [GRAPH-684]
   push:
-    branches: [GRAPH-684] #[main]
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 env:
-  VERSION: v0.0.0.0.1-rc1
   GITHUB_REPOSITORY_NAME: citrusleaf
   GITHUB_IMAGE_NAME: firefly
   GITHUB_REGISTRY_URL: ghcr.io
-  DOCKERHUB_IMAGE_NAME: test #aerospike-graph-service
-  DOCKERHUB_REPOSITORY_NAME: lyndonbauto #aerospike
+  DOCKERHUB_IMAGE_NAME: aerospike-graph-service
+  DOCKERHUB_REPOSITORY_NAME: aerospike
 
 
 jobs:
@@ -32,8 +32,8 @@ jobs:
       - name: Login to Dockerhub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: aerospikebuildbot
+          password: ${{ secrets.AEROSPIKEBUILDBOT }}
 
       - name: Login to GitHub Container Registry
         run: |
@@ -46,8 +46,7 @@ jobs:
       - name: Publish Container
         run: |
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION="1.0.0"
-          #VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -68,10 +67,6 @@ jobs:
           # Set latest tag
           LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
           LATEST_IMAGE=$(echo $LATEST_IMAGE | tr '[A-Z]' '[a-z]')
-          
-          echo "output imge: $OUTPUT_IMAGE"
-          echo "latest image: $LATEST_IMAGE"
-          echo "github image: $GITHUB_IMAGE"
         
           docker pull $GITHUB_IMAGE
           docker tag $GITHUB_IMAGE $OUTPUT_IMAGE

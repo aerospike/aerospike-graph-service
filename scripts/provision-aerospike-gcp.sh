@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-instances=${3} # Set number of Aerospike instances in cluster. Default to 3
+instances=3 # Set number of Aerospike instances in cluster. Default to 3
 as_conf=./aerospike.conf
 features_file=./features.conf
 name=${USER} #set name of cluster to username + optional extra name identifier
@@ -50,9 +50,9 @@ do
         -f) #features file
 #            echo "for $1 = $2"
             features_file=$2; shift 2;;
-        -n) #cluster name (USER prepended automatically)
+        -n) #cluster name
 #            echo "for $1 = $2"
-            name=${USER}$2; shift 2;;
+            name=$2; shift 2;;
         -o) # aerospike config
             as_conf=$2; shift 2;;
         -h)
@@ -84,19 +84,19 @@ aerolab cluster create -c ${instances} --instance ${instance_type}  -f $features
 --zone=us-central1-a --disk=pd-ssd:40 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd \
 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd --name=${name} --start=n;
 
-# Create partitions and blkdiscard
-aerolab cluster partition create --filter-type=local --name=${name}
+# Create partitions
+aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
 
 # Update configuration to use devices
-aerolab cluster partition conf --namespace=test --configure=device  --filter-type=nvme --filter-partitions=0 --name=${name}
+aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
 
 # Start the Aerospikes
 aerolab aerospike start --name=${name}
 
 # Add the prometheus exporter to each node of the cluster
-aerolab cluster add exporter -n ${name}
+#aerolab cluster add exporter -n ${name}
 
 # Create the monitoring stack
-aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=us-central1-a --instance=${instance_type} --disk=pd-ssd:40
+#aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=us-central1-a --instance=${instance_type} --disk=pd-ssd:40
 
 Hints

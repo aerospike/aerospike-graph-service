@@ -1,7 +1,6 @@
 package com.aerospike.firefly;
 
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.google.common.collect.ImmutableMap;
 
 import java.nio.file.Path;
@@ -17,8 +16,7 @@ public final class Tokens {
     //Path is relative to module, ie ./aerospike-graph-gremlin/
     private static final Map<String, Path> INTEGRATION_TEST_CONFIGURATIONS = ImmutableMap.of(
             PackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-packed.properties"),
-            PackedGraph.DATA_MODEL + "-sindex", Path.of("../conf/integration-test-settings-packed-sindex.properties"),
-            StarPackedGraph.DATA_MODEL, Path.of("../conf/integration-test-settings-star-packed.properties")
+            PackedGraph.DATA_MODEL + "-sindex", Path.of("../conf/integration-test-settings-packed-sindex.properties")
     );
 
     public static final Path INTEGRATION_TEST_PROPERTIES;

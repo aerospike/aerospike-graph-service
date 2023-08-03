@@ -5,10 +5,8 @@ import com.aerospike.firefly.io.UpgradeTask;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.aerospike.firefly.structure.FireflyGraph.DATAMODELVERSION;
 import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
@@ -38,16 +36,17 @@ public class Upgrade {
      * @return does it need to run upgrade?
      * @throws Exception if the data model is not compatible with the current version.
      */
-    public static boolean checkNeedsUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
-        final ComparableVersion driveVersion = db.getDataModelVersion();
-        final String driveDataModel = db.getDataModelName();
+    public static boolean checkNeedsUpgrade(final Class<? extends FireflyGraph> dataModel, final AerospikeConnection db)
+            throws Exception {
+        final AerospikeConnection.GraphMetadata driveGraph = db.getDataModelMetadata();
+        final ComparableVersion driveVersion = driveGraph.getDataModelVersion();
+        final String driveDataModel = driveGraph.getDataModelName();
         final String classDataModel = (String) dataModel.getMethod(GETDATAMODELNAME).invoke(null);
         final ComparableVersion classVersion = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
 
         if (driveVersion == null && driveDataModel == null) {
             // If both are null then this is a fresh system.
-            db.setModelVersion(classVersion.toString());
-            db.setModelName(classDataModel);
+            db.setGraphMetadata(classDataModel, classVersion.toString());
             return false;
         } else if (driveVersion == null || driveDataModel == null) {
             // This should never happen.
@@ -80,8 +79,8 @@ public class Upgrade {
      * @throws Exception if the data model is not compatible with the current version.
      */
     public static void performUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
-        throw new RuntimeException("Error, current drive version (" + db.getDataModelVersion() + ") " +
-                "of Aerospike Graph is incompatible with the current software version (" +
+        throw new RuntimeException("Error, current drive version (" + db.getDataModelMetadata().getDataModelVersion() +
+                ") of Aerospike Graph is incompatible with the current software version (" +
                 dataModel.getMethod(DATAMODELVERSION).invoke(null) + ").");
     }
 }

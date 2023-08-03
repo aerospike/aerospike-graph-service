@@ -1,13 +1,11 @@
 package com.aerospike.firefly.performance;
 
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.IOUtil;
 import com.aerospike.firefly.util.PerfUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -45,16 +43,8 @@ public class TestAirRoutes50k extends AbstractFireflySuite {
         }
     }
 
-    @Override
-    protected boolean runTest() {
-        // Do not run if the StarPackedGraph is being used. Takes too long.
-        return !graph.getDataModel().equals(StarPackedGraph.DATA_MODEL);
-    }
-
-
     @BeforeClass
     public static void loadAirRoutes() throws IOException, InterruptedException {
-        Assume.assumeTrue(!graph.getDataModel().equals(StarPackedGraph.DATA_MODEL));
         graph.getBaseGraph().dropDatabase(graph, false);
         if (!tempFile.exists()) IOUtil.downloadFileFromURL(airRoutesUrl, tempFile);
         g = graph.traversal();

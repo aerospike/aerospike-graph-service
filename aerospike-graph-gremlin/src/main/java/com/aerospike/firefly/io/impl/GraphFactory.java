@@ -2,7 +2,6 @@ package com.aerospike.firefly.io.impl;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.ImmutableMap;
@@ -24,8 +23,7 @@ final public class GraphFactory {
     // We can map the class here, but we do not instantiate the Graphs because that would
     // be unnecessary overhead.
     private static final Map<String, Class<? extends FireflyGraph>> DATA_MODEL_MAP = ImmutableMap.of(
-            PackedGraph.DATA_MODEL, PackedGraph.class,
-            StarPackedGraph.DATA_MODEL, StarPackedGraph.class
+            PackedGraph.DATA_MODEL, PackedGraph.class
     );
     private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
 

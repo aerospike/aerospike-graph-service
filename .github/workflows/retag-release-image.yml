@@ -5,8 +5,8 @@ name: Publish Firefly Container
 on:
   pull_request:
     branches: [GRAPH-684]
-  #push:
-  #  branches: [main]
+  push:
+    branches: [GRAPH-684] #[main]
 
 env:
   VERSION: v0.0.0.0.1-rc1

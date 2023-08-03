@@ -85,6 +85,9 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
     - name: Java 11 Install
       uses: actions/setup-java@v3
       with:

@@ -67,13 +67,6 @@ jobs:
           fi
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
 
-      - name: Run Snyk to check Docker image for vulnerabilities
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: ${{ env.OUTPUT_IMAGE }}
-
   publish-artifacts:
     name: Publish Artifacts
     timeout-minutes: 120

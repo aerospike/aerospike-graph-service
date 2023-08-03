@@ -4,75 +4,17 @@ name: Publish Firefly Container
 # Example: v0.0.1, v0.1.0, v1.0.0, etc.
 on:
   push:
-    branches: [GRAPH-684]
+    tags:
+      - 'v*'
 
 env:
   VERSION: v0.0.0.0.1-rc1
   GITHUB_REPOSITORY_NAME: citrusleaf
   GITHUB_IMAGE_NAME: firefly
   GITHUB_REGISTRY_URL: ghcr.io
-  DOCKERHUB_IMAGE_NAME: test #aerospike-graph-service
-  DOCKERHUB_REPOSITORY_NAME: lyndonbauto
 
 
 jobs:
-  publish-dockerhub:
-    name: Publish Firefly Docker Image - Dockerhub
-    permissions:
-      packages: write
-      contents: read
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Login to Dockerhub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Publish Container
-        run: |
-          # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION="v0.0.0.0.1-rc1"
-          #VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          
-          # Strip prefixed v if it is a tag.
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-          
-          # Get registry URL and convert to lower case.
-          IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
-          
-          OUTPUT_IMAGE=$IMAGE_BASE:$VERSION
-          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
-          UNSTABLE_INDICATOR="-"
-          if [[ $( echo $VERSION | grep -c -i $UNSTABLE_INDICATOR ) -eq 0 ]]; then
-            DOCKER_IMAGE=$IMAGE_BASE:latest
-            DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
-            # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
-            echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-          
-            export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=1"
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
-          else
-            DOCKER_IMAGE=$IMAGE_BASE:unstable
-            DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
-            # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
-            echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/arm64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
-          fi
 
   publish-github:
     name: Publish Firefly Docker Image - GitHub
@@ -128,18 +70,31 @@ jobs:
             bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
             bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/arm64 --push
           fi
+          echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
 
-      - name: Java 11 Install
-        uses: actions/setup-java@v3
+      - name: Run Snyk to check Docker image for vulnerabilities
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          java-version: '11'
-          distribution: 'temurin'
+          image: ${{ env.OUTPUT_IMAGE }}
 
-      - name: Build Bulk Loader
-        run: |
-          mvn clean install -DskipTests
+  publish-artifacts:
+    name: Publish Artifacts
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+    - name: Java 11 Install
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
 
-      - name: Upload Bulk Loader
-        uses: actions/upload-artifact@v3
-        with:
-          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar
+    - name: Build Bulk Loader
+      run: |
+        mvn clean install -DskipTests
+
+    - name: Upload Bulk Loader
+      uses: actions/upload-artifact@v3
+      with:
+        path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar

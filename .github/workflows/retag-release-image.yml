@@ -67,7 +67,7 @@ jobs:
           
           # Set latest tag
           LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
-          LATEST_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          LATEST_IMAGE=$(echo $LATEST_IMAGE | tr '[A-Z]' '[a-z]')
           
           echo "output imge: $OUTPUT_IMAGE"
           echo "latest image: $LATEST_IMAGE"

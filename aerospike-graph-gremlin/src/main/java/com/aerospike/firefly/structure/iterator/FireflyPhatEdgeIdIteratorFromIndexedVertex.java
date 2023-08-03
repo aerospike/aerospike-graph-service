@@ -28,11 +28,11 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
 
     @Override
     protected String getInVBinName() {
-        return this.db.SUPERNODES_IN;
+        return this.db.SUPERNODES_IN_BIN;
     }
 
     @Override
     protected String getOutVBinName() {
-        return this.db.SUPERNODES_OUT;
+        return this.db.SUPERNODES_OUT_BIN;
     }
 }

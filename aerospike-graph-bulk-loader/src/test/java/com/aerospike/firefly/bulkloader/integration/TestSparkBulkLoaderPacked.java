@@ -21,6 +21,8 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String DUPLICATE_EDGE_ID = "src/test/resources/conf/packed/duplicate-edge-id.properties";
     static private final String NONEXISTENT_VERTEX_ID = "src/test/resources/conf/packed/nonexistent-vertex-id.properties";
     static private final String S3_FILESYSTEM = "src/test/resources/conf/packed/filesystem-s3.properties";
+    static private final String GCS_FILESYSTEM = "src/test/resources/conf/packed/filesystem-gcs.properties";
+    static private final String FAILING_CLIENT = "src/test/resources/conf/packed/failing-client.properties";
     static private final String DATA_MODEL = "packed";
 
     @Test
@@ -91,5 +93,15 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     @Override
     protected String getS3FileSystem() {
         return S3_FILESYSTEM;
+    }
+
+    @Override
+    protected String getGcsFileSystem() {
+        return GCS_FILESYSTEM;
+    }
+
+    @Override
+    protected String getFailingClient() {
+        return FAILING_CLIENT;
     }
 }

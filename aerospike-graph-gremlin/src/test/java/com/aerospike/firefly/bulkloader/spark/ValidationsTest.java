@@ -13,38 +13,40 @@ import org.apache.spark.sql.types.StructType;
 import java.util.Arrays;
 
 public class ValidationsTest extends TestCase {
-    private SparkSession spark;
-    
-    public void setUp() throws Exception {
-        spark = SparkSession
+    private static SparkSession SPARK;
+
+    @Override
+    public void setUp() {
+        SPARK = SparkSession
                 .builder()
                 .appName("validations test")
                 .master("local[1]") // We use local mode for tests
                 .getOrCreate();
     }
 
+    @Override
     public void tearDown() throws Exception {
-        if (spark != null) {
-            spark.stop();
+        if (SPARK != null) {
+            SPARK.stop();
         }
     }
 
     public void testTestDupilcateVertices() {
         final String groupColumn ="~id";
         // Vertices with ~id 1 and 2 are present multiple times in dataframe
-        Dataset<Row> df = spark.createDataFrame(Arrays.asList(
-                RowFactory.create("1", 1, "file1"),
-                RowFactory.create("1", 5, "file2"),
-                RowFactory.create("2", 4 , "file3"),
-                RowFactory.create("2", 9 , "file3"),
-                RowFactory.create("3", 1, "file1")
+        Dataset<Row> df = SPARK.createDataFrame(Arrays.asList(
+                RowFactory.create("1", 1L, "file1"),
+                RowFactory.create("1", 5L, "file2"),
+                RowFactory.create("2", 4L, "file3"),
+                RowFactory.create("2", 9L, "file3"),
+                RowFactory.create("3", 1L, "file1")
         ), new StructType(new StructField[]{
                 new StructField(groupColumn, DataTypes.StringType, false, Metadata.empty()),
-                new StructField(DatasetOperations.LINENUMBER_COLUMN, DataTypes.IntegerType, false, Metadata.empty()),
+                new StructField(DatasetOperations.LINENUMBER_COLUMN, DataTypes.LongType, false, Metadata.empty()),
                 new StructField(DatasetOperations.FILENAME_COLUMN, DataTypes.StringType, false, Metadata.empty())
         }));
 
-        //should be false because we have two vertices with greater than one cardinality
-        assertFalse(Validations.testDupilcateVertices(df,null));
+        // Should be false because we have two vertices with cardinality greater than one
+        assertFalse(Validations.validateNoDuplicateVertexIds(df));
     }
 }

@@ -10,6 +10,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -178,11 +179,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     @Override
     public <V> Iterator<VertexProperty<V>> properties(final String... propertyKeys) {
         if (propertyKeys.length == 1) {
-            return (propertyKeys[0] != null) ?
-                    // Read single vertex property.
-                    readVertexProperty(propertyKeys[0]) :
-                    // Null property key is not valid and also can cause null key exception in the map.
-                    Collections.emptyIterator();
+            if (propertyKeys[0] == null)
+                return Collections.emptyIterator();
+            return readVertexProperty(propertyKeys[0]);
         }
 
 

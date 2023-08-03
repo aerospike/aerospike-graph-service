@@ -65,7 +65,7 @@ An example `firefly-graph.properties` file is provided above already, and a samp
 ```
 host: 0.0.0.0
 port: 8182
-evaluationTimeout: 1200000
+evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
   graph: /opt/aerospike-firefly/conf/firefly-graph.properties}

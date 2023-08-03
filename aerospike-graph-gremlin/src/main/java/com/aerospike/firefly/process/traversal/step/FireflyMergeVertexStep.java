@@ -193,7 +193,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                             results.add(graph.queryIndex(propertyIndexInfo.get(), predicate, graph::vertexFromRecord));
                         } else {
                             LOG.debug("No index found for vertex label, running scan");
-                            results.add(graph.queryScan(null, graph.getBaseGraph().VERTEX_AERO_SET, AerospikeConnection.LABEL, predicate, graph::vertexFromRecord));
+                            results.add(graph.queryScan(null, graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate, graph::vertexFromRecord));
                         }
                     } else {
                         results.add(graph.vertices());
@@ -210,7 +210,7 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                             iterator = graph.queryIndex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
-                            iterator = graph.queryScan(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE, P.eq(value), graph::vertexFromRecord);
+                            iterator = graph.queryScan(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value), graph::vertexFromRecord);
                         }
                         results.add(iterator);
                     } else {

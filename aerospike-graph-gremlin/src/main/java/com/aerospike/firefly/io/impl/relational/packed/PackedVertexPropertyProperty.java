@@ -9,9 +9,6 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyProperty;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -53,9 +50,9 @@ public class PackedVertexPropertyProperty<V> extends FireflyProperty<V> {
         final AerospikeConnection db = this.graph.getBaseGraph();
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, ((FireflyVertex) vertexProperty.element()).id);
 
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES, Value.get(key()), MapReturnType.NONE,
+        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(key()), MapReturnType.NONE,
                 CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(key()), MapReturnType.NONE,
+        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(key()), MapReturnType.NONE,
                 CTX.mapKey(Value.get(vertexProperty.id.getStorageId())));
 
         try {

@@ -1,6 +1,8 @@
 package com.aerospike.firefly.bulkloader.spark.structure;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
+import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -67,7 +69,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                 final Map.Entry<String, Object> property = generateProperty(header, row.getAs(header), nullValue);
                 properties.add(property);
             } catch (final RuntimeException e) {
-                LOG.error("Failed to generate property for header '" + header + "' from value: " + row.getAs(header));
+                LOG.error("Failed to generate Edge property for header '" + header + "' from value: " + row.getAs(header));
                 throw new FireflyBulkLoaderException(e);
             }
         }
@@ -81,7 +83,12 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         if (forVerification) {
             edgeId = null;
         } else {
-            edgeId = graph.edgeIdManager.getNextId(graph);
+            try {
+                edgeId = graph.edgeIdManager.getNextId(graph);
+            } catch (final AerospikeException e) {
+                // Do this to trigger retries
+                throw new FireflyLoadingException(e);
+            }
         }
         if (keepProvidedId && id != null) {
             properties.add(generateProperty(providedIdPropertyName, id, nullValue));

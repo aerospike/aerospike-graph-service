@@ -29,7 +29,7 @@ public class TestRelationalVertex {
         // TODO: Is this test even valuable now? Scans no longer work properly on Edge records that are adjacency
         //       indexed and an adjacency index query only returns overflow Edges that couldn't fit in the Edge caches.
         //       All we can really test now is a scan versus a non-overflowing Edge cache for equality.
-        CONFIG.setProperty(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED.toLowerCase(), true);
+        CONFIG.setProperty(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), true);
         CONFIG.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), 10000);
     }
 

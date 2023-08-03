@@ -35,4 +35,33 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
                     .next());
         }
     }
+
+    @Test
+    public void testRemoteEntryPointS3() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            Assert.assertEquals("Success", g.call("bulk-load")
+                    .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
+                    .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
+                    .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                    .next());
+        }
+    }
+
+    @Test
+    public void testRemoteEntryPointGcs() throws Exception {
+        try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
+            g.V().drop().iterate();
+            g.E().drop().iterate();
+            Assert.assertEquals("Success", g.call("bulk-load")
+                    .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
+                    .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
+                    .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
+                    .next());
+        }
+    }
 }

@@ -53,7 +53,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
         }
     }
     protected void getNextKeyRecords() {
-        this.currentRecordEdgeIds = ((Map<ByteBuffer, String>) this.keyRecords.next().record.getMap(AerospikeConnection.LABEL))
+        this.currentRecordEdgeIds = ((Map<ByteBuffer, String>) this.keyRecords.next().record.getMap(db.LABEL_BIN))
                 .keySet().iterator();
     }
 }

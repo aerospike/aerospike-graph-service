@@ -26,7 +26,7 @@ public class HealthcheckServer {
 
     private HealthcheckServer(final Configuration config, final int port) {
         this.port = port;
-        this.ac = new AerospikeConnection(config);
+        this.ac = AerospikeConnection.connect(config);
     }
 
     public static HealthcheckServer create(final Configuration config, final int port) {

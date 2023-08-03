@@ -123,7 +123,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             assertFalse(locationIndex.isPresent());
 
             final String setfrom = db.EDGE_AERO_SET;
-            final String binfrom = db.PROPERTIES;
+            final String binfrom = db.PROPERTIES_BIN;
 
 //            final Iterator<Edge> edgeIteratorFromString = fireflyGraph.queryScan("from", setfrom, binfrom, P.eq("BitQuill"), fireflyGraph::edgeFromRecord);
 //            Assert.assertTrue(edgeIteratorFromString.hasNext());
@@ -155,7 +155,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
 
     @Test
     public void testEdgeLabelIndexEnabled() {
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
             final Vertex person = g.addV("person").next();
@@ -166,7 +166,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
                     fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
             Map.Entry<String, String> edgeLabelIndex = null;
             for (final Map.Entry<String, String> index : indices) {
-                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX)) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
                     edgeLabelIndex = index;
                 }
             }
@@ -176,13 +176,13 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
 //            final Iterator<FireflyEdge> edges = fireflyGraph.queryScan(null, db.EDGE_AERO_SET, AerospikeConnection.LABEL, P.eq("owns"), graph::edgeFromRecord);
 //            Assert.assertTrue(edges.hasNext());
         } finally {
-            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase());
         }
     }
 
     @Test
     public void testEdgeLabelIndexDisabled() {
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
 
             final GraphTraversalSource g = fireflyGraph.traversal();
@@ -193,7 +193,7 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             final List<Map.Entry<String, String>> indices = AerospikeConnection.InfoOps.listExistingIndexes(
                     fireflyGraph.getBaseGraph().getClient(), fireflyGraph.getBaseGraph().getNamespace());
             for (final Map.Entry<String, String> index : indices) {
-                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX)) {
+                if (index.getKey().equals(fireflyGraph.getBaseGraph().E_LABEL_INDEX_NAME)) {
                     Assert.fail("Vertex label index found when it should have been disabled.");
                 }
             }
@@ -203,16 +203,16 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
 //            final Iterator<FireflyEdge> edges = fireflyGraph.queryScan(null, db.EDGE_AERO_SET, AerospikeConnection.LABEL, P.eq("owns"), graph::edgeFromRecord);
 //            Assert.assertTrue(edges.hasNext());
         } finally {
-            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase());
+            config.clearProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase());
         }
     }
 
     @Test
     public void testEdgeLabelIndexUnion() {
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
-        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
+        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
         try (final FireflyGraph fireflyGraph1 = FireflyGraph.open(config)) {
-            config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), false);
+            config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
             try (final FireflyGraph fireflyGraph2 = FireflyGraph.open(config)) {
                 final Optional<FireflyIndexMetadata.IndexInfo> vertexIndexInfo1 = fireflyGraph1.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", "owns");
                 Assert.assertFalse(vertexIndexInfo1.isPresent());
@@ -228,11 +228,11 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
 
     @Test
     public void testEdgeLabelIndexPersists() {
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), true);
-        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), true);
+        config.setProperty(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
         }
-        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED.toLowerCase(), false);
+        config.setProperty(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG.toLowerCase(), false);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final Optional<FireflyIndexMetadata.IndexInfo> vertexIndexInfo = fireflyGraph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, "~label", "owns");
             Assert.assertFalse(vertexIndexInfo.isPresent());

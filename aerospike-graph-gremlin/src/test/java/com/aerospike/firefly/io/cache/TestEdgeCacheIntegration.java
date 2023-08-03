@@ -147,13 +147,13 @@ public class TestEdgeCacheIntegration {
 
             final Key v1Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v1.id);
             final Key v2Key = getKey(graph.getBaseGraph(), graph.getBaseGraph().VERTEX_AERO_SET, v2.id);
-            final Operation getOutEdgeCache = Operation.get(graph.getBaseGraph().OUT_EDGES);
-            final Operation getInEdgeCache = Operation.get(graph.getBaseGraph().IN_EDGES);
+            final Operation getOutEdgeCache = Operation.get(graph.getBaseGraph().OUT_EDGES_BIN);
+            final Operation getInEdgeCache = Operation.get(graph.getBaseGraph().IN_EDGES_BIN);
             Record outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
             Record inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
 
-            Map<String, List<Object>> outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES);
-            Map<String, List<Object>> inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES);
+            Map<String, List<Object>> outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
+            Map<String, List<Object>> inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);
             Assert.assertEquals(1, outMap.size());
             Assert.assertEquals(1, inMap.size());
             Assert.assertEquals(2, outMap.get("pepperoni").size());
@@ -180,8 +180,8 @@ public class TestEdgeCacheIntegration {
             outResult = graph.getBaseGraph().operate(null, v1Key, getOutEdgeCache);
             inResult = graph.getBaseGraph().operate(null, v2Key, getInEdgeCache);
 
-            outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES);
-            inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES);
+            outMap = (Map<String, List<Object>>) outResult.getMap(graph.getBaseGraph().OUT_EDGES_BIN);
+            inMap = (Map<String, List<Object>>) inResult.getMap(graph.getBaseGraph().IN_EDGES_BIN);
             Assert.assertEquals(1, outMap.size());
             Assert.assertEquals(1, inMap.size());
             Assert.assertEquals(1, outMap.get("pepperoni").size());

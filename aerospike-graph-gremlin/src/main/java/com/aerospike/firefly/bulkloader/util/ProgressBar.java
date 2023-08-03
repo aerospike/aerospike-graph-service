@@ -14,9 +14,10 @@ public class ProgressBar extends TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProgressBar.class);
 
     private FireflyGraph graph = null;
+    private boolean preflightCheckComplete = false;
+    private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
     private boolean vertexValidationComplete = false;
-    private boolean superNodeExtractionComplete = false;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
     private long startVertexTime = 0L;
@@ -73,6 +74,12 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    public void setPreflightCheckComplete() {
+        synchronized (ProgressBar.class) {
+            this.preflightCheckComplete = true;
+        }
+    }
+
     public void setSuperNodeExtractionComplete() {
         synchronized (ProgressBar.class) {
             this.superNodeExtractionComplete = true;
@@ -80,10 +87,10 @@ public class ProgressBar extends TimerTask {
     }
 
     private String getPreFlightCheckProgress() {
-        if (startVertexTime == 0 && startEdgeTime == 0) {
-            return "\t\tPreflight check in progress\n";
-        } else {
+        if (this.preflightCheckComplete) {
             return "\t\tPreflight check complete\n";
+        } else {
+            return "\t\tPreflight check in progress\n";
         }
     }
 
@@ -170,10 +177,10 @@ public class ProgressBar extends TimerTask {
         }
     }
 
-    private String superNodeExtractionProgress() {
+    private String getSuperNodeExtractionProgress() {
         if (superNodeExtractionComplete) {
             return "\t\tSupernode extraction complete\n";
-        } else if (vertexValidationComplete) {
+        } else if (preflightCheckComplete) {
             return "\t\tSupernode extraction in progress\n";
         } else {
             return "\t\tSupernode extraction not started\n";
@@ -203,9 +210,9 @@ public class ProgressBar extends TimerTask {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
                 LOGGER.info("\n\tBulk Loader Progress:\n" +
                         getPreFlightCheckProgress() +
+                        getSuperNodeExtractionProgress() +
                         getVertexWritingProgress(elementMetadata) +
                         getVertexValidationProgress() +
-                        superNodeExtractionProgress() +
                         getEdgeWritingProgress(elementMetadata) +
                         getEdgeValidationProgress());
             } catch (Exception e) {

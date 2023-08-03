@@ -12,18 +12,18 @@ import java.util.Set;
 
 public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private final FireflyGraph graph;
-    public static final String PRETTY_PRINT_FORMAT_LOG = "Total vertex count: {}.\n" +
-            "Vertex count by label: {}.\n" +
-            "Vertex properties by label: {}.\n" +
-            "Total edge count: {}.\n" +
-            "Edge count by label: {}.\n" +
-            "Edge properties by label: {}.";
-    public static final String PRETTY_PRINT_FORMAT_SYSTEM = "Total vertex count: %d.\n" +
-            "Vertex count by label: %s.\n" +
-            "Vertex properties by label: %s.\n" +
-            "Total edge count: %d.\n" +
-            "Edge count by label: %s.\n" +
-            "Edge properties by label: %s.";
+    public static final String PRETTY_PRINT_FORMAT_LOG = "\tTotal vertex count: {}.\n" +
+            "\tVertex count by label: {}.\n" +
+            "\tVertex properties by label: {}.\n" +
+            "\tTotal edge count: {}.\n" +
+            "\tEdge count by label: {}.\n" +
+            "\tEdge properties by label: {}.";
+    public static final String PRETTY_PRINT_FORMAT_SYSTEM = "\tTotal vertex count: %d.\n" +
+            "\tVertex count by label: %s.\n" +
+            "\tVertex properties by label: %s.\n" +
+            "\tTotal edge count: %d.\n" +
+            "\tEdge count by label: %s.\n" +
+            "\tEdge properties by label: %s.";
 
     public FireflyMetadataServiceFactory(final FireflyGraph graph) {
         this.graph = graph;

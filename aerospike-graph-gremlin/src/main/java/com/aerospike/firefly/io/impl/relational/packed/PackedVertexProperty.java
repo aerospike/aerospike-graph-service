@@ -96,15 +96,15 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
         final Operation writeTypeHint;
 
         if (propertyValue == null) {
-            writeValue = MapOperation.removeByKey(db.PROPERTIES, Value.get(propertyKey), MapReturnType.NONE,
+            writeValue = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(Value.get(id.getStorageId())));
-            writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS, Value.get(propertyKey), MapReturnType.NONE,
+            writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(Value.get(id.getStorageId())));
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            writeValue = MapOperation.put(policy, db.PROPERTIES, Value.get(propertyKey), Value.get(propertyValue),
+            writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(propertyValue),
                     CTX.mapKey(Value.get(id.getStorageId())));
-            writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS, Value.get(propertyKey),
+            writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
                     Value.get(getSupportedType(propertyValue)),
                     CTX.mapKey(Value.get(id.getStorageId())));
         }

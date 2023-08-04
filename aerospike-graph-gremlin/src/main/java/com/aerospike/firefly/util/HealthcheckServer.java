@@ -35,13 +35,17 @@ public class HealthcheckServer {
     }
 
     public static HealthcheckServer create(final Configuration config, final int port) {
-        if (started.compareAndExchange(false, true))
-            INSTANCE = new HealthcheckServer(config, port);
+        synchronized (HealthcheckServer.class) {
+            if (!started.get()) {
+                INSTANCE = new HealthcheckServer(config, port);
+            }
+            started.set(true);
+        }
         return INSTANCE;
     }
 
     public static HealthcheckServer get() {
-        if(started.get())
+        if (started.get())
             return INSTANCE;
         else
             throw new IllegalStateException("HealthcheckServer not started.");

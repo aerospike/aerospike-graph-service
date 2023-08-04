@@ -13,10 +13,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.assertEquals;
 
-/*
-  Created by Grant Haywood grant@iowntheinter.net
-  7/23/23
-*/
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ */
 public class PluginUtilTest extends AbstractFireflySuite {
     public static class TestPlugin implements PluginInterface {
         public static AtomicLong counter = new AtomicLong(0);

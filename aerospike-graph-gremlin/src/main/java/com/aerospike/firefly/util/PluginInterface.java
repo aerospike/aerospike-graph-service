@@ -1,11 +1,13 @@
-package com.aerospike.firefly.util;/*
-  Created by Grant Haywood grant@iowntheinter.net
-  7/23/23
-*/
+package com.aerospike.firefly.util;
+
 
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+ */
 public interface PluginInterface {
     public static class Methods {
         public static String API = "api";

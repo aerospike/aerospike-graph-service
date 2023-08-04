@@ -21,9 +21,9 @@ public class PluginUtil {
             final Class clazz = Optional.ofNullable(Class.forName(className)).orElseThrow(() ->
                     new RuntimeException("Could not load class: " + className));
             return clazz.getMethod(STATIC_OPEN_METHOD, Configuration.class).invoke(null, config);
-        } catch (NoSuchMethodException nsm) {
+        } catch (final NoSuchMethodException nsm) {
             throw new RuntimeException(String.format("Class %s does not properly implement a static open(Configuration) method", className));
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -35,10 +35,10 @@ public class PluginUtil {
      * @param system The system to load the plugin into
      */
     public static void loadPlugin(final String pluginClass, final Configuration config, final Object system) {
-        PluginInterface pluginImpl = (PluginInterface) openClassRef(pluginClass, null);
+        final PluginInterface pluginImpl = (PluginInterface) openClassRef(pluginClass, null);
         try {
             pluginImpl.getClass().getMethod(PluginInterface.Methods.PLUG_INTO, Object.class).invoke(pluginImpl, system);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }

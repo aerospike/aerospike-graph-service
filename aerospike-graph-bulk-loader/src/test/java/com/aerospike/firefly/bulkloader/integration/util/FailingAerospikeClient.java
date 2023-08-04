@@ -35,6 +35,7 @@ import com.aerospike.client.listener.BatchOperateListListener;
 import com.aerospike.client.listener.BatchRecordArrayListener;
 import com.aerospike.client.listener.BatchRecordSequenceListener;
 import com.aerospike.client.listener.BatchSequenceListener;
+import com.aerospike.client.listener.ClusterStatsListener;
 import com.aerospike.client.listener.DeleteListener;
 import com.aerospike.client.listener.ExecuteListener;
 import com.aerospike.client.listener.ExistsArrayListener;
@@ -46,6 +47,7 @@ import com.aerospike.client.listener.RecordArrayListener;
 import com.aerospike.client.listener.RecordListener;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.listener.WriteListener;
+import com.aerospike.client.metrics.MetricsPolicy;
 import com.aerospike.client.policy.AdminPolicy;
 import com.aerospike.client.policy.BatchDeletePolicy;
 import com.aerospike.client.policy.BatchPolicy;
@@ -365,8 +367,23 @@ public class FailingAerospikeClient implements IAerospikeClient {
         return delegate.getNode(nodeName);
     }
 
+    @Override
+    public void enableMetrics(final MetricsPolicy metricsPolicy) {
+        delegate.enableMetrics(metricsPolicy);
+    }
+
+    @Override
+    public void disableMetrics() {
+        delegate.disableMetrics();
+    }
+
     public ClusterStats getClusterStats() {
         return delegate.getClusterStats();
+    }
+
+    @Override
+    public void getClusterStats(final ClusterStatsListener clusterStatsListener) {
+        delegate.getClusterStats(clusterStatsListener);
     }
 
     public Cluster getCluster() {

@@ -24,10 +24,10 @@ public class PluginUtil {
     }
 
     public static void loadPlugin(final String pluginClass, final Configuration config, final Object system) {
-        PluginInterface pluginImpl = (PluginInterface) openClassRef(pluginClass, null);
+        final PluginInterface pluginImpl = (PluginInterface) openClassRef(pluginClass, null);
         try {
             pluginImpl.getClass().getMethod(PluginInterface.Methods.PLUG_INTO, Object.class).invoke(pluginImpl, system);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }

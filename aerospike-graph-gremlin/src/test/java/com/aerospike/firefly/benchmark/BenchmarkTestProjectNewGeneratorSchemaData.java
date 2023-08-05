@@ -1,15 +1,14 @@
 package com.aerospike.firefly.benchmark;
 
-import junit.framework.TestCase;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.Before;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.BenchmarkParams;
@@ -24,12 +23,17 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
-import java.util.*;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
-import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
@@ -203,6 +207,26 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
 
         LOG.info("Results:");
         LOG.info(runResult.toString());
+
+        final JSONArray root = new JSONArray();
+        runResult.forEach(result -> {
+            JSONObject obj = new JSONObject();
+            obj.put("name", result.getPrimaryResult().getLabel());
+            obj.put("unit", result.getPrimaryResult().getScoreUnit());
+            obj.put("value", result.getPrimaryResult().getScore());
+            if (Double.isFinite(result.getPrimaryResult().getScoreError())) {
+                obj.put("range", result.getPrimaryResult().getScoreError());
+            } else {
+                obj.put("range", "0");
+            }
+            obj.put("extra", result.getPrimaryResult().getStatistics());
+            root.put(obj);
+        });
+        try (final FileWriter file = new FileWriter("target/benchmark.json")) {
+            file.write(root.toString());
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Benchmark
@@ -256,7 +280,6 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
                 .hasLabel(Schema.Cookie.label)
                 .properties().count().next();
     }
-
 
     @Benchmark
     public void countLabelsInSubgraphTwoHop(final Blackhole blackhole) {

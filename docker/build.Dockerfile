@@ -55,7 +55,7 @@ RUN mvn -pl aerospike-graph-gremlin dependency:build-classpath -DincludeScope=co
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
     then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 0.7.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.1' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.0.3' ;  \
     fi
 
 # Remove source code.

@@ -635,7 +635,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
           
@@ -971,7 +971,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
 
@@ -1025,7 +1025,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://dlcdn.apache.org/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.6.3/apache-tinkerpop-gremlin-server-3.6.3-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
 

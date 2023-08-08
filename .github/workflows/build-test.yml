@@ -497,7 +497,7 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   run-l3-bulk-loader:
     name: Run L3 Spark Bulk Loader
-    timeout-minutes: 120
+    timeout-minutes: 150
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -534,10 +534,16 @@ jobs:
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
           cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c 3 -n ${GITHUB_SHA::7} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
-      - name: Generate Bulk Loading Configuration for Deployed Cluster
+      - name: Generate Hosts List for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${GITHUB_SHA::7}
+      - name: Deploy Firefly Client Machine to GCP
+        run: |
+          aerolab client create base --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${GITHUB_SHA::7}-firefly
+          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
+          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${GITHUB_SHA::7}-firefly-1:firefly.tgz
+          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${GITHUB_SHA::7}-firefly-1:run-benchmark-gcp.sh
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
@@ -568,7 +574,18 @@ jobs:
           destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false
-      - name: Delete Compute Instances (Cleanup)
+      - name: Run Benchmark on GCP
+        run: |
+          gcloud compute ssh --zone=us-central1-a aerolab4-${GITHUB_SHA::7}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
+      - name: Upload Benchmark Results
+        run: |
+          gcloud compute ssh --zone=us-central1-a aerolab4-${GITHUB_SHA::7}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > benchmark.json
+          gcloud storage cp benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${GITHUB_SHA::7}/benchmark.json
+      - name: Delete Firefly Compute Instances (Cleanup)
+        if: always()
+        run: |
+          aerolab client destroy -f -n ${GITHUB_SHA::7}-firefly
+      - name: Delete Aerospike Compute Instances (Cleanup)
         if: always()
         run: |
           aerolab cluster destroy -f -n ${GITHUB_SHA::7}

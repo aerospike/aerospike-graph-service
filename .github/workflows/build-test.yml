@@ -522,7 +522,7 @@ jobs:
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
-          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
+          bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
           
           docker run -p 8182:8182  \
             -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \

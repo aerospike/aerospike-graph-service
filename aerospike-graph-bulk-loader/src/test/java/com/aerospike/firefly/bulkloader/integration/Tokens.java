@@ -1,7 +1,6 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.google.common.collect.ImmutableMap;
 
 import java.nio.file.Path;

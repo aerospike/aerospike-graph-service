@@ -1,4 +1,4 @@
-FROM aerospike-graph-bulk-loader-squash:latest
+FROM aerospike-graph-squash:latest
 
 # Set input arguments.
 ARG RELEASE_BUILD
@@ -15,7 +15,7 @@ ARG FIREFLY_DATA_MODEL
 ENV FIREFLY_DATA_MODEL=$FIREFLY_DATA_MODEL
 
 # Set container labels.
-LABEL org.opencontainers.image.description = "Docker image for Aerospike Graph with Bulk Loading."
+LABEL org.opencontainers.image.description = "Stripped Docker image for Aerospike Graph."
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.

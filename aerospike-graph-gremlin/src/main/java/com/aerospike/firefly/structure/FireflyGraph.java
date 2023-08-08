@@ -163,9 +163,6 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
     }
 
-
-
-
     protected FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;

@@ -21,6 +21,7 @@ public class FireflyAerospikeVersionCheck {
     private final int minor;
     private final int revision;
     private final int extension;
+    private static boolean versionLogged = false;
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
 
@@ -30,7 +31,10 @@ public class FireflyAerospikeVersionCheck {
             throw new IllegalArgumentException("Aerospike version cannot be null");
         }
 
-        LOG.info("Aerospike version: {}.", version);
+        if (!versionLogged) {
+            LOG.info("Aerospike version: {}.", version);
+            versionLogged = true;
+        }
 
         int begin = 0;
         int i = begin;

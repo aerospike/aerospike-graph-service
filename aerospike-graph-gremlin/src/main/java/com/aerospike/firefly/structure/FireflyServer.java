@@ -1,10 +1,12 @@
 package com.aerospike.firefly.structure;
 
+import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -29,6 +31,26 @@ public class FireflyServer {
             System.err.println("Usage: Server <conf file>");
             System.exit(1);
         }
+
+        Settings settings = FireflyGraph.getGremlinServerSettings();
+        try {
+            final Class<?> clazz = Class.forName(settings.graphManager);
+            final Constructor c = clazz.getConstructor(Settings.class);
+            GraphManager graphManager = (GraphManager) c.newInstance(settings);
+        } catch (ClassNotFoundException e) {
+            logger.error("Could not find GraphManager implementation "
+                            + "defined by the 'graphManager' setting as: {}",
+                    settings.graphManager);
+            throw new RuntimeException(e);
+        } catch (Exception e) {
+            logger.error("Could not invoke constructor on class {} (defined by "
+                            + "the 'graphManager' setting) with one argument of "
+                            + "class Settings",
+                    settings.graphManager);
+            throw new RuntimeException(e);
+        }
+
+
         String file = args[0];
         FireflyServer fireflyServer = new FireflyServer(file);
         fireflyServer.start().exceptionally(t -> {

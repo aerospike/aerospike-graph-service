@@ -4,7 +4,6 @@ import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -31,9 +30,6 @@ import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 public class WriteFailureTest {
     @Before
     public void setup() {
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeFalse(StarPackedGraph.isStarPackedGraph(fireflyGraph));
-        }
     }
 
     private static byte[] getBytesId(final long value) {

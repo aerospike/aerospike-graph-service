@@ -43,7 +43,7 @@
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
         <firefly.version>1.1.0-SNAPSHOT</firefly.version>
-        <aerospike.version>6.1.7</aerospike.version>
+        <aerospike.version>7.0.0</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>

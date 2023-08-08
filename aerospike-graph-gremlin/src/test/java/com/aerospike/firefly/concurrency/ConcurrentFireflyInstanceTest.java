@@ -1,6 +1,5 @@
 package com.aerospike.firefly.concurrency;
 
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -36,9 +35,6 @@ public class ConcurrentFireflyInstanceTest {
 
     @Before
     public void setup() {
-        try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeFalse(StarPackedGraph.isStarPackedGraph(fireflyGraph));
-        }
     }
 
     private static byte[] getBytesId(final long value) {

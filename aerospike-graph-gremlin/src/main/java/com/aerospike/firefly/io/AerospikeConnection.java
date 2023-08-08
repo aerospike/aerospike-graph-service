@@ -86,7 +86,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -610,36 +609,46 @@ public class AerospikeConnection implements AutoCloseable {
         return krl;
     }
 
-    public ComparableVersion getDataModelVersion() {
+    public GraphMetadata getDataModelMetadata() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
         policy.sendKey = false;
         Record dataModelRec = read(k, policy);
-        if (dataModelRec == null)
-            return null;
-        return new ComparableVersion(dataModelRec.getString(DATA_MODEL_VER));
+        return new GraphMetadata(dataModelRec);
     }
 
-    public void setModelVersion(final String ver) {
+    public void setGraphMetadata(final String name, final String version) {
+        final Bin dataModelNameBin = new Bin(DATA_MODEL_NAME, name);
+        final Operation writeName = Operation.put(dataModelNameBin);
+        final Bin dataModelVersionBin = new Bin(DATA_MODEL_VER, version);
+        final Operation writeVersion = Operation.put(dataModelVersionBin);
+
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Bin b = new Bin(DATA_MODEL_VER, ver);
-        write(k, b);
+        this.operate(null, k, writeName, writeVersion);
     }
 
-    public String getDataModelName() {
-        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        final Record dataModelRec = read(k, policy);
-        if (dataModelRec == null)
-            return null;
-        return dataModelRec.getString(DATA_MODEL_NAME);
-    }
+    public static class GraphMetadata {
+        private final Record metadataRecord;
 
-    public void setModelName(final String name) {
-        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Bin b = new Bin(DATA_MODEL_NAME, name);
-        write(k, b);
+        private GraphMetadata(final Record metadata) {
+            this.metadataRecord = metadata;
+        }
+
+        public ComparableVersion getDataModelVersion() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return new ComparableVersion(this.metadataRecord.getString(DATA_MODEL_VER));
+            }
+        }
+
+        public String getDataModelName() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return this.metadataRecord.getString(DATA_MODEL_NAME);
+            }
+        }
     }
 
     public static class InfoOps {
@@ -994,7 +1003,7 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, key.userKey.getObject());
+            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
         } else {
             newBins = bins;
         }
@@ -1013,7 +1022,7 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, key.userKey.getObject());
+            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
         } else {
             newBins = bins;
         }

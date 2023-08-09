@@ -994,7 +994,7 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, key.userKey.getObject());
+            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
         } else {
             newBins = bins;
         }
@@ -1013,7 +1013,7 @@ public class AerospikeConnection implements AutoCloseable {
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
         if (key.userKey.getObject() != null) {
             newBins = Arrays.copyOf(bins, bins.length + 1);
-            newBins[bins.length] = new Bin(USER_KEY_BIN, key.userKey.getObject());
+            newBins[bins.length] = new Bin(USER_KEY_BIN, Value.get(key.userKey.getObject()));
         } else {
             newBins = bins;
         }

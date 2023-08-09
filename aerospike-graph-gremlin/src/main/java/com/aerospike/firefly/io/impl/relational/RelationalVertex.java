@@ -737,7 +737,7 @@ public abstract class RelationalVertex extends FireflyVertex {
                 //       recover the user key for hash constructed keys
                 final List<Operation> operations = new ArrayList<>();
                 if (key.userKey.getObject() != null) {
-                    final Bin userKeyBin = new Bin(db.USER_KEY_BIN, key.userKey.getObject());
+                    final Bin userKeyBin = new Bin(db.USER_KEY_BIN, Value.get(key.userKey.getObject()));
                     final Operation writeUserKey = Operation.put(userKeyBin);
                     operations.add(writeUserKey);
                 }

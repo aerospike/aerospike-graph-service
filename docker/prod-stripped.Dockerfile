@@ -1,4 +1,4 @@
-FROM aerospike-graph-squash:latest
+FROM aerospike-graph-stripped-squash:latest
 
 # Set input arguments.
 ARG RELEASE_BUILD

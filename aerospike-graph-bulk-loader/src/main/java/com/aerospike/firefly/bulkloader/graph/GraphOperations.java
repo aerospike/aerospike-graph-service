@@ -3,7 +3,7 @@ package com.aerospike.firefly.bulkloader.graph;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
-import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;

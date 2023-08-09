@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.exception;
+package com.aerospike.firefly.process.call.bulkload.utils.exception;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;

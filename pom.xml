@@ -126,6 +126,9 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
+                    <environmentVariables>
+                        <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                    </environmentVariables>
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
@@ -144,6 +147,7 @@
                         <exclude>**/PrometheusExporterTest.java</exclude>
                         <exclude>**/CustomPrometheusExporterTest.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
+                        <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
                         <exclude>**/TestFireflyServer.java</exclude>
                     </excludes>
                 </configuration>

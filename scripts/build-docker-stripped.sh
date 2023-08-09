@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
-DOCKERFILE_A=${DOCKERFILE_A:-"docker/build.Dockerfile"}
-DOCKERFILE_B=${DOCKERFILE_B:-"docker/prod.Dockerfile"}
+DOCKERFILE_A=${DOCKERFILE_A:-"docker/build-stripped.Dockerfile"}
+DOCKERFILE_B=${DOCKERFILE_B:-"docker/prod-stripped.Dockerfile"}
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
@@ -20,8 +20,8 @@ if [[ -z "$PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
-BUILD_IMAGE="aerospike-graph-build:latest"
-SQUASH_IMAGE="aerospike-graph-squash:latest"
+BUILD_IMAGE="aerospike-graph-stripped-build:latest"
+SQUASH_IMAGE="aerospike-graph-stripped-squash:latest"
 #docker buildx create --use --name mybuilder
 
 #do the initial build

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
-import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.Dataset;
@@ -29,10 +29,10 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Supplier;
 
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 import static org.apache.spark.sql.functions.monotonically_increasing_id;

@@ -3,7 +3,7 @@ package com.aerospike.firefly.bulkloader.spark;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
-import com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -36,8 +36,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
 
 public class VertexOperations implements Serializable {
     public static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);

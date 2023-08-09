@@ -4,8 +4,6 @@ set -o pipefail
 DOCKERFILE_A=${DOCKERFILE_A:-"docker/build-stripped.Dockerfile"}
 DOCKERFILE_B=${DOCKERFILE_B:-"docker/prod-stripped.Dockerfile"}
 
-
-
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
     echo "Usage: $0 <tag> [platform] [--push]"

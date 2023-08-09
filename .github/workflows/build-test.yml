@@ -650,9 +650,6 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Run Memory Leak Test
-          -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
-          -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
-          aerospike/firefly &
         run: |
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer -DfailIfNoTests=false --no-transfer-progress
       - name: Publish Benchmark Results

@@ -18,12 +18,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>tinkergraph-gremlin</artifactId>
             <version>${tinkerpop.version}</version>
@@ -202,6 +196,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <!-- If we minimize the jar, we lose the google hadoop dependency we need for gcs. -->
                             <minimizeJar>false</minimizeJar>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>

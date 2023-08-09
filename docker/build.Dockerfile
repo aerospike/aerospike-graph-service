@@ -10,7 +10,7 @@ ENV ENTRYPOINT=$ENTRYPOINT
 ENV TINKERPOP_VERSION='3.6.3'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV SPARK_VERSION='3.4.0'
+ENV SPARK_VERSION='3.3.0'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
@@ -28,17 +28,17 @@ RUN yum -y update &&\
 
 # Download maven, gremlin-console, gremlin-server, and move/unzip/untar them.
 RUN cd /tmp &&\
-    curl -L -o maven.tar.gz $MAVEN_URL &&\
-    curl -L -o gremlin-console.zip $GREMLIN_CONSOLE_URL &&\
-    curl -L -o gremlin-server.zip $GREMLIN_SERVER_URL &&\
-    curl -L -o jansi-$JANSI_VERSION.jar $JANSI_URL &&\
-    tar -zxvf maven.tar.gz -C /opt/ &&\
-    unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
-    unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server &&\
-    mv jansi-$JANSI_VERSION.jar /opt/gremlin-console/lib &&\
-    rm -rf gremlin-console.zip &&\
-    rm -rf gremlin-server.zip &&\
-    rm -rf maven.tar.gz
+  curl -L -o maven.tar.gz $MAVEN_URL &&\
+  curl -L -o gremlin-console.zip $GREMLIN_CONSOLE_URL &&\
+  curl -L -o gremlin-server.zip $GREMLIN_SERVER_URL &&\
+  curl -L -o jansi-$JANSI_VERSION.jar $JANSI_URL &&\
+  tar -zxvf maven.tar.gz -C /opt/ &&\
+  unzip -qq gremlin-console.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION /opt/gremlin-console &&\
+  unzip -qq gremlin-server.zip -d /opt/ && ln -sf /opt/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION /opt/gremlin-server &&\
+  mv jansi-$JANSI_VERSION.jar /opt/gremlin-console/lib &&\
+  rm -rf gremlin-console.zip &&\
+  rm -rf gremlin-server.zip &&\
+  rm -rf maven.tar.gz
 
 # Append to PATH for maven and server.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"

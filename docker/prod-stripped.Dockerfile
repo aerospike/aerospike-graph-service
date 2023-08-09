@@ -15,7 +15,7 @@ ARG FIREFLY_DATA_MODEL
 ENV FIREFLY_DATA_MODEL=$FIREFLY_DATA_MODEL
 
 # Set container labels.
-LABEL org.opencontainers.image.description = "Stripped Docker image for Aerospike Graph."
+LABEL org.opencontainers.image.description = "Stripped Docker image for Aerospike Graph (Bulk loader and spark omitted)."
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.

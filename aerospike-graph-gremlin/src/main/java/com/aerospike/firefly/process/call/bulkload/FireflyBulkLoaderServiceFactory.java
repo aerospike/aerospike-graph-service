@@ -181,6 +181,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
             // Return success if it worked, otherwise it will return an exception.
             return FireflyCloseableIteratorUtils.of((R)"Success");
         } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
             throw new IllegalStateException("Error, to use the bulk loader via the call API, " +
                     "use the docker image with bulk loader support.", e);
         }

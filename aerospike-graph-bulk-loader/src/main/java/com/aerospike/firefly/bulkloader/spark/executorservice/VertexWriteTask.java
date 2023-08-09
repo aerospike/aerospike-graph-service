@@ -24,7 +24,7 @@ public class VertexWriteTask {
     private final Set<Object> supernodes;
 
     public VertexWriteTask(
-            com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry retry,
+            ExponentialBackoffRetry retry,
             final String nullValue,
             final FireflyGraph graph,
             final GenericRowWithSchema fireflyRow,

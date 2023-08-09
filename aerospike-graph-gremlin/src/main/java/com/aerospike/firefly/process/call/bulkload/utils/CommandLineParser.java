@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.util;
+package com.aerospike.firefly.process.call.bulkload.utils;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -9,17 +9,17 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.NULL_VALUE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
 
 public class CommandLineParser {
     private static final Logger LOGGER = LoggerFactory.getLogger(CommandLineParser.class);

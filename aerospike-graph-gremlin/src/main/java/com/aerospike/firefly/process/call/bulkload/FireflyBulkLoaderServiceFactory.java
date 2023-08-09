@@ -1,6 +1,7 @@
-package com.aerospike.firefly.process.call;
+package com.aerospike.firefly.process.call.bulkload;
 
-import com.aerospike.firefly.bulkloader.SparkBulkLoaderMain;
+import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
@@ -13,20 +14,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.KEY_TO_CMD;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
-import static com.aerospike.firefly.bulkloader.util.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.DRY_RUN;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.LOCAL_MODE;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_EDGE;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.VERIFY_VERTEX;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_EDGE;
-import static com.aerospike.firefly.bulkloader.util.CommandLineParser.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEY_TO_CMD;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_EDGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_EDGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-firefly/conf/firefly-graph.properties";
@@ -172,10 +173,17 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
             args.add(formatArg((VERIFY_EDGE)));
         }
 
-        SparkBulkLoaderMain.main(args.toArray(new String[0]));
+        try {
+            final Class<? extends FireflyBulkLoaderInterface> bulkLoaderClass = (Class<? extends FireflyBulkLoaderInterface>)
+                    Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");
+            bulkLoaderClass.newInstance().load(args.toArray(new String[0]));
 
-        // Return success if it worked, otherwise it will return an exception.
-        return FireflyCloseableIteratorUtils.of((R)"Success");
+            // Return success if it worked, otherwise it will return an exception.
+            return FireflyCloseableIteratorUtils.of((R)"Success");
+        } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            throw new IllegalStateException("Error, to use the bulk loader via the call API, " +
+                    "use the docker image with bulk loader support.", e);
+        }
     }
 
     private boolean getBooleanFromObject(final Object obj, final String name) {

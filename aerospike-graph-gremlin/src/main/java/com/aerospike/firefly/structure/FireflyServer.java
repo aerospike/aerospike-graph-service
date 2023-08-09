@@ -29,6 +29,7 @@ public class FireflyServer {
             System.err.println("Usage: Server <conf file>");
             System.exit(1);
         }
+
         String file = args[0];
         FireflyServer fireflyServer = new FireflyServer(file);
         fireflyServer.start().exceptionally(t -> {

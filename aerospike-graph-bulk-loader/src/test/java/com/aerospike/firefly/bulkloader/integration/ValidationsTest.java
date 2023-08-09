@@ -1,5 +1,7 @@
-package com.aerospike.firefly.bulkloader.spark;
+package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
+import com.aerospike.firefly.bulkloader.spark.Validations;
 import junit.framework.TestCase;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -31,7 +33,7 @@ public class ValidationsTest extends TestCase {
         }
     }
 
-    public void testTestDupilcateVertices() {
+    public void testTestDuplicateVertices() {
         final String groupColumn ="~id";
         // Vertices with ~id 1 and 2 are present multiple times in dataframe
         Dataset<Row> df = SPARK.createDataFrame(Arrays.asList(

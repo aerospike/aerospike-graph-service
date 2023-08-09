@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.exception;
+package com.aerospike.firefly.process.call.bulkload.utils.exception;
 
 public class FireflyBulkLoaderPreflightException extends FireflyBulkLoaderException {
 

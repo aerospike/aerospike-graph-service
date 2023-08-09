@@ -1,10 +1,10 @@
 package com.aerospike.firefly.bulkloader.integration;
 
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.bulkloader.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;

@@ -1,7 +1,7 @@
 package com.aerospike.firefly.bulkloader.spark.resilience;
 
-import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;

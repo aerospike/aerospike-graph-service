@@ -1,4 +1,4 @@
-package com.aerospike.firefly.bulkloader.util;
+package com.aerospike.firefly.process.call.bulkload.utils;
 
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;

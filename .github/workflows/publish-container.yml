@@ -73,7 +73,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image: ${{ env.OUTPUT_IMAGE }}
+          image: ${{ OUTPUT_IMAGE }}
 
 
   publish-artifacts:

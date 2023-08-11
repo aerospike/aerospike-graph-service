@@ -36,7 +36,6 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Publish Container
-        id: publish-container
         run: |
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')

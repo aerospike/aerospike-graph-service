@@ -403,6 +403,9 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
                 sleep(1000);
+            // Add extra long sleep since metadata task sometimes is busy or sleeping and comes in late
+            // and isn't removed.
+            sleep(5000);
             graph.traversal().V().drop().iterate();
             sleep(10000);
 

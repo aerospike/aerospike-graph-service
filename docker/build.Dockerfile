@@ -75,6 +75,9 @@ RUN cd .. && rm -rf /opt/aerospike-firefly
 # Remove extra packages
 RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
 
+# Remove additional conflicting logger jars from spark.
+RUN rm /opt/spark/jars/slf4j-* && rm /opt/spark/jars/commons-logging*
+
 # Add scripts and conf to container.
 ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
 ADD scripts /opt/aerospike-firefly/scripts

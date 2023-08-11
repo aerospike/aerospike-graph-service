@@ -73,7 +73,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image: ${{ steps.publish-container.outputs.OUTPUT_IMAGE }}
+          image: $OUTPUT_IMAGE
 
 
   publish-artifacts:

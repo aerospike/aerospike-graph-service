@@ -31,14 +31,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: 'Set up Cloud Authentication'
-        id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - name: Set up Cloud Authentication
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
-          credentials_json: '${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}'
+          credentials_json: ${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
 
       - name: Login to Dockerhub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a

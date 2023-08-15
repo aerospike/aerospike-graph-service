@@ -15,6 +15,8 @@ env:
   GITHUB_REGISTRY_URL: ghcr.io
   DOCKERHUB_IMAGE_NAME: aerospike-graph-service
   DOCKERHUB_REPOSITORY_NAME: aerospike
+  GCLOUD_REPOSITORY_NAME: gcr.io/aerospike-prod
+  GCLOUD_IMAGE_NAME: aerospike-graph-service
 
 
 jobs:
@@ -28,6 +30,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Set up Cloud Authentication
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
 
       - name: Login to Dockerhub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
@@ -45,6 +56,9 @@ jobs:
 
       - name: Publish Container
         run: |
+          # Configure docker auth for gcloud
+          gcloud auth configure-docker -q
+          
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           
@@ -59,17 +73,31 @@ jobs:
           
           # Get registry URL and convert to lower case.
           DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
+          GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
           
-          # Set output image name.
-          OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
-          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          # Set dockerhub output and latest image name.
+          DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
+          DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
+          DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
           
-          # Set latest tag
-          LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
-          LATEST_IMAGE=$(echo $LATEST_IMAGE | tr '[A-Z]' '[a-z]')
+          # Set gcloud output and latest image name.
+          GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
+          GCLOUD_OUTPUT_IMAGE=$(echo $GCLOUD_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          GCLOUD_LATEST_IMAGE=$GCLOUD_IMAGE_BASE:latest
+          GCLOUD_LATEST_IMAGE=$(echo $GCLOUD_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
         
+          # Pull base image.
           docker pull $GITHUB_IMAGE
-          docker tag $GITHUB_IMAGE $OUTPUT_IMAGE
-          docker tag $GITHUB_IMAGE $LATEST_IMAGE
-          docker push $OUTPUT_IMAGE
-          docker push $LATEST_IMAGE
+          
+          # Retag image for dockerhub and gcloud.
+          docker tag $GITHUB_IMAGE $DOCKERHUB_OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE $DOCKERHUB_LATEST_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_LATEST_IMAGE
+          
+          # Push all images.
+          docker push $DOCKERHUB_OUTPUT_IMAGE
+          docker push $DOCKERHUB_LATEST_IMAGE
+          docker push $GCLOUD_OUTPUT_IMAGE
+          docker push $GCLOUD_LATEST_IMAGE

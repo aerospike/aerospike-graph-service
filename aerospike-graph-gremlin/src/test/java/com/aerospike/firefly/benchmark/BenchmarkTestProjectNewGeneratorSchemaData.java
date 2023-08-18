@@ -48,6 +48,18 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
+    // TODO: Pipe configuration through to here when different sizing is supported
+    private static final String DATASET_SIZE = "1g: ";
+    private static final Map<String, String> TEST_TO_TRAVERSAL = Map.of(
+            "directLookupProperties", DATASET_SIZE + "g.V(id).properties()",
+            "oneHopToDigitalEntityGetProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties()",
+            "twoHopToCookieGetProperties", DATASET_SIZE + "g.V(id).out(Schema.GoldenEntity.observedEdge).out(Schema.DigitalEntity.associatedWithCookieEdge).properties()",
+            "threeHopToDigitalEntity", DATASET_SIZE + "g.V(houseHoldId).in(Schema.Individual.livesAtEdge).in(Schema.GoldenEntity.resolvesToIndividualEdge).out(Schema.GoldenEntity.observedEdge).properties()",
+            "testSearchByVertexPropertyValue", DATASET_SIZE + "g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size())))",
+            "addTwoVertexOneEdge", DATASET_SIZE + "g.addV().addE(\"test\").to(__.addV())",
+            "twoHopSelectByLabelCountProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().out().hasLabel(Schema.Cookie.label).properties().count()",
+            "countLabelsInSubgraphTwoHop", DATASET_SIZE + "g.V(id).out().out().groupCount().by(T.label).limit(1)"
+    );
 
     private static class Schema {
         private static final Class<GoldenEntity> root = GoldenEntity.class;
@@ -211,7 +223,7 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
         final JSONArray root = new JSONArray();
         runResult.forEach(result -> {
             JSONObject obj = new JSONObject();
-            obj.put("name", result.getPrimaryResult().getLabel());
+            obj.put("name", TEST_TO_TRAVERSAL.get(result.getPrimaryResult().getLabel()));
             obj.put("unit", result.getPrimaryResult().getScoreUnit());
             obj.put("value", result.getPrimaryResult().getScore());
             if (Double.isFinite(result.getPrimaryResult().getScoreError())) {

@@ -105,7 +105,6 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public final boolean STORAGE_DEBUGGER_FLAG;
 
-
     static {
         Value.UseBoolBin = true;
     }
@@ -221,13 +220,14 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
-        final String host = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final String hostsString = stripAllWhiteSpace(hostFromConf);
         final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
 
         final Optional<String[]> tlsNames;
         if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
             tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(host, port).length != tlsNames.get().length) {
+            if (Host.parseHosts(hostsString, port).length != tlsNames.get().length) {
                 throw new IllegalArgumentException("Number of TLS names must match number of hosts");
             }
         } else {
@@ -238,7 +238,7 @@ public class AerospikeConnection implements AutoCloseable {
                         .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
                         .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
                         .collect(Collectors.toList()))
-                .orElse(Arrays.stream(Host.parseHosts(host, port)).collect(Collectors.toList()))
+                .orElse(Arrays.stream(Host.parseHosts(hostsString, port)).collect(Collectors.toList()))
                 .toArray(new Host[0]);
 
         final AerospikeClient aerospikeClient;
@@ -256,6 +256,10 @@ public class AerospikeConnection implements AutoCloseable {
         } else {
             return aerospikeClient;
         }
+    }
+
+    public static String stripAllWhiteSpace(final String hosts) {
+        return hosts.replaceAll("\\s+","");
     }
 
     public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {

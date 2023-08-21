@@ -61,6 +61,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.io.AerospikeConnection.stripAllWhiteSpace;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
@@ -598,4 +599,19 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(2, hashRecords.length);
     }
 
+    @Test
+    public void testHostsWhiteSpaceStripping() {
+        final String singleHostname = " localhost  ";
+        assertEquals("localhost", stripAllWhiteSpace(singleHostname));
+        final String singleIP = "  172.17.0.1 ";
+        assertEquals("172.17.0.1", stripAllWhiteSpace(singleIP));
+        final String singleHostnamePort = " localhost:3000  ";
+        assertEquals("localhost:3000", stripAllWhiteSpace(singleHostnamePort));
+        final String singleIPPort = "  172.17.0.1: 3000 ";
+        assertEquals("172.17.0.1:3000", stripAllWhiteSpace(singleIPPort));
+        final String multi = " l ocalhost , aerospike.com, github.co m";
+        assertEquals("localhost,aerospike.com,github.com", stripAllWhiteSpace(multi));
+        final String multiPort = " localhost: 30 00,aerospike.com: 8080,github.com:8192";
+        assertEquals("localhost:3000,aerospike.com:8080,github.com:8192", stripAllWhiteSpace(multiPort));
+    }
 }

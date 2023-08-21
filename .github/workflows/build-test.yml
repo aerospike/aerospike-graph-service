@@ -622,8 +622,21 @@ jobs:
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
       - name: Upload Benchmark Results
         run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > benchmark.json
-          gcloud storage cp benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
+          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
+          gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
+      - name: Publish Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customSmallerIsBetter'
+          output-file-path: aerospike-graph-gremlin/target/benchmark.json
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          benchmark-data-dir-path: docs/
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()
         run: |

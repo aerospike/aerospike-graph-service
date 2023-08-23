@@ -3,13 +3,10 @@ package com.aerospike.firefly.benchmark;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Edge;
-import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
@@ -164,8 +161,8 @@ public class BenchmarkTestSyntheticData {
     public void benchmark_g_E_get_props(final Blackhole blackhole) {
         final Object id = householdIds.get(random.nextInt(householdIds.size()));
         //Retrieve all properties from edges attached to vertex
-        final Map<String, Object> props = g.V(id).
-                bothE().propertyMap().next();
+        final List<Map<String, Object>> props = g.V(id).
+                bothE().propertyMap().toList();
         if (props.size() > 0)
             blackhole.consume(props);
     }
@@ -174,10 +171,11 @@ public class BenchmarkTestSyntheticData {
     public void benchmark_g_E_get_one_prop(final Blackhole blackhole) {
         final Object id = householdIds.get(random.nextInt(householdIds.size()));
         //Retrieve all properties from edges attached to vertex
-        final Edge it = g.V(id).bothE().next();
+        final Edge it = g.V(id).bothE().limit(1).next();
         if (it.properties().hasNext()) {
             it.properties().next();
         }
+        blackhole.consume(it);
     }
 
     private String randomString(int len) {
@@ -201,7 +199,7 @@ public class BenchmarkTestSyntheticData {
     public void benchmark_g_E_addProp(final Blackhole blackhole) {
         //Add a new property to the edge pack
         final Object id = householdIds.get(householdIds.size() - 1);
-        final Object eid = g.V(id).bothE().next().id();
+        final Object eid = g.V(id).bothE().limit(1).next().id();
         g.E(eid).property("test", randomString(10)).next();
     }
 }

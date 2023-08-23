@@ -18,10 +18,10 @@ import com.aerospike.client.exp.Expression;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.bulkloader.exception.FireflyLoadingException;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_KEY;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -212,7 +213,13 @@ public abstract class RelationalGraph extends FireflyGraph {
     public FireflyVertex writeVertex(final FireflyId idValue,
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
-        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG || this.db.ON_RECORD_ID_LIMIT <= 0;
+        // If the supernode property flag is set on the vertex write, remove it from the write steam and assign it.
+        final Map.Entry supernodeFlag = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_KEY)).findFirst().orElse(null);
+        if (supernodeFlag != null) {
+            properties.remove(supernodeFlag);
+        }
+        final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
+                this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
         return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
@@ -222,6 +229,8 @@ public abstract class RelationalGraph extends FireflyGraph {
                                    final List<Map.Entry<String, Object>> properties,
                                    final boolean supernode) {
         try {
+            // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
+            // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
             RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);

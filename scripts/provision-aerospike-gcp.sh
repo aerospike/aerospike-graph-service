@@ -4,7 +4,7 @@ instances=3 # Set number of Aerospike instances in cluster. Default to 3
 as_conf=./aerospike.conf
 features_file=./features.conf
 name=${USER} #set name of cluster to username + optional extra name identifier
-instance_type="n2d-highmem-48" # Set instance type for Aerospike nodes in cluster. Default to n2d-highmem-48
+instance_type="n2d-standard-16" # Set instance type for Aerospike nodes in cluster. Default to n2d-standard-16
 
 
 Help()
@@ -81,14 +81,14 @@ echo creating ${name} cluster with ${instances} Aerospikes
 
 # Create Aerospike Cluster but don't start it yet
 aerolab cluster create -c ${instances} --instance ${instance_type}  -f $features_file --customconf=$as_conf \
---zone=us-central1-a --disk=pd-ssd:40 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd \
+--zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd \
 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd --name=${name} --start=n;
 
-# Create partitions and blkdiscard
-aerolab cluster partition create --filter-type=local --name=${name}
+# Create partitions
+aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
 
 # Update configuration to use devices
-aerolab cluster partition conf --namespace=test --configure=device  --filter-type=nvme --filter-partitions=0 --name=${name}
+aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
 
 # Start the Aerospikes
 aerolab aerospike start --name=${name}
@@ -97,6 +97,6 @@ aerolab aerospike start --name=${name}
 #aerolab cluster add exporter -n ${name}
 
 # Create the monitoring stack
-#aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=us-central1-a --instance=${instance_type} --disk=pd-ssd:40
+#aerolab client create ams --clusters=${name} --group-name=${name}-ams --zone=us-central1-a --instance=${instance_type} --disk=pd-ssd:20
 
 Hints

@@ -15,17 +15,17 @@ ARG FIREFLY_DATA_MODEL
 ENV FIREFLY_DATA_MODEL=$FIREFLY_DATA_MODEL
 
 # Set container labels.
-LABEL org.opencontainers.image.description = "Docker image for Aerospike's graph database, Firefly."
+LABEL org.opencontainers.image.description = "Docker image for Aerospike Graph."
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
 ENV TINKERPOP_VERSION='3.6.3'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV GREMLIN_CONSOLE_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
-ENV GREMLIN_SERVER_URL="https://dlcdn.apache.org/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
+ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
+ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
-ENV MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
+ENV MAVEN_URL="https://archive.apache.org/dist/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 ENV AIR_ROUTES_50K_URL="https://raw.githubusercontent.com/krlawrence/graph/master/sample-data/air-routes-latest.graphml"
 ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
 

@@ -485,6 +485,16 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
     }
 
+    @Override
+    public void setCacheDisabled() {
+        final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        this.db.operate(writePolicy, key,
+                Operation.put(new Bin(this.db.EDGE_CACHE_DISABLED_BIN, Value.get(true))));
+        this.isEdgeCacheOverflowed = true;
+    }
+
     /**
      * Write edge to vertex.
      *

@@ -1,8 +1,8 @@
 apiVersion: v2
 name: graphservice
 description: Aerospike Graph Service
+keywords: ["graph", "database", "aerospike"]
 
-# A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
 # to be deployed.

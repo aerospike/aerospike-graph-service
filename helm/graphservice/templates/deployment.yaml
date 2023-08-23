@@ -40,17 +40,18 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
             httpGet:
               path: /healthcheck
               port: 9999
-              code: 200
           readinessProbe:
             exec:
               command:
                 - ls
                 - /tmp/firefly-ready
-              initialDelaySeconds: 5
-              periodSeconds: 5
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

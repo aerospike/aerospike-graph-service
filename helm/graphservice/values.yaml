@@ -10,8 +10,12 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: helm-dev
 
-imagePullSecrets:
-  - name: regcred
+
+# The user should provide their credentials to pull the graph service docker image
+#imagePullSecrets:
+#  - name: regcred
+
+
 nameOverride: ""
 fullnameOverride: ""
 

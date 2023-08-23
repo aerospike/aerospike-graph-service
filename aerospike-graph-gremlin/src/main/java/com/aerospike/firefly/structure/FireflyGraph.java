@@ -40,6 +40,7 @@ import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.LoggerUtil;
+import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -199,6 +200,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
+        if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
+            PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
+        }
     }
 
     public static FireflyGraph open(final Configuration conf) {

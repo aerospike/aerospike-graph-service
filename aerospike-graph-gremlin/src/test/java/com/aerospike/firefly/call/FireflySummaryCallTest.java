@@ -31,6 +31,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     public void testSummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
+        Thread.sleep(3000);
         final List<Object> summaryCallEmpty = g.call("summary").toList();
         final List<Object> expectedEmpty = List.of(
                 Map.of(
@@ -42,7 +43,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                         "Total edge count", 0L));
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(1000);
+        Thread.sleep(3000);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -79,6 +80,9 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
 
     @Test
     public void testSummaryOverflow() throws InterruptedException {
+        graph.traversal().V().drop().iterate();
+        Thread.sleep(5000);
+
         for (int i = 0; i < 10000; i++) {
             Vertex v = graph.traversal().addV(String.format("%d", i)).property(String.format("%d", i), String.format("%d", i)).next();
             graph.traversal().addE(String.format("%d", i)).from(v).to(v).property(String.format("%d", i), String.format("%d", i)).iterate();
@@ -100,11 +104,12 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     public void testPrettySummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
+        Thread.sleep(5000);
         final String summaryCall = (String) g.call("summary").with("pretty").next();
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
 

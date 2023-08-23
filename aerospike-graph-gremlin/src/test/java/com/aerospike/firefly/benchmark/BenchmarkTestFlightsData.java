@@ -199,7 +199,7 @@ public class BenchmarkTestFlightsData {
 
     @Benchmark
     public void benchmark_g_V_hasxcode_DFWx_outE_count(final Blackhole blackhole) {
-        final long outECount = g.V().has("code", "DFW").outE().count().next();
+        final List<Long> outECount = g.V().has("code", "DFW").outE().count().toList();
         blackhole.consume(outECount);
     }
 
@@ -217,7 +217,7 @@ public class BenchmarkTestFlightsData {
                 dedup().fold().
                 project("totalAirportCountFromSFO", "USAirportCountFromSFO").
                 by(__.unfold().count()).
-                by(__.unfold().has("country", "US").count()).next();
+                by(__.unfold().has("country", "US").count()).limit(1).next();
         blackhole.consume(projectionMap);
     }
 

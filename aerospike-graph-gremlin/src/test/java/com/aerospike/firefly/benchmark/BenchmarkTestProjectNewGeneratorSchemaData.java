@@ -1,15 +1,14 @@
 package com.aerospike.firefly.benchmark;
 
-import junit.framework.TestCase;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.Before;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.BenchmarkParams;
@@ -24,12 +23,17 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
-import java.util.*;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
-import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
@@ -44,6 +48,18 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
+    // TODO: Pipe configuration through to here when different sizing is supported
+    private static final String DATASET_SIZE = "1g: ";
+    private static final Map<String, String> TEST_TO_TRAVERSAL = Map.of(
+            "directLookupProperties", DATASET_SIZE + "g.V(id).properties()",
+            "oneHopToDigitalEntityGetProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties()",
+            "twoHopToCookieGetProperties", DATASET_SIZE + "g.V(id).out(Schema.GoldenEntity.observedEdge).out(Schema.DigitalEntity.associatedWithCookieEdge).properties()",
+            "threeHopToDigitalEntity", DATASET_SIZE + "g.V(houseHoldId).in(Schema.Individual.livesAtEdge).in(Schema.GoldenEntity.resolvesToIndividualEdge).out(Schema.GoldenEntity.observedEdge).properties()",
+            "testSearchByVertexPropertyValue", DATASET_SIZE + "g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size())))",
+            "addTwoVertexOneEdge", DATASET_SIZE + "g.addV().addE(\"test\").to(__.addV())",
+            "twoHopSelectByLabelCountProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().out().hasLabel(Schema.Cookie.label).properties().count()",
+            "countLabelsInSubgraphTwoHop", DATASET_SIZE + "g.V(id).out().out().groupCount().by(T.label).limit(1)"
+    );
 
     private static class Schema {
         private static final Class<GoldenEntity> root = GoldenEntity.class;
@@ -137,7 +153,7 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
         LOG.info("Creating the GraphTraversalSource (setup).");
         g = traversal().withRemote(DriverRemoteConnection.using(cluster));
         ENTITY_LABELS.forEach(label -> {
-            final Vertex sample = g.V().hasLabel(label).next();
+            final Vertex sample = g.V().hasLabel(label).limit(1).next();
             labelToInELabels.put(label, g.V(sample).inE().label().dedup().toList());
             labelToOutELabels.put(label, g.V(sample).outE().label().dedup().toList());
         });
@@ -203,64 +219,89 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
 
         LOG.info("Results:");
         LOG.info(runResult.toString());
+
+        final JSONArray root = new JSONArray();
+        runResult.forEach(result -> {
+            JSONObject obj = new JSONObject();
+            obj.put("name", TEST_TO_TRAVERSAL.get(result.getPrimaryResult().getLabel()));
+            obj.put("unit", result.getPrimaryResult().getScoreUnit());
+            obj.put("value", result.getPrimaryResult().getScore());
+            if (Double.isFinite(result.getPrimaryResult().getScoreError())) {
+                obj.put("range", result.getPrimaryResult().getScoreError());
+            } else {
+                obj.put("range", "0");
+            }
+            obj.put("extra", result.getPrimaryResult().getStatistics());
+            root.put(obj);
+        });
+        try (final FileWriter file = new FileWriter("target/benchmark.json")) {
+            file.write(root.toString());
+        } catch (final Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Benchmark
     public void directLookupProperties(final Blackhole blackhole) {
         final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
         final List<? extends Property<Object>> digitalEntityProperties = g.V(id).properties().toList();
+        blackhole.consume(digitalEntityProperties);
     }
 
     @Benchmark
     public void oneHopToDigitalEntityGetProperties(final Blackhole blackhole) {
         final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
         final List<? extends Property<Object>> digitalEntityProperties = g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties().toList();
+        blackhole.consume(digitalEntityProperties);
     }
 
     @Benchmark
     public void twoHopToCookieGetProperties(final Blackhole blackhole) {
         final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
-        g.V(id)
+        final List<? extends Property<Object>> cookieProperties = g.V(id)
                 .out(Schema.GoldenEntity.observedEdge)
                 .out(Schema.DigitalEntity.associatedWithCookieEdge)
                 .properties().toList();
+        blackhole.consume(cookieProperties);
     }
 
     @Benchmark
     public void threeHopToDigitalEntity(final Blackhole blackhole) {
         final Object houseHoldId = householdIds.stream().skip(random.nextInt(householdIds.size())).findFirst().get();
-        g.V(houseHoldId)
+        final List<? extends Property<Object>> digitalEntityProperties = g.V(houseHoldId)
                 .in(Schema.Individual.livesAtEdge)
                 .in(Schema.GoldenEntity.resolvesToIndividualEdge)
                 .out(Schema.GoldenEntity.observedEdge)
                 .properties().toList();
+        blackhole.consume(digitalEntityProperties);
     }
 
     @Benchmark
     public void testSearchByVertexPropertyValue(final Blackhole blackhole) {
-        g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size()))).next();
+        blackhole.consume(g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size()))).toList());
     }
 
     @Benchmark
     public void addTwoVertexOneEdge(final Blackhole blackhole) {
-        g.addV().addE("test").to(__.addV()).next();
+        g.addV().addE("test").to(__.addV()).iterate();
     }
 
     @Benchmark
     public void twoHopSelectByLabelCountProperties(final Blackhole blackhole) {
         final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
-        g.V(id)
+        final long counts = g.V(id)
                 .outE(Schema.GoldenEntity.observedEdge)
                 .otherV()
                 .out()
                 .hasLabel(Schema.Cookie.label)
                 .properties().count().next();
+        blackhole.consume(counts);
     }
-
 
     @Benchmark
     public void countLabelsInSubgraphTwoHop(final Blackhole blackhole) {
         final Object id = rootIds.stream().skip(random.nextInt(rootIds.size())).findFirst().get();
-        g.V(id).out().out().groupCount().by(T.label).next();
+        final Map<Object, Long> labelCounts = g.V(id).out().out().groupCount().by(T.label).limit(1).next();
+        blackhole.consume(labelCounts);
     }
 }

@@ -64,6 +64,7 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -220,7 +221,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // FIREFLY_TESTING is set strictly by surefire plugin so not in any customer systems.
             // This makes our testing logs 100x smaller.
             if (System.getenv("FIREFLY_TESTING") == null ||
-                !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
                 final Runtime javaRuntime = Runtime.getRuntime();
                 LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
@@ -244,7 +245,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
-            FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
+            //Only start healthcheck server if bulk loader is not present in configuration
+            if (IteratorUtils.stream(conf.getKeys()).noneMatch(it -> it.contains("aerospike.graphloader")))
+                FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");

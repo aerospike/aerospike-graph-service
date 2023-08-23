@@ -38,7 +38,6 @@ public class PluginUtilTest extends AbstractFireflySuite {
         }
     }
 
-
     @Test
     public void testPlugin() {
         final Configuration pluginConf = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);

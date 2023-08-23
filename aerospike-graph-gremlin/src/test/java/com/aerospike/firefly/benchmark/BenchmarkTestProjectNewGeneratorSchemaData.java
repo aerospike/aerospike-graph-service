@@ -40,7 +40,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Warmup(iterations = 1)
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestProjectNewGeneratorSchemaData {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Dtest=BenchmarkTestProjectNewGeneratorSchemaData -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Ddataset.size=1g -Dtest=BenchmarkTestProjectNewGeneratorSchemaData -DfailIfNoTests=false --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestProjectNewGeneratorSchemaData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
@@ -48,8 +48,7 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
-    // TODO: Pipe configuration through to here when different sizing is supported
-    private static final String DATASET_SIZE = "1g: ";
+    private static final String DATASET_SIZE = BenchmarkTestUtils.getDatasetSize() + ": ";
     private static final Map<String, String> TEST_TO_TRAVERSAL = Map.of(
             "directLookupProperties", DATASET_SIZE + "g.V(id).properties()",
             "oneHopToDigitalEntityGetProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties()",

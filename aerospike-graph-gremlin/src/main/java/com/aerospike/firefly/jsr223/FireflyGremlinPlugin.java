@@ -5,6 +5,7 @@ import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.*;
 import com.aerospike.firefly.structure.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.HealthcheckServer;
 import com.aerospike.firefly.util.PrometheusMetricsServer;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
@@ -62,7 +63,18 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         }
         metricsProtocolServer =  PrometheusMetricsServer.create(port, endpoint);
     }
+    public static void startHealthcheckServer(final Configuration config, final int port) {
+        final HealthcheckServer x = HealthcheckServer.create(config, port);
+        x.start();
+    }
 
+    public static void stopHealthcheckServer() {
+        HealthcheckServer.get().stop(maybeError -> {
+            if (maybeError.isPresent())
+                throw new RuntimeException(maybeError.get());
+            return null;
+        });
+    }
     private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();
 
     public FireflyGremlinPlugin() {

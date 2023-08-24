@@ -9,6 +9,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.SparkConf;
@@ -149,6 +150,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
             // If graph fails to open for some reason, it will be null internally and progress bar will not report.
+            config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG, true);
             PROGRESS_BAR.setGraph(FireflyGraph.open(new MapConfiguration(config)));
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, 10000);
         } catch (final Exception e) {

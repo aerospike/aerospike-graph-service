@@ -96,6 +96,8 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
+        public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
 

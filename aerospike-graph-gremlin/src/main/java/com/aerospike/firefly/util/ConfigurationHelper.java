@@ -68,7 +68,7 @@ public final class ConfigurationHelper {
         public static final String PROMETHEUS_PORT = "aerospike.graph.prometheus.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
 
-
+        public static final String PLUGIN = "aerospike.graph.plugin";
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";

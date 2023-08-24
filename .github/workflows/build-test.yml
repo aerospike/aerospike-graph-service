@@ -545,10 +545,18 @@ jobs:
         if: github.event_name == 'push'
         run: |
           echo "SHA_PATH=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
       - name: Clamp SHA to Environment (Pull Request)
         if: github.event_name == 'pull_request'
         run : |
           echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
+          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
+      - name: Read Workflow Configuration from Properties File
+        id: read_property
+        uses: christian-draeger/read-properties@1.1.1
+        with:
+          path: ${{ env.CONFIG_PATH }}
+          properties: 'data-size server-instances instance-type'
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:
@@ -576,14 +584,16 @@ jobs:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c 3 -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
-      - name: Generate Hosts List for Deployed Cluster
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+      - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }}
+          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
+          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create base --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
+          cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
           cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh

@@ -21,6 +21,7 @@ public class BenchmarkTestUtils {
     private static final String LOCALHOST = "127.0.0.1";
     private static final String internaldataset = "/opt/internal dataset/internal dataset.graphml";
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestUtils.class);
+    private static final String DATASET_SIZE = "1g";
 
     enum DATASET {
         FLIGHTS,
@@ -30,6 +31,11 @@ public class BenchmarkTestUtils {
     public static String getHost() {
         final String host = System.getProperty("firefly.host");
         return host == null ? LOCALHOST : host;
+    }
+
+    public static String getDatasetSize() {
+        final String datasetSize = System.getProperty("dataset.size");
+        return datasetSize == null ? DATASET_SIZE : datasetSize;
     }
 
     public static Integer getThreads() {

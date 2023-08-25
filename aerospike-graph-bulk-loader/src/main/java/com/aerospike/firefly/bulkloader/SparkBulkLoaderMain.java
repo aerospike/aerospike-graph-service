@@ -9,6 +9,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.spark.SparkConf;
@@ -196,7 +197,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
-        return new MapConfiguration(prop).getMap();
+        final Map<String, Object> config = new MapConfiguration(prop).getMap();
+        config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG, "true");
+        return config;
     }
 
     private static List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {

@@ -250,7 +250,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             // Only start healthcheck server if bulk loader is not present in configuration
-            if (IteratorUtils.stream(conf.getKeys()).noneMatch(it -> it.contains("aerospike.graphloader")))
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf)))
                 FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {

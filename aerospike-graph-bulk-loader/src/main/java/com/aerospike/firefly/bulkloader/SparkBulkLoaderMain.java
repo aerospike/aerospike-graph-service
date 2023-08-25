@@ -150,7 +150,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
             // If graph fails to open for some reason, it will be null internally and progress bar will not report.
-            config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG, true);
             PROGRESS_BAR.setGraph(FireflyGraph.open(new MapConfiguration(config)));
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, 10000);
         } catch (final Exception e) {
@@ -198,7 +197,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             LOGGER.error(e.getMessage());
             throw new RuntimeException(e);
         }
-        return new MapConfiguration(prop).getMap();
+        final Map<String, Object> config = new MapConfiguration(prop).getMap();
+        config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG, "true");
+        return config;
     }
 
     private static List<String> getDirectories(final SparkSession spark, final CommandLine cmd, final String directory) {

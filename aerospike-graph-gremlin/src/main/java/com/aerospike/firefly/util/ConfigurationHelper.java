@@ -296,6 +296,7 @@ public final class ConfigurationHelper {
         put(Keys.Sets.OUT_IN_SET.name(), "OUT_IN");
         put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
         put(Keys.Sets.TEST_SET.name(), "TEST_SET");
+        put(Keys.BULK_LOADER_FLAG, "false");
     }};
 
 

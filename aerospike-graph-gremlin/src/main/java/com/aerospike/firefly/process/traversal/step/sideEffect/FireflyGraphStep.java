@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step.sideEffect;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;

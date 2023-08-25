@@ -1,5 +1,6 @@
 package com.aerospike.firefly.bulkloader.spark;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
@@ -7,6 +8,7 @@ import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -46,7 +48,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
@@ -157,12 +161,12 @@ public class EdgeOperations implements Serializable {
                     batch = processBatch(bufferSize, batch, futures, errorMessage);
                     GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next();
                     futures.add(CompletableFuture.supplyAsync(() -> {
-                                verifyEdge(metadataRow, keepProvidedId, providedIdPropertyName, nullValue, graph, g);
-                                return null;
-                            }, ses).exceptionally(e -> {
-                                LOGGER.error(String.format("Exception occurred in verifying Edge row"), e);  // Log the error when final failure happens
-                                throw new RuntimeException(e);
-                            }));
+                        verifyEdge(metadataRow, keepProvidedId, providedIdPropertyName, nullValue, graph, g);
+                        return null;
+                    }, ses).exceptionally(e -> {
+                        LOGGER.error(String.format("Exception occurred in verifying Edge row"), e);  // Log the error when final failure happens
+                        throw new RuntimeException(e);
+                    }));
                 }
                 final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
@@ -174,52 +178,72 @@ public class EdgeOperations implements Serializable {
         });
     }
 
-    private static void verifyEdge(GenericRowWithSchema metadataRow, boolean keepProvidedId, String providedIdPropertyName, String nullValue, FireflyGraph graph, GraphTraversalSource g) {
-        final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
-        final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, graph, true);
-
-        final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
-                .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
-        final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
-
+    private static void verifyEdge(final GenericRowWithSchema metadataRow, boolean keepProvidedId,
+                                   final String providedIdPropertyName, final String nullValue,
+                                   final FireflyGraph graph, final GraphTraversalSource g) {
+        int tryCount = 0;
         // Multiple edges can exist that match the label between the FROM and TO vertices.
         // Assume if one is found with all the properties we've succeeded.
         boolean isEdgeFound = false;
 
-        edgeCheck:
-        while (edgeTraversal.hasNext() && !isEdgeFound) {
-            final Edge edge = edgeTraversal.next();
+        while (!isEdgeFound) {
+            try {
+                final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
+                final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
+                        providedIdPropertyName, nullValue, graph, true);
 
-            for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
-                try {
-                    // TODO: Handle null (when supported in Firefly) and cardinality.
-                    boolean isList = property.getValue() instanceof List<?>;
-                    if (isList) {
-                        final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
-                        for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
-                            propertyValues.remove(propertyValue);
-                        }
-                        if (!propertyValues.isEmpty()) {
+                final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
+                        .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));
+                final List<Map.Entry<String, Object>> sparkEdgeProperties = sparkEdge.getProperties();
+
+                edgeCheck:
+                while (edgeTraversal.hasNext() && !isEdgeFound) {
+                    final Edge edge = edgeTraversal.next();
+
+                    for (final Map.Entry<String, Object> property : sparkEdgeProperties) {
+                        try {
+                            // TODO: Handle null (when supported in Firefly) and cardinality.
+                            boolean isList = property.getValue() instanceof List<?>;
+                            if (isList) {
+                                final List<Object> propertyValues = new LinkedList<>((List<Object>) property.getValue());
+                                for (final Object propertyValue : (List<Object>) edge.value(property.getKey())) {
+                                    propertyValues.remove(propertyValue);
+                                }
+                                if (!propertyValues.isEmpty()) {
+                                    continue edgeCheck;
+                                }
+                            } else {
+                                if (property.getValue() != null) {
+                                    final Object propertyValue = edge.value(property.getKey());
+                                    if (!property.getValue().equals(propertyValue)) {
+                                        continue edgeCheck;
+                                    }
+                                }
+                            }
+                        } catch (final Exception e) {
                             continue edgeCheck;
                         }
-                    } else {
-                        if (property.getValue() != null) {
-                            final Object propertyValue = edge.value(property.getKey());
-                            if (!property.getValue().equals(propertyValue)) {
-                                continue edgeCheck;
-                            }
-                        }
                     }
-                } catch (final Exception e) {
-                    continue edgeCheck;
+                    isEdgeFound = true;
+                }
+                if (!isEdgeFound) {
+                    throw new AssertionError("Validation failed: Could not find Edge with label "
+                            + sparkEdge.getLabel() + " from Vertex ID " + sparkEdge.getOutVertexId() + " to Vertex ID "
+                            + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
+                }
+            } catch (final AerospikeException ae) {
+                final FireflyLoadingException fle = new FireflyLoadingException(ae);
+                if (!fle.isRetryable()) {
+                    LOGGER.error("Failed to verify loaded Edge due to non-retryable error: " + metadataRow, ae);
+                    throw ae;
+                } else if (++tryCount > RETRY_LIMIT) {
+                    LOGGER.error("Failed to verify loaded Edge after " + tryCount + " attempts: " + metadataRow, ae);
+                    throw ae;
+                } else {
+                    LOGGER.warn("Failed to verify loaded Edge: " + metadataRow + ". Attempt count: " + tryCount, ae);
+                    exponentialBackoff(tryCount);
                 }
             }
-            isEdgeFound = true;
-        }
-        if (!isEdgeFound) {
-            throw new AssertionError("Validation failed: Could not find Edge with label "
-                    + sparkEdge.getLabel() + " from Vertex ID " + sparkEdge.getOutVertexId() + " to Vertex ID "
-                    + sparkEdge.getInVertexId() + " with properties " + sparkEdge.getProperties());
         }
     }
 

@@ -83,7 +83,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
             Objects.requireNonNull(configPath);
             final Map<String, Object> fileConfig = loadConfiguration(spark, cmd, configPath);
-            LOGGER.info("Config: " + fileConfig.toString());
+            LOGGER.info("Config: " + fileConfig);
             final BulkLoaderConfigHelper config = new BulkLoaderConfigHelper(fileConfig, cmd);
 
             final String logLevel = config.getOrDefault(SPARK_LOG_LEVEL).toUpperCase();
@@ -198,7 +198,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             throw new RuntimeException(e);
         }
         final Map<String, Object> config = new MapConfiguration(prop).getMap();
-        config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG, "true");
+        config.put(ConfigurationHelper.Keys.BULK_LOADER_FLAG.toLowerCase(), "true");
         return config;
     }
 

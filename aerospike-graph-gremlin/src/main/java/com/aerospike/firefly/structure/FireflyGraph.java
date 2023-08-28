@@ -65,7 +65,6 @@ import org.apache.tinkerpop.gremlin.structure.service.ServiceRegistry;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.wrapped.WrappedGraph;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,8 +248,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
-            //Only start healthcheck server if bulk loader is not present in configuration
-            if (IteratorUtils.list(conf.getKeys()).contains(ConfigurationHelper.Keys.BULK_LOADER_FLAG))
+            // Only start healthcheck server if bulk loader is not present in configuration
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf)))
                 FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {

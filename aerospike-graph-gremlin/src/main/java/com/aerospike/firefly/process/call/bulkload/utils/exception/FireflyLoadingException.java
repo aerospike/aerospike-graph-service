@@ -26,18 +26,14 @@ public class FireflyLoadingException extends RuntimeException {
             ResultCode.SERVER_NOT_AVAILABLE,
             ResultCode.TIMEOUT,
             ResultCode.NO_MORE_CONNECTIONS,
-            ResultCode.INVALID_NODE_ERROR
+            ResultCode.INVALID_NODE_ERROR,
+            ResultCode.BATCH_FAILED
     );
 
     final private AerospikeException aerospikeException;
 
     public FireflyLoadingException(final AerospikeException cause) {
         super(cause);
-        this.aerospikeException = cause;
-    }
-
-    public FireflyLoadingException(final String message, final AerospikeException cause) {
-        super(message, cause);
         this.aerospikeException = cause;
     }
 

@@ -29,7 +29,9 @@ public class Upgrade {
     }
 
     /**
-     * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks
+     * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks.
+     * Note, we do not have upgrade tasks and likely won't do this through the graph in this fashion, so we never
+     * actually return true, we either throw an exception or return false.
      *
      * @param dataModel configured class implementing the data model to use
      * @param db        AerospikeConnection instance
@@ -47,27 +49,27 @@ public class Upgrade {
         if (driveVersion == null && driveDataModel == null) {
             // If both are null then this is a fresh system.
             db.setGraphMetadata(classDataModel, classVersion.toString());
+
+            // Return false, no upgrade required.
             return false;
         } else if (driveVersion == null || driveDataModel == null) {
-            // This should never happen.
+            // This should never happen, they should either both be null or neither.
+            // Throw just to be safe.
             throw new RuntimeException(driveVersion == null ? "currentVer is null." : "currentModel is null.");
         } else {
-            // If both are not null then we need to check if the data model and versions are the same.
-            if (!classDataModel.equals(driveDataModel)) {
-                // Data model mismatch is illegal, send them to jail.
-                throw new RuntimeException(String.format("On disk data model '%s' does not match provided data model " +
-                        "'%s'.", driveDataModel, dataModel.getCanonicalName()));
-            }
+            final int driveVersionMajor = Integer.parseInt(driveGraph.getDataModelVersion().toString().split("\\.")[0]);
+            final int classVersionMajor = Integer.parseInt(classVersion.toString().split("\\.")[0]);
+
             // If the data models match then we need to check the versions.
-            if (classVersion.compareTo(driveVersion) < 0) {
+            if (driveVersionMajor != classVersionMajor) {
                 // If the on disk data model is > software data model we can't upgrade. This is illegal, send them to jail.
-                throw new RuntimeException(String.format("On disk data model '%s' is higher then software data model " +
-                        "'%s'.", driveVersion, classVersion));
+                throw new RuntimeException(String.format("The on disk data model major version '%s' does not match the " +
+                        "data model '%s' being used.", driveVersion, classVersion));
 
             }
 
-            // Returns true if drive version < class version, meaning we need to upgrade.
-            return driveVersion.compareTo(classVersion) < 0;
+            // Major versions match, upgrade not required.
+            return false;
         }
     }
 

@@ -5,32 +5,24 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DockerUtil;
 import com.aerospike.firefly.util.VersionUtil;
-import io.cucumber.java.sl.In;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.util.DockerUtil.AEROSPIKE_GRAPH_SERVICE;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
-import static org.apache.tinkerpop.gremlin.process.traversal.P.*;
 import static org.junit.Assert.fail;
 
 /**
@@ -92,8 +84,102 @@ public class BackwardsCompatibilityTest {
     }
 
     @Test
-    public void testVersionCompatibilityUpgrade() {
-        // This test will test that a graph written by a previous version can be loaded by a graph with a newer version.
+    public void testVersionCompatibility() {
+        final GraphTraversalSource g2 = traversal().withRemote(DriverRemoteConnection.using("localhost", port, "g"));
+        g2.V().drop().iterate();
+        final Vertex lyndon = g2.addV("person").property("name", "Lyndon").next();
+        final Vertex simon = g2.addV("person").property("name", "Simon").next();
+        final Vertex grant = g2.addV("person").property("name", "Grant").next();
+        final Vertex joe = g2.addV("person").property("name", "joe").next();
+        final Vertex rahul = g2.addV("person").property("name", "Rahul").next();
+        final Vertex ishaan = g2.addV("person").property("name", "Ishaan").next();
+
+        // Try adding different types of properties.
+        g2.V(lyndon.id()).property("isDope", true).iterate();
+        g2.V(simon.id()).property("isDope", "true").property("foo", List.of("baz")).iterate();
+        g2.V(grant.id()).property("isDope", 1).iterate();
+        g2.V(joe.id()).property("isDope", 1.0).iterate();
+        g2.V(rahul.id()).property("isDope", 1.0).iterate();
+        g2.V(ishaan.id()).property("isDope", 1L).iterate();
+
+        // Create some edges from lyndon to everyone.
+        g2.addE("knows").from(lyndon).to(simon).property("foo", "bar").iterate();
+        g2.addE("knows").from(lyndon).to(grant).property("foo", false).property("foo", List.of("baz")).iterate();
+        g2.addE("knows").from(lyndon).to(joe).property("foo", 25).iterate();
+        g2.addE("knows").from(lyndon).to(rahul).property("foo", 25.0).iterate();
+        g2.addE("knows").from(lyndon).to(ishaan).property("foo", 25.0).iterate();
+
+        // Create an edge from simon to everyone.
+        g2.addE("knows").from(simon).to(lyndon).property("foo", 25L).iterate();
+        g2.addE("knows").from(simon).to(grant).iterate();
+        g2.addE("knows").from(simon).to(joe).property("foo", List.of("baz")).iterate();
+        g2.addE("knows").from(simon).to(rahul).iterate();
+        g2.addE("knows").from(simon).to(ishaan).iterate();
+
+        // Create two graph traversal sources, one for the local graph and one for the remote graph.
+        final GraphTraversalSource g1 = graph.traversal();
+
+        // Assert that the vertices are the same.
+        Assert.assertEquals(g1.V().count().next(), g2.V().count().next());
+        final List<Object> vertices1 = g1.V().order().by("name").id().toList();
+        final List<Object> vertices2 = g2.V().order().by("name").id().toList();
+        Assert.assertEquals(vertices1.size(), vertices2.size());
+        Assert.assertEquals(vertices1, vertices2);
+        for (int i = 0; i < vertices1.size(); i++) {
+            final Map<Object, Object> vertex1Properties = g1.V(vertices1.get(i)).elementMap().next();
+            final Map<Object, Object> vertex2Properties = g2.V(vertices2.get(i)).elementMap().next();
+            Assert.assertEquals(vertex1Properties, vertex2Properties);
+
+            final List<Object> outEdges1 = g1.V(vertices1.get(i)).outE().order().by(T.id).id().toList();
+            final List<Object> outEdges2 = g2.V(vertices2.get(i)).outE().order().by(T.id).id().toList();
+            Assert.assertEquals(outEdges1.size(), outEdges2.size());
+            Assert.assertEquals(outEdges1, outEdges2);
+
+            for (int j = 0; j < outEdges1.size(); j++) {
+                final Map<Object, Object> edge1Properties = g1.E(outEdges1.get(j)).elementMap().next();
+                final Map<Object, Object> edge2Properties = g2.E(outEdges2.get(j)).elementMap().next();
+                Assert.assertEquals(edge1Properties, edge2Properties);
+
+                final Object inVId1 = g1.E(outEdges1.get(j)).inV().id().next();
+                final Object inVId2 = g2.E(outEdges2.get(j)).inV().id().next();
+                Assert.assertEquals(inVId1, inVId2);
+
+                final Object outVId1 = g1.E(outEdges1.get(j)).outV().id().next();
+                final Object outVId2 = g2.E(outEdges2.get(j)).outV().id().next();
+                Assert.assertEquals(outVId1, outVId2);
+            }
+
+            final List<Object> inEdges1 = g1.V(vertices1.get(i)).inE().order().by(T.id).id().toList();
+            final List<Object> inEdges2 = g2.V(vertices2.get(i)).inE().order().by(T.id).id().toList();
+            Assert.assertEquals(inEdges1.size(), inEdges2.size());
+            Assert.assertEquals(inEdges1, inEdges2);
+
+            for (int j = 0; j < inEdges1.size(); j++) {
+                final Map<Object, Object> edge1Properties = g1.E(inEdges1.get(j)).elementMap().next();
+                final Map<Object, Object> edge2Properties = g2.E(inEdges2.get(j)).elementMap().next();
+                Assert.assertEquals(edge1Properties, edge2Properties);
+
+                final Object inVId1 = g1.E(inEdges1.get(j)).inV().id().next();
+                final Object inVId2 = g2.E(inEdges2.get(j)).inV().id().next();
+                Assert.assertEquals(inVId1, inVId2);
+
+                final Object outVId1 = g1.E(inEdges1.get(j)).outV().id().next();
+                final Object outVId2 = g2.E(inEdges2.get(j)).outV().id().next();
+                Assert.assertEquals(outVId1, outVId2);
+            }
+        }
+
+        Assert.assertEquals(g1.E().count().next(), g2.E().count().next());
+        final List<Edge> edges1 = g1.E().order().by(T.id).toList();
+        final List<Edge> edges2 = g2.E().order().by(T.id).toList();
+
+        Assert.assertEquals(edges1.size(), edges2.size());
+        for (int j = 0; j < edges1.size(); j++) {
+            Assert.assertEquals(edges1.get(j).id(), edges2.get(j).id());
+            Assert.assertEquals(edges1.get(j).label(), edges2.get(j).label());
+            Assert.assertEquals(edges1.get(j).inVertex().id(), edges2.get(j).inVertex().id());
+            Assert.assertEquals(edges1.get(j).outVertex().id(), edges2.get(j).outVertex().id());
+        }
     }
 
     @BeforeClass
@@ -118,6 +204,12 @@ public class BackwardsCompatibilityTest {
 
         // Boot the docker image, we are good to test.
         port = dockerUtil.startDockerImage(AEROSPIKE_GRAPH_SERVICE, testVersion);
+
+        // Load a single vertex into the graph and drop it. This will force the graph to write it's data model version.
+        final GraphTraversalSource g = traversal().withRemote(
+                DriverRemoteConnection.using("localhost", port, "g"));
+        final Vertex v = g.addV().next();
+        g.V(v.id()).drop().iterate();
     }
 
     @AfterClass
@@ -130,75 +222,4 @@ public class BackwardsCompatibilityTest {
         // Cleanup any dangling containers (catch all for test issues).
         dockerUtil.stopAllDockerImages();
     }
-
-    @Test
-    public void test() throws ParseException {
-        GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using("localhost", 8182, "g"));
-        Instant start = Instant.now();
-        BulkSet pageViews = g.with("evaluationTimeout", 30 * 60 * 1000).
-                V("15secs_pageview").
-                as("start_event").
-                in("object").where(
-                        __.values("time").is(
-                                between(
-                                        d("2023-04-17T00:00:00Z"), d("2023-07-17T23:59:00Z")))).
-                as("15secs_pageviews").
-                count().
-                toBulkSet();
-
-        BulkSet<?> result =
-                g.with("evaluationTimeout", 30 * 60 * 1000).
-                V("formFieldEntered").
-                        as("start_event").
-                in("object").where(__.values("time").is(between(
-                        d("2023-04-17T00:00:00Z"),
-                        d("2023-07-17T23:59:00Z")))).
-                as("firstv").
-                repeat(__.timeLimit(5 * 60  * 1000). // Can set a time limit here to break out when we have reached the time limit.
-                        in("prev").hasLabel("visit")).
-                emit(__.as("lastv").
-                        and(
-                                __.loops().is(lt(10)), // Can limit the loops() here to break out when we have all paths of a certain depth.
-                                __.in("prev").count().is(neq(0)),
-                                __.values("time").
-                                        is(between(
-                                                d("2023-04-17T00:00:00Z"),
-                                                d("2023-07-17T23:59:00Z"))),
-                                __.
-                                        select("firstv").limit(1).values("time").as("firstTime").
-                                        select("lastv").limit(1).values("time").as("lastTime").
-                                        math("lastTime - firstTime").
-                                        is(gt(0))
-                        )).
-                project("a", "b").
-                by(
-                        __.path().by(T.id). // Switched from "id" to T.id because we switched the id.
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event").
-                                by("event").by("event").by("event").by("event").by("event")
-                ).
-                by(__.path().unfold().count()).
-                order().by("b").toBulkSet();
-        Instant end = Instant.now();
-        System.out.println("Time taken: " + Duration.between(start, end).toMillis() + "ms");
-        System.out.println(result);
-    }
-
-
-    long d(final String date) throws ParseException {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(date).getTime() / 1000;
-    }
-
-
 }

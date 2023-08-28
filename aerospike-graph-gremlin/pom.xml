@@ -238,7 +238,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <argLine>--add-exports java.base/sun.nio.ch=ALL-UNNAMED</argLine>
+                        <argLine>
+                            --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+                            -Dbuild.dir=${project.build.directory}
+                            -Dis.testing=true -Djava.net.preferIPv4Stack=true
+                            -Xmx10000m
+                            -Xms1000m
+                        </argLine>
                 </configuration>
             </plugin>
             <plugin>

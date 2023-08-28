@@ -137,8 +137,6 @@
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx@{maxheap}
-                        -Xms@{minheap}
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>
@@ -200,8 +198,8 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>16384m</maxheap>
-                <minheap>4096m</minheap>
+                <maxheap>54000m</maxheap>
+                <minheap>1000m</minheap>
             </properties>
         </profile>
     </profiles>

@@ -7,6 +7,9 @@ public class VersionUtil {
     final String version;
 
     public VersionUtil(final String version) {
+        if (version == null) {
+            throw new IllegalArgumentException("Version cannot be null.");
+        }
         final String versionLower = version.toLowerCase();
         this.version = versionLower.endsWith("-snapshot") ?
                 versionLower.substring(0, versionLower.indexOf("-snapshot")) : versionLower;

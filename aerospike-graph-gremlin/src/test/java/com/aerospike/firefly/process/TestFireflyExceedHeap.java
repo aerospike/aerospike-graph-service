@@ -7,7 +7,6 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -20,7 +19,6 @@ public class TestFireflyExceedHeap extends AbstractFireflySuite {
         return true;
     }
 
-    @Ignore
     @Test
     public void testSmallMemoryOverload() {
         graph.close();

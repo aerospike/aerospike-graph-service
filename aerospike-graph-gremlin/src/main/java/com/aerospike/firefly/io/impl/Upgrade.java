@@ -29,7 +29,9 @@ public class Upgrade {
     }
 
     /**
-     * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks
+     * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks.
+     * Note, we do not have upgrade tasks and likely won't do this through the graph in this fashion, so we never
+     * actually return true, we either throw an exception or return false.
      *
      * @param dataModel configured class implementing the data model to use
      * @param db        AerospikeConnection instance
@@ -48,9 +50,12 @@ public class Upgrade {
         if (driveVersion == null && driveDataModel == null) {
             // If both are null then this is a fresh system.
             db.setGraphMetadata(classDataModel, classVersion.toString());
+
+            // Return false, no upgrade required.
             return false;
         } else if (driveVersion == null || driveDataModel == null) {
-            // This should never happen.
+            // This should never happen, they should either both be null or neither.
+            // Throw just to be safe.
             throw new RuntimeException(driveVersion == null ? "currentVer is null." : "currentModel is null.");
         } else {
             final int driveVersionMajor = Integer.parseInt(driveGraph.getDataModelVersion().toString().split("\\.")[0]);
@@ -64,7 +69,7 @@ public class Upgrade {
 
             }
 
-            // Returns true if drive version < class version, meaning we need to upgrade.
+            // Major versions match, upgrade not required.
             return false;
         }
     }

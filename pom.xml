@@ -198,8 +198,8 @@
             </activation>
             <properties>
                 <!-- Java heap parameters -->
-                <maxheap>54000m</maxheap>
-                <minheap>1000m</minheap>
+                <maxheap>16384m</maxheap>
+                <minheap>4096m</minheap>
             </properties>
         </profile>
     </profiles>

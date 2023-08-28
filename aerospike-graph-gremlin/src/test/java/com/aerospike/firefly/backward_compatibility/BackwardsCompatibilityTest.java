@@ -1,6 +1,5 @@
 package com.aerospike.firefly.backward_compatibility;
 
-
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DockerUtil;

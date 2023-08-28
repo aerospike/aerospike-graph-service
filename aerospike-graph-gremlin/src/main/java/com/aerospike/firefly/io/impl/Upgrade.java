@@ -46,7 +46,6 @@ public class Upgrade {
         final String classDataModel = (String) dataModel.getMethod(GETDATAMODELNAME).invoke(null);
         final ComparableVersion classVersion = (ComparableVersion) dataModel.getMethod(DATAMODELVERSION).invoke(null);
 
-
         if (driveVersion == null && driveDataModel == null) {
             // If both are null then this is a fresh system.
             db.setGraphMetadata(classDataModel, classVersion.toString());

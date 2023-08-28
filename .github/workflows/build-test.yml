@@ -592,7 +592,7 @@ jobs:
           cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
-          aerolab client create base --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
+          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz

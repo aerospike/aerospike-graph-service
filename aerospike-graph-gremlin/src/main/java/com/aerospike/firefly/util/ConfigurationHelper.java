@@ -68,8 +68,7 @@ public final class ConfigurationHelper {
         public static final String PROMETHEUS_PORT = "aerospike.graph.prometheus.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
         public static final String PLUGIN = "aerospike.graph.plugin";
-
-
+        
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
@@ -97,6 +96,8 @@ public final class ConfigurationHelper {
         public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
+        public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
 
@@ -295,6 +296,7 @@ public final class ConfigurationHelper {
         put(Keys.Sets.OUT_IN_SET.name(), "OUT_IN");
         put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
         put(Keys.Sets.TEST_SET.name(), "TEST_SET");
+        put(Keys.BULK_LOADER_FLAG, "false");
     }};
 
 

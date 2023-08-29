@@ -609,6 +609,8 @@ jobs:
       - name: Run L3 Bulk Loading Job
         run: |
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.instance-type }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime}]' > l3_benchmark.json
+          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
       - name: Archive L3 Bulk Loading Job Log
         if: success() || failure()
         run: |
@@ -627,6 +629,19 @@ jobs:
           destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false
+      - name: Publish L3 Runtime Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Publish Benchmark Results
+          tool: 'customSmallerIsBetter'
+          output-file-path: l3_benchmark.json
+          auto-push: true
+          alert-threshold: '125%'
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+          benchmark-data-dir-path: docs/
       - name: Run Benchmark on GCP
         run: |
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"

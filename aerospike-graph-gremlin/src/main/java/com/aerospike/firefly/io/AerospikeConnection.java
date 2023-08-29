@@ -808,7 +808,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on-disk type of scalar values. If the value parameter is an ArrayList, return an
+     * Return the numeric id of the on disk type of scalar values. If the value parameter is an ArrayList, return an
      * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
      *
      * @param value Object to get type hint ID of

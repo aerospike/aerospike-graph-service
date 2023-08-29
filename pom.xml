@@ -128,12 +128,15 @@
                 <configuration>
                     <environmentVariables>
                         <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                        <!--
+                            This should be set to the lowest version of Aerospike graph that is available in dockerhub.
+                            Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1
+                         -->
+                        <COMPATIBILITY_VERSION></COMPATIBILITY_VERSION>
                     </environmentVariables>
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx@{maxheap}
-                        -Xms@{minheap}
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>

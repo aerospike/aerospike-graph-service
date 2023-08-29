@@ -129,31 +129,28 @@ public class TestDataModelVersioning {
     }
 
     @Test
-    public void testVersionMismatchErrors() throws Exception {
+    public void testMajorVersionMatch() throws Exception {
         // Start graph with version 0.0.1.
         db = AerospikeConnection.connect(config);
         db.dropDatabase(graph, false);
         FakeGraph.version = "0.0.1";
         Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
 
-        // Now try to open version 0.0.2, this should return that an upgrade is required, however since upgrades
-        // are not currently supported, it should throw an exception when the performUpgrade function is called.
+        // Now try to open version 0.0.2, this should return no issue since the major version matches.
         db.close();
         FakeGraph.version = "0.0.2";
         db = AerospikeConnection.connect(config);
-        Assert.assertTrue(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
-        Assert.assertThrows(RuntimeException.class, () -> Upgrade.performUpgrade(FakeGraph.class, db));
-
+        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
 
         // Now knock out the current data and place it to version 0.0.2.
         db.dropDatabase(graph, false);
         Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
 
-        // Try to open version 0.0.1, this should throw an exception since you cannot upgrade from 0.0.2 to 0.0.1.
-        FakeGraph.version = "0.0.1";
+        // Try to open version 0.1.1, this should do nothing since the major version matches.
+        FakeGraph.version = "0.1.1";
         db.close();
         db = AerospikeConnection.connect(config);
-        Assert.assertThrows(RuntimeException.class, () -> Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
 
     }
 
@@ -183,10 +180,10 @@ public class TestDataModelVersioning {
     }
 
     @Test
-    public void TestFailOnLaterVersion() throws Exception {
+    public void TestFailOnLaterMajorVersion() throws Exception {
         db = AerospikeConnection.connect(config);
         db.dropDatabase(graph, false);
-        FakeGraph.version = "0.0.2";
+        FakeGraph.version = "1.0.2";
         if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
             Upgrade.performUpgrade(FakeGraph.class, db);
         db.close();
@@ -201,7 +198,29 @@ public class TestDataModelVersioning {
             success = true;
         }
         if (!success)
-            fail("should throw exception if on disk model is greater then program model");
+            fail("should throw exception if on-disk model is greater then program model");
+    }
+
+    @Test
+    public void TestFailOnEarlierMajorVersion() throws Exception {
+        db = AerospikeConnection.connect(config);
+        db.dropDatabase(graph, false);
+        FakeGraph.version = "0.0.2";
+        if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
+            Upgrade.performUpgrade(FakeGraph.class, db);
+        db.close();
+
+        boolean success = false;
+        FakeGraph.version = "1.0.1";
+        try {
+            db = AerospikeConnection.connect(config);
+            if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
+                Upgrade.performUpgrade(FakeGraph.class, db);
+        } catch (Exception e) {
+            success = true;
+        }
+        if (!success)
+            fail("should throw exception if on-disk model is greater then program model");
     }
 
 }

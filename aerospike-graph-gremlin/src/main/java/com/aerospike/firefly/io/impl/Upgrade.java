@@ -63,7 +63,7 @@ public class Upgrade {
             // If the data models match then we need to check the versions.
             if (driveVersionMajor != classVersionMajor) {
                 // If the on disk data model is > software data model we can't upgrade. This is illegal, send them to jail.
-                throw new RuntimeException(String.format("The on disk data model major version '%s' does not match the " +
+                throw new RuntimeException(String.format("The-on disk data model major version '%s' does not match the " +
                         "data model '%s' being used.", driveVersion, classVersion));
 
             }

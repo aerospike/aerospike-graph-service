@@ -9,10 +9,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -181,8 +181,8 @@ public class BackwardsCompatibilityTest {
         }
     }
 
-    @BeforeClass
-    public static void beforeClass() {
+    @Before
+    public void beforeEachTest() {
         graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES));
         final String versionString = graph.getBaseGraph().getDataModelMetadata().getDataModelVersion().toString();
         graph.traversal().V().drop().iterate();
@@ -207,12 +207,15 @@ public class BackwardsCompatibilityTest {
         // Load a single vertex into the graph and drop it. This will force the graph to write it's data model version.
         final GraphTraversalSource g = traversal().withRemote(
                 DriverRemoteConnection.using("localhost", port, "g"));
-        final Vertex v = g.addV().next();
-        g.V(v.id()).drop().iterate();
+        try {
+            Thread.sleep(100);
+        } catch (final InterruptedException e) {
+            fail("Failed to sleep for 100ms");
+        }
     }
 
-    @AfterClass
-    public static void afterClass() {
+    @After
+    public void afterEachTest() {
         if (graph != null) {
             graph.close();
             graph = null;

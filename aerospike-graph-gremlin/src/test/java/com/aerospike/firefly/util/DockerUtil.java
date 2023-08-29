@@ -124,7 +124,7 @@ public class DockerUtil {
 
         // Start the container.
         dockerClient.startContainerCmd(containerId).exec();
-        dockerImageTagToContainerId.put(dockerImage + ":" + tag, new DockerInfo(dockerImageTag, 8182));
+        dockerImageTagToContainerId.put(containerId, new DockerInfo(dockerImageTag, 8182));
 
         // Wait 30 seconds for the container to be fully up.
         try {

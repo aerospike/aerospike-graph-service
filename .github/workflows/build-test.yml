@@ -609,7 +609,7 @@ jobs:
       - name: Run L3 Bulk Loading Job
         run: |
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.instance-type }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime}]' > l3_benchmark.json
+          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.instance-type }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
           gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
       - name: Archive L3 Bulk Loading Job Log
         if: success() || failure()

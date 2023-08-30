@@ -106,7 +106,6 @@ jobs:
           DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}_1
           GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}_1
           
-          
           # Retag image for immutability.
           docker tag $GITHUB_IMAGE $DOCKERHUB_IMMUTABLE_IMAGE
           docker tag $GITHUB_IMAGE $GCLOUD_IMMUTABLE_IMAGE

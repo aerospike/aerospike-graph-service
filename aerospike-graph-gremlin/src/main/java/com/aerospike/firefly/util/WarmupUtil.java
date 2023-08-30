@@ -33,7 +33,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.values
  */
 public class WarmupUtil {
     public static final int passes = 48;
-    final Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
     private final Configuration conf;
     private static FireflyGraph graph = null;
 
@@ -49,7 +49,7 @@ public class WarmupUtil {
         return "FIREFLYWARMUP";
     }
 
-    public void preheat(int passes) {
+    public void preheat(final int passes) {
         synchronized (FireflyGraph.class) {
             if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FAULT_TEST, conf))) {
                 final String message = "Fault Test. The FAULT_TEST configuration key has been enabled. This intentionally causes the warmup routine to fail.";
@@ -82,9 +82,9 @@ public class WarmupUtil {
 
     private void phase1() {
         System.out.println("p1");
-        GraphTraversalSource g = graph.traversal();
-        List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
-        Object[] createdIdAry = createdIds.toArray(new Object[0]);
+        final GraphTraversalSource g = graph.traversal();
+        final List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
+        final Object[] createdIdAry = createdIds.toArray(new Object[0]);
         try {
             g.V(createdIdAry).has("name", "CANT COME DOWN").outE().inV().count().next();
 
@@ -93,7 +93,7 @@ public class WarmupUtil {
                             __.as("a").in("writtenBy").as("b"),
                             __.as("a").in("sungBy").as("b")).
                     select("b").values("name").toList();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             LOG.warn(e.getMessage());
         }
         System.out.println("p1 drop");
@@ -101,9 +101,9 @@ public class WarmupUtil {
     }
 
     private void phase2() {
-        GraphTraversalSource g = graph.traversal();
-        List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
-        Object[] createdIdAry = createdIds.toArray(new Object[0]);
+        final GraphTraversalSource g = graph.traversal();
+        final List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
+        final Object[] createdIdAry = createdIds.toArray(new Object[0]);
         try {
             g.V(createdIdAry).hasLabel("person").as("p1").choose(outE("knows"), out("knows")).as("p2").<String>select("p1", "p2").by("name").toList();
             g.V(createdIdAry).hasLabel("person").choose(values("age")).coin(.4).groupCount().next();
@@ -112,7 +112,7 @@ public class WarmupUtil {
             g.withSideEffect("b", b).V(a).addE("knows").to("b").property("weight", 0.5d).toList();
             g.withSideEffect("sg", () -> TinkerGraph.open()).V(createdIdAry).has("name", "marko").outE("knows").subgraph("sg").values("name").cap("sg").toList();
             g.V(createdIdAry).as("a").out().as("b").out().as("c").simplePath().by(T.label).from("b").to("c").path().by("name").toList();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             LOG.warn(e.getMessage());
         }
         g.V(createdIdAry).drop().iterate();
@@ -120,16 +120,16 @@ public class WarmupUtil {
 
 
     private static List<Object> cloneElements(final Graph original, final Graph clone) {
-        HashMap<Object, Object> vxidmap = new HashMap<>();
+        final HashMap<Object, Object> vxidmap = new HashMap<>();
         original.vertices(new Object[0]).forEachRemaining((origVertex) -> {
             Vertex newVertex = (Vertex) DetachedFactory.detach(origVertex, true).attach(Attachable.Method.create(clone));
             vxidmap.put(origVertex.id(), newVertex.id());
         });
         original.edges(new Object[0]).forEachRemaining((e) -> {
-            Vertex iv = e.inVertex();
-            Vertex ov = e.outVertex();
-            GraphTraversalSource cg = clone.traversal();
-            Edge addedE = clone.traversal().V(vxidmap.get(ov.id())).addE(e.label()).to(__.V(vxidmap.get(iv.id()))).next();
+            final Vertex iv = e.inVertex();
+            final Vertex ov = e.outVertex();
+            final GraphTraversalSource cg = clone.traversal();
+            final Edge addedE = clone.traversal().V(vxidmap.get(ov.id())).addE(e.label()).to(__.V(vxidmap.get(iv.id()))).next();
             e.properties().forEachRemaining(p -> {
                 cg.E(addedE).property(p.key(), p.value());
             });
@@ -138,13 +138,12 @@ public class WarmupUtil {
         return Arrays.asList(vxidmap.values().toArray());
     }
 
-    public static void invokeWarmup(GraphTraversalSource g) {
-        Logger LOG = LoggerFactory.getLogger(WarmupUtil.class);
+    public static void invokeWarmup(final GraphTraversalSource g) {
         System.out.println("Will attempt warmup routine");
         try {
             g.V(FIREFLY_WARMUP_VARIABLE_NAME).next();
             System.out.println("Warmup complete.");
-        } catch (Exception e) {
+        } catch (final Exception e) {
             final String message = String.format("Failed to perform warmup routine: %s", e.getMessage());
             LOG.error(message);
             System.err.println(message);

@@ -274,7 +274,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
     private static Settings GREMLIN_SERVER_SETTINGS = null;
 
-    public static Settings getGremlinServerSettings() {
+    public static synchronized Settings getGremlinServerSettings() {
         if (GREMLIN_SERVER_SETTINGS == null) {
             // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
             if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {

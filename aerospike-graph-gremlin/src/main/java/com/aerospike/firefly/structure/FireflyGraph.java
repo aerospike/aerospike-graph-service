@@ -272,18 +272,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
     }
+    private static Settings GREMLIN_SERVER_SETTINGS = null;
 
-    public static Settings getGremlinServerSettings() {
-        // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
-        if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
-            LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
-            try {
-                return Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
-            } catch (Exception e) {
-                LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+    public static synchronized Settings getGremlinServerSettings() {
+        if (GREMLIN_SERVER_SETTINGS == null) {
+            // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
+            if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
+                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
+                try {
+                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
+                } catch (Exception e) {
+                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+                }
             }
+            GREMLIN_SERVER_SETTINGS = new Settings();
         }
-        return new Settings();
+        return GREMLIN_SERVER_SETTINGS;
     }
 
     /**
@@ -474,7 +478,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                WarmupUtil.create(configuration).preheat(1);
+                WarmupUtil.create(configuration).preheat(48);
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
         }

@@ -196,8 +196,8 @@ public class AerospikeConnection implements AutoCloseable {
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
-        clientPolicy.maxConnsPerNode = threadPoolSize * 2;
-        clientPolicy.minConnsPerNode = threadPoolSize;
+        clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE,conf));
+        clientPolicy.minConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE,conf));
 
         // While our writes are not idempotent, we should not be retrying.
         clientPolicy.writePolicyDefault.maxRetries = 0;
@@ -216,6 +216,7 @@ public class AerospikeConnection implements AutoCloseable {
         if (Boolean.parseBoolean(tlsEnabled)) {
             clientPolicy.tlsPolicy = new TlsPolicy();
         }
+        clientPolicy.maxErrorRate = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf));
         return clientPolicy;
     }
 

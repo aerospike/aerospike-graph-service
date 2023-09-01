@@ -71,13 +71,9 @@ jobs:
 
       - name: Publish Container
         run: |
-          pwd
-          ls -l
           
           find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
           find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
-          
-          ls -l aerospike-graph-gremlin
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=0.0.0.0.1

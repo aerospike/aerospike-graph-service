@@ -23,9 +23,6 @@ fi
 BUILD_IMAGE="aerospike-graph-build:latest"
 SQUASH_IMAGE="aerospike-graph-squash:latest"
 
-# Perform build before entering docker.
-mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
-
 # Perform initial docker build.
 docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE  --output=type=docker -f $DOCKERFILE_A .
 

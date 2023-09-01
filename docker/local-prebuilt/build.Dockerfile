@@ -44,11 +44,26 @@ RUN cd /tmp &&\
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
 # Add docker-default and scripts to docker container.
-ADD . /opt/aerospike-firefly
+ADD .. /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
-# Build Firefly.
-RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+# Install Firefly
+RUN if [[ $RELEASE_BUILD -eq "1" ]] ; \
+then mvn install:install-file \
+        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0.jar \
+        -DgroupId=com.aerospike \
+        -DartifactId=aerospike-graph-gremlin \
+        -Dversion=1.1.0 \
+        -Dpackaging=jar \
+        -DgeneratePom=true ; \
+else mvn install:install-file \
+        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0-SNAPSHOT.jar \
+        -DgroupId=com.aerospike \
+        -DartifactId=aerospike-graph-gremlin \
+        -Dversion=1.1.0-SNAPSHOT \
+        -Dpackaging=jar \
+        -DgeneratePom=true ; \
+fi
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\

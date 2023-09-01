@@ -6,8 +6,10 @@ name: Publish Firefly Container
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+    branches:
+      - GRAPH-652
+    #tags:
+    #  - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -16,6 +18,37 @@ env:
 
 jobs:
 
+  publish-artifacts:
+    name: Publish Artifacts
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Java 11 Install
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Build Bulk Loader
+        run: |
+          mvn clean install -DskipTests
+
+      - name: Upload Bulk Loader
+        uses: actions/upload-artifact@v3
+        with:
+          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar
+
+      - name: Upload Firefly
+        uses: actions/upload-artifact@v3
+        with:
+          path: aerospike-graph/target/aerospike-graph-gremlin*.jar
+
+      - name: Download a Jar File
+        uses: actions/download-artifact@v3
+
   publish-github:
     name: Publish Firefly Docker Image - GitHub
     permissions:
@@ -23,6 +56,7 @@ jobs:
       contents: read
     timeout-minutes: 120
     runs-on: ubuntu-latest
+    needs: publish-artifacts
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -37,8 +71,15 @@ jobs:
 
       - name: Publish Container
         run: |
+          pwd
+          ls -l
+          
+          find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
+          find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
+          
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=0.0.0.0.1
+          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
   
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
@@ -54,16 +95,16 @@ jobs:
             echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
   
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=1"
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker-github.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker-github.sh $OUTPUT_IMAGE linux/amd64 --push
           else
             DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
 
-            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker-github.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker-github.sh $OUTPUT_IMAGE linux/amd64 --push
           fi
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
 
@@ -73,27 +114,3 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ env.OUTPUT_IMAGE }}
-
-
-  publish-artifacts:
-    name: Publish Artifacts
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Java 11 Install
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-
-    - name: Build Bulk Loader
-      run: |
-        mvn clean install -DskipTests
-
-    - name: Upload Bulk Loader
-      uses: actions/upload-artifact@v3
-      with:
-        path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar

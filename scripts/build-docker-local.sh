@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
-DOCKERFILE_A=${DOCKERFILE_A:-"docker-built-stripped/build.Dockerfile"}
-DOCKERFILE_B=${DOCKERFILE_B:-"docker-built-stripped/prod.Dockerfile"}
+DOCKERFILE_A=${DOCKERFILE_A:-"docker/local-prebuilt/build.Dockerfile"}
+DOCKERFILE_B=${DOCKERFILE_B:-"docker/local-prebuilt/prod.Dockerfile"}
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then
@@ -20,20 +20,24 @@ if [[ -z "$PUSH_FLAG" ]]; then
     PUSH_FLAG=""
 fi
 
-BUILD_IMAGE="aerospike-graph-stripped-build:latest"
-SQUASH_IMAGE="aerospike-graph-stripped-squash:latest"
+BUILD_IMAGE="aerospike-graph-build:latest"
+SQUASH_IMAGE="aerospike-graph-squash:latest"
 
-# Do the initial build.
+# Perform build before entering docker.
+mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+
+# Perform initial docker build.
 docker buildx build $EXTRA_BUILD_ARGS --platform "$PLATFORM" --tag $BUILD_IMAGE  --output=type=docker -f $DOCKERFILE_A .
 
-# Instantiate container and get container id.
+# Instantiate container and get container id
 CTR_ID=$(docker run -d -t -i --entrypoint=/bin/echo $BUILD_IMAGE)
 
-# Export container filesystem to new image stripping historic layers.
+# Export container filesystem to new image stripping historic layers
 NEW_IMAGE=$(docker export "$CTR_ID" | docker import -)
 docker tag "$NEW_IMAGE" "$SQUASH_IMAGE"
 docker images
-# Add the runtime configuration to the stripped image.
+
+# Add the runtime configuration to the stripped image
 docker build $EXTRA_BUILD_ARGS -f $DOCKERFILE_B --tag "$OUTPUT_TAG" .
 if [[ -n "$PUSH_FLAG" ]]; then
   docker push $OUTPUT_TAG

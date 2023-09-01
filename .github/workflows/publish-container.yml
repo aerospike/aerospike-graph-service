@@ -44,7 +44,7 @@ jobs:
       - name: Upload Firefly
         uses: actions/upload-artifact@v3
         with:
-          path: aerospike-graph/target/aerospike-graph-gremlin*.jar
+          path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
 
       - name: Download a Jar File
         uses: actions/download-artifact@v3

@@ -46,9 +46,6 @@ jobs:
         with:
           path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
 
-      - name: Download a Jar File
-        uses: actions/download-artifact@v3
-
   publish-github:
     name: Publish Firefly Docker Image - GitHub
     permissions:
@@ -68,6 +65,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+
+      - name: Download a Jar File
+        uses: actions/download-artifact@v3
 
       - name: Publish Container
         run: |

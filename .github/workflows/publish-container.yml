@@ -73,6 +73,9 @@ jobs:
         run: |
           # Grab the jar files and move them to the target bin folders.
           
+          ls -l
+          unzip artifact
+          ls -l
           
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target

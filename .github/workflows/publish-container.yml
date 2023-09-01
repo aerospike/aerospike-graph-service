@@ -79,6 +79,7 @@ jobs:
           find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
           find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
           
+          ls -l
           ls -l aerospike-graph-gremlin
           ls -l aerospike-graph-bulk-loader
           ls -l aerospike-graph-gremlin/target

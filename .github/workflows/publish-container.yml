@@ -74,13 +74,14 @@ jobs:
           # Grab the jar files and move them to the target bin folders.
           
           ls -l
-          unzip artifact
-          ls -l
-          
+          ls -l artifact
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
-          find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
-          find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
+          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
+          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar
+          
+          #find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
+          #find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
           
           ls -l
           ls -l aerospike-graph-gremlin

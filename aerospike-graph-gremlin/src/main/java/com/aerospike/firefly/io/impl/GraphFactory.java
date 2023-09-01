@@ -31,6 +31,8 @@ final public class GraphFactory {
         } else {
             LOG.info("Constructing Graph for {} data model.", dataModel);
             try {
+                if (DataModelVersioning.checkNeedsUpgrade(PackedGraph.class, db))
+                    DataModelVersioning.errorNeedsUpgrade(PackedGraph.class, db);
                 return new PackedGraph(db, config, getGremlinServerSettings());
             } catch (Exception e) {
                 throw new RuntimeException("Error constructing graph", e);

@@ -40,7 +40,7 @@ RUN cd /tmp &&\
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
 # Add docker-default and scripts to docker container.
-ADD .. /opt/aerospike-firefly
+ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
 # Build Firefly.

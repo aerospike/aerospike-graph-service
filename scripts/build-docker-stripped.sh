@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
-DOCKERFILE_A=${DOCKERFILE_A:-"docker-built-stripped/build.Dockerfile"}
-DOCKERFILE_B=${DOCKERFILE_B:-"docker-built-stripped/prod.Dockerfile"}
+DOCKERFILE_A=${DOCKERFILE_A:-"docker/docker-built-stripped/build.Dockerfile"}
+DOCKERFILE_B=${DOCKERFILE_B:-"docker/docker-built-stripped/prod.Dockerfile"}
 
 OUTPUT_TAG="$1"
 if [[ -z "$OUTPUT_TAG" ]]; then

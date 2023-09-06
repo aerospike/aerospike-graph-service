@@ -6,10 +6,8 @@ name: Publish Firefly Container
 
 on:
   push:
-    branches:
-      - GRAPH-652
-    #tags:
-    #  - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -71,23 +69,13 @@ jobs:
 
       - name: Publish Container
         run: |
-          # Grab the jar files and move them to the target bin folders.
-          
-          ls -l
-          ls -l artifact
+          # Make output directories.
           mkdir aerospike-graph-gremlin/target
           mkdir aerospike-graph-bulk-loader/target
+          
+          # Move the jar files to the target bin folders.
           mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
-          
-          #find . -name "aerospike-graph-gremlin*.jar" -exec cp {} aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar \;
-          #find . -name "aerospike-graph-bulk-loader*.jar" -exec cp {} aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader*.jar \;
-          
-          ls -l
-          ls -l aerospike-graph-gremlin
-          ls -l aerospike-graph-bulk-loader
-          ls -l aerospike-graph-gremlin/target
-          ls -l aerospike-graph-bulk-loader/target
           
           # Strip git ref prefix (refs/tags or ref/heads).
           VERSION=0.0.0.0.1
@@ -105,7 +93,6 @@ jobs:
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 and linux/arm64 $DOCKER_IMAGE $OUTPUT_IMAGE"
-  
   
             # Switch back to 1.
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=0"

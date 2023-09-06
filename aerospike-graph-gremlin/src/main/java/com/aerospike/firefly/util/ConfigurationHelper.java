@@ -19,7 +19,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -182,7 +181,8 @@ public final class ConfigurationHelper {
             ID_MANAGER_SET((byte) 9),
             SUMMARY_SET((byte) 10),
             TEST_SET((byte) 11),
-            GRAPH_METADATA_SET((byte) 12), USER_SUPPLIED_ID_CACHE_SET((byte) 30);
+            GRAPH_METADATA_SET((byte) 12),
+            USER_SUPPLIED_ID_CACHE_SET((byte) 30);
 
             private final byte value;
 
@@ -199,6 +199,13 @@ public final class ConfigurationHelper {
             }
         }
     }
+
+    public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
+            Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
+            Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
+            Keys.FIREFLY_DATA_MODEL,
+            Keys.DEBUG_MODE_FLAG
+    );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
@@ -297,6 +304,7 @@ public final class ConfigurationHelper {
         put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
         put(Keys.Sets.TEST_SET.name(), "TEST_SET");
         put(Keys.BULK_LOADER_FLAG, "false");
+        put(Keys.DEBUG_MODE_FLAG, "false");
     }};
 
 

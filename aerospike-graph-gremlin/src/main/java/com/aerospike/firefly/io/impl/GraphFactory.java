@@ -28,7 +28,6 @@ final public class GraphFactory {
     private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
 
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
-
         final String dataModel = ConfigurationHelper.getOrDefaultString(FIREFLY_DATA_MODEL, config);
         if (!DATA_MODEL_MAP.containsKey(dataModel)) {
             throw new IllegalArgumentException("Unknown graph type: " + dataModel);
@@ -38,8 +37,9 @@ final public class GraphFactory {
                 final Class<? extends FireflyGraph> graphClass = DATA_MODEL_MAP.get(dataModel);
                 if (Upgrade.checkNeedsUpgrade(graphClass, db))
                     Upgrade.performUpgrade(graphClass, db);
+                db.checkConfigurationCompatibility(config);
                 return graphClass.getConstructor(AerospikeConnection.class, Configuration.class, Settings.class).newInstance(db, config, getGremlinServerSettings());
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 // This should never happen, but this prevents us from having to put a throws on the function signature.
                 // Gotta love Java...
                 throw new RuntimeException("Error constructing graph", e);

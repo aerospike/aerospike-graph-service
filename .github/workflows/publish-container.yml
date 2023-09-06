@@ -78,8 +78,7 @@ jobs:
           mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=0.0.0.0.1
-          # $(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
   
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')

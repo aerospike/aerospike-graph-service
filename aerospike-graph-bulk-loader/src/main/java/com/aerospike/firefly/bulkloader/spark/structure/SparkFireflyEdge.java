@@ -86,7 +86,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         // TODO User supplied edge id in bulk loader.
         //  remove assignments here, use edge id passed into function header.
         //  NOTE: in cases where 'forVerification' is true, set edge id to null.
-        byte[] edgeId;
+        final byte[] edgeId;
         if (forVerification) {
             edgeId = null;
         } else {

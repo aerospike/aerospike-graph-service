@@ -602,8 +602,8 @@ jobs:
       - name: Download, Install, and Configure Aerolab
         run: |
           cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
-          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
-          aerolab config backend -t gcp -o firefly-aerospike
+          sudo unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
+          sudo aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}

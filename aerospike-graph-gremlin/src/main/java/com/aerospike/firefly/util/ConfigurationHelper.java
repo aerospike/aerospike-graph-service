@@ -78,12 +78,16 @@ public final class ConfigurationHelper {
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "aerospike.graph.strategy.drop.enabled";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
+        public static final String ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
+        public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
+        public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
+        public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
@@ -251,7 +255,11 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");

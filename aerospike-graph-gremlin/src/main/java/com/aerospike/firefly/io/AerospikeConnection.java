@@ -192,6 +192,10 @@ public class AerospikeConnection implements AutoCloseable {
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
     private final FireflyIdFactory idFactory;
+    public boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = true;
+    public boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = true;
+    public boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = true;
+    public boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = true;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
@@ -300,8 +304,10 @@ public class AerospikeConnection implements AutoCloseable {
         SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
         SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
         STORAGE_DEBUGGER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf));
-
-
+        ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf));
+        ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
+        ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
+        ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);

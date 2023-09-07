@@ -27,6 +27,13 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        if (!traversal.isRoot()) {
+            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+            if (!graph.getBaseGraph().ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY) {
+                return;
+            }
+        }
+
         if (TraversalHelper.onGraphComputer(traversal))
             return;
 

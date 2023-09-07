@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -8,12 +9,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -45,8 +48,14 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
             rootGroup.set(false);
         }
 
-        if (!traversal.isRoot() && rootGroup.get()) {
-            return;
+        if (!traversal.isRoot()) {
+            if (rootGroup.get()) {
+                return;
+            }
+            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+            if (!graph.getBaseGraph().ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY) {
+                return;
+            }
         }
 
         if (TraversalHelper.onGraphComputer(traversal))
@@ -58,7 +67,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
         //  With these traversals there's a casting error that occurs at the end of the traversal pipe.
         if (traversal.isRoot()) {
             for (int i = 0; i < steps.size(); i++) {
-                if (steps.get(i) instanceof GroupStep) {
+                if (steps.get(i) instanceof GroupStep || steps.get(i) instanceof GroupSideEffectStep) {
                     rootGroup.set(true);
                     break;
                 }

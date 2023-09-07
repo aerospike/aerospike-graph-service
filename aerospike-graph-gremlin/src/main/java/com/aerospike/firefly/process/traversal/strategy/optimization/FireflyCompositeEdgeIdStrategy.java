@@ -40,6 +40,11 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        // Reset whenever root.
+        if (traversal.isRoot()) {
+            rootGroup.set(false);
+        }
+
         if (!traversal.isRoot() && rootGroup.get()) {
             return;
         }

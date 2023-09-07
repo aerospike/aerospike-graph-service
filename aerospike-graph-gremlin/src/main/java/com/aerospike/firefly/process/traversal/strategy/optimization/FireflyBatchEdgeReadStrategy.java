@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -19,6 +20,13 @@ import java.util.Set;
  */
 public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
 
+    final ThreadLocal<Boolean> rootGroup = new ThreadLocal<Boolean>() {
+        @Override
+        protected Boolean initialValue() {
+            return false;
+        }
+    };
+
     /**
      * Default constructor for FireflyBatchEdgeReadStrategy.
      */
@@ -32,9 +40,25 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        if (!traversal.isRoot() && rootGroup.get()) {
+            return;
+        }
+
         if (TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = traversal.getSteps();
+
+        // TODO GRAPH-792: There's a weird interaction between the strategy and traversals like:
+        //  g.V().out().groupCount().by(outE().fold()).toList().
+        //  With these traversals there's a casting error that occurs at the end of the traversal pipe.
+        if (traversal.isRoot()) {
+            for (int i = 0; i < steps.size(); i++) {
+                if (steps.get(i) instanceof GroupStep) {
+                    rootGroup.set(true);
+                    break;
+                }
+            }
+        }
 
         // We need to find VertexSteps.
         // In particular, we need vertex steps that return a vertex.

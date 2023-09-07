@@ -593,6 +593,8 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
+      - run: mkdir -p /home/runner && chmod -R 777 /home/runner
+      - run: echo "HOME=/home/runner" >> $GITHUB_ENV
       - name: Install Packages
         run: |
           sudo apt -y update
@@ -602,8 +604,8 @@ jobs:
       - name: Download, Install, and Configure Aerolab
         run: |
           cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
-          sudo unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
-          sudo aerolab config backend -t gcp -o firefly-aerospike
+          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
+          aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}

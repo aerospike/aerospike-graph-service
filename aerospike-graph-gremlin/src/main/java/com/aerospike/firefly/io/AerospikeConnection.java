@@ -195,10 +195,10 @@ public class AerospikeConnection implements AutoCloseable {
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
     private final FireflyIdFactory idFactory;
-    public boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = true;
-    public boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = true;
-    public boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = true;
-    public boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = true;
+    public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();

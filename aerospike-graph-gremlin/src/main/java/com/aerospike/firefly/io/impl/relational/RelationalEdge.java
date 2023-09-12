@@ -157,7 +157,6 @@ public class RelationalEdge extends FireflyEdge {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));

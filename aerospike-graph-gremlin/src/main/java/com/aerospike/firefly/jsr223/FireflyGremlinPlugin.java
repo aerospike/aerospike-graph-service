@@ -63,14 +63,6 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         }
         metricsProtocolServer = PrometheusMetricsServer.create(port, endpoint);
     }
-
-    private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();
-
-    public FireflyGremlinPlugin() {
-        super(NAME, imports);
-        metricsProtocolServer.start();
-    }
-
     public static void startHealthcheckServer(final Configuration config, final int port) {
         final HealthcheckServer x = HealthcheckServer.create(config, port);
         x.start();
@@ -82,6 +74,12 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
                 throw new RuntimeException(maybeError.get());
             return null;
         });
+    }
+    private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();
+
+    public FireflyGremlinPlugin() {
+        super(NAME, imports);
+        metricsProtocolServer.start();
     }
 
     public static GremlinPlugin instance() {

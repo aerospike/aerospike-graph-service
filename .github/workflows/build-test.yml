@@ -134,7 +134,7 @@ jobs:
           mkdir ${{ env.YEAR }}/${{ env.MONTH }}
           mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
           mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}
-          gcloud dataproc jobs wait ci-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
+          gcloud dataproc jobs wait ci-pe-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
           gcloud storage mv gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_config.properties
       - name: Upload L3 Bulk Loading Job Log to GCP
         if: success() || failure()

@@ -45,7 +45,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
         super(traversal, MAX_BARRIER_SIZE);
         this.direction = direction;
         this.edgeLabels = edgeLabels;
-        this.labels = labels;
+        this.labels = new HashSet<>(labels);
         if (hasContainers != null) {
             final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities =
                     FireflyBatchReadHelper.getHasContainersWithCardinalityOrder((FireflyGraph) getTraversal().getGraph().get(), Vertex.class, hasContainers);

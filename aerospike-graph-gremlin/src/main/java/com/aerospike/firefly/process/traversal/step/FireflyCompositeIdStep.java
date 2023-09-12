@@ -67,17 +67,18 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     @Override
     public void barrierConsumer(final TraverserSet<Vertex> set) {
         // Create output traverser set since we cant append to the input while we are iterating.
-
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (traversal.getParent() instanceof RepeatStep) {
-            final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
-            final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
-            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
-                set.add(repeatStarts.next());
+            if (graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+                final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
+                final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
+                while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+                    set.add(repeatStarts.next());
+                }
             }
         }
 
         final TraverserSet<Vertex> output = new TraverserSet<>();
-        final FireflyGraph graph = (FireflyGraph) getTraversal().getGraph().get();
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
         final List<FireflyBatchReadHelper.ReadStepInfo<Vertex>> fireflyCompositeIdStepInfos = new ArrayList<>();

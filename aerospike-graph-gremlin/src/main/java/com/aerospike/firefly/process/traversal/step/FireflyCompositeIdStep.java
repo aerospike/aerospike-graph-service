@@ -74,12 +74,6 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
                 set.add(repeatStarts.next());
             }
-        } else if (traversal.getParent() instanceof NotStep) {
-            final NotStep notStep = (NotStep) traversal.getParent();
-            final ExpandableStepIterator repeatStarts = notStep.getStarts();
-            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
-                set.add(repeatStarts.next());
-            }
         }
 
         final TraverserSet<Vertex> output = new TraverserSet<>();

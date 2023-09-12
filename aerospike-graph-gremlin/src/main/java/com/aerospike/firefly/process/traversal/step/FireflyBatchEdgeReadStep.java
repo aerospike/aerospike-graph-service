@@ -65,23 +65,19 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
+        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
         if (traversal.getParent() instanceof RepeatStep) {
-            final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
-            final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
-            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
-                set.add(repeatStarts.next());
-            }
-        } else if (traversal.getParent() instanceof NotStep) {
-            final NotStep notStep = (NotStep) traversal.getParent();
-            final ExpandableStepIterator repeatStarts = notStep.getStarts();
-            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
-                set.add(repeatStarts.next());
+            if (graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+                final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
+                final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
+                while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+                    set.add(repeatStarts.next());
+                }
             }
         }
 
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Edge> output = new TraverserSet<>();
-        final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
 
         // Info is used to keep track of how many output items we assign for each input (executed in order).
         final List<FireflyBatchReadHelper.ReadStepInfo<Edge>> fireflyBatchEdgeReadStepInfos = new ArrayList<>();

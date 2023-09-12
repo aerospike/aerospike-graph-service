@@ -65,6 +65,11 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
                     traversal);
         }
 
+        final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+        if (!graph.getBaseGraph().ENABLE_EMBEDDED_LOCAL_COUNT_STRATEGY) {
+            return;
+        }
+
         // Use global strategy for root. This is for embedded.
         if (traversal.isRoot()) {
             return;

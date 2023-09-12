@@ -105,11 +105,11 @@ public final class ConfigurationHelper {
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
-        public static final String MAX_ERROR_RATE = "aerospike.graph.client.maxErrorRate";
-        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.graph.client.maxConnectionsPerNode";
-        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.graph.client.minConnectionsPerNode";
-        public static final String CONNECT_TIMEOUT = "aerospike.graph.client.connectTimeout";
-        public static final String TIMEOUT_DELAY = "aerospike.graph.client.timeoutDelay";
+        public static final String MAX_ERROR_RATE = "aerospike.client.maxErrorRate";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.maxConnectionsPerNode";
+        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
+        public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
+        public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
 
         public enum Bins {
             GRAPH_VARIABLES_BIN((byte) 1),

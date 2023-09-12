@@ -42,7 +42,7 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {
             final List<Traversal.Admin> localTraversal = localStep.getLocalChildren();
             final List<Step> localTraversalSteps = localTraversal.get(0).getSteps();
-            if (localTraversalSteps.size() < 2) {
+            if (localTraversalSteps.size() != 2) {
                 continue;
             }
             final VertexStep vertexStep;

@@ -9,7 +9,10 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NotStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -62,6 +65,20 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
 
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
+        if (traversal.getParent() instanceof RepeatStep) {
+            final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
+            final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
+            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+                set.add(repeatStarts.next());
+            }
+        } else if (traversal.getParent() instanceof NotStep) {
+            final NotStep notStep = (NotStep) traversal.getParent();
+            final ExpandableStepIterator repeatStarts = notStep.getStarts();
+            while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+                set.add(repeatStarts.next());
+            }
+        }
+
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Edge> output = new TraverserSet<>();
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());

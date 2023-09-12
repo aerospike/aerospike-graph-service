@@ -11,7 +11,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -40,7 +42,7 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
         for (final LocalStep localStep : TraversalHelper.getStepsOfClass(LocalStep.class, traversal)) {
             final List<Traversal.Admin> localTraversal = localStep.getLocalChildren();
             final List<Step> localTraversalSteps = localTraversal.get(0).getSteps();
-            if (localTraversalSteps.size() != 2) {
+            if (localTraversalSteps.size() < 2) {
                 continue;
             }
             final VertexStep vertexStep;
@@ -62,5 +64,44 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
                     new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection(), localStep.getLabels()),
                     traversal);
         }
+
+        // Use global strategy for root. This is for embedded.
+        if (traversal.isRoot()) {
+            return;
+        }
+
+        // Grab steps.
+        final List<Step> steps = traversal.getSteps();
+        if (steps.size() < 2) {
+            return;
+        }
+
+        final VertexStep vertexStep;
+        final CountGlobalStep countGlobalStep;
+        if (!(steps.get(0) instanceof VertexStep)) {
+            return;
+        } else {
+            vertexStep = (VertexStep) steps.get(0);
+            if (vertexStep.getEdgeLabels().length != 0) {
+                return;
+            }
+        }
+        if (!(steps.get(1) instanceof CountGlobalStep)) {
+            return;
+        } else {
+            countGlobalStep = (CountGlobalStep) steps.get(1);
+        }
+
+        LOG.debug("Applying FireflyVertexEdgeLocalCountStrategy");
+        traversal.removeStep(vertexStep);
+        traversal.removeStep(countGlobalStep);
+
+        // Grab labels.
+        final Set<String> labels = new HashSet<>(vertexStep.getLabels());
+        labels.addAll(countGlobalStep.getLabels());
+
+        // Inject step.
+        traversal.addStep(0, new FireflyVertexEdgeLocalCountStep(traversal, vertexStep.getDirection(), labels));
     }
+
 }

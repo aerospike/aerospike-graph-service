@@ -271,6 +271,8 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
+        put(Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");

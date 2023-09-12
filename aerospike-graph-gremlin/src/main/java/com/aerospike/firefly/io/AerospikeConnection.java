@@ -95,6 +95,8 @@ import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
+import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -112,6 +114,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+    public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
 
     public final String GRAPH_ID;
     public final String V_LABEL_INDEX_NAME;
@@ -195,6 +198,10 @@ public class AerospikeConnection implements AutoCloseable {
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
     private final FireflyIdFactory idFactory;
+    public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -312,8 +319,10 @@ public class AerospikeConnection implements AutoCloseable {
         SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
         SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
         STORAGE_DEBUGGER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf));
-
-
+        ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf));
+        ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
+        ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
+        ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
@@ -646,6 +655,42 @@ public class AerospikeConnection implements AutoCloseable {
         this.operate(null, k, writeName, writeVersion);
     }
 
+    public synchronized void checkConfigurationCompatibility(final Configuration config) {
+        final Key key = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Map<String, String> existingConfig = getDataModelMetadata().getExistingImmutableConfigs();
+        if (existingConfig == null) {
+            // This is a fresh graph so write the immutable configurations
+            final Map<String, String> configurations = new HashMap<>();
+            for (final String configKey : IMMUTABLE_CONFIG_KEYS) {
+                configurations.put(configKey, getOrDefaultString(configKey, config));
+            }
+            final Bin configBin = new Bin(DATA_MODEL_CONF, configurations);
+            final Operation writeConfig = Operation.put(configBin);
+            this.operate(null, key, writeConfig);
+        } else {
+            final List<Operation> newImmutableConfigs = new ArrayList<>();
+            for (final String configKey : IMMUTABLE_CONFIG_KEYS) {
+                if (existingConfig.containsKey(configKey)) {
+                    if (!existingConfig.get(configKey).equalsIgnoreCase(getOrDefaultString(configKey, config))) {
+                        final String error = "Cannot start Aerospike Graph Service due to existing immutable graph " +
+                                "configuration '" + configKey + "' with value '" + existingConfig.get(configKey) +
+                                "' mismatching provided configuration value '" + getOrDefaultString(configKey, config) + "'.";
+                        LOG.error(error);
+                        throw new IllegalArgumentException(error);
+                    }
+                } else {
+                    // This is a newer version of Firefly with additional immutable configurations that we need to record.
+                    final Operation addImmutableConfig = MapOperation.put(MapPolicy.Default, DATA_MODEL_CONF,
+                            Value.get(configKey), Value.get(getOrDefaultString(configKey, config)));
+                    newImmutableConfigs.add(addImmutableConfig);
+                }
+            }
+            if (!newImmutableConfigs.isEmpty()) {
+                this.operate(null, key, newImmutableConfigs.toArray(new Operation[0]));
+            }
+        }
+    }
+
     public static class GraphMetadata {
         private final Record metadataRecord;
 
@@ -666,6 +711,19 @@ public class AerospikeConnection implements AutoCloseable {
                 return null;
             } else {
                 return this.metadataRecord.getString(DATA_MODEL_NAME);
+            }
+        }
+
+        private Map<String, String> getExistingImmutableConfigs() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                final Map<?, ?> fixedConfig = this.metadataRecord.getMap(DATA_MODEL_CONF);
+                if (fixedConfig == null) {
+                    return null;
+                } else {
+                    return (Map<String, String>) fixedConfig;
+                }
             }
         }
     }

@@ -54,7 +54,14 @@ public final class FireflyGraphCountStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        if (!(traversal.isRoot()) || TraversalHelper.onGraphComputer(traversal))
+        if (!traversal.isRoot()) {
+            final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
+            if (!graph.getBaseGraph().ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY) {
+                return;
+            }
+        }
+
+        if (TraversalHelper.onGraphComputer(traversal))
             return;
         final List<Step> steps = new ArrayList<>(traversal.getSteps());
         steps.removeIf(step -> step.getClass().equals(FireflyCacheGCStep.class));

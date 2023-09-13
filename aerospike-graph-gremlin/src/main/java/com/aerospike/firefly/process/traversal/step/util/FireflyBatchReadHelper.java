@@ -256,12 +256,14 @@ public class FireflyBatchReadHelper {
                                                           final FireflyGraph graph,
                                                           TraverserSet<E> set,
                                                           final long MAX_BARRIER_SIZE) {
-        if (!(traversal.getParent() instanceof RepeatStep)) {
-            return;
-        }
+        // There is a bug in tinkerpop where repeat step does not acknowledge barriers,
+        // this logic should be in the repeat step for proper implementation.
+        // Because it is not, we can only handle specific cases of repeat.
+        // For example, we cannot do emit steps because if we pull everything from the left, they do not have a chance to
+        // emit since the data is gone.
 
-        // Do not execute if batching repeat disabled.
-        if (!graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+        // Do not execute if batching repeat disabled or if the parent is not a RepeatStep.
+        if (!(traversal.getParent() instanceof RepeatStep) || !graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
             return;
         }
 
@@ -269,8 +271,11 @@ public class FireflyBatchReadHelper {
         // Do not emit because that needs to be done on an element by element basis and we are negating that.
         final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
 
-        // Filter LoopTraversal until styling and emit.
-        if (repeatStep.getUntilTraversal() instanceof LoopTraversal || repeatStep.getEmitTraversal() == null){
+        // Emit is problematic because of the previously mentioned reason.
+        // LoopTraversal style RepeatSteps cause issues when they pull from an emptied stack later.
+        if (repeatStep.getUntilTraversal() instanceof LoopTraversal ||
+                repeatStep.getEmitTraversal() != null ||
+                repeatStep.emitFirst){
             return;
         }
 
@@ -281,7 +286,7 @@ public class FireflyBatchReadHelper {
             stepsCopy.addAll(repeatStep.getUntilTraversal().getSteps());
         }
 
-        // Check for any offending steps.
+        // Check for any offending steps that require special care and exit if found.
         for (int i = 0; i < stepsCopy.size(); i++) {
             final Step<?, ?> step = stepsCopy.get(i);
             if (step instanceof GroupCountStep ||

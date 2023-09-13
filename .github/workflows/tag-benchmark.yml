@@ -109,7 +109,7 @@ jobs:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json

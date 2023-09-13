@@ -1,7 +1,6 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ConfigurationUtils;
@@ -63,7 +62,7 @@ public class WarmupUtil {
                     warmupConfig.setProperty(ConfigurationHelper.Keys.GRAPH_ID.toLowerCase(), warmupArena);
                     warmupConfig.setProperty(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase(), "true");
                     warmupConfig.setProperty(ConfigurationHelper.Keys.LOG_LEVEL.toLowerCase(), "OFF");
-                    graph = FireflyGraph.open(conf);
+                    graph = FireflyGraph.open(warmupConfig);
                 }
                 IntStream.range(0, passes).forEach(i -> {
                     phase1();
@@ -81,7 +80,6 @@ public class WarmupUtil {
     }
 
     private void phase1() {
-        System.out.println("p1");
         final GraphTraversalSource g = graph.traversal();
         final List<Object> createdIds = cloneElements(TinkerFactory.createModern(), graph);
         final Object[] createdIdAry = createdIds.toArray(new Object[0]);
@@ -96,7 +94,6 @@ public class WarmupUtil {
         } catch (final Exception e) {
             LOG.warn(e.getMessage());
         }
-        System.out.println("p1 drop");
         g.V(createdIdAry).drop().iterate();
     }
 

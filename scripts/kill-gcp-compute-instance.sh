@@ -1,6 +1,8 @@
-#!/usr/bin/env bash$0
-set -e
-sleep 9
+#!/usr/bin/bash
+
+set -eo pipefail
+
+sleep 9m
 echo "Killing ci-pe-${{ env.SHA_PATH }}-w-3"
 gcloud compute instances delete ci-pe-${{ env.SHA_PATH }}-w-3 --zone=us-central1-a --quiet
 echo "Killing ci-pe-${{ env.SHA_PATH }}-w-4"

@@ -9,10 +9,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.filter.NotStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrierStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -66,15 +63,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
     @Override
     public void barrierConsumer(final TraverserSet<Edge> set) {
         final FireflyGraph graph = ((FireflyGraph) getTraversal().getGraph().get());
-        if (traversal.getParent() instanceof RepeatStep) {
-            if (graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
-                final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
-                final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
-                while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
-                    set.add(repeatStarts.next());
-                }
-            }
-        }
+        FireflyBatchReadHelper.pullFromLeft(traversal, graph, set, MAX_BARRIER_SIZE);
 
         // Create output traverser set since we cant append to the input while we are iterating.
         final TraverserSet<Edge> output = new TraverserSet<>();

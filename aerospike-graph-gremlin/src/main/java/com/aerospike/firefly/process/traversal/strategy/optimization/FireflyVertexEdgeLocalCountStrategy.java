@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.CountGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
@@ -72,6 +73,11 @@ public class FireflyVertexEdgeLocalCountStrategy extends FireflyStrategyBase {
 
         // Use global strategy for root. This is for embedded.
         if (traversal.isRoot()) {
+            return;
+        }
+
+        // TODO: Validate.
+        if (!(traversal.getParent() instanceof RepeatStep)) {
             return;
         }
 

@@ -11,7 +11,13 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.LoopTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupCountStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -244,5 +250,53 @@ public class FireflyBatchReadHelper {
 
     public static List<HasContainer> getAerospikeHasContainers(final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities) {
         return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
+    }
+
+    public static <E extends Element>  void  pullFromLeft(final Traversal.Admin<E, E> traversal,
+                                                          final FireflyGraph graph,
+                                                          TraverserSet<E> set,
+                                                          final long MAX_BARRIER_SIZE) {
+        if (!(traversal.getParent() instanceof RepeatStep)) {
+            return;
+        }
+
+        // Do not execute if batching repeat disabled.
+        if (!graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+            return;
+        }
+
+        // Need to check the repeat step and until step for any offending steps.
+        // Do not emit because that needs to be done on an element by element basis and we are negating that.
+        final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
+
+        // Filter LoopTraversal until styling and emit.
+        if (repeatStep.getUntilTraversal() instanceof LoopTraversal || repeatStep.getEmitTraversal() == null){
+            return;
+        }
+
+        // Create copy of steps with combined repeat and until steps.
+        final List<Step> stepsCopy = new ArrayList<>(repeatStep.getRepeatTraversal().getSteps());
+        if (repeatStep.getUntilTraversal() != null) {
+            // If there is an until statement, grab the steps.
+            stepsCopy.addAll(repeatStep.getUntilTraversal().getSteps());
+        }
+
+        // Check for any offending steps.
+        for (int i = 0; i < stepsCopy.size(); i++) {
+            final Step<?, ?> step = stepsCopy.get(i);
+            if (step instanceof GroupCountStep ||
+                    step instanceof GroupCountSideEffectStep ||
+                    step instanceof RepeatStep) {
+                // If any of these steps are found, exit.
+                return;
+            }
+        }
+
+        // Pull data from left.
+        final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
+        while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+            final Traverser.Admin<E> traverser = repeatStarts.next();
+            set.add(traverser);
+        }
     }
 }

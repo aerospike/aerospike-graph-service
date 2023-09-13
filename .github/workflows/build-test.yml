@@ -115,18 +115,7 @@ jobs:
           gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
       - name: Run L3 Bulk Loading Job
         run: |
-          # The below dataproc load takes about 15 minutes total.
-          # The load starts around minute 4
-          # At minute 7 the edge loading starts
-          # At minute 15 the edge load completes
-          # We will kill at minute 9, giving ample time for edges to start but should not complete.
-          { sleep 9m; \
-            echo "Killing ci-pe-${{ env.SHA_PATH }}-w-3"; \
-            gcloud compute instances delete ci-pe-${{ env.SHA_PATH }}-w-3 --zone=us-central1-a --quiet; \
-            echo "Killing ci-pe-${{ env.SHA_PATH }}-w-4"; \
-            gcloud compute instances delete ci-pe-${{ env.SHA_PATH }}-w-4 --zone=us-central1-a --quiet \
-          } &
-          
+          cd ${{ github.workspace }}/scripts && ./kill-gcp-compute-instance-in-minutes.sh &                    
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-pe-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
           cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
           gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json

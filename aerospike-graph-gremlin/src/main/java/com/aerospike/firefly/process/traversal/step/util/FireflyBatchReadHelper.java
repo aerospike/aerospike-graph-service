@@ -294,6 +294,9 @@ public class FireflyBatchReadHelper {
                     step instanceof RepeatStep) {
                 // If any of these steps are found, exit.
                 return;
+            } else if (!step.getLabels().isEmpty()) {
+                // If Repeat or Until step have labels, we cannot barrier here.
+                return;
             }
         }
 

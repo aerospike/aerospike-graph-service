@@ -3,6 +3,7 @@ package com.aerospike.firefly.phantom_edges;
 
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
@@ -22,17 +23,16 @@ public class TestPhantomEdges {
     public void findAllEdges() throws Exception {
         final DriverRemoteConnection driverRemoteConnection = DriverRemoteConnection.using("localhost", 8182, "g");
         final GraphTraversalSource g = traversal().withRemote(driverRemoteConnection);
-        System.out.println("Starting calculations.");
+
+        // Get total edges, edges from the left, and edges from the right.
         final long outECount = g.with("evaluationTimeout", 30 * 60 * 1000).V().outE().count().next();
-        System.out.println("outECount: " + outECount);
         final long inECount = g.with("evaluationTimeout", 30 * 60 * 1000).V().inE().count().next();
-        System.out.println("inECount: " + inECount);
-        final long outCount = g.with("evaluationTimeout", 30 * 60 * 1000).V().out().count().next();
-        System.out.println("outCount: " + outCount);
-        final long inCount = g.with("evaluationTimeout", 30 * 60 * 1000).V().in().count().next();
-        System.out.println("inCount: " + inCount);
         final long eCount = g.with("evaluationTimeout", 30 * 60 * 1000).E().count().next();
-        System.out.println("eCount: " + eCount);
+
+        // Compare to expected value.
+        Assert.assertEquals(eCount, 14000000L);
+        Assert.assertEquals(inECount, 14000000L);
+        Assert.assertEquals(outECount, 14000000L);
         driverRemoteConnection.close();
     }
 }

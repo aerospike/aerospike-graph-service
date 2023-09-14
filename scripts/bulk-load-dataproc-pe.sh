@@ -86,7 +86,7 @@ echo "###################################"
 l3_start=`date +%s`
 
 { gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name}  --region=us-central1 -- -c ${properties_file_uri} -dryrun -writevertex -verifyvertex -writeedge -verifyedge; } &
-{ echo "sleeping 9 minutes"; sleep 9m; echo "Killing ci-pe-w-3"; gcloud compute instances delete ci-pe-${name}-w-3 --zone=us-central1-a --quiet; echo "Killing ci-pe-w-4"; gcloud compute instances delete ci-pe-${name}-w-4 --zone=us-central1-a --quiet; } &
+{ echo "sleeping 9 minutes"; sleep 9m; echo "Killing ci-pe-w-3"; gcloud compute instances delete ${name}-w-3 --zone=us-central1-a --quiet; echo "Killing ci-pe-w-4"; gcloud compute instances delete ${name}-w-4 --zone=us-central1-a --quiet; } &
 
 wait
 

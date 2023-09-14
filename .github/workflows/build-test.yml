@@ -118,8 +118,6 @@ jobs:
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-pe-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
           cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
           gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
-          echo "Dumping kill command output"
-          cd ${{ github.workspace }}/scripts && cat ./kill-command-output.txt
       - name: Archive L3 Bulk Loading Job Log
         if: success() || failure()
         run: |

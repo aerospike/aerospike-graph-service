@@ -1,6 +1,5 @@
 package com.aerospike.firefly.phantom_edges;
 
-
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;

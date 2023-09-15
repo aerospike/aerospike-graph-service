@@ -580,7 +580,7 @@ jobs:
   run-l3-bulk-loader-pe:
     name: Run L3 Spark Bulk Loader Phantom Edges
     timeout-minutes: 150
-    runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
+    runs-on: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
     needs: start-runner-l3-bulk-loader-pe
     steps:
       - uses: actions/checkout@v3

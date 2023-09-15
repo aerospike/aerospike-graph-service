@@ -22,6 +22,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
+import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory;
 import com.aerospike.firefly.process.call.FireflyMetadataServiceFactory;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
@@ -39,7 +40,9 @@ import com.aerospike.firefly.structure.util.FireflyMetadataTask;
 import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
 import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.HealthcheckServer;
 import com.aerospike.firefly.util.LoggerUtil;
+import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -199,6 +202,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
+        if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
+            PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
+        }
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -218,7 +224,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             // FIREFLY_TESTING is set strictly by surefire plugin so not in any customer systems.
             // This makes our testing logs 100x smaller.
             if (System.getenv("FIREFLY_TESTING") == null ||
-                !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
+                    !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) {
                 final Runtime javaRuntime = Runtime.getRuntime();
                 LOG.info("Java Runtime: {} available processors.", javaRuntime.availableProcessors());
                 LOG.info("Java Runtime: {} MB max memory.", javaRuntime.maxMemory() / (1024 * 1024));
@@ -242,6 +248,9 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
+            // Only start healthcheck server if bulk loader is not present in configuration
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf)))
+                FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
@@ -263,18 +272,22 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
     }
+    private static Settings GREMLIN_SERVER_SETTINGS = null;
 
-    public static Settings getGremlinServerSettings() {
-        // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
-        if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
-            LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
-            try {
-                return Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
-            } catch (Exception e) {
-                LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+    public static synchronized Settings getGremlinServerSettings() {
+        if (GREMLIN_SERVER_SETTINGS == null) {
+            // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
+            if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
+                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
+                try {
+                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
+                } catch (Exception e) {
+                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+                }
             }
+            GREMLIN_SERVER_SETTINGS = new Settings();
         }
-        return new Settings();
+        return GREMLIN_SERVER_SETTINGS;
     }
 
     /**
@@ -465,7 +478,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
                 return FireflyCloseableIteratorUtils.of(new FireflyGraphSummaryVertex(this));
             }
             if (vertexIdsOrVertices[0].equals(FIREFLY_WARMUP_VARIABLE_NAME)) {
-                WarmupUtil.create(configuration).preheat(1);
+                WarmupUtil.create(configuration).preheat(48);
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
             }
         }

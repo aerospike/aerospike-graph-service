@@ -1,9 +1,11 @@
 package com.aerospike.firefly.bulkloader.spark;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.MapPartitionsFunction;
@@ -33,7 +35,9 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
+import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
 import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
@@ -108,12 +112,12 @@ public class VertexOperations implements Serializable {
                     batch = processBatch(bufferSize, batch, futures, errMessage);
                     final GenericRowWithSchema row = (GenericRowWithSchema) rowIterator.next();
                     futures.add(CompletableFuture.supplyAsync(() -> {
-                                verifyVertexRow(nullValue, g, row);
-                                return null;
-                            }, executor).exceptionally(e -> {
-                                LOGGER.error("Exception occurred in verifying Vertex row", e);  // Log the error when final failure happens
-                                throw new RuntimeException(e);
-                            }));
+                        verifyVertexRow(nullValue, g, row);
+                        return null;
+                    }, executor).exceptionally(e -> {
+                        LOGGER.error("Exception occurred in verifying Vertex row", e);  // Log the error when final failure happens
+                        throw new RuntimeException(e);
+                    }));
                 }
                 final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
@@ -126,16 +130,37 @@ public class VertexOperations implements Serializable {
         }, Encoders.INT()).write().format("noop").mode(SaveMode.Append).save();
     }
 
-    private static void verifyVertexRow(String nullValue, GraphTraversalSource g, GenericRowWithSchema row) {
+    private static void verifyVertexRow(final String nullValue, final GraphTraversalSource g,
+                                        final GenericRowWithSchema row) {
         final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(row, COLUMNS_TO_REMOVE);
         final SparkFireflyVertex sparkVertex = SparkFireflyVertex.createVertex(fireflyRow, nullValue);
 
         final Object id = sparkVertex.getId();
-        final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
-        final Vertex v = vertexById.next();
-        if (vertexById.hasNext()) {
-            throw new AssertionError("Validation failed: More than one vertex with ID " + id
-                    + " exists");
+        Vertex v = null;
+        int tryCount = 0;
+        boolean successful = false;
+        while (!successful) {
+            try {
+                final GraphTraversal<Vertex, Vertex> vertexById = g.V(id);
+                v = vertexById.next();
+                if (vertexById.hasNext()) {
+                    throw new AssertionError("Validation failed: More than one vertex with ID " + id
+                            + " exists");
+                }
+                successful = true;
+            } catch (final AerospikeException ae) {
+                final FireflyLoadingException fle = new FireflyLoadingException(ae);
+                if (!fle.isRetryable()) {
+                    LOGGER.error("Failed to verify loaded Vertex due to non-retryable error: " + row, ae);
+                    throw ae;
+                } else if (++tryCount > RETRY_LIMIT) {
+                    LOGGER.error("Failed to verify loaded Vertex after " + tryCount + " attempts: " + row, ae);
+                    throw ae;
+                } else {
+                    LOGGER.warn("Failed to verify loaded Edge: " + row + ". Attempt count: " + tryCount, ae);
+                    exponentialBackoff(tryCount);
+                }
+            }
         }
         if (!v.label().equals(sparkVertex.getLabel())) {
             throw new AssertionError("Validation failed: Label did not match for vertex with ID " + id);

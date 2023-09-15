@@ -1,0 +1,165 @@
+package com.aerospike.firefly.util;
+
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Image;
+import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientConfig;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.github.dockerjava.transport.DockerHttpClient;
+import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class DockerUtil {
+    private static final Logger LOG = LoggerFactory.getLogger(DockerUtil.class);
+    private static final int DEFAULT_PORT = 8182;
+    public static final String AEROSPIKE_GRAPH_SERVICE = "aerospike/aerospike-graph-service";
+    private final DockerClient dockerClient;
+    private final Map<String, DockerInfo> dockerImageTagToContainerId = new HashMap<>();
+
+    private class DockerInfo {
+        final String containerId;
+        final Integer portRemap;
+
+        DockerInfo(final String containerId, final Integer portRemap) {
+            this.containerId = containerId;
+            this.portRemap = portRemap;
+        }
+    }
+
+    /**
+     * Constructor initialized docker client so that docker commands can be executed. Function will
+     * assert or throw if conditions of success are not met.
+     */
+    public DockerUtil() {
+        // Create default config for docker client.
+        final DockerClientConfig dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().
+                build();
+
+        // Create docker http client with default config.
+        final DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
+                .dockerHost(dockerClientConfig.getDockerHost())
+                .sslConfig(dockerClientConfig.getSSLConfig())
+                .maxConnections(100)
+                .connectionTimeout(Duration.ofSeconds(30))
+                .responseTimeout(Duration.ofSeconds(45))
+                .build();
+
+        // Create ping request to test http client.
+        final DockerHttpClient.Request request = DockerHttpClient.Request.builder()
+                .method(DockerHttpClient.Request.Method.GET)
+                .path("/_ping")
+                .build();
+
+        // Test http client via ping request.
+        try (final DockerHttpClient.Response response = httpClient.execute(request)) {
+            Assert.assertEquals(response.getStatusCode(), 200);
+            Assert.assertEquals(IOUtils.toString(response.getBody()), "OK");
+        } catch (IOException e) {
+            Assert.fail("Docker is not running or not reachable. Please start docker and try again. " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        // Ping request succeeded, create docker client with http client.
+        this.dockerClient = DockerClientImpl.getInstance(dockerClientConfig, httpClient);
+    }
+
+    public synchronized Integer startDockerImage(final String dockerImage, final String tag) {
+        final List<Image> images = dockerClient.listImagesCmd().exec();
+        for (final Image image : images) {
+            // Check if image is already an image on the system of the same tag.
+            if (image.getRepoTags().length == 1 && image.getRepoTags()[0].equals(dockerImage + ":" + tag)) {
+                // We want to try to kill the image and remove it.
+                try {
+                    dockerClient.killContainerCmd(image.getId()).exec();
+                } catch (Exception ignored) {
+                }
+                try {
+                    dockerClient.removeImageCmd(image.getId()).withForce(true).exec();
+                } catch (Exception ignored) {
+                }
+                break;
+            }
+        }
+
+        final String dockerImageTag = "test-graph-" + tag;
+        // If there is a container of the same name, remove it.
+        try {
+            dockerClient.removeContainerCmd(dockerImageTag).withForce(true).exec();
+        } catch (Exception ignored) {
+        }
+
+        // Pull the image in case we do not already have it.
+        try {
+            dockerClient.pullImageCmd("aerospike/aerospike-graph-service").withTag(tag).start().awaitCompletion();
+        } catch (final Exception e) {
+            LOG.error("Failed to pull docker image: " + dockerImage + ":" + tag, e);
+            throw new RuntimeException(e);
+        }
+
+        // Create port bindings and expose port 8182.
+        final ExposedPort tcp8182 = ExposedPort.tcp(DEFAULT_PORT);
+        final Ports portBindings = new Ports();
+        portBindings.bind(tcp8182, Ports.Binding.bindPort(DEFAULT_PORT));
+
+        // Create container with name, port, and environment set.
+        final String containerId = dockerClient.createContainerCmd(dockerImage + ":" + tag)
+                .withName(dockerImageTag)
+                .withExposedPorts(tcp8182)
+                .withHostConfig(new HostConfig().withPortBindings(portBindings))
+                .withEnv("aerospike.client.host=172.17.0.1:3000")
+                .exec().getId();
+
+        // Start the container.
+        dockerClient.startContainerCmd(containerId).exec();
+        dockerImageTagToContainerId.put(containerId, new DockerInfo(dockerImageTag, 8182));
+
+        // Wait 30 seconds for the container to be fully up.
+        try {
+            Thread.sleep(30 * 1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Need to check if the container is running.
+        InspectContainerResponse.ContainerState containerState = dockerClient.inspectContainerCmd(containerId).exec().getState();
+
+        if (Boolean.FALSE.equals(containerState.getRunning())) {
+            throw new RuntimeException("Error failed to start container " + dockerImage + ":" + tag +
+                    " under image name test-graph-" + tag + ". Container state: " + containerState.getStatus());
+        }
+
+        return DEFAULT_PORT;
+    }
+
+    public synchronized boolean versionExists(final String dockerImage, final String tag) {
+        try {
+            dockerClient.pullImageCmd(dockerImage).withTag(tag).start().awaitCompletion();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public synchronized void stopAllDockerImages() {
+        for (final DockerInfo dockerInfo : dockerImageTagToContainerId.values()) {
+            try {
+                dockerClient.killContainerCmd(dockerInfo.containerId);
+            } catch (Exception e) {
+                LOG.error("Failed to kill docker container: " + dockerInfo.containerId, e);
+            }
+        }
+    }
+}

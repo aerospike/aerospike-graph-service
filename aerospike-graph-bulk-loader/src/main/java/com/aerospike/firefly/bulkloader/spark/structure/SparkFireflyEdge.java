@@ -33,12 +33,15 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         this.toVertexId = toVertexId;
     }
 
+    // TODO User supplied edge id in bulk loader.
+    //  Remove ... from edgeIdSupplied and force
     public static SparkFireflyEdge createEdge(final GenericRowWithSchema row,
                                               final boolean keepProvidedId,
                                               final String providedIdPropertyName,
                                               final String nullValue,
                                               final FireflyGraph graph,
-                                              final boolean forVerification) {
+                                              final boolean forVerification,
+                                              final byte[]  ... edgeIdSupplied) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
         String label = null;
@@ -79,6 +82,10 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         if (label == null) {
             label = DEFAULT_LABEL;
         }
+
+        // TODO User supplied edge id in bulk loader.
+        //  remove assignments here, use edge id passed into function header.
+        //  NOTE: in cases where 'forVerification' is true, set edge id to null.
         final byte[] edgeId;
         if (forVerification) {
             edgeId = null;

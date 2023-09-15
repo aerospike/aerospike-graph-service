@@ -101,3 +101,15 @@ jobs:
           docker push $DOCKERHUB_LATEST_IMAGE
           docker push $GCLOUD_OUTPUT_IMAGE
           docker push $GCLOUD_LATEST_IMAGE
+          
+          # Create immutable tags
+          DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}_1
+          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}_1
+          
+          # Retag image for immutability.
+          docker tag $GITHUB_IMAGE $DOCKERHUB_IMMUTABLE_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_IMMUTABLE_IMAGE
+          
+          # Push immutable images.
+          docker push $DOCKERHUB_IMMUTABLE_IMAGE
+          docker push $GCLOUD_IMMUTABLE_IMAGE

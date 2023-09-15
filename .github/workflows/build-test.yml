@@ -642,7 +642,6 @@ jobs:
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
-          cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
           cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
@@ -658,16 +657,6 @@ jobs:
       - name: Run L3 Bulk Loading Job
         run: |
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
-          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
-      - name: Upload L3 Bulk Loading Job Log to GCP
-        if: success() || failure()
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
-          destination: gha-ci-firefly-bulkloader/archive
-          gzip: false
-          process_gcloudignore: false
       - name: Run Phantom Edge Test on GCP
         run: |
           echo "Uncomment me when fix is complete."

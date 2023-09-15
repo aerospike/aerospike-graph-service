@@ -109,10 +109,6 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
                     CTX.mapKey(Value.get(id.getStorageId())));
         }
 
-        final FireflyCache cache = graph.getBaseGraph().transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(opKey);
-        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {

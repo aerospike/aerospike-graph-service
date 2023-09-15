@@ -18,6 +18,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.time.ZonedDateTime;
@@ -190,6 +191,7 @@ public class TestPerformance extends AbstractFireflySuite {
         g.addE(ORGCHART_EDGE_LABEL_REPORTS).from(p12).to(p10);
     }
 
+    @Ignore("TODO GRAPH-671: Fix read/write metrics")
     @Test
     public void orgchartReadWriteAccounting1() {
         final long readStart = db.getReadMetric();

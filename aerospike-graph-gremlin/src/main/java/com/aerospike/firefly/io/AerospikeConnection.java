@@ -1463,18 +1463,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Zero an Id counter
-     *
-     * @param name name of Counter to operate on
-     * @return value of counter after operation
-     */
-    public long zeroIdCounter(final String name) {
-        final Bin ctr = new Bin(COUNTER_BIN, 0);
-        FireflyRecord.writeElement(this, ID_MANAGER_SET, FireflyIdPoly.fromObject(name, ID_MANAGER_SET), -1, ctr);
-        return 0L;
-    }
-
-    /**
      * Offer a value, compare it to the current counter value.
      * if the offered value is greater than the current counter value
      * set the counter to the offered value, and return it.
@@ -1710,13 +1698,21 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Record resulting from operate.
      */
     public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
+        final WritePolicy policy;
+        if (writePolicy == null) {
+            policy = new WritePolicy();
+        } else {
+            policy = writePolicy;
+        }
+        policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
+
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
         }
 
         try {
-            return this.getClient().operate(writePolicy, key, operations);
+            return this.getClient().operate(policy, key, operations);
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:

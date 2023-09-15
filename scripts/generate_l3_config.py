@@ -5,9 +5,10 @@ import sys
 def main(argv):
     github_sha = argv[1]
     dataset_size = argv[2]
+    benchmark = argv[3]
     hosts = 'aerospike.client.host='
     ip_only = ''
-    bucket_root = 'gs://incremental-datasets/' + dataset_size + '/'
+    bucket_root = 'gs://incremental-datasets/' + benchmark + '/' + dataset_size + '/'
     vertices_path = 'aerospike.graphloader.vertices=' + bucket_root + 'vertices'
     edges_path = 'aerospike.graphloader.edges=' + bucket_root + 'edges'
 

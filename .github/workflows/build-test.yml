@@ -592,12 +592,12 @@ jobs:
       - name: Clamp SHA to Environment (Push)
         if: github.event_name == 'push'
         run: |
-          echo "SHA_PATH=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "SHA_PATH=${GITHUB_SHA::7}-pe" >> $GITHUB_ENV
           echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
       - name: Clamp SHA to Environment (Pull Request)
         if: github.event_name == 'pull_request'
         run: |
-          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
+          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)-pe" >> $GITHUB_ENV
           echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
       - name: Read Workflow Configuration from Properties File
         id: read_property
@@ -639,7 +639,7 @@ jobs:
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
-          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-pe-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
+          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
@@ -654,29 +654,19 @@ jobs:
           cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
       - name: Upload Bulk Loading Artifacts to GCP
         run: |
-          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
+          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
       - name: Run L3 Bulk Loading Job
         run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-pe-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
           cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
-          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-pe-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
-      - name: Archive L3 Bulk Loading Job Log
-        if: success() || failure()
-        run: |
-          cd ${{ github.workspace }}/scripts
-          mkdir ${{ env.YEAR }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}
-          gcloud dataproc jobs wait ci-pe-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
-          gcloud storage mv gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-pe-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_config.properties
+          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
       - name: Upload L3 Bulk Loading Job Log to GCP
         if: success() || failure()
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
-          destination: gha-ci-pe-firefly-bulkloader/archive
+          destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false
       - name: Run Phantom Edge Test on GCP
@@ -694,11 +684,11 @@ jobs:
       - name: Delete Dataproc Clusters (Cleanup)
         if: always()
         run: |
-          gcloud dataproc clusters delete --region us-central1 -q ci-pe-${{ env.SHA_PATH }}
+          gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
       - name: Delete Cloud Storage Artifacts (Cleanup)
         if: always()
         run: |
-          gcloud storage rm -r gs://gha-ci-pe-firefly-bulkloader/${{ env.SHA_PATH }}
+          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
   run-l3-bulk-loader:
     name: Run L3 Spark Bulk Loader
     timeout-minutes: 150

@@ -19,12 +19,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.io.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -78,12 +79,16 @@ public final class ConfigurationHelper {
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "aerospike.graph.strategy.drop.enabled";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
+        public static final String ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
+        public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
         public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
+        public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
+        public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
@@ -100,6 +105,11 @@ public final class ConfigurationHelper {
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
+        public static final String MAX_ERROR_RATE = "aerospike.client.maxErrorRate";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.maxConnectionsPerNode";
+        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
+        public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
+        public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
 
         public enum Bins {
             GRAPH_VARIABLES_BIN((byte) 1),
@@ -182,7 +192,8 @@ public final class ConfigurationHelper {
             ID_MANAGER_SET((byte) 9),
             SUMMARY_SET((byte) 10),
             TEST_SET((byte) 11),
-            GRAPH_METADATA_SET((byte) 12), USER_SUPPLIED_ID_CACHE_SET((byte) 30);
+            GRAPH_METADATA_SET((byte) 12),
+            USER_SUPPLIED_ID_CACHE_SET((byte) 30);
 
             private final byte value;
 
@@ -199,6 +210,13 @@ public final class ConfigurationHelper {
             }
         }
     }
+
+    public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
+            Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
+            Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
+            Keys.FIREFLY_DATA_MODEL,
+            Keys.DEBUG_MODE_FLAG
+    );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
         put(Keys.AEROSPIKE_HOST, "localhost");
@@ -251,7 +269,11 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
+        put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
@@ -297,6 +319,12 @@ public final class ConfigurationHelper {
         put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
         put(Keys.Sets.TEST_SET.name(), "TEST_SET");
         put(Keys.BULK_LOADER_FLAG, "false");
+        put(Keys.MAX_ERROR_RATE, "100");
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
+        put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
+        put(Keys.CONNECT_TIMEOUT, "0");
+        put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.DEBUG_MODE_FLAG, "false");
     }};
 
 

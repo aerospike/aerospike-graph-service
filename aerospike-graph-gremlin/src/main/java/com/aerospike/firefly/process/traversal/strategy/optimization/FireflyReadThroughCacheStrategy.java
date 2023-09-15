@@ -34,6 +34,10 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
+        if (!traversal.isRoot()) {
+            return;
+        }
+
         final Optional<Graph> graphOptional = traversal.getGraph();
         if (graphOptional.isEmpty()) {
             return;

@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.AerospikeConnection.getDefaultThreadPoolSize;
+
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
@@ -103,6 +105,11 @@ public final class ConfigurationHelper {
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
+        public static final String MAX_ERROR_RATE = "aerospike.client.maxErrorRate";
+        public static final String MAX_CONNECTIONS_PER_NODE = "aerospike.client.maxConnectionsPerNode";
+        public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
+        public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
+        public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
 
         public enum Bins {
             GRAPH_VARIABLES_BIN((byte) 1),
@@ -312,6 +319,11 @@ public final class ConfigurationHelper {
         put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
         put(Keys.Sets.TEST_SET.name(), "TEST_SET");
         put(Keys.BULK_LOADER_FLAG, "false");
+        put(Keys.MAX_ERROR_RATE, "100");
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
+        put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
+        put(Keys.CONNECT_TIMEOUT, "0");
+        put(Keys.TIMEOUT_DELAY, "0");
         put(Keys.DEBUG_MODE_FLAG, "false");
     }};
 

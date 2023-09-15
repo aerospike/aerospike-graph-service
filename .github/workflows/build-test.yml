@@ -639,7 +639,6 @@ jobs:
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
-          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly

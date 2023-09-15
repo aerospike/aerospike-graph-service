@@ -85,11 +85,13 @@ public class FireflyContentionHandlingStrategy extends AbstractTraversalStrategy
         applyStrategy(traversal, fireflyGraphStepStrategy);
         applyStrategy(traversal, fireflyReadThroughCacheStrategy);
 
+        // This step places an out.count() or in.count() step, therefore must happen between composite id and batch read.
+        applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
+
         // Steps that replace specific internal steps.
         applyStrategy(traversal, fireflyMergeStepStrategy);
         applyStrategy(traversal, fireflyCompositeEdgeIdStrategy);
         applyStrategy(traversal, fireflyBatchEdgeReadStrategy);
-        applyStrategy(traversal, fireflyVertexEdgeLocalCountStrategy);
         applyStrategy(traversal, fireflyScanProfileStrategy);
     }
 }

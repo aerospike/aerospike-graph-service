@@ -684,6 +684,10 @@ jobs:
         if: always()
         run: |
           gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
+      - name: Delete Dataproc Job (Cleanup)
+        if: always()
+        run: |
+          gcloud dataproc jobs delete --region us-central1 -q ci-${{ env.SHA_PATH }}-job
       - name: Delete Cloud Storage Artifacts (Cleanup)
         if: always()
         run: |

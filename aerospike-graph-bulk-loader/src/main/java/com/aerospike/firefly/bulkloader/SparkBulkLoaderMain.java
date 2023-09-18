@@ -3,12 +3,12 @@ package com.aerospike.firefly.bulkloader;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.bulkloader.spark.EdgeOperations;
 import com.aerospike.firefly.bulkloader.spark.VertexOperations;
-import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.bulkloader.util.ProgressBar;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
+import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
@@ -114,7 +115,22 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 e.setStackTrace(limitedStackTrace);
                 throw e;
             }
-			PROGRESS_BAR.setPreflightCheckComplete();
+            PROGRESS_BAR.setPreflightCheckComplete();
+
+            //Transform the edge data
+            PROGRESS_BAR.setStartEdgeIdWrite();
+            String edgeIDDirectory = config.getOrDefault(EDGEID_DIRECTORY_KEY);
+            boolean edgeIdDirectorySet = !(null == edgeIDDirectory || edgeIDDirectory.isEmpty());
+
+            //If the flag was not set we will not write edgeIds to disk
+
+            if(edgeIdDirectorySet) {
+                edgeOperations.writeEdgeIDsToStorage(edgeDataset, edgeIDDirectory, fileConfig, config);
+            }else{
+                    LOGGER.warn("{} was not provided, we will not write generated edgeids to persistent storage", EDGEID_DIRECTORY_KEY);
+            }
+
+            PROGRESS_BAR.setEdgeIdWriteComplete();
 
             // Supernode processing
             final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset);
@@ -131,10 +147,19 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Edge processing
             PROGRESS_BAR.setEdgeLoadStart();
-            edgeOperations.writeEdgeToDB(edgeDataset);
+            
+            //If EdgeId directory was set read from edgeId path else directly from edge dataset
+            final Dataset<Row> edgeIdDataset = !edgeIdDirectorySet ? edgeDataset :
+                    spark.read().option("header","true").csv(edgeIDDirectory);
+
+            LOGGER.info("EdgeId dataset have {} partitions", edgeIdDataset.rdd().getPartitions().length);
+            final Dataset<Row> persistededgeIdDataset = DatasetOperations.persistIfPossible(DatasetOperations.getDfStorageLevel(config), edgeIdDataset);
+            persistededgeIdDataset.show();
+
+            edgeOperations.writeEdgeToDB(persistededgeIdDataset);
             PROGRESS_BAR.setEdgeLoadComplete();
 
-            edgeOperations.verifySampleEdgeAfterWrite(edgeDataset.sample(DatasetOperations.getSamplingPercent(config)));
+            edgeOperations.verifySampleEdgeAfterWrite(persistededgeIdDataset.sample(DatasetOperations.getSamplingPercent(config)));
             PROGRESS_BAR.setEdgeValidationComplete();
             edgeDataset.unpersist();
 

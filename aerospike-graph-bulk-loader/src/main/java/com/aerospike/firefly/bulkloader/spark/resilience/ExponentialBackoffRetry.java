@@ -40,7 +40,7 @@ public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
 
     private void subscribe() {
         retry.getEventPublisher().onRetry(event -> LOGGER.info("Retry #" + event.getNumberOfRetryAttempts() + " failed with exception: " + event.getLastThrowable().getMessage()));
-        retry.getEventPublisher().onError(event -> LOGGER.error("Retry #" + event.getNumberOfRetryAttempts() + " failed with exception: " + event.getLastThrowable().getMessage()));
+        retry.getEventPublisher().onError(event -> LOGGER.error("Retry #" + event.getNumberOfRetryAttempts() + " errored with exception: " + event.getLastThrowable().getMessage()));
         retry.getEventPublisher().onSuccess(event -> LOGGER.info("Retry #" + event.getNumberOfRetryAttempts() + " succeeded"));
     }
 

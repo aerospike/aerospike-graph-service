@@ -35,6 +35,7 @@ public class ValidationsTest extends TestCase {
 
     public void testTestDuplicateVertices() {
         final String groupColumn ="~id";
+        final String lineColumn ="~line";
         // Vertices with ~id 1 and 2 are present multiple times in dataframe
         Dataset<Row> df = SPARK.createDataFrame(Arrays.asList(
                 RowFactory.create("1", 1L, "file1"),
@@ -44,7 +45,7 @@ public class ValidationsTest extends TestCase {
                 RowFactory.create("3", 1L, "file1")
         ), new StructType(new StructField[]{
                 new StructField(groupColumn, DataTypes.StringType, false, Metadata.empty()),
-                new StructField(DatasetOperations.LINENUMBER_COLUMN, DataTypes.LongType, false, Metadata.empty()),
+                new StructField(lineColumn, DataTypes.LongType, false, Metadata.empty()),
                 new StructField(DatasetOperations.FILENAME_COLUMN, DataTypes.StringType, false, Metadata.empty())
         }));
 

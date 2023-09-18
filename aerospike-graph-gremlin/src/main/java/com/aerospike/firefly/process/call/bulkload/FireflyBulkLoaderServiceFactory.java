@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;

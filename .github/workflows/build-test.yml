@@ -660,7 +660,7 @@ jobs:
       - name: Run Phantom Edge Test on GCP
         run: |
           echo "Uncomment me when fix is complete."
-          # gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
+          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()
         run: |

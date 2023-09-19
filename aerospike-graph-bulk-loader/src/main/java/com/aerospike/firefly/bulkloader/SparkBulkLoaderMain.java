@@ -154,7 +154,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             LOGGER.info("EdgeId dataset have {} partitions", edgeIdDataset.rdd().getPartitions().length);
             final Dataset<Row> persistededgeIdDataset = DatasetOperations.persistIfPossible(DatasetOperations.getDfStorageLevel(config), edgeIdDataset);
-            persistededgeIdDataset.show();
 
             edgeOperations.writeEdgeToDB(persistededgeIdDataset);
             PROGRESS_BAR.setEdgeLoadComplete();

@@ -10,7 +10,7 @@ def main(argv):
     bucket_root = 'gs://incremental-datasets/' + dataset_size + '/'
     vertices_path = 'aerospike.graphloader.vertices=' + bucket_root + 'vertices'
     edges_path = 'aerospike.graphloader.edges=' + bucket_root + 'edges'
-    edgeid_path = 'aerospike.graphloader.edgeid=' + bucket_root + 'edgeid'
+    edgeid_path = 'aerospike.graphloader.edgeid=' + bucket_root +  github_sha +'/'+'edgeid'
 
     with open('./clusters.json') as file:
         clusters = json.load(file)

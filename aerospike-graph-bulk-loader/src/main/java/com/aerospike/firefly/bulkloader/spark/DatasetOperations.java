@@ -173,7 +173,7 @@ public class DatasetOperations implements Serializable {
 
             edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant end = Instant.now();
-            LOGGER.info("Completed preflightCheck. Time taken (in seconds): ", Duration.between(start, end).getSeconds());
+            LOGGER.info("Completed preflightCheck. Time taken (in seconds):{}", Duration.between(start, end).getSeconds());
         }
     }
 
@@ -199,7 +199,7 @@ public class DatasetOperations implements Serializable {
                     if (instance == null || instance.isShutdown()) {
                         final ThreadFactory threadFactory =
                                 new ThreadFactoryBuilder().setNameFormat("common-dataset-operation-pool").setDaemon(true).build();
-                        instance = new ScheduledThreadPoolExecutor( Runtime.getRuntime().availableProcessors() * 3, threadFactory);
+                        instance = new ScheduledThreadPoolExecutor( Runtime.getRuntime().availableProcessors() * 2, threadFactory);
                     }
                 }
             }

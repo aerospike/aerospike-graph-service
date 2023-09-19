@@ -443,8 +443,7 @@ public class EdgeOperations implements Serializable {
             LOGGER.info(String.format("Skipping %s task Bulkloader will use existing edgeids", taskName));
         }else{
             final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-//            EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
-            EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).csv(writeLocation);
+            EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
             edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
             LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
         }

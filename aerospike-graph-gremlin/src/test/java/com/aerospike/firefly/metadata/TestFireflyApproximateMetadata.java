@@ -701,6 +701,13 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         Assert.assertEquals(1L, (long) vertexCountPerLabel.get("1"));
         final Map<String, Long> edgeCountByLabel = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
         Assert.assertEquals(1L, (long) edgeCountByLabel.get("2"));
+
+        g.V(v.id()).drop().iterate();
+        wait5Seconds();
+        final Map<String, Long> vertexCountPerLabel2 = graph.fireflySummaryUpdater.getFireflyStatistics().vertexCountByLabel();
+        Assert.assertEquals(0L, (long) vertexCountPerLabel2.get("1"));
+        final Map<String, Long> edgeCountByLabel2 = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
+        Assert.assertEquals(0L, (long) edgeCountByLabel2.get("2"));
     }
 
     @Test

@@ -693,6 +693,17 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
     }
 
     @Test
+    public void testAddRemoveSimple() {
+        final Vertex v = g.addV("1").next();
+        g.addE("2").from(v).to(v).iterate();
+        wait5Seconds();
+        final Map<String, Long> vertexCountPerLabel = graph.fireflySummaryUpdater.getFireflyStatistics().vertexCountByLabel();
+        Assert.assertEquals(1L, (long) vertexCountPerLabel.get("1"));
+        final Map<String, Long> edgeCountByLabel = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
+        Assert.assertEquals(1L, (long) edgeCountByLabel.get("2"));
+    }
+
+    @Test
     public void testLongVertexLabel() {
         g.addV("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").iterate();
         wait5Seconds();

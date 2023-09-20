@@ -33,6 +33,7 @@ final public class GraphFactory {
             try {
                 if (DataModelVersioning.checkNeedsUpgrade(PackedGraph.class, db))
                     DataModelVersioning.errorNeedsUpgrade(PackedGraph.class, db);
+                db.checkConfigurationCompatibility(config);
                 return new PackedGraph(db, config, getGremlinServerSettings());
             } catch (Exception e) {
                 throw new RuntimeException("Error constructing graph", e);

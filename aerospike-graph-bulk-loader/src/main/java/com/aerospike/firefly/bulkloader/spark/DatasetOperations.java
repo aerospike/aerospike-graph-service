@@ -173,7 +173,7 @@ public class DatasetOperations implements Serializable {
 
             edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant end = Instant.now();
-            LOGGER.info("Completed preflightCheck. Time taken (in seconds):{}", Duration.between(start, end).getSeconds());
+            LOGGER.info("Completed preflightCheck. Time taken: {}s", Duration.between(start, end).getSeconds());
         }
     }
 

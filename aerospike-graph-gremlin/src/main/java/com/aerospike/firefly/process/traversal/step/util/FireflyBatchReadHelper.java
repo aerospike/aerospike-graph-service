@@ -11,7 +11,13 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.LoopTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.branch.RepeatStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupCountStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupCountSideEffectStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ExpandableStepIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -244,5 +250,61 @@ public class FireflyBatchReadHelper {
 
     public static List<HasContainer> getAerospikeHasContainers(final List<FireflyGraphStep.HasContainerWithCardinality> hasContainerWithCardinalities) {
         return hasContainerWithCardinalities.stream().filter(c -> c.isSupported).map(c -> c.hasContainer).collect(Collectors.toList());
+    }
+
+    public static <E extends Element>  void  pullFromLeft(final Traversal.Admin<E, E> traversal,
+                                                          final FireflyGraph graph,
+                                                          TraverserSet<E> set,
+                                                          final long MAX_BARRIER_SIZE) {
+        // There is a bug in tinkerpop where repeat step does not acknowledge barriers,
+        // this logic should be in the repeat step for proper implementation.
+        // Because it is not, we can only handle specific cases of repeat.
+        // For example, we cannot do emit steps because if we pull everything from the left, they do not have a chance to
+        // emit since the data is gone.
+
+        // Do not execute if batching repeat disabled or if the parent is not a RepeatStep.
+        if (!(traversal.getParent() instanceof RepeatStep) || !graph.getBaseGraph().ENABLE_BATCHED_REPEAT_STEP_STRATEGY) {
+            return;
+        }
+
+        // Need to check the repeat step and until step for any offending steps.
+        // Do not emit because that needs to be done on an element by element basis and we are negating that.
+        final RepeatStep repeatStep = (RepeatStep) traversal.getParent();
+
+        // Emit is problematic because of the previously mentioned reason.
+        // LoopTraversal style RepeatSteps cause issues when they pull from an emptied stack later.
+        if (repeatStep.getUntilTraversal() instanceof LoopTraversal ||
+                repeatStep.getEmitTraversal() != null ||
+                repeatStep.emitFirst){
+            return;
+        }
+
+        // Create copy of steps with combined repeat and until steps.
+        final List<Step> stepsCopy = new ArrayList<>(repeatStep.getRepeatTraversal().getSteps());
+        if (repeatStep.getUntilTraversal() != null) {
+            // If there is an until statement, grab the steps.
+            stepsCopy.addAll(repeatStep.getUntilTraversal().getSteps());
+        }
+
+        // Check for any offending steps that require special care and exit if found.
+        for (int i = 0; i < stepsCopy.size(); i++) {
+            final Step<?, ?> step = stepsCopy.get(i);
+            if (step instanceof GroupCountStep ||
+                    step instanceof GroupCountSideEffectStep ||
+                    step instanceof RepeatStep) {
+                // If any of these steps are found, exit.
+                return;
+            } else if (!step.getLabels().isEmpty()) {
+                // If Repeat or Until step have labels, we cannot barrier here.
+                return;
+            }
+        }
+
+        // Pull data from left.
+        final ExpandableStepIterator repeatStarts = repeatStep.getStarts();
+        while (repeatStarts.hasNext() && set.size() < MAX_BARRIER_SIZE) {
+            final Traverser.Admin<E> traverser = repeatStarts.next();
+            set.add(traverser);
+        }
     }
 }

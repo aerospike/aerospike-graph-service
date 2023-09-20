@@ -148,7 +148,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Edge processing
             PROGRESS_BAR.setEdgeLoadStart();
             
-            //If EdgeId directory was set read from edgeId path else directly from edge dataset
+            // If EdgeId directory was set read from edgeId path else directly from edge dataset
             final Dataset<Row> edgeIdDataset = !edgeIdDirectorySet ? edgeDataset :
                     spark.read().option("header","true").csv(edgeIDDirectory);
 

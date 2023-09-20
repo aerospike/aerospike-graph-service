@@ -413,12 +413,12 @@ public class EdgeOperations implements Serializable {
      * @param idString edgeIds read from file
      * @return byte[] id generated equivalent to ID manager.
      */
-    public static byte[] decodeEdgeIDFromString(String idString) {
-        if(idString == null) {
+    public static byte[] decodeEdgeIDFromString(final String idString) {
+        if (idString == null) {
             return null;
         }
 
-        if(idString.trim().isEmpty()) {
+        if (idString.trim().isEmpty()) {
             throw new RuntimeException("idString was empty!");
         }
 

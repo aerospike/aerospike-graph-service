@@ -355,7 +355,7 @@ public class EdgeOperations implements Serializable {
      * @param writeLocation
      */
     public void writeEdgeIDsToStorage(final Dataset<Row> edgeDataSet, final String writeLocation, final Map<String, Object> config, final BulkLoaderConfigHelper bulkLoaderConfig) {
-            final Instant startWriteEdge = Instant.now();
+        final Instant startWriteEdge = Instant.now();
         final String taskName = "Edges ID write";
         StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
         edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,

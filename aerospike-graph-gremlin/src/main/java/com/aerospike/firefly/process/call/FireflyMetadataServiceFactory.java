@@ -10,6 +10,8 @@ import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
+
 public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private final FireflyGraph graph;
     public static final String PRETTY_PRINT_FORMAT_LOG = "\tTotal vertex count: {}.\n" +
@@ -35,8 +37,8 @@ public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFacto
     }
 
     @Override
-    public Set<Service.Type> getSupportedTypes() {
-        return null;
+    public Set<Type> getSupportedTypes() {
+        return Set.of(Start);
     }
 
     @Override
@@ -49,7 +51,7 @@ public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFacto
 
     @Override
     public Type getType() {
-        return null;
+        return Start;
     }
 
     @Override
@@ -78,6 +80,11 @@ public class FireflyMetadataServiceFactory<I, R> implements Service.ServiceFacto
                 "Total edge count", fireflyElementMetadata.totalEdgeCount(),
                 "Edge count by label", fireflyElementMetadata.edgeCountByLabel(),
                 "Edge properties by label", fireflyElementMetadata.edgePropertiesByLabel()));
+    }
+
+    @Override
+    public Map<String, String> describeParams() {
+        return Map.of("pretty", "Pretty print the output.");
     }
 
     @Override

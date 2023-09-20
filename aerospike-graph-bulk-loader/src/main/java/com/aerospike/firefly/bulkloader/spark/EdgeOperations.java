@@ -363,13 +363,13 @@ public class EdgeOperations implements Serializable {
         ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
 
         // When USE_EXISTING_EDGEIDS is set, user must provide EDGEID_DIRECTORY_KEY.
-        if(bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
+        if (bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
           Preconditions.checkArgument(writeLocation != null && !writeLocation.isEmpty(), String.format("%s is set and %s is empty. Please set %s in the configuration file.", USE_EXISTING_EDGEIDS, EDGEID_DIRECTORY_KEY, EDGEID_DIRECTORY_KEY));
         }
 
-        if(bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
+        if (bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
             LOGGER.info(String.format("Skipping %s task Bulkloader will use existing edgeids", taskName));
-        }else{
+        } else {
             final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
             EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
             edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);

@@ -659,7 +659,6 @@ jobs:
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
       - name: Run Phantom Edge Test on GCP
         run: |
-          echo "Uncomment me when fix is complete."
           gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()

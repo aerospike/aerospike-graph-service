@@ -3,7 +3,7 @@ name: L3 Bulk Load and Benchmark Tag
 on:
   push:
     tags:
-      - '**-benchmark-[0-9]+g'
+      - '**-[0-9a-zA-Z]+-benchmark-[0-9]+g'
 
 jobs:
   start-runner-l3-bulk-loader:
@@ -74,12 +74,16 @@ jobs:
         with:
           path: ${{ env.CONFIG_PATH }}
           properties: 'data-size server-instances instance-type'
-      - name: Clamp Start Time to Environment
+      - name: Clamp Runtime Variables to Environment
         run: |
           echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "MONTH=$(date +%m)" >> $GITHUB_ENV
           echo "DAY=$(date +%d)" >> $GITHUB_ENV
           echo "SHA_PATH=${GITHUB_SHA::5}-${{ steps.read_property.outputs.data-size }}" >> $GITHUB_ENV
+          benchmark=${{ github.ref_name }}
+          benchmark=${benchmark%%[-][b][e][n][c][h][m][a][r][k][-]*}
+          benchmark=${benchmark##*-}
+          echo "BENCHMARK=$benchmark" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:
@@ -93,6 +97,10 @@ jobs:
           distribution: 'temurin'
       - run: mkdir -p /home/runner && chmod -R 777 /home/runner
       - run: echo "HOME=/home/runner" >> $GITHUB_ENV
+      - name: Download Benchmark Configuration from GCP
+        run: |
+          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
+          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Install Packages
         run: |
           sudo apt -y update
@@ -113,7 +121,7 @@ jobs:
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
+          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
           cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
@@ -125,7 +133,6 @@ jobs:
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
-          ls -l ${{ github.workspace }}/scripts
           cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
       - name: Upload Bulk Loading Artifacts to GCP
         run: |

@@ -119,8 +119,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             //Transform the edge data
             PROGRESS_BAR.setStartEdgeIdWrite();
-            String edgeIDDirectory = config.getOrDefault(EDGEID_DIRECTORY_KEY);
-            boolean edgeIdDirectorySet = !(null == edgeIDDirectory || edgeIDDirectory.isEmpty());
+            final String edgeIDDirectory = config.getOrDefault(EDGEID_DIRECTORY_KEY);
+            final boolean edgeIdDirectorySet = !(null == edgeIDDirectory || edgeIDDirectory.isEmpty());
 
             //If the flag was not set we will not write edgeIds to disk
 

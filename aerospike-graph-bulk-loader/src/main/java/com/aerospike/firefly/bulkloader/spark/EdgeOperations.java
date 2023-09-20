@@ -221,8 +221,7 @@ public class EdgeOperations implements Serializable {
             try {
                 final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
                 final SparkFireflyEdge sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
-                        providedIdPropertyName, nullValue, graph, true,
-                        getEdgeIdSupplied(metadataRow, hasEdgeId));
+                        providedIdPropertyName, nullValue, graph, true, getEdgeIdSupplied(metadataRow, hasEdgeId));
 
                 final GraphTraversal<Vertex, Edge> edgeTraversal = g.V(sparkEdge.getOutVertexId())
                         .outE(sparkEdge.getLabel()).filter(__.inV().has(T.id, sparkEdge.getInVertexId()));

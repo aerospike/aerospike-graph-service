@@ -127,7 +127,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (edgeIdDirectorySet) {
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, edgeIDDirectory, fileConfig, config);
             } else {
-                    LOGGER.warn("{} was not provided, we will not write generated edgeids to persistent storage", EDGEID_DIRECTORY_KEY);
+                    LOGGER.warn("{} was not provided. System will not write generated edgeids to persistent storage.", EDGEID_DIRECTORY_KEY);
             }
 
             PROGRESS_BAR.setEdgeIdWriteComplete();

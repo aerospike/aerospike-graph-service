@@ -474,8 +474,6 @@ public class TestProperties {
         listValue.add(456.78);
         // byte[]
         listValue.add(new byte[]{ 1, 2, 3 });
-        // Byte[]
-//        listValue.add(new Byte[]{ 4, 5, 6});
 
         // Vertex Property
         g.V().hasLabel("person").property("listProperty", listValue).iterate();
@@ -545,6 +543,5 @@ public class TestProperties {
         for (int i = 0; i < expectedByte.length; i++) {
             Assert.assertEquals(expectedByte[i], actualByte[i]);
         }
-
     }
 }

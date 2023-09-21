@@ -154,8 +154,6 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         // orphaned edge on one vertex but not the other.
         removeEdge();
 
-        graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
-
         final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
         final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
         final FireflyIdFactory idFactory = this.graph.getIdFactory();

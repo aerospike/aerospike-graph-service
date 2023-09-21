@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
@@ -28,6 +27,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParse
 import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
 import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_EDGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
+import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-firefly/conf/firefly-graph.properties";
@@ -78,7 +78,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
 
     @Override
     public Set<Type> getSupportedTypes() {
-        return null;
+        return Set.of(Type.Start);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
 
     @Override
     public Type getType() {
-        return null;
+        return Start;
     }
 
     @Override
@@ -249,6 +249,12 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
 
     private static String formatArg(final String arg) {
         return "-" + arg;
+    }
+
+
+    @Override
+    public Map<String, String> describeParams() {
+        return Map.of("See bulk loading documentation", "https://docs.aerospike.com/graph/usage/bulk-loader");
     }
 
     @Override

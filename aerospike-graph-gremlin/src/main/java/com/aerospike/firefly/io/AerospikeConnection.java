@@ -195,8 +195,11 @@ public class AerospikeConnection implements AutoCloseable {
     private final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+
+    // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+    public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -318,6 +321,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
+        ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
@@ -1453,18 +1457,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Zero an Id counter
-     *
-     * @param name name of Counter to operate on
-     * @return value of counter after operation
-     */
-    public long zeroIdCounter(final String name) {
-        final Bin ctr = new Bin(COUNTER_BIN, 0);
-        FireflyRecord.writeElement(this, ID_MANAGER_SET, FireflyIdPoly.fromObject(name, ID_MANAGER_SET), -1, ctr);
-        return 0L;
-    }
-
-    /**
      * Offer a value, compare it to the current counter value.
      * if the offered value is greater than the current counter value
      * set the counter to the offered value, and return it.
@@ -1696,13 +1688,21 @@ public class AerospikeConnection implements AutoCloseable {
      * @return Record resulting from operate.
      */
     public Record operate(final WritePolicy writePolicy, final Key key, Operation... operations) {
+        final WritePolicy policy;
+        if (writePolicy == null) {
+            policy = new WritePolicy();
+        } else {
+            policy = writePolicy;
+        }
+        policy.maxRetries = AEROSPIKE_WRITE_MAX_RETRY;
+
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
         }
 
         try {
-            return this.getClient().operate(writePolicy, key, operations);
+            return this.getClient().operate(policy, key, operations);
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {
                 case ResultCode.RECORD_TOO_BIG:

@@ -9,7 +9,10 @@ import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListOrder;
+import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListReturnType;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.exp.Exp;
@@ -47,6 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -517,10 +521,15 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Get key for this vertex in database.
         final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
-        // Create operations for writing to edge cache.
+        // TODO GRAPH-667: Remove edge counters as they can't be properly made to be idempotent
         final Bin edgeCounter = new Bin(counterBinName, 1);
         final Operation incrementEdgeCounter = Operation.add(edgeCounter);
+
+        // Create operations for writing to edge cache.
+        final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED,
+                ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendToEdgeCache = ListOperation.append(
+                preventDuplicates,
                 cacheBinName,
                 Value.get(edgeId.getCachedId()),
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)
@@ -670,26 +679,32 @@ public abstract class RelationalVertex extends FireflyVertex {
 
         // Create vertex bins for cache state, vertex label, and property ids.
         final Bin cacheDisabledBin = new Bin(db.EDGE_CACHE_DISABLED_BIN, Value.get(isEdgeCacheOverflowed));
+        final Operation writeCacheDisabled = Operation.put(cacheDisabledBin);
         final Bin labelBin = new Bin(db.LABEL_BIN, Value.get(label));
-        final Bin vertexPropertyIdsBin;
-        final Bin typeHint = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT_BIN, Value.get(vertexTypeHint));
+        final Operation writeLabel = Operation.put(labelBin);
+        final Bin typeHintBin = new Bin(db.RELATIONAL_VERTEX_TYPE_HINT_BIN, Value.get(vertexTypeHint));
+        final Operation writeTypeHint = Operation.put(typeHintBin);
         final Map<String, List<Long>> emptyEdgeCache = new TreeMap<>();
         final Bin edgeCacheInBin = new Bin(db.IN_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
+        final Operation writeEdgeCacheIn = Operation.put(edgeCacheInBin);
         final Bin edgeCacheOutBin = new Bin(db.OUT_EDGES_BIN, Value.get(emptyEdgeCache, MapOrder.KEY_ORDERED));
-        final Map<String, Object> vertexPropertyTypeHintMap;
+        final Operation writeEdgeCacheOut = Operation.put(edgeCacheOutBin);
 
         switch (vertexTypeHint) {
             case PackedVertex.VERTEX_TYPE_HINT:
-                vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN, Value.get(vertexPropertyIdsWritable,
-                        MapOrder.KEY_ORDERED));
+                final Bin vertexPropertyIdsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
+                        Value.get(vertexPropertyIdsWritable, MapOrder.KEY_ORDERED));
+                final Operation writeVertexPropertyIds = Operation.put(vertexPropertyIdsBin);
                 final Bin vertexPropertyValuesBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                         Value.get(vertexPropertyValueMap, MapOrder.KEY_ORDERED));
-                vertexPropertyTypeHintMap = new TreeMap<>();
+                final Operation writeVertexPropertyValues = Operation.put(vertexPropertyValuesBin);
+                final Map<String, Object> vertexPropertyTypeHintMap = new TreeMap<>();
                 for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
                     vertexPropertyTypeHintMap.put(entry.getKey(), AerospikeConnection.getSupportedType(entry.getValue()));
                 }
                 final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
                         Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));
+                final Operation writeVertexPropertyTypeHints = Operation.put(vertexPropertyValuesTypeHintsBin);
 
                 // Create Vertex Property Properties maps.
                 // In the Packed model, a Vertex Property's details are stored in the same record as the Vertex itself.
@@ -704,22 +719,41 @@ public abstract class RelationalVertex extends FireflyVertex {
                     vpPropertiesTypeHints.put(id.getStorageId(), new TreeMap<>());
                 }
                 final Bin vpPropertiesBin = new Bin(db.PROPERTIES_BIN, Value.get(vpProperties, MapOrder.KEY_ORDERED));
+                final Operation writeVpProperties = Operation.put(vpPropertiesBin);
                 final Bin vpPropertiesTypeHintsBin = new Bin(db.TYPE_HINTS_BIN,
                         Value.get(vpPropertiesTypeHints, MapOrder.KEY_ORDERED));
+                final Operation writeVpPropertiesTypeHints = Operation.put(vpPropertiesTypeHintsBin);
+                final Bin idTypeBin = new Bin(db.ID_TYPE_BIN, Value.get(vertexId.getStorageTypeHint()));
+                final Operation writeIdTypeHint = Operation.put(idTypeBin);
 
-                // Set generation to -1 (no generation check) because this is the initial write of the vertex.
-                // Also set writeOnly=true, if vertex already exists we will fail.
-                FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, createOnly,
-                        cacheDisabledBin,
-                        labelBin,
-                        edgeCacheOutBin,
-                        edgeCacheInBin,
-                        vertexPropertyIdsBin,
-                        vertexPropertyValuesBin,
-                        vertexPropertyValuesTypeHintsBin,
-                        typeHint,
-                        vpPropertiesBin,
-                        vpPropertiesTypeHintsBin);
+                final Key key = getKey(db, db.VERTEX_AERO_SET, vertexId);
+                final WritePolicy policy = new WritePolicy();
+                if (createOnly) {
+                    policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
+                }
+                policy.sendKey = true;
+
+                // TODO: This is a temporary measure to pack the user key into a bin. Remove when sendKey works to
+                //       recover the user key for hash constructed keys
+                final List<Operation> operations = new ArrayList<>();
+                if (key.userKey.getObject() != null) {
+                    final Bin userKeyBin = new Bin(db.USER_KEY_BIN, Value.get(key.userKey.getObject()));
+                    final Operation writeUserKey = Operation.put(userKeyBin);
+                    operations.add(writeUserKey);
+                }
+                operations.add(writeCacheDisabled);
+                operations.add(writeLabel);
+                operations.add(writeTypeHint);
+                operations.add(writeEdgeCacheIn);
+                operations.add(writeEdgeCacheOut);
+                operations.add(writeVertexPropertyIds);
+                operations.add(writeVertexPropertyValues);
+                operations.add(writeVertexPropertyTypeHints);
+                operations.add(writeVpProperties);
+                operations.add(writeVpPropertiesTypeHints);
+                operations.add(writeIdTypeHint);
+
+                db.operate(policy, key, operations.toArray(new Operation[0]));
                 graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
                 return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
                         0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,

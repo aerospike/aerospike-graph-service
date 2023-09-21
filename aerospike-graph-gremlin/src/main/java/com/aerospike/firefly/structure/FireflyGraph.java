@@ -132,7 +132,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     // docs changes, config updates, etc, and isn't worth it right now.
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeGraphService.class);
 
-    public static String FIREFLY_VERSION = "1.1.0-SNAPSHOT";
+    public static String FIREFLY_VERSION = "2.0.0-SNAPSHOT";
     public final AtomicBoolean closed = new AtomicBoolean(false);
     private final Timer fireflyCardinalityMetadataTask = new Timer(true);
     private final Timer fireflyIndexMetadataTask = new Timer(true);

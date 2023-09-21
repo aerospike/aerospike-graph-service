@@ -80,7 +80,7 @@ instance_type=${instance_type}
 echo creating ${name} cluster with ${instances} Aerospikes
 
 # Create Aerospike Cluster but don't start it yet
-aerolab cluster create -c ${instances} --instance ${instance_type}  -f $features_file --customconf=$as_conf \
+aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.2.0.7 -f $features_file --customconf=$as_conf \
 --zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd \
 --disk=local-ssd --disk=local-ssd --disk=local-ssd --disk=local-ssd --name=${name} --start=n;
 

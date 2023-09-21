@@ -195,8 +195,11 @@ public class AerospikeConnection implements AutoCloseable {
     private final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+
+    // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+    public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -318,6 +321,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
+        ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);

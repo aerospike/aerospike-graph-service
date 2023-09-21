@@ -16,4 +16,4 @@ cd firefly && sudo bash -x scripts/build-docker.sh firefly
 sudo docker run --name firefly -d -p 8182:8182 -p 9090:9090 -e aerospike.client.host="$(cat ./scripts/hosts.txt)" -e aerospike.graph.index.vertex.label.enabled=true -e aerospike.graph.index.vertex.properties=macAddress firefly
 
 # Run Benchmark
-sudo mvn test -Dfirefly.host=localhost -Ddataset_size="$(cat ./data_size.txt)" -Dtest="$(cat ./benchmark_name.txt)" -DfailIfNoTests=false --no-transfer-progress
+sudo mvn test -Dfirefly.host=localhost -Dtest=TestPhantomEdges -DfailIfNoTests=false --no-transfer-progress

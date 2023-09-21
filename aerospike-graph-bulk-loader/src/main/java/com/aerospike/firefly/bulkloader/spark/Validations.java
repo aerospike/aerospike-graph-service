@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.FILENAME_COLUMN;
-import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.LINENUMBER_COLUMN;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
@@ -88,11 +87,11 @@ public class Validations {
             final GenericRowWithSchema metadataRow = (GenericRowWithSchema) row;
             final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
             try {
-                SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, null, true);
+                SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId, providedIdPropertyName, nullValue, null, true, null);
                 return 0;
             } catch (final FireflyBulkLoaderException e) {
-                LOGGER.error("Edge Format validation of CSV data failed on row {} of file {} at line {}.",
-                        metadataRow, metadataRow.get(metadataRow.fieldIndex(FILENAME_COLUMN)), metadataRow.get(metadataRow.fieldIndex(LINENUMBER_COLUMN)));
+                LOGGER.error("Edge Format validation of CSV data failed on row {} of file {}.",
+                        metadataRow, metadataRow.get(metadataRow.fieldIndex(FILENAME_COLUMN)));
                 return 1;
             }
         });

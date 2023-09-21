@@ -35,13 +35,12 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
-import static org.apache.spark.sql.functions.monotonically_increasing_id;
 
 public class DatasetOperations implements Serializable {
     public static int RETRY_LIMIT = 20; // Not provided through config
     public static final String FILENAME_COLUMN = "~fileName";
-    public static final String LINENUMBER_COLUMN = "~line";
-    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, LINENUMBER_COLUMN);
+    public static final String EDGE_ID_COLUMN = "~edgeid";
+    public static final Set<String> COLUMNS_TO_REMOVE = Set.of(FILENAME_COLUMN, EDGE_ID_COLUMN);
     private static final Logger LOGGER = LoggerFactory.getLogger(DatasetOperations.class);
 
     public DatasetOperations() {}
@@ -83,15 +82,14 @@ public class DatasetOperations implements Serializable {
             final Dataset<Row> dataset = spark.read()
                     .option("header", "true")
                     .option("recursiveFileLookup", "true").csv(csv)
-                    .select(input_file_name().as(FILENAME_COLUMN), col("*"))
-                    .withColumn(LINENUMBER_COLUMN, monotonically_increasing_id());
+                    .select(input_file_name().as(FILENAME_COLUMN), col("*"));
             testHeaders(requiredHeaders, csv, dataset);
             datasets.add(dataset);
         }
         return datasets;
     }
 
-    private static void testHeaders(List<String> requiredHeaders, String csv, Dataset<Row> dataset) {
+    public static void testHeaders(List<String> requiredHeaders, String csv, Dataset<Row> dataset) {
         final Set<String> headers = Set.of(dataset.columns());
         for (final String requiredHeader : requiredHeaders) {
             if (!headers.contains(requiredHeader)) {
@@ -139,6 +137,10 @@ public class DatasetOperations implements Serializable {
 
     public static Dataset<Row> loadDataset(final SparkSession session, final List<String> paths, final List<String> requiredHeaders, StorageLevel level) {
         Dataset<Row> data = mergeDatasets(session, createDatasets(session, paths, requiredHeaders));
+        return persistIfPossible(level, data);
+    }
+
+    public static Dataset<Row> persistIfPossible(StorageLevel level, Dataset<Row> data) {
         return level.isValid() ? data.persist(level) : data;
     }
 
@@ -171,7 +173,7 @@ public class DatasetOperations implements Serializable {
 
             edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant end = Instant.now();
-            LOGGER.info("Completed preflightCheck. Time taken (in seconds): ", Duration.between(start, end).getSeconds());
+            LOGGER.info("Completed preflightCheck. Time taken: {}s", Duration.between(start, end).getSeconds());
         }
     }
 

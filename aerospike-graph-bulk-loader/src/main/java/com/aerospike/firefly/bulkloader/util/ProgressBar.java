@@ -18,6 +18,9 @@ public class ProgressBar extends TimerTask {
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
     private boolean vertexValidationComplete = false;
+
+    private boolean edgeIdWriteComplete = false;
+    private long startEdgeIdWrite = 0L;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
     private long startVertexTime = 0L;
@@ -41,6 +44,18 @@ public class ProgressBar extends TimerTask {
     public void setVertexLoadStart() {
         synchronized (ProgressBar.class) {
             this.startVertexTime = System.currentTimeMillis();
+        }
+    }
+
+    public void setStartEdgeIdWrite() {
+        synchronized (ProgressBar.class) {
+            this.startEdgeIdWrite = System.currentTimeMillis();
+        }
+    }
+
+    public void setEdgeIdWriteComplete() {
+        synchronized (ProgressBar.class) {
+            this.edgeIdWriteComplete = true;
         }
     }
 
@@ -187,6 +202,16 @@ public class ProgressBar extends TimerTask {
         }
     }
 
+    private String getEdgeIdProgress() {
+        if (edgeIdWriteComplete) {
+            return "\t\tEdgeId writing complete\n";
+        } else if (preflightCheckComplete) {
+            return "\t\tEdgeId writing in progress\n";
+        } else {
+            return "\t\tEdgeId writing not started\n";
+        }
+    }
+
     private static String getProgressBar(final double percent) {
         final String block = "█";
         final int width = 50;
@@ -210,6 +235,7 @@ public class ProgressBar extends TimerTask {
                 final FireflyGraphSummaryUpdater.FireflyElementMetadata elementMetadata = graph.fireflySummaryUpdater.getFireflyStatistics();
                 LOGGER.info("\n\tBulk Loader Progress:\n" +
                         getPreFlightCheckProgress() +
+                        getEdgeIdProgress() +
                         getSuperNodeExtractionProgress() +
                         getVertexWritingProgress(elementMetadata) +
                         getVertexValidationProgress() +

@@ -391,7 +391,7 @@ public class AerospikeConnection implements AutoCloseable {
         EDGE_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf));
 
         CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
-        TIMEOUT_DELAY =  Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
+        TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
@@ -662,6 +662,16 @@ public class AerospikeConnection implements AutoCloseable {
     public synchronized void checkConfigurationCompatibility(final Configuration config) {
         final Key key = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Map<String, String> existingConfig = getDataModelMetadata().getExistingImmutableConfigs();
+
+        if (config.containsKey(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase())
+                && config.getBoolean(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase())) {
+            // Warmup mode is enabled so we don't need to check the configuration,
+            // it's a compatible copy intended to be slightly different to not interfere.
+            // Note if we check it the summary mismatch will fail below, but we don't want
+            // it to write to the summary.
+            return;
+        }
+
         if (existingConfig == null) {
             // This is a fresh graph so write the immutable configurations
             final Map<String, String> configurations = new HashMap<>();

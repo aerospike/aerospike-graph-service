@@ -20,13 +20,13 @@ public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
     private final Retry retry;
 
     public ExponentialBackoffRetry(final String taskName) {
-        final Predicate<Throwable> quotaPredicate = e ->
+        final Predicate<Throwable> retryPredicate = e ->
                 (e instanceof FireflyLoadingException) && ((FireflyLoadingException) e).isRetryable();
 
         final RetryConfig retryConfig = RetryConfig.custom()
                 .maxAttempts(DatasetOperations.RETRY_LIMIT)
                 .intervalFunction(IntervalFunction.ofExponentialRandomBackoff(300, 2))
-                .retryOnException(quotaPredicate)
+                .retryOnException(retryPredicate)
                 .build();
         final RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
         retry = retryRegistry.retry(taskName==null ? "aerospike-bulkloader-retry" : taskName, retryConfig);
@@ -40,7 +40,7 @@ public class ExponentialBackoffRetry implements AerospikeRetry, Serializable {
 
     private void subscribe() {
         retry.getEventPublisher().onRetry(event -> LOGGER.info("Retry #" + event.getNumberOfRetryAttempts() + " failed with exception: " + event.getLastThrowable().getMessage()));
-        retry.getEventPublisher().onError(event -> LOGGER.error("Retry #" + event.getNumberOfRetryAttempts() + " failed with exception: " + event.getLastThrowable().getMessage()));
+        retry.getEventPublisher().onError(event -> LOGGER.error("Retry #" + event.getNumberOfRetryAttempts() + " errored with exception: " + event.getLastThrowable().getMessage()));
         retry.getEventPublisher().onSuccess(event -> LOGGER.info("Retry #" + event.getNumberOfRetryAttempts() + " succeeded"));
     }
 

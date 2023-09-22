@@ -1,6 +1,6 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.Upgrade;
+import com.aerospike.firefly.io.impl.DataModelVersioning;
 import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -13,15 +13,11 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.AbstractMap;
-import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.fail;
@@ -106,27 +102,7 @@ public class TestDataModelVersioning {
         }
     }
 
-    public static class TestTask implements UpgradeTask {
-        public TestTask(){
 
-        }
-        public static boolean complete = false;
-
-        @Override
-        public Map.Entry<String, String> upgradePath() {
-            return new AbstractMap.SimpleEntry<>("0.0.1", "0.0.2");
-        }
-
-        @Override
-        public Class<? extends FireflyGraph> dataModel() {
-            return FakeGraph.class;
-        }
-
-        @Override
-        public void performUpgrade(AerospikeConnection db) throws Exception {
-            TestTask.complete = true;
-        }
-    }
 
     @Test
     public void testMajorVersionMatch() throws Exception {
@@ -134,66 +110,43 @@ public class TestDataModelVersioning {
         db = AerospikeConnection.connect(config);
         db.dropDatabase(graph, false);
         FakeGraph.version = "0.0.1";
-        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
 
         // Now try to open version 0.0.2, this should return no issue since the major version matches.
         db.close();
         FakeGraph.version = "0.0.2";
         db = AerospikeConnection.connect(config);
-        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
 
         // Now knock out the current data and place it to version 0.0.2.
         db.dropDatabase(graph, false);
-        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
 
         // Try to open version 0.1.1, this should do nothing since the major version matches.
         FakeGraph.version = "0.1.1";
         db.close();
         db = AerospikeConnection.connect(config);
-        Assert.assertFalse(Upgrade.checkNeedsUpgrade(FakeGraph.class, db));
+        Assert.assertFalse(DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db));
 
     }
 
-    @Test
-    @Ignore
-    // TODO: Once we implement upgrade, add this test back.
-    public void TestTriggerUpgrade() throws Exception {
 
-        db = AerospikeConnection.connect(config);
-        db.dropDatabase(graph, false);
-
-        Upgrade.registerUpgradeTask(TestTask.class);
-
-        FakeGraph.version = "0.0.1";
-        if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-            Upgrade.performUpgrade(FakeGraph.class, db);
-        db.close();
-
-        FakeGraph.version = "0.0.2";
-        db = AerospikeConnection.connect(config);
-        if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-            Upgrade.performUpgrade(FakeGraph.class, db);
-
-        if (!TestTask.complete)
-            fail("TestTask should be marked complete");
-
-    }
 
     @Test
     public void TestFailOnLaterMajorVersion() throws Exception {
         db = AerospikeConnection.connect(config);
         db.dropDatabase(graph, false);
         FakeGraph.version = "1.0.2";
-        if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-            Upgrade.performUpgrade(FakeGraph.class, db);
+        if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
+            DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
         db.close();
 
         boolean success = false;
         FakeGraph.version = "0.0.1";
         try {
             db = AerospikeConnection.connect(config);
-            if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-                Upgrade.performUpgrade(FakeGraph.class, db);
+            if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
+                DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
         } catch (Exception e) {
             success = true;
         }
@@ -206,16 +159,16 @@ public class TestDataModelVersioning {
         db = AerospikeConnection.connect(config);
         db.dropDatabase(graph, false);
         FakeGraph.version = "0.0.2";
-        if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-            Upgrade.performUpgrade(FakeGraph.class, db);
+        if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
+            DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
         db.close();
 
         boolean success = false;
         FakeGraph.version = "1.0.1";
         try {
             db = AerospikeConnection.connect(config);
-            if (Upgrade.checkNeedsUpgrade(FakeGraph.class, db))
-                Upgrade.performUpgrade(FakeGraph.class, db);
+            if (DataModelVersioning.checkNeedsUpgrade(FakeGraph.class, db))
+                DataModelVersioning.errorNeedsUpgrade(FakeGraph.class, db);
         } catch (Exception e) {
             success = true;
         }

@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -78,13 +79,13 @@ public class PrometheusMetricsServer {
                 });
     }
 
-    class FireflyMetricRename implements Handler<RoutingContext> {
+    private static class FireflyMetricRename implements Handler<RoutingContext> {
 
         /**
          * Wrap a Vert.x Buffer as a Writer so it can be used with
          * TextFormat writer
          */
-        private class BufferWriter extends Writer {
+        private static class BufferWriter extends Writer {
 
             private final Buffer buffer = Buffer.buffer();
 
@@ -136,13 +137,28 @@ public class PrometheusMetricsServer {
                         return samples.hasMoreElements();
                     }
 
+                    private List<String> listRename(final List<String> input) {
+                        return input.stream().map(this::rename).collect(Collectors.toList());
+                    }
+
+                    private String rename(final String input) {
+                        return "aerospike_graph_service_" +
+                                input.replace("org_apache_tinkerpop_gremlin_server_", "");
+                    }
+
                     @Override
                     public Collector.MetricFamilySamples nextElement() {
                         final Collector.MetricFamilySamples next = samples.nextElement();
-                        return new Collector.MetricFamilySamples("aerospike_graph_service_" + next.name, next.type, next.help,
+                        return new Collector.MetricFamilySamples(
+                                rename(next.name),
+                                next.type,
+                                next.help,
                                 next.samples.stream().map(sample ->
-                                        new Collector.MetricFamilySamples.Sample("aerospike_graph_service_" +
-                                                sample.name, sample.labelNames, sample.labelValues, sample.value)).
+                                                new Collector.MetricFamilySamples.Sample(
+                                                        rename(sample.name),
+                                                        sample.labelNames, // Names are things like 'metric' so don't want to rename.
+                                                        listRename(sample.labelValues),
+                                                        sample.value)).
                                         collect(Collectors.toList()));
                     }
                 };

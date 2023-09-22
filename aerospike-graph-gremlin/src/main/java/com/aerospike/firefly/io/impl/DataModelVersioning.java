@@ -1,12 +1,8 @@
 package com.aerospike.firefly.io.impl;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.UpgradeTask;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.maven.artifact.versioning.ComparableVersion;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.aerospike.firefly.structure.FireflyGraph.DATAMODELVERSION;
 import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
@@ -14,19 +10,7 @@ import static com.aerospike.firefly.structure.FireflyGraph.GETDATAMODELNAME;
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
-public class Upgrade {
-
-    private static final List<Class<? extends UpgradeTask>> availableUpgrades = new ArrayList<>();
-
-    /**
-     * Configure an upgrade task that will mutate the Aerospike data before the Graph is loaded
-     * This should match a particular "from" and "to" version, and should update the on-disk version accordingly
-     *
-     * @param task class that implements UpgradeTask
-     */
-    public static void registerUpgradeTask(Class<? extends UpgradeTask> task) {
-        availableUpgrades.add(task);
-    }
+public class DataModelVersioning {
 
     /**
      * Given a particular dataModel class, take a look at the on-disk data and see if we need to execute upgrade tasks.
@@ -80,7 +64,7 @@ public class Upgrade {
      * @param db        AerospikeConnection instance
      * @throws Exception if the data model is not compatible with the current version.
      */
-    public static void performUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
+    public static void errorNeedsUpgrade(Class<? extends FireflyGraph> dataModel, AerospikeConnection db) throws Exception {
         throw new RuntimeException("Error, current drive version (" + db.getDataModelMetadata().getDataModelVersion() +
                 ") of Aerospike Graph is incompatible with the current software version (" +
                 dataModel.getMethod(DATAMODELVERSION).invoke(null) + ").");

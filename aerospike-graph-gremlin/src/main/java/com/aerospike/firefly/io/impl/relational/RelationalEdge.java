@@ -9,6 +9,7 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
+import com.aerospike.client.command.Command;
 import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
@@ -213,7 +214,7 @@ public class RelationalEdge extends FireflyEdge {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
 
-        final Operation removeLabel = MapOperation.removeByKey(db.LABEL_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        final Operation removeLabel = MapOperation.removeByKey(db.LABEL_BIN, Value.get(edgeId.getUserId()), MapReturnType.VALUE);
         final Operation removeIn = MapOperation.removeByKey(Direction.IN.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeOut = MapOperation.removeByKey(Direction.OUT.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeProperties = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
@@ -244,9 +245,19 @@ public class RelationalEdge extends FireflyEdge {
         final Operation removeLabelBin = ExpOperation.write(db.LABEL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         try {
-            db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
+            final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
                     removeSupernodesIn, removeSupernodesOut, removeInBin, removeOutBin, removePropertiesBin,
                     removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeLabelBin);
+
+            // Result returned is always [<label>, null] since the label is removed first.
+            final Command.OpResults results = (Command.OpResults) record.getValue(db.LABEL_BIN);
+            for (int i = 0; i < results.size(); i++) {
+                final Object result = results.get(i);
+                if (result instanceof String) {
+                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue((String) result);
+                    break;
+                }
+            }
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.

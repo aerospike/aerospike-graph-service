@@ -1,16 +1,27 @@
 package com.aerospike.firefly.util;
 
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
+import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
-import io.prometheus.client.vertx.MetricsHandler;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import org.apache.tinkerpop.gremlin.server.util.MetricManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -34,7 +45,7 @@ public class PrometheusMetricsServer {
         return new PrometheusMetricsServer(port, path);
     }
 
-    public void start () {
+    public void start() {
         // If this is started, do not start twice. This shouldn't happen.
         LOG.info("Starting PrometheusMetricsServer on port {}.", port);
         if (started.getAndSet(true)) {
@@ -45,15 +56,14 @@ public class PrometheusMetricsServer {
         // Register TinkerPop metrics with the default registry.
         CollectorRegistry.defaultRegistry.register(new DropwizardExports(MetricManager.INSTANCE.getRegistry()));
 
-        // Add default JVM metrics to the default registry.
         DefaultExports.initialize();
 
         // Create a router to handle requests.
         final Router router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(DEFAULT_PROMETHEUS_PATH).handler(new MetricsHandler());
-        router.get(DEFAULT_PROMETHEUS_PATH).failureHandler(new MetricsHandler());
+        router.get(DEFAULT_PROMETHEUS_PATH).handler(new FireflyMetricRename());
+        router.get(DEFAULT_PROMETHEUS_PATH).failureHandler(new FireflyMetricRename());
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()
@@ -66,5 +76,91 @@ public class PrometheusMetricsServer {
                         LOG.error("PrometheusMetricsServer failed to bind with error {}.", res.cause().getMessage());
                     }
                 });
+    }
+
+    class FireflyMetricRename implements Handler<RoutingContext> {
+
+        /**
+         * Wrap a Vert.x Buffer as a Writer so it can be used with
+         * TextFormat writer
+         */
+        private class BufferWriter extends Writer {
+
+            private final Buffer buffer = Buffer.buffer();
+
+            @Override
+            public void write(char[] cbuf, int off, int len) throws IOException {
+                buffer.appendString(new String(cbuf, off, len));
+            }
+
+            @Override
+            public void flush() throws IOException {
+                // NO-OP
+            }
+
+            @Override
+            public void close() throws IOException {
+                // NO-OP
+            }
+
+            Buffer getBuffer() {
+                return buffer;
+            }
+        }
+
+        private final CollectorRegistry registry;
+
+        /**
+         * Construct a MetricsHandler for the default registry.
+         */
+        public FireflyMetricRename() {
+            this(CollectorRegistry.defaultRegistry);
+        }
+
+        /**
+         * Construct a MetricsHandler for the given registry.
+         */
+        public FireflyMetricRename(CollectorRegistry registry) {
+            this.registry = registry;
+        }
+
+        @Override
+        public void handle(RoutingContext ctx) {
+            try {
+                final String contentType = TextFormat.chooseContentType(ctx.request().headers().get("Accept"));
+
+                final Enumeration<Collector.MetricFamilySamples> samples = registry.filteredMetricFamilySamples(parse(ctx.request()));
+
+                final Enumeration<Collector.MetricFamilySamples> renamedSamples = new Enumeration<>() {
+                    @Override
+                    public boolean hasMoreElements() {
+                        return samples.hasMoreElements();
+                    }
+
+                    @Override
+                    public Collector.MetricFamilySamples nextElement() {
+                        final Collector.MetricFamilySamples next = samples.nextElement();
+                        return new Collector.MetricFamilySamples("aerospike_graph_service_" + next.name, next.type, next.help,
+                                next.samples.stream().map(sample ->
+                                        new Collector.MetricFamilySamples.Sample("aerospike_graph_service_" +
+                                                sample.name, sample.labelNames, sample.labelValues, sample.value)).
+                                        collect(Collectors.toList()));
+                    }
+                };
+
+                final BufferWriter writer = new BufferWriter();
+                TextFormat.writeFormat(contentType, writer, renamedSamples);
+                ctx.response()
+                        .setStatusCode(200)
+                        .putHeader("Content-Type", contentType)
+                        .end(writer.getBuffer());
+            } catch (IOException e) {
+                ctx.fail(e);
+            }
+        }
+
+        private Set<String> parse(HttpServerRequest request) {
+            return new HashSet(request.params().getAll("name[]"));
+        }
     }
 }

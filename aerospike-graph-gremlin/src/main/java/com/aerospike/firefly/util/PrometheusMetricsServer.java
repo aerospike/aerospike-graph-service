@@ -62,8 +62,8 @@ public class PrometheusMetricsServer {
         final Router router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(DEFAULT_PROMETHEUS_PATH).handler(new FireflyMetricRename());
-        router.get(DEFAULT_PROMETHEUS_PATH).failureHandler(new FireflyMetricRename());
+        router.get(path).handler(new FireflyMetricRename());
+        router.get(path).failureHandler(new FireflyMetricRename());
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()
@@ -89,12 +89,12 @@ public class PrometheusMetricsServer {
             private final Buffer buffer = Buffer.buffer();
 
             @Override
-            public void write(char[] cbuf, int off, int len) throws IOException {
+            public void write(final char[] cbuf, final int off, final int len) throws IOException {
                 buffer.appendString(new String(cbuf, off, len));
             }
 
             @Override
-            public void flush() throws IOException {
+            public void flush() {
                 // NO-OP
             }
 
@@ -120,15 +120,14 @@ public class PrometheusMetricsServer {
         /**
          * Construct a MetricsHandler for the given registry.
          */
-        public FireflyMetricRename(CollectorRegistry registry) {
+        public FireflyMetricRename(final CollectorRegistry registry) {
             this.registry = registry;
         }
 
         @Override
-        public void handle(RoutingContext ctx) {
+        public void handle(final RoutingContext ctx) {
             try {
                 final String contentType = TextFormat.chooseContentType(ctx.request().headers().get("Accept"));
-
                 final Enumeration<Collector.MetricFamilySamples> samples = registry.filteredMetricFamilySamples(parse(ctx.request()));
 
                 final Enumeration<Collector.MetricFamilySamples> renamedSamples = new Enumeration<>() {
@@ -159,8 +158,8 @@ public class PrometheusMetricsServer {
             }
         }
 
-        private Set<String> parse(HttpServerRequest request) {
-            return new HashSet(request.params().getAll("name[]"));
+        private Set<String> parse(final HttpServerRequest request) {
+            return new HashSet<>(request.params().getAll("name[]"));
         }
     }
 }

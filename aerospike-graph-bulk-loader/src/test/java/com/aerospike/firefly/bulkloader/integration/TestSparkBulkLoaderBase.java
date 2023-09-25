@@ -3,12 +3,14 @@ package com.aerospike.firefly.bulkloader.integration;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderPreflightException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.SparkException;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -16,10 +18,13 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -29,6 +34,7 @@ public abstract class TestSparkBulkLoaderBase {
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
     private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-verifyedge", "-verifyvertex"};
     protected FireflyGraph graph = null;
+    static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
 
     @Before
     public void beforeEach() {
@@ -36,11 +42,31 @@ public abstract class TestSparkBulkLoaderBase {
         graph = FireflyGraph.open(config);
     }
 
+    @AfterClass
+    public static void afterClass() {
+        try {
+            //clean all edgeid related temporary files after execution of test suite
+            FileUtils.deleteDirectory(new File(EDGEID_TEST_DIRECTORIES));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @After
-    public void afterEach() {
+    public void afterEach(){
         graph.getBaseGraph().dropDatabase(graph, true);
+        Configuration config = getTestConfig();
+        String edgeIDDirecotry = config.getString(BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY);
+        if(edgeIDDirecotry != null ) {
+            try {
+                FileUtils.deleteDirectory(new File(edgeIDDirecotry));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
         graph.close();
     }
+
 
     protected abstract Configuration getTestConfig();
 

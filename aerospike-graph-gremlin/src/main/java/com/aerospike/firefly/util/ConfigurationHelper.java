@@ -275,6 +275,13 @@ public final class ConfigurationHelper {
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
+        put(Keys.BULK_LOADER_FLAG, "false");
+        put(Keys.MAX_ERROR_RATE, "100");
+        put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
+        put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
+        put(Keys.CONNECT_TIMEOUT, "0");
+        put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.DEBUG_MODE_FLAG, "false");
     }};
 
 

@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
@@ -31,6 +32,8 @@ public class CommandLineParser {
     public static final String DRY_RUN = "dryrun";
     public static final String WRITE_EDGE = "writeedge";
     public static final String WRITE_VERTEX = "writevertex";
+
+    public static final String USE_EXISTING_EDGEIDS = "useexistingedgeid";
 
     static public CommandLine parseCmdArgs(final String[] args) {
         final Options options = new Options();
@@ -58,6 +61,8 @@ public class CommandLineParser {
         options.addOption(vertexDirOption);
         final Option edgeDirOption = new Option("ed", EDGE_DIRECTORY_KEY, true, "Path to directory containing edge CSVs. Local: Absolute path. AWS S3: Directory after bucket name.");
         options.addOption(edgeDirOption);
+        final Option edgeIdDirOption = new Option("eid", EDGEID_DIRECTORY_KEY, true, "Path to EdgeID director. Local: Absolute path. AWS S3: Directory after bucket name.");
+        options.addOption(edgeIdDirOption);
         final Option keepEdgeIdOption = new Option("ki", KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, true, "Boolean to keep provided Edge IDs as a property. Optional argument - Default: 'false'.");
         options.addOption(keepEdgeIdOption);
         final Option idPropNameOption = new Option("ep", PROVIDED_EDGE_ID_PROPERTY_NAME, true, "Property key of provided Edge ID if stored as a property. Optional argument - Default: '~providedId'.");
@@ -88,6 +93,8 @@ public class CommandLineParser {
         options.addOption(vv);
         final Option dr = new Option(DRY_RUN, "Dry run of edges and vertices.");
         options.addOption(dr);
+        final Option useexisting_eid = new Option(USE_EXISTING_EDGEIDS, "Use existing edgeids.");
+        options.addOption(useexisting_eid);
         final Option we = new Option(WRITE_EDGE, "Write edges.");
         options.addOption(we);
         final Option wv = new Option(WRITE_VERTEX, "Write vertices.");

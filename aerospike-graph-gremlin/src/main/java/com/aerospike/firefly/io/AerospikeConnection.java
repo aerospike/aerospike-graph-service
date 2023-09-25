@@ -148,15 +148,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final String VERTEX_AERO_SET;
     public final String IN_VP_SET;
     public final String OUT_VP_SET;
-    public final String IN_IN_SET;
-    public final String IN_OUT_SET;
-    public final String OUT_IN_SET;
-    public final String OUT_OUT_SET;
     public final String SUMMARY_SET;
     public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
-    public final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN;
 
     public final String IN_EDGE_COUNTER_BIN;
     public final String OUT_EDGE_COUNTER_BIN;
@@ -345,10 +340,6 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
         IN_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_VP_SET.name(), conf);
         OUT_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_VP_SET.name(), conf);
-        IN_IN_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_IN_SET.name(), conf);
-        IN_OUT_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_OUT_SET.name(), conf);
-        OUT_IN_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_IN_SET.name(), conf);
-        OUT_OUT_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_OUT_SET.name(), conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET.name(), conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.name(), conf);
         GRAPH_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.GRAPH_METADATA_SET.name(), conf);
@@ -364,7 +355,6 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
-        EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN.name(), conf);
         PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf);
         TYPE_HINTS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TYPE_HINTS_BIN.name(), conf);
         COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.COUNTER_BIN.name(), conf);
@@ -1564,10 +1554,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, INDEX_METADATA_SET, null);
             client.truncate(null, namespace, OUT_VP_SET, null);
             client.truncate(null, namespace, IN_VP_SET, null);
-            client.truncate(null, namespace, OUT_OUT_SET, null);
-            client.truncate(null, namespace, OUT_IN_SET, null);
-            client.truncate(null, namespace, IN_OUT_SET, null);
-            client.truncate(null, namespace, IN_IN_SET, null);
             client.truncate(null, namespace, SUMMARY_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the

@@ -413,7 +413,7 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
             assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET), x);
-;
+
             assertEquals(3, x.size());
 
             Vertex a = graph.addVertex();

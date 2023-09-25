@@ -63,8 +63,9 @@ public class PrometheusMetricsServer {
         final Router router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(path).handler(new FireflyMetricRename());
-        router.get(path).failureHandler(new FireflyMetricRename());
+        final Handler<RoutingContext> handler = new FireflyMetricRewiter();
+        router.get(path).handler(handler);
+        router.get(path).failureHandler(handler);
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()
@@ -79,7 +80,7 @@ public class PrometheusMetricsServer {
                 });
     }
 
-    private static class FireflyMetricRename implements Handler<RoutingContext> {
+    private static class FireflyMetricRewiter implements Handler<RoutingContext> {
 
         /**
          * Wrap a Vert.x Buffer as a Writer so it can be used with
@@ -104,7 +105,7 @@ public class PrometheusMetricsServer {
                 // NO-OP
             }
 
-            Buffer getBuffer() {
+            public Buffer getBuffer() {
                 return buffer;
             }
         }
@@ -114,14 +115,14 @@ public class PrometheusMetricsServer {
         /**
          * Construct a MetricsHandler for the default registry.
          */
-        public FireflyMetricRename() {
+        public FireflyMetricRewiter() {
             this(CollectorRegistry.defaultRegistry);
         }
 
         /**
          * Construct a MetricsHandler for the given registry.
          */
-        public FireflyMetricRename(final CollectorRegistry registry) {
+        public FireflyMetricRewiter(final CollectorRegistry registry) {
             this.registry = registry;
         }
 
@@ -169,7 +170,7 @@ public class PrometheusMetricsServer {
                         .setStatusCode(200)
                         .putHeader("Content-Type", contentType)
                         .end(writer.getBuffer());
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 ctx.fail(e);
             }
         }

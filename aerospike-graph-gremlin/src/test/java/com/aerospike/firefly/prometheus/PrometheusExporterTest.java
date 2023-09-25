@@ -36,8 +36,8 @@ public class PrometheusExporterTest {
 
     public int getCountOfTraversals() throws IOException {
         String output = queryPrometheus();
-        Assert.assertTrue(output.contains("org_apache_tinkerpop_gremlin_server_GremlinServer_op_traversal_count "));
-        output = output.split("org_apache_tinkerpop_gremlin_server_GremlinServer_op_traversal_count ")[1];
+        Assert.assertTrue(output.contains("aerospike_graph_service_GremlinServer_op_traversal_count "));
+        output = output.split("aerospike_graph_service_GremlinServer_op_traversal_count ")[1];
         output = output.split("# HELP")[0];
         output = output.split("\\.")[0];
         return Integer.parseInt(output);
@@ -65,6 +65,6 @@ public class PrometheusExporterTest {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
         PrometheusMetricsServer.create(9090, "/metrics").start();
-        Assert.assertTrue(queryPrometheus().contains("jvm_memory_pool_bytes_used"));
+        Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
     }
 }

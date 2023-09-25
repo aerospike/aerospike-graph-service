@@ -41,7 +41,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
                                               final String nullValue,
                                               final FireflyGraph graph,
                                               final boolean forVerification,
-                                              final byte[]  ... edgeIdSupplied) {
+                                              final byte[] edgeIdSupplied) {
         final String[] headers = row.schema().fieldNames();
         String id = null;
         String label = null;
@@ -91,7 +91,7 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             edgeId = null;
         } else {
             try {
-                edgeId = graph.edgeIdManager.getNextId(graph);
+                edgeId = edgeIdSupplied != null ? edgeIdSupplied : graph.edgeIdManager.getNextId(graph);
             } catch (final AerospikeException e) {
                 // Do this to trigger retries
                 throw new FireflyLoadingException(e);

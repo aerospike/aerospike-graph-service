@@ -32,7 +32,6 @@ public class CommandLineParser {
     public static final String DRY_RUN = "dryrun";
     public static final String WRITE_EDGE = "writeedge";
     public static final String WRITE_VERTEX = "writevertex";
-
     public static final String USE_EXISTING_EDGEIDS = "useexistingedgeid";
 
     static public CommandLine parseCmdArgs(final String[] args) {
@@ -93,8 +92,8 @@ public class CommandLineParser {
         options.addOption(vv);
         final Option dr = new Option(DRY_RUN, "Dry run of edges and vertices.");
         options.addOption(dr);
-        final Option useexisting_eid = new Option(USE_EXISTING_EDGEIDS, "Use existing edgeids.");
-        options.addOption(useexisting_eid);
+        final Option useExistingEdgeIds = new Option(USE_EXISTING_EDGEIDS, "Use existing edge IDs.");
+        options.addOption(useExistingEdgeIds);
         final Option we = new Option(WRITE_EDGE, "Write edges.");
         options.addOption(we);
         final Option wv = new Option(WRITE_VERTEX, "Write vertices.");

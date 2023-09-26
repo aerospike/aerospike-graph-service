@@ -44,6 +44,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final String S3 = "s3";
     private static final String GCS = "gcs";
     private static String FILE_SYSTEM;
+    private static boolean FILE_SYSTEM_MUTABLE;
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
@@ -80,6 +81,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Initialize Spark.
             FILE_SYSTEM = LOCAL;
+            FILE_SYSTEM_MUTABLE = true;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
             Objects.requireNonNull(configPath);
@@ -93,6 +95,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
+            // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
+            FILE_SYSTEM_MUTABLE = false;
             final VertexOperations vertexOperations = new VertexOperations(config, vertexDirectories);
             final Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vertexDirectories,
                     VertexOperations.REQUIRED_VERTEX_HEADERS, DatasetOperations.getDfStorageLevel(config));
@@ -125,6 +129,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             //If the flag was not set we will not write edgeIds to disk
 
             if (edgeIdDirectorySet) {
+                configureFileSystem(spark, cmd, edgeIDDirectory);
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, edgeIDDirectory, fileConfig, config);
             } else {
                 LOGGER.warn("{} was not provided. System will not write generated edgeids to persistent storage.", EDGEID_DIRECTORY_KEY);
@@ -253,11 +258,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         //
         // This also means the only time changing the file system is allowed is from local to something else, which also
         // means that it should only be configured one time.
+        // FILE_SYSTEM_MUTABLE is set to false once the vertex directory is checked for its file system.
         final String uriFileSystem = getFileSystem(uri);
         if (FILE_SYSTEM.equals(uriFileSystem)) {
             // Don't need to do anything if file system did not change.
             return;
-        } else if (FILE_SYSTEM.equals(LOCAL)) {
+        } else if (FILE_SYSTEM.equals(LOCAL) && FILE_SYSTEM_MUTABLE) {
             LOGGER.info("Remote file system detected. Changing to '" + uriFileSystem + "' mode.");
             FILE_SYSTEM = uriFileSystem;
             if (FILE_SYSTEM.equals(S3)) {
@@ -287,7 +293,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 }
             }
         } else {
-            throw new IllegalArgumentException("Multiple remote file systems detected for parameters: 'aerospike.graphloader.config', 'aerospike.graphloader.vertices', 'aerospike.graphloader.edges'. Cross-platform is not supported in a single bulk load.");
+            throw new IllegalArgumentException("Multiple file systems detected for one or more parameters: 'aerospike.graphloader.config', 'aerospike.graphloader.vertices', 'aerospike.graphloader.edges', 'aerospike.graphloader.edgeid'. Cross-platform is not supported in a single bulk load.");
         }
     }
 

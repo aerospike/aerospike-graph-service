@@ -16,7 +16,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String VERTEX_DIRECTORY_KEY = "aerospike.graphloader.vertices";
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
-    //Directory where EdgeId data would be written
+    // Directory where EdgeId data is written to.
     public static final String EDGEID_DIRECTORY_KEY = "aerospike.graphloader.edgeid";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
     public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "aerospike.graphloader.keep-provided-edge-id-as-property";

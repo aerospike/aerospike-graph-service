@@ -63,9 +63,7 @@ public class PrometheusMetricsServer {
         final Router router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        final Handler<RoutingContext> handler = new FireflyMetricRewiter();
-        router.get(path).handler(handler);
-        router.get(path).failureHandler(handler);
+        router.get(path).handler(new FireflyMetricRewiter());
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()

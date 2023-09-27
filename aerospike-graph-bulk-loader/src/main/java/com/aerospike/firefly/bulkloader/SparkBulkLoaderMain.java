@@ -21,6 +21,7 @@ import org.apache.spark.sql.functions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ import java.util.Timer;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_WRITE_EDGE_ID_TO_FILE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
@@ -130,15 +131,25 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Persist Edge ID data to disk
             PROGRESS_BAR.setStartEdgeIdWrite();
-            final boolean edgeIdWriteDisabled = config.hasAction(DISABLE_WRITE_EDGE_ID_TO_FILE);
+            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
             String writeLocation = null;
             if (edgeIdWriteDisabled) {
                 // Persisting Edge IDs is disabled. Do Nothing.
-                LOGGER.warn("{} mode detected. System will not write persistent Edge IDs to temp storage.", DISABLE_WRITE_EDGE_ID_TO_FILE);
+                LOGGER.warn("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
             } else {
                 // Check that the temp directory to write to is set.
                 writeLocation = config.getOrDefault(TEMP_DIRECTORY_KEY);
-                Preconditions.checkArgument(writeLocation != null && !writeLocation.isEmpty(), String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, DISABLE_WRITE_EDGE_ID_TO_FILE));
+                Preconditions.checkArgument(writeLocation != null && !writeLocation.isEmpty(), String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY));
+                final String dirSeperator;
+                if (FILE_SYSTEM.equals(LOCAL)) {
+                    dirSeperator = File.separator;
+                } else {
+                    dirSeperator = "/";
+                }
+                if (!writeLocation.endsWith(dirSeperator)) {
+                    writeLocation = writeLocation + dirSeperator;
+                }
+                writeLocation = writeLocation + "tmpEdgeDir";
                 configureFileSystem(spark, cmd, writeLocation);
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, writeLocation, fileConfig);
             }

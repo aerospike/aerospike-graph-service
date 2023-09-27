@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_WRITE_EDGE_ID_TO_FILE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DRY_RUN;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.S3_ENDPOINT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
@@ -29,12 +29,11 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_EDGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.WRITE_EDGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 
 public class CommandLineParser {
     private static final Logger LOGGER = LoggerFactory.getLogger(CommandLineParser.class);
@@ -89,18 +88,11 @@ public class CommandLineParser {
         options.addOption(s3EndPointOption);
 
         // Actions
-        final Option ve = new Option(VERIFY_EDGE, "Read edges back after bulk load completion to validate loading.");
-        options.addOption(ve);
-        final Option vv = new Option(VERIFY_VERTEX, "Read vertices back after bulk load completion to validate loading.");
-        options.addOption(vv);
-        final Option dr = new Option(DRY_RUN, "Validate entire content of vertex and edge CSVs before bulk loading.");
-        options.addOption(dr);
-        final Option dt = new Option(DISABLE_WRITE_EDGE_ID_TO_FILE, "Disables writing of edge IDs to a temporary file to prevent potential duplicate edges.");
-        options.addOption(dt);
-        final Option we = new Option(WRITE_EDGE, "Write edges.");
-        options.addOption(we);
-        final Option wv = new Option(WRITE_VERTEX, "Write vertices.");
-        options.addOption(wv);
+        options.addOption(new Option(VERIFY_OUTPUT_DATA, "Read elements back after bulk load completion to validate loading."));
+        options.addOption(new Option(VALIDATE_INPUT_DATA, "Validate entire content of vertex and edge CSVs before bulk loading."));
+        options.addOption(new Option(READ_ONLY, "Disables intermediate writing to a temporary file to prevent potential duplicate edges."));
+        options.addOption(new Option(DISABLE_EDGE_WRITE, "Disable Edge writing."));
+        options.addOption(new Option(DISABLE_VERTEX_WRITE, "Disable Vertex writing."));
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

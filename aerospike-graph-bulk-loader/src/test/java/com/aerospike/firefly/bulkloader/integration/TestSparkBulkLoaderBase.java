@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
-    private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-verifyedge", "-verifyvertex"};
+    private static final String[] DEFAULT_PARAMS= {"-validateInputData", "-verifyOutputData"};
     protected FireflyGraph graph = null;
     static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
 
@@ -236,7 +236,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateEdgeId() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId(), "-disabletempwrite"}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId(), "-readOnly"}, DEFAULT_PARAMS));
         testVertices();
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
@@ -263,7 +263,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getS3FileSystem(), "-u", System.getenv("AWS_ACCESS_KEY_ID"),
-                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY"), "-disabletempwrite"},
+                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY"), "-readOnly"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -275,7 +275,7 @@ public abstract class TestSparkBulkLoaderBase {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
                         "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL"),
-                        "-disabletempwrite"},
+                        "-readOnly"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -324,7 +324,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testGcsFileSystemKeyFile() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json", "-disabletempwrite"},
+                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json", "-readOnly"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();

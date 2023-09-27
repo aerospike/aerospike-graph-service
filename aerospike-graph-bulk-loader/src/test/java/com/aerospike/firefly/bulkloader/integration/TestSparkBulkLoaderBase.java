@@ -45,7 +45,7 @@ public abstract class TestSparkBulkLoaderBase {
     @AfterClass
     public static void afterClass() {
         try {
-            //clean all edgeid related temporary files after execution of test suite
+            // Clean all Edge ID related temporary files after execution of test suite
             FileUtils.deleteDirectory(new File(EDGEID_TEST_DIRECTORIES));
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -56,10 +56,10 @@ public abstract class TestSparkBulkLoaderBase {
     public void afterEach(){
         graph.getBaseGraph().dropDatabase(graph, true);
         Configuration config = getTestConfig();
-        String edgeIDDirecotry = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
-        if(edgeIDDirecotry != null ) {
+        String edgeIDDirectory = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
+        if (edgeIDDirectory != null ) {
             try {
-                FileUtils.deleteDirectory(new File(edgeIDDirecotry));
+                FileUtils.deleteDirectory(new File(edgeIDDirectory));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -236,7 +236,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateEdgeId() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId(), "-disabletempwrite"}, DEFAULT_PARAMS));
         testVertices();
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
@@ -263,7 +263,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getS3FileSystem(), "-u", System.getenv("AWS_ACCESS_KEY_ID"),
-                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
+                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY"), "-disabletempwrite"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -274,7 +274,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testGcsFileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
-                        "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL")},
+                        "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL"),
+                        "-disabletempwrite"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -323,7 +324,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testGcsFileSystemKeyFile() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json"},
+                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json", "-disabletempwrite"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();

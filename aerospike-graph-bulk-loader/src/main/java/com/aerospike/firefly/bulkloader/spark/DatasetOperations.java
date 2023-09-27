@@ -30,9 +30,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.function.Supplier;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DRY_RUN;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 

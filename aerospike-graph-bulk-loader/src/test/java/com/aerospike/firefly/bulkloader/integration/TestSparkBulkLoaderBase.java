@@ -56,7 +56,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void afterEach(){
         graph.getBaseGraph().dropDatabase(graph, true);
         Configuration config = getTestConfig();
-        String edgeIDDirecotry = config.getString(BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY);
+        String edgeIDDirecotry = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
         if(edgeIDDirecotry != null ) {
             try {
                 FileUtils.deleteDirectory(new File(edgeIDDirecotry));

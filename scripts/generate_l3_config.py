@@ -11,7 +11,7 @@ def main(argv):
     bucket_root = 'gs://incremental-datasets/' + benchmark + '/' + dataset_size + '/'
     vertices_path = 'aerospike.graphloader.vertices=' + bucket_root + 'vertices'
     edges_path = 'aerospike.graphloader.edges=' + bucket_root + 'edges'
-    edgeid_path = 'aerospike.graphloader.edgeid=' + bucket_root +  github_sha +'/'+'edgeid'
+    temp_path = 'aerospike.graphloader.temp=' + 'gs://gha-ci-firefly-bulkloader/' +  github_sha + '/' + 'temp'
 
     with open('./clusters.json') as file:
         clusters = json.load(file)
@@ -27,7 +27,7 @@ def main(argv):
                 properties.write(f'{hosts}\n')
                 properties.write(f'{vertices_path}\n')
                 properties.write(f'{edges_path}\n')
-                properties.write(f'{edgeid_path}\n')
+                properties.write(f'{temp_path}\n')
                 properties.write(base_properties.read())
         with open('hosts.txt', 'x') as host_txt:
             host_txt.write(ip_only)

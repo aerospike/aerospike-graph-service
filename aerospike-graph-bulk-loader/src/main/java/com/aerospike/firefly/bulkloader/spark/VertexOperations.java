@@ -40,8 +40,8 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_T
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.WRITE_VERTEX;
 
 public class VertexOperations implements Serializable {
     public static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);

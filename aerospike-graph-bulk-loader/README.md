@@ -94,18 +94,18 @@ If `aerospike.graphloader.config`, `aerospike.graphloader.vertices`, or `aerospi
 
 | Name                                 | Flag | Optional  | Description                        |
 | ------------------------------------ | ---- | --------- | ---------------------------------- |
-| aerospike.graphloader.remote.user    | -u   | Sometimes | See specific cloud service details |
-| aerospike.graphloader.remote.passkey | -p   | Sometimes | See specific cloud service details |
+| aerospike.graphloader.remote-user    | -u   | Sometimes | See specific cloud service details |
+| aerospike.graphloader.remote-passkey | -p   | Sometimes | See specific cloud service details |
 | aerospike.graphloader.gcs-email      | -gem | Sometimes | See specific cloud service details |
 | aerospike.graphloader.gcs-keyfile    | -gck | Sometimes | See specific cloud service details |
 
 ##### AWS S3
 
-For AWS S3, only `aerospike.graphloader.remote.user` and `aerospike.graphloader.remote.passkey` are applicable.
+For AWS S3, only `aerospike.graphloader.remote-user` and `aerospike.graphloader.remote-passkey` are applicable.
 
-`aerospike.graphloader.remote.user` : aws_access_key_id
+`aerospike.graphloader.remote-user` : aws_access_key_id
 
-`aerospike.graphloader.remote.passkey` : aws_secret_access_key
+`aerospike.graphloader.remote-passkey` : aws_secret_access_key
 
 ###### Call API
 
@@ -119,9 +119,9 @@ Not optional unless the Spark job is going to be run in an environment where AWS
 
 For Google Cloud Storage, a Service Account must be configured as a prerequisite unless running Spark Submit within Google Cloud. When running the bulk load, you must either specify a local path to the key json file via `aerospike.graphloader.gcs-keyfile`, or specify **all three** of:
 
-`aerospike.graphloader.remote.user` : private_key_id
+`aerospike.graphloader.remote-user` : private_key_id
 
-`aerospike.graphloader.remote.passkey` : private_key
+`aerospike.graphloader.remote-passkey` : private_key
 
 `aerospike.graphloader.gcs-email` : client_email
 
@@ -170,7 +170,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
 Most customers will likely use S3 or GCS, which is the recommended way.
 An S3 example is shown below:
 ```java
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote.user", "myAwsId").with("aerospike.graphloader.remote.passkey", "myAwsSecretKey").iterate();
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
 ```
 
 ##### Spark Submit

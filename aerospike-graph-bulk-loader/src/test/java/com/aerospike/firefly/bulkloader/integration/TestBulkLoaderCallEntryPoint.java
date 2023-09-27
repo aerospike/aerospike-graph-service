@@ -386,8 +386,8 @@ public class TestBulkLoaderCallEntryPoint {
                     .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
                     .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
-                    .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
-                    .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                    .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -408,8 +408,8 @@ public class TestBulkLoaderCallEntryPoint {
                     .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
                     .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
-                    .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
-                    .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                     .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());

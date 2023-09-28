@@ -16,6 +16,7 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -62,7 +63,7 @@ public class PolyIdTest extends AbstractFireflySuite {
         FireflyEdge eab = (FireflyEdge) va.addEdge("knows", vb);
         FireflyEdge eba = (FireflyEdge) vb.addEdge("forgot", va);
 
-        List<FireflyId> edgeIds = vb.getEdgeIdsFromVertex(Direction.OUT);
+        List<FireflyId> edgeIds = vb.getEdgeIdsFromVertex(Direction.OUT, Set.of());
         assertEquals(1, edgeIds.size());
         assertEquals(eba.id(), Crypto.encodeBase64(((ByteBuffer)edgeIds.get(0).getUserId()).array()));
         FireflyIdComposite fidc = (FireflyIdComposite) edgeIds.get(0);

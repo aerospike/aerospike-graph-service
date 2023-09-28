@@ -18,7 +18,7 @@ import java.util.Map;
 public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     final protected AerospikeConnection db;
     final protected Iterator<KeyRecord> keyRecords;
-    protected Iterator<ByteBuffer> currentRecordEdgeIds = Collections.emptyIterator();
+    protected Iterator<Object> currentRecordIds = Collections.emptyIterator();
     /**
      * Wrapper iterator for converting key records of Phat Edges into all of its contained edges' FireflyIds.
      *
@@ -30,9 +30,10 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
         this.db = db;
         this.keyRecords = keyRecordIterator;
     }
+
     @Override
     public boolean hasNext() {
-        if (!currentRecordEdgeIds.hasNext()) {
+        if (!currentRecordIds.hasNext()) {
             if (!keyRecords.hasNext()) {
                 return false;
             } else {
@@ -43,17 +44,19 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
             return true;
         }
     }
+
     @Override
     public FireflyId next() {
         if (hasNext()) {
-            final ByteBuffer edgeId = this.currentRecordEdgeIds.next();
+            final ByteBuffer edgeId = (ByteBuffer) this.currentRecordIds.next();
             return new FireflyPhatEdgeId(edgeId, this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
         } else {
             throw FastNoSuchElementException.instance();
         }
     }
+
     protected void getNextKeyRecords() {
-        this.currentRecordEdgeIds = ((Map<ByteBuffer, String>) this.keyRecords.next().record.getMap(db.LABEL_BIN))
+        this.currentRecordIds = ((Map<Object, String>) this.keyRecords.next().record.getMap(db.LABEL_BIN))
                 .keySet().iterator();
     }
 }

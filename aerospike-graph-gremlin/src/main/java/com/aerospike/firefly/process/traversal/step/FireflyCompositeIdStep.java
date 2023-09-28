@@ -3,7 +3,6 @@ package com.aerospike.firefly.process.traversal.step;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
-import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -15,8 +14,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
-import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -34,7 +33,7 @@ import java.util.stream.LongStream;
  */
 public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
     private final Direction direction;
-    private final String[] edgeLabels;
+    private final Set<String> edgeLabels;
 
     // HasContainers to apply to the read of the composite id step to filter results.
     public final List<HasContainer> fireflyHasContainers;
@@ -51,7 +50,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                                   final int barrierSize) {
         super(traversal, barrierSize);
         this.direction = direction;
-        this.edgeLabels = edgeLabels;
+        this.edgeLabels = new HashSet<>(Arrays.asList(edgeLabels));
         this.labels = new HashSet<>(labels);
         this.sampleSize = sampleSize;
         this.barrierSize = barrierSize;
@@ -96,21 +95,7 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             final Map<Traverser.Admin<Vertex>, List<FireflyId>> outputVertexIds = new HashMap<>();
             for (final Traverser.Admin<Vertex> input : inputVertices.keySet()) {
                 final RelationalVertex vertex = inputVertices.get(input);
-                if (vertex.isEdgeCacheOverflowed()) {
-                    if (direction == Direction.IN || direction == Direction.BOTH) {
-                        final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, graph, vertex);
-                        outputVertexIds.put(input, vertexIds);
-                    }
-                    if (direction == Direction.OUT || direction == Direction.BOTH) {
-                        final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, graph, vertex);
-                        outputVertexIds.put(input, vertexIds);
-                    }
-                } else {
-                    // Get the ids of the adjacent vertices and add them to the list.
-                    final List<FireflyId> vertexIds = new ArrayList<>();
-                    vertex.appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
-                    outputVertexIds.put(input, vertexIds);
-                }
+                outputVertexIds.put(input, vertex.getVertexIdsFromVertex(direction, edgeLabels));
             }
 
             // Create ordered list of input traversers and output vertex ids.
@@ -139,18 +124,21 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
             // Create list of sampled vertex ids.
             final List<FireflyId> sampledVertexIds = new ArrayList<>();
+            int currentIndex = 0;
             for (int i = 0; i < orderedOutputVertexIds.size(); i++) {
                 final List<FireflyId> vertexIds = orderedOutputVertexIds.get(i);
                 for (int j = 0; j < vertexIds.size(); j++) {
-                    if (randomIndices.contains((long) i * vertexIds.size() + j)) {
+                    if (randomIndices.contains((long) currentIndex + j)) {
                         sampledVertexIds.add(vertexIds.get(j));
                     }
                 }
+                currentIndex += vertexIds.size();
             }
 
             // Read the sampled vertices.
             final Map<FireflyId, FireflyVertex> vertexMap = new HashMap<>();
-            FireflyBatchReadHelper.populateElementMap(new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices);
+            FireflyBatchReadHelper.populateElementMap(
+                    new HashSet<>(sampledVertexIds), vertexMap, aerospikeHasContainers, graph::readVertices);
 
             // Create list of random indices to sample and order them in ascending order so we can iterate through them.
             final List<Long> randomIndicesList = new ArrayList<>(randomIndices);
@@ -188,22 +176,9 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
                 // Latch the size of the current id list.
                 final int previousSize = fireflyIdList.size();
 
-                // If the in edge cache is disabled then we need to use the regular interface.
-                if (vertex.isEdgeCacheOverflowed()) {
-                    if (direction == Direction.IN || direction == Direction.BOTH) {
-                        final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.IN, graph, vertex);
-                        FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
-                    }
-                    if (direction == Direction.OUT || direction == Direction.BOTH) {
-                        final List<FireflyId> vertexIds = getVertexIdsFromEdges(Direction.OUT, graph, vertex);
-                        FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
-                    }
-                } else {
-                    // Get the ids of the adjacent vertices and add them to the list.
-                    final List<FireflyId> vertexIds = new ArrayList<>();
-                    vertex.appendAdjacentVertexIds(vertexIds, direction, edgeLabels);
-                    FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyVertexMap, vertexIds);
-                }
+                // All the work for supernode scan/index/cache handling is done in the getVertexIdsFromVertex function.
+                FireflyBatchReadHelper.addElementsToSet(
+                        fireflyIdList, uniqueIdSet, fireflyVertexMap, vertex.getVertexIdsFromVertex(direction, edgeLabels));
 
                 // Calculate how many ids were added by the function (size of list - previous size).
                 // Create composite id info with this value and the appropriate traverser to the info list.
@@ -225,14 +200,5 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
         set.addAll(output);
         output.clear(); // Force garbage collection.
-    }
-
-    private List<FireflyId> getVertexIdsFromEdges(final Direction direction, final FireflyGraph firefly, final FireflyVertex vertex) {
-        final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction);
-        final Set<String> edgeLabelSet = Set.of(edgeLabels);
-        return (direction == Direction.IN) ?
-                // Note do not use aerospikeHasContainers here, those are to be applied on vertices, not edges.
-                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::outVertexId).collect(Collectors.toList()) :
-                firefly.readEdges(List.of(), edgeIds).stream().filter(edge -> edgeLabels.length == 0 || edgeLabelSet.contains(edge.label())).map(FireflyEdge::inVertexId).collect(Collectors.toList());
     }
 }

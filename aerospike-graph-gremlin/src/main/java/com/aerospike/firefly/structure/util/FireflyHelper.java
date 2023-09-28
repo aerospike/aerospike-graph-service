@@ -18,13 +18,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 
@@ -60,11 +60,11 @@ public final class FireflyHelper {
         Iterator i = FireflyCloseableIteratorUtils.asIterator(keyValues);
         while (i.hasNext()) {
             Object key = i.next();
+            if (key == null)
+                throw Property.Exceptions.propertyKeyCanNotBeNull();
             if (String.class.equals(key.getClass())) {
                 if (key.toString().isEmpty())
                     throw Property.Exceptions.propertyKeyCanNotBeEmpty();
-                else if (key == null)
-                    throw Property.Exceptions.propertyKeyCanNotBeNull();
             }
 
             i.next();
@@ -73,9 +73,8 @@ public final class FireflyHelper {
 
     private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
         // TODO: This returns a raw list and could blow up on a supernode.
-        return graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction)).stream().filter(
-                        edge -> (labels.isEmpty() || labels.contains(edge.label()))).
-                collect(Collectors.toList());
+        // This is kind of silly, but we a new ArrayList<> is required to remove the FireflyEdge type and allow it to be cast to Edge.
+        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels)));
     }
 
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {

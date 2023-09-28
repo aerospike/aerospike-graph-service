@@ -31,11 +31,8 @@ public class EdgeWriteTask {
     private final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap;
     private final GenericRowWithSchema fireflyRow;
     private final GenericRowWithSchema fireflyMetadataRow;
-    private final boolean hasEdgeId;
-
     private final boolean edgeCacheEnabled;
     private final FireflyId edgeId;
-
     private final SparkFireflyEdge sparkEdge;
     private final Object inVertexId;
     private final Object outVertexId;
@@ -53,7 +50,7 @@ public class EdgeWriteTask {
             final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap,
             final GenericRowWithSchema rowForFirefly,
             final GenericRowWithSchema fireflyMetadataRow,
-            final boolean hasEdgeId) {
+            final boolean usePersistedEdgeId) {
         this.retry = retry;
         this.supernodes = supernodes;
         this.keepProvidedId = keepProvidedId;
@@ -64,11 +61,10 @@ public class EdgeWriteTask {
         this.vertexInEdgeMap = vertexInEdgeMap;
         this.fireflyRow = rowForFirefly;
         this.fireflyMetadataRow = fireflyMetadataRow;
-        this.hasEdgeId = hasEdgeId;
         this.edgeCacheEnabled = this.graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG;
         sparkEdge = SparkFireflyEdge.createEdge(fireflyRow, keepProvidedId,
                 providedIdPropertyName, nullValue, graph, false,
-                EdgeOperations.getEdgeIdSupplied(fireflyMetadataRow, hasEdgeId));
+                EdgeOperations.getEdgeIdSupplied(fireflyMetadataRow, usePersistedEdgeId));
         edgeId = sparkEdge.getFireflyId(this.graph.getBaseGraph());
         inVertexId = sparkEdge.getInVertexId();
         outVertexId = sparkEdge.getOutVertexId();

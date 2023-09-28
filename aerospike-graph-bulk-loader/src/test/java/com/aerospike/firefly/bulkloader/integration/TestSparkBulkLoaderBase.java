@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.SparkException;
@@ -56,15 +57,16 @@ public abstract class TestSparkBulkLoaderBase {
     public void afterEach(){
         graph.getBaseGraph().dropDatabase(graph, true);
         Configuration config = getTestConfig();
-        String edgeIDDirectory = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
-        if (edgeIDDirectory != null ) {
-            try {
-                FileUtils.deleteDirectory(new File(edgeIDDirectory));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            final String edgeIDDirectory = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
+            FileUtils.deleteDirectory(new File(edgeIDDirectory));
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        } catch (final ConfigurationRuntimeException cre) {
+            // Do Nothing
+        } finally {
+            graph.close();
         }
-        graph.close();
     }
 
 

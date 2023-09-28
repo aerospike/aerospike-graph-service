@@ -13,6 +13,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -138,8 +139,11 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 LOGGER.warn("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
             } else {
                 // Check that the temp directory to write to is set.
-                writeLocation = config.getOrDefault(TEMP_DIRECTORY_KEY);
-                Preconditions.checkArgument(writeLocation != null && !writeLocation.isEmpty(), String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY));
+                try {
+                    writeLocation = config.getOrDefault(TEMP_DIRECTORY_KEY);
+                } catch (final ConfigurationRuntimeException cre) {
+                    throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+                }
                 final String dirSeperator;
                 if (FILE_SYSTEM.equals(LOCAL)) {
                     dirSeperator = File.separator;

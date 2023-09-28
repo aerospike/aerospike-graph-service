@@ -17,6 +17,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -102,58 +103,72 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
 
-            // TODO GRAPH-402: Investigate HasContainer aware LazyBarrierStep in place of NoOpBarrierStep/HasStep.
-            if ((labels.isEmpty() && index < steps.size() && steps.get(index) instanceof HasStep) ||
-                    (index + 1 < steps.size() && steps.get(index) instanceof NoOpBarrierStep &&
-                            steps.get(index + 1) instanceof HasStep)) {
-                if (steps.get(index) instanceof NoOpBarrierStep) {
-                    traversal.removeStep(steps.get(index));
-                }
-                final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
-                hasContainers = hasStep.getHasContainers();
-
-                // Ensure there are no labels since a hasStep sometimes contains labels for the step before it.
-                if (hasStep.getLabels().isEmpty() && hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
-                    labels = hasStep.getLabels();
-                    traversal.removeStep(hasStep);
-                } else {
-                    hasContainers = null;
-                }
-            }
-
-
 
             int sampleSize = -1;
-            if (graph.getBaseGraph().ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY) {
-                for (int i = index; i < steps.size(); i++) {
-                    if (steps.get(i) instanceof SampleGlobalStep) {
-                        try {
-                            // The sample size is private, need to use reflection to get it so the compiler doesn't complain.
-                            final Field sampleField = SampleGlobalStep.class.getDeclaredField("amountToSample");
-                            sampleField.setAccessible(true);
 
-                            // Get the sample size and remove the step.
-                            sampleSize = (int) sampleField.get(steps.get(i));
-                            traversal.removeStep(steps.get(i));
+            while (labels.isEmpty()) {
+                if (index >= steps.size()) {
+                    break;
+                }
+                if (steps.get(index) instanceof NoOpBarrierStep) {
+                    traversal.removeStep(steps.get(index));
+                } else if (steps.get(index) instanceof HasStep) {
+                    // Grab has containers and push them down.
+                    final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
+                    hasContainers = hasStep.getHasContainers();
 
-                            // Add limit step, otherwise each instance of the composite id step will sample the
-                            // sample amount.
-                            //
-                            // This means if you sampled 30 and have 1000 items in and a barrier size of 100
-                            // you would output 300 items, not 30, the limit breaks the barrier before they all run.
-                            //
-                            // This does bring the randomness of our step into question, however since our input
-                            // is inherently unordered and out of our control, it seems sufficiently random
-                            // for our purposes. Also, this can be disabled if truer randomness is needed.
-                            traversal.addStep(i, new RangeGlobalStep<>(traversal.asAdmin(), 0, sampleSize));
-                        } catch (NoSuchFieldException | IllegalAccessException ignored) {
-                            // Failed to get sample size, just ignore it.
+                    // No support for pushdown of primary key check at this time.
+                    // This isn't really a useful pushdown anyway.
+                    if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
+                        labels = hasStep.getLabels();
+                        traversal.removeStep(hasStep);
+                    } else {
+                        hasContainers = new ArrayList<>();
+                        break;
+                    }
+                } else if (steps.get(index) instanceof SampleGlobalStep) {
+                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
+                        break;
+                    }
+                    try {
+                        // The sample size is private, need to use reflection to get it so the compiler doesn't complain.
+                        final Field sampleField = SampleGlobalStep.class.getDeclaredField("amountToSample");
+                        sampleField.setAccessible(true);
+
+                        // Get the sample size.
+                        sampleSize = (int) sampleField.get(steps.get(index));
+
+                        // Check for labels that need to be propagated.
+                        if (!((SampleGlobalStep<?>) steps.get(index)).getLabels().isEmpty()) {
+                            labels = ((SampleGlobalStep<?>) steps.get(index)).getLabels();
                         }
-                        break;
+
+                        // Add limit step, otherwise each instance of the composite id step will sample the
+                        // sample amount.
+                        //
+                        // This means if you sampled 30 and have 1000 items in and a barrier size of 100
+                        // you would output 300 items, not 30, the limit breaks the barrier before they all run.
+                        //
+                        // This does bring the randomness of our step into question, however since our input
+                        // is inherently unordered and out of our control, it seems sufficiently random
+                        // for our purposes. Also, this can be disabled if truer randomness is needed.
+                        traversal.removeStep(steps.get(index));
+                        final RangeGlobalStep<?> step = new RangeGlobalStep<>(traversal.asAdmin(), 0, sampleSize);
+
+                        // Labels should be propagated after the limit step.
+                        if (!labels.isEmpty()) {
+                            for (final String label: labels) {
+                                step.addLabel(label);
+                            }
+                            labels.clear();
+                        }
+                        traversal.addStep(index, step);
+                    } catch (NoSuchFieldException | IllegalAccessException ignored) {
+                        // Failed to get sample size, just ignore it.
                     }
-                    if (!(steps.get(i) instanceof NoOpBarrierStep || steps.get(i) instanceof HasStep)) {
-                        break;
-                    }
+                } else {
+                    // Unknown step, break.
+                    break;
                 }
             }
 

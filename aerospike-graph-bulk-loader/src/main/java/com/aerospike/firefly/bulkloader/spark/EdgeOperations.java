@@ -69,7 +69,7 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
@@ -89,7 +89,7 @@ public class EdgeOperations implements Serializable {
     final boolean keepProvidedId;
     final String providedIdPropertyName;
     final String nullValue;
-    final boolean hasEdgeId;
+    final boolean usePersistedEdgeId;
 
     public EdgeOperations(final BulkLoaderConfigHelper config, final List<String> edgeCSVFiles) {
         this.config = Objects.requireNonNull(config);
@@ -98,8 +98,7 @@ public class EdgeOperations implements Serializable {
                 Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
         this.providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
         this.nullValue = this.config.getOrDefault(NULL_VALUE);
-        String edgeIDDirectory = config.getOrDefault(TEMP_DIRECTORY_KEY);
-        this.hasEdgeId = !(null == edgeIDDirectory  || edgeIDDirectory.isEmpty());
+        this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
@@ -139,7 +138,7 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                     final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
-                            fireflyRow, metadataRow, hasEdgeId);
+                            fireflyRow, metadataRow, usePersistedEdgeId);
                     futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(),executor));
                 }
 
@@ -275,14 +274,14 @@ public class EdgeOperations implements Serializable {
     }
 
     /***
-     * Extracts {@link DatasetOperations#EDGE_ID_COLUMN} from a Dataframe row if present else returns null.
+     * Extracts {@link DatasetOperations#EDGE_ID_COLUMN} from a DataFrame Row if present, else returns null.
      * @param metadataRow
-     * @param hasEdgeId
+     * @param usePersistedEdgeId
      * @return
      */
     @Nullable
-    public static byte[] getEdgeIdSupplied(GenericRowWithSchema metadataRow, boolean hasEdgeId) {
-        return hasEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
+    public static byte[] getEdgeIdSupplied(final GenericRowWithSchema metadataRow, boolean usePersistedEdgeId) {
+        return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset) {

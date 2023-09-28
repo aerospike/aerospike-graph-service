@@ -33,8 +33,6 @@ public class SparkFireflyEdge extends SparkFireflyElement {
         this.toVertexId = toVertexId;
     }
 
-    // TODO User supplied edge id in bulk loader.
-    //  Remove ... from edgeIdSupplied and force
     public static SparkFireflyEdge createEdge(final GenericRowWithSchema row,
                                               final boolean keepProvidedId,
                                               final String providedIdPropertyName,
@@ -83,9 +81,6 @@ public class SparkFireflyEdge extends SparkFireflyElement {
             label = DEFAULT_LABEL;
         }
 
-        // TODO User supplied edge id in bulk loader.
-        //  remove assignments here, use edge id passed into function header.
-        //  NOTE: in cases where 'forVerification' is true, set edge id to null.
         final byte[] edgeId;
         if (forVerification) {
             edgeId = null;

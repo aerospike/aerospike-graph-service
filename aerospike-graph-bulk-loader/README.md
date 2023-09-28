@@ -72,19 +72,19 @@ Additional Bulk Loader specific configurations should be added to it to create t
 
 The following configuration options are available:
 
-| Name                                                    | Flag | Optional                   | Default            | Description                                                                                                                                                                                                                                                                                                                                                                          |
-|---------------------------------------------------------|------|----------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| aerospike.graphloader.config                            | -c   | Yes if Call API \          | No if Spark Submit | Call API: `.properties` of the instance the Call API is made to.                                                                                                                                                                                                                                                                                                                     |
-| aerospike.graphloader.vertices                          | -vd  | No                         | N/A                | Local: Absolute path to directory containing Vertex CSVs. AWS S3: s3:// URI.                                                                                                                                                                                                                                                                                                         |
-| aerospike.graphloader.edges                             | -ed  | No                         | N/A                | Local: Absolute path to directory containing Vertex CSVs. AWS S3: s3:// URI.                                                                                                                                                                                                                                                                                                         |
-| aerospike.graphloader.edgeid                            | -eid | Yes(Only applicable in L3) | N/A                | Local: Absolute path to directory where intermediate edgeIDs would be written. AWS S3: `s3://` URI.  GCS `gs://bucketname/path/...`. If this configuration is not set, then L3 bulkloader will not write the intermediate edgeid to perisistent storage. This implies that in rare cases (such as spark retries), bulkloader may  insert phantom edges and connections in the graph. |
-| aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                        | false              | Keep provided ~id value in Edge CSVs as a Property on the Edge.                                                                                                                                                                                                                                                                                                                      |
-| aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                        | "~providedId"      | Property key/name of provided ID when stored as a Property.                                                                                                                                                                                                                                                                                                                          |
-| aerospike.graphloader.null-value                        | -nv  | Yes                        | "null"             | The String value when found in CSV which is parsed to a literal null.                                                                                                                                                                                                                                                                                                                |
-| aerospike.graphloader.sampling-percentage               | -sp  | Yes                        | 0                  | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete.                                                                                                                                                                                                                                                                                       |
-| aerospike.graphloader.spark-log-level                   | -lv  | Yes                        | "INFO"             | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN"                                                                                                                                                                                                                                                                       |
-| aerospike.graphloader.vertex-write-buffer               | -vb  | Yes                        | 10000              | Write buffer size for Vertex loading.                                                                                                                                                                                                                                                                                                                                                |
-| aerospike.graphloader.edge-write-buffer                 | -eb  | Yes                        | 10000              | Write buffer size for Edge loading.                                                                                                                                                                                                                                                                                                                                                  |
+| Name                                                    | Flag | Optional                                                     | Default       | Description                                                  |
+| ------------------------------------------------------- | ---- | ------------------------------------------------------------ | ------------- | ------------------------------------------------------------ |
+| aerospike.graphloader.config                            | -c   | Yes if Call API \ No if Spark Submit                         | N/A           | Call API: `.properties` of the instance the Call API is made to. |
+| aerospike.graphloader.vertices                          | -vd  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
+| aerospike.graphloader.edges                             | -ed  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
+| aerospike.graphloader.temporary-directory                              | -td  | No, unless `readOnly` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `readOnly` flag disables this configuration. |
+| aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                                                          | false         | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
+| aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                                                          | "~providedId" | Property key/name of provided ID when stored as a Property.  |
+| aerospike.graphloader.null-value                        | -nv  | Yes                                                          | "null"        | The String value when found in CSV which is parsed to a literal null. |
+| aerospike.graphloader.sampling-percentage               | -sp  | Yes                                                          | 0             | Percentage of dataset validated to exist properly in the Graph after bulk loading is complete. |
+| aerospike.graphloader.spark-log-level                   | -lv  | Yes                                                          | "INFO"        | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
+| aerospike.graphloader.vertex-write-buffer               | -vb  | Yes                                                          | 10000         | Write buffer size for Vertex loading.                        |
+| aerospike.graphloader.edge-write-buffer                 | -eb  | Yes                                                          | 10000         | Write buffer size for Edge loading.                          |
 
 #### Cloud Storage Configurations
 
@@ -94,18 +94,18 @@ If `aerospike.graphloader.config`, `aerospike.graphloader.vertices`, or `aerospi
 
 | Name                                 | Flag | Optional  | Description                        |
 | ------------------------------------ | ---- | --------- | ---------------------------------- |
-| aerospike.graphloader.remote.user    | -u   | Sometimes | See specific cloud service details |
-| aerospike.graphloader.remote.passkey | -p   | Sometimes | See specific cloud service details |
+| aerospike.graphloader.remote-user    | -u   | Sometimes | See specific cloud service details |
+| aerospike.graphloader.remote-passkey | -p   | Sometimes | See specific cloud service details |
 | aerospike.graphloader.gcs-email      | -gem | Sometimes | See specific cloud service details |
 | aerospike.graphloader.gcs-keyfile    | -gck | Sometimes | See specific cloud service details |
 
 ##### AWS S3
 
-For AWS S3, only `aerospike.graphloader.remote.user` and `aerospike.graphloader.remote.passkey` are applicable.
+For AWS S3, only `aerospike.graphloader.remote-user` and `aerospike.graphloader.remote-passkey` are applicable.
 
-`aerospike.graphloader.remote.user` : aws_access_key_id
+`aerospike.graphloader.remote-user` : aws_access_key_id
 
-`aerospike.graphloader.remote.passkey` : aws_secret_access_key
+`aerospike.graphloader.remote-passkey` : aws_secret_access_key
 
 ###### Call API
 
@@ -119,9 +119,9 @@ Not optional unless the Spark job is going to be run in an environment where AWS
 
 For Google Cloud Storage, a Service Account must be configured as a prerequisite unless running Spark Submit within Google Cloud. When running the bulk load, you must either specify a local path to the key json file via `aerospike.graphloader.gcs-keyfile`, or specify **all three** of:
 
-`aerospike.graphloader.remote.user` : private_key_id
+`aerospike.graphloader.remote-user` : private_key_id
 
-`aerospike.graphloader.remote.passkey` : private_key
+`aerospike.graphloader.remote-passkey` : private_key
 
 `aerospike.graphloader.gcs-email` : client_email
 
@@ -170,13 +170,13 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
 Most customers will likely use S3 or GCS, which is the recommended way.
 An S3 example is shown below:
 ```java
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote.user", "myAwsId").with("aerospike.graphloader.remote.passkey", "myAwsSecretKey").iterate();
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
 ```
 
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c config.properties -writevertex -dryrun -verifyvertex
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c config.properties -validateInputData -verifyOutputData
 ```
 
 ##### config.properties
@@ -195,18 +195,26 @@ aerospike.graphloader.vertices = src/test/resources/sampledata/vertices
 
 ### Command line params
 
-##### Actions
+##### Flags
 
-These are the steps to run when bulk loading. The Call API abstracts this away from the user and we handle passing these to the user. When running via Spark Submit we provide the customer the required combination of actions. 
+These are the flags to modify the run when bulk loading via Spark Submit. The Call API abstracts this away from the user and we handle passing these to the user.
 
 | execution order | param name   |                                                                                                                            description                                                                                                                             |
 |-----------------|--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| 1               | dryrun       |                                                                                                                          preflight check                                                                                                                           |
-| 2               | useexisiting-edgeids       | Hints that bulkloader shouldn't write edgeids on the disk, instead it should read them from `aerospike.graphloader.edgeid`. If `aerospike.graphloader.edgeid` is not set in config file, bulkloader will error out. This flag is appliable only in L3 bulk loader. |
 | 3               | writevertex  |                                                                                                             write vertices specified by config into db                                                                                                             |
-| 4               | verifyvertex |                                                                                                           verify post write the sampled vertices dataset                                                                                                           |
+| 4               | verifyOutputData |                                                                                                           verify post write the sampled vertices dataset                                                                                                           |
 | 5               | writeedge    |                                                                                             write edges to db, assuming that corresponding vertices are present in db                                                                                              |
-| 6               | verifyedge   |                                                                                                             verify sampled edges after writing into db                                                                                                             |
+| 6               | verifyOutputData   |                                                                                                             verify sampled edges after writing into db                                                                                                             |
+
+| name             |                         description                          |                         side effect                          | Used in Call API Publically? |
+| ---------------- | :----------------------------------------------------------: | :----------------------------------------------------------: | ----------------- |
+| validateInputData           | preflight check to verify contents of provided CSV files to prevent late failures caused by malformed CSV data after long runtimes and resource consumption |      may cause considerable overhead for large datasets      | No                |
+| verifyOutputData | uses gremlin traversals to ensure a percentage of data was written to the database after it was written specified by `aerospike.graphloader.sampling-percentage` | overhead time proportional to the sampling percentage | Yes |
+| readOnly | disables writing temporary data (persistent Edge IDs) to a file system while bulk loading to prevent the need of write access | may cause duplicate phantom edges due to Spark's retry logic for dead worker nodes | Yes               |
+| disableEdges | don't write edges |  | No |
+| disableVertices | don't write vertices |  | No |
+
+
 
 ##### Configuration Settings
 
@@ -218,10 +226,10 @@ These are the steps to run when bulk loading. The Call API abstracts this away f
 
 ##### sample commands (for single node L2 with 32 GB memory)
 
-| description           | command                                                      |
-| --------------------- | ------------------------------------------------------------ |
-| run all vertices task | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -writevertex -dryrun -verifyvertex |
-| run all edges task    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -writeedge -dryrun -verifyedge |
+| description        | command                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disableEdges -validateInputData -verifyOutputData |
+| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disableVertices -validateInputData -verifyOutputData |
 
 ##### sample config file
  ```

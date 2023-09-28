@@ -40,8 +40,8 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_T
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 
 public class VertexOperations implements Serializable {
     public static final List<String> REQUIRED_VERTEX_HEADERS = List.of(ID_HEADER);
@@ -190,7 +190,7 @@ public class VertexOperations implements Serializable {
     }
 
     public void verifySampleVerticesAfterWrite(final Dataset<Row> sampledVertexDataset) {
-        if (this.config.hasAction(VERIFY_VERTEX)) {
+        if (this.config.hasAction(VERIFY_OUTPUT_DATA)) {
             String taskName = "Verify Vertex";
             sampledVertexDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Vertex task", true);
             verifyVertices(sampledVertexDataset);
@@ -199,7 +199,7 @@ public class VertexOperations implements Serializable {
     }
 
     public void writeVerticesToDB(final Dataset<Row> vertexDataSet, final Set<Object> supernodes) {
-        if (this.config.hasAction(WRITE_VERTEX)) {
+        if (!this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             final Instant startOfVertexWrite = Instant.now();
             String taskName = "Vertex write";
             vertexDataSet.sparkSession().sparkContext().setJobGroup(taskName, "Vertex write task", true);

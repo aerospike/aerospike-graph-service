@@ -99,7 +99,6 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(NULL_VALUE, "null");
         put(VERTEX_WRITE_BUFFER, "10000");
         put(EDGE_WRITE_BUFFER, "10000");
-        put(TEMP_DIRECTORY_KEY, "");
     }};
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {

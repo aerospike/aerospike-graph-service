@@ -148,7 +148,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                             // This does bring the randomness of our step into question, however since our input
                             // is inherently unordered and out of our control, it seems sufficiently random
                             // for our purposes. Also, this can be disabled if truer randomness is needed.
-                            traversal.addStep(new RangeGlobalStep<>(traversal.asAdmin(), 0, sampleSize));
+                            traversal.addStep(i, new RangeGlobalStep<>(traversal.asAdmin(), 0, sampleSize));
                         } catch (NoSuchFieldException | IllegalAccessException ignored) {
                             // Failed to get sample size, just ignore it.
                         }

@@ -1735,11 +1735,6 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         try {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                LOG.error("Error sleeping", e);
-            }
             return this.getClient().operate(writePolicy, key, operations);
         } catch (final AerospikeException ae) {
             switch (ae.getResultCode()) {

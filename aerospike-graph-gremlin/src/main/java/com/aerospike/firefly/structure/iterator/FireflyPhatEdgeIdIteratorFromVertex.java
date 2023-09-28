@@ -84,7 +84,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64()) &&
                         (labels.isEmpty() || labels.contains(edgeIdToEdgeLabel.get(edgeIdToVertexId.getKey())))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        outputIds.add(edgeIdToInVertexId.get(edgeIdToVertexId.getKey()));
+                        outputIds.add(edgeIdToOutVertexId.get(edgeIdToVertexId.getKey()));
                     } else {
                         outputIds.add(edgeIdToVertexId.getKey());
                     }
@@ -107,6 +107,9 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     public FireflyId next() {
         if (hasNext()) {
             if (outputType.equals(OutputType.VERTEX_ID)) {
+                if (this.currentRecordIds.next() == null) {
+                    throw FastNoSuchElementException.instance();
+                }
                 return FireflyIdPoly.fromBase64Hash((String) this.currentRecordIds.next(), db.VERTEX_AERO_SET);
             } else {
                 return new FireflyPhatEdgeId((ByteBuffer) this.currentRecordIds.next(), this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);

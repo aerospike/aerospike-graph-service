@@ -85,6 +85,6 @@ echo "###################################"
 
 l3_start=`date +%s`
 
-gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validateInputData -verifyOutputData
+gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate-input-data -verify-output-data
 
 echo $((($(date +%s)-$l3_start)/60)) > l3_runtime.txt

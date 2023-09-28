@@ -34,7 +34,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
     // Directory where temporary data is written to for bulk loading.
-    public static final String TEMP_DIRECTORY_KEY = "aerospike.graphloader.temporary-directory";
+    public static final String TEMP_DIRECTORY_KEY = "aerospike.graphloader.temp-directory";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
     public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "aerospike.graphloader.keep-provided-edge-id-as-property";
     // The key of the property to store the provided IDs for Edges in.
@@ -55,11 +55,11 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
 
     // ==Actions==
-    public static final String VERIFY_OUTPUT_DATA = "verifyOutputData";
-    public static final String VALIDATE_INPUT_DATA = "validateInputData";
-    public static final String DISABLE_EDGE_WRITE = "disableEdges";
-    public static final String DISABLE_VERTEX_WRITE = "disableVertices";
-    public static final String READ_ONLY = "readOnly";
+    public static final String VERIFY_OUTPUT_DATA = "verify-output-data";
+    public static final String VALIDATE_INPUT_DATA = "validate-input-data";
+    public static final String DISABLE_EDGE_WRITE = "disable-edges";
+    public static final String DISABLE_VERTEX_WRITE = "disable-vertices";
+    public static final String READ_ONLY = "read-only";
 
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(

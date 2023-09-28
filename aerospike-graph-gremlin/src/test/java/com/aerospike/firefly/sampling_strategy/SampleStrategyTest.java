@@ -1,5 +1,6 @@
 package com.aerospike.firefly.sampling_strategy;
 
+import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -13,9 +14,13 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -24,43 +29,86 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
+@Ignore
 public class SampleStrategyTest {
 
-    public void load(final GraphTraversalSource g) {
+    private static final int SUPERNODE_LOAD_SIZE = 18500;
+    private static final int RECORD_LIMIT = 10000;
+
+    public void loadSimpleSupernode(final GraphTraversalSource g) {
         // Clear graph.
         g.V().drop().iterate();
 
         // Load data.
         final Vertex v1 = g.addV("entity").property("indexed", "value1").property("notindexed", "value2").next();
-        for (int i = 0; i < 25000; i++) {
-            try {
-                final Vertex v2 = g.addV("entity-hop").
-                        property("property1", "value1").
-                        property("property2", "value2").
+        for (int i = 0; i < SUPERNODE_LOAD_SIZE; i++) {
+            final
+            Vertex v2 = g.addV("entity-hop").
+                    property("property1", "value1").
+                    property("property2", "value2").
+                    next();
+            wait1Second();
+            g.addE("has_entity").from(v1).to(v2).iterate();
+            wait1Second();
+        }
+    }
+
+    public void loadNeustarSupernode(final GraphTraversalSource g) {
+        // Clear graph.
+        g.V().drop().iterate();
+
+        // Load data.
+        final Vertex v1 = g.addV("entity").property("indexed", "value1").property("notindexed", "value2").next();
+        for (int i = 0; i < SUPERNODE_LOAD_SIZE; i++) {
+            final Vertex v2 = g.addV("entity-hop").
+                    property("property1", "value1").
+                    property("property2", "value2").
+                    next();
+            wait1Second();
+            g.addE("has_entity").from(v1).to(v2).iterate();
+            wait1Second();
+            for (int j = 0; j < 10; j++) {
+                final Vertex v3 = g.addV("entity-hop2").
+                        property("property1-2", "value1").
+                        property("property2-2", "value2").
                         next();
-                g.addE("has_entity").from(v1).to(v2).iterate();
-            } catch (Exception e) {
-                try {
-                    System.out.println("??????");
-                    Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                }
+                wait1Second();
+                g.addE("has_entity2").from(v2).to(v3).iterate();
             }
         }
     }
 
+    private void wait1Second() {
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Before
+    public void before() {
+        // Force drop each time so that config changes don"t cause issues.
+        //final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        //AerospikeConnection.connect(config).dropDatabase(null, true);
+    }
+
     @Test
     public void test() {
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 22000);
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 10);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
-            //load(g);
+            //loadSimpleSupernode(g);
 
+            var x = g.V().has("indexed", "value1").out().sample(30).asAdmin();
+            x.applyStrategies();
             final List<Vertex> vertices1 = g.V().has("indexed", "value1").out().sample(30).toList();
             final List<Vertex> vertices2 = g.V().has("property1", "value1").in().sample(30).toList();
             final List<Edge> edges1 = g.V().has("indexed", "value1").outE().sample(30).toList();
@@ -100,7 +148,6 @@ public class SampleStrategyTest {
         }
     }
 
-    // TODO: More tests.
     @Test
     public void testSupernode() {
 
@@ -110,42 +157,74 @@ public class SampleStrategyTest {
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
-            //load(g);
+            loadSimpleSupernode(g);
 
             final RelationalVertex supernode = (RelationalVertex) g.V().has("indexed", "value1").next();
 
             final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
-            Assert.assertEquals(3000, supernodeEdgeIds.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
             Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
 
             final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds);
-            Assert.assertEquals(3000, supernodeEdges.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdges.size());
             Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
 
             final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID);
-            Assert.assertEquals(3000, supernodeVertexIds.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertexIds.size());
             Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
 
             supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
             final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds);
-            Assert.assertEquals(3000, supernodeVertices.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeVertices.size());
             Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
 
             final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of());
-            Assert.assertEquals(25000, allEdgeIds.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
             Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
 
             final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds);
-            Assert.assertEquals(25000, allEdges.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
             Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
 
             final List<FireflyId> allVertexIds = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
-            Assert.assertEquals(25000, allVertexIds.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertexIds.size());
             Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());
 
             final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds);
-            Assert.assertEquals(25000, allVertices.size());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertices.size());
             Assert.assertFalse(allVertices.stream().anyMatch(Objects::isNull));
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertices).size());
         }
     }
+
+    @Test
+    public void testNeustarPerformance() {
+        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 10);
+        config.setProperty(ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, "false");
+        config.setProperty(ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "false");
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            //loadNeustarSupernode(g);
+
+            for (int i = 0; i < 20; i++) {
+                System.out.println(
+                        g.V().
+                        has("indexed", "value1").
+                        has("notindexed", "value2").
+                        out("has_entity").
+                        sample(30).
+                        outE("has_entity2").
+                        sample(30).
+                        subgraph("a").
+                        cap("a").profile().next());
+            }
+        }
+
+    }
+
+    // Add testing around has(..).sample(..) and sample(..).has(..)
 }

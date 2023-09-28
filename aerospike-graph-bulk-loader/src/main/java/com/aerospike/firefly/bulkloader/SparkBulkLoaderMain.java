@@ -144,16 +144,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 } catch (final ConfigurationRuntimeException cre) {
                     throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
                 }
-                final String dirSeperator;
-                if (FILE_SYSTEM.equals(LOCAL)) {
-                    dirSeperator = File.separator;
-                } else {
-                    dirSeperator = "/";
-                }
-                if (!writeLocation.endsWith(dirSeperator)) {
-                    writeLocation = writeLocation + dirSeperator;
-                }
-                writeLocation = writeLocation + "tmpEdgeDir";
+                final String dirSeperator = FILE_SYSTEM.equals(LOCAL) ? File.separator : "/";
+                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + "tmpEdgeDir" : writeLocation + dirSeperator + "tmpEdgeDir";
                 configureFileSystem(spark, cmd, writeLocation);
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, writeLocation, fileConfig);
             }

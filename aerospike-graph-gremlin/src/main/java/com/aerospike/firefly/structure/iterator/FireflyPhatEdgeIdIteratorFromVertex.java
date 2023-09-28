@@ -106,13 +106,14 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
     @Override
     public FireflyId next() {
         if (hasNext()) {
+            final Object element = this.currentRecordIds.next();
+            if (element == null) {
+                throw FastNoSuchElementException.instance();
+            }
             if (outputType.equals(OutputType.VERTEX_ID)) {
-                if (this.currentRecordIds.next() == null) {
-                    throw FastNoSuchElementException.instance();
-                }
-                return FireflyIdPoly.fromBase64Hash((String) this.currentRecordIds.next(), db.VERTEX_AERO_SET);
+                return FireflyIdPoly.fromBase64Hash((String) element, db.VERTEX_AERO_SET);
             } else {
-                return new FireflyPhatEdgeId((ByteBuffer) this.currentRecordIds.next(), this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
+                return new FireflyPhatEdgeId((ByteBuffer) element, this.db.PHAT_EDGE_SIZE, this.db.EDGE_AERO_SET);
             }
         } else {
             throw FastNoSuchElementException.instance();

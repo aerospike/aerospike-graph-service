@@ -128,6 +128,9 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                     if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
                         labels = hasStep.getLabels();
                         traversal.removeStep(hasStep);
+
+                        // Cannot use sample strategy after HasStep at this time so break.
+                        break;
                     } else {
                         hasContainers = new ArrayList<>();
                         break;
@@ -167,6 +170,8 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                             labels.clear();
                         }
                         traversal.addStep(index, step);
+
+                        // If sample comes before HasStep we are okay and don't need to break.
                     } catch (NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }

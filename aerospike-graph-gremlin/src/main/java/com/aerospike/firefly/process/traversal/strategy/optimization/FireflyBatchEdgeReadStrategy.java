@@ -111,6 +111,9 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     break;
                 }
                 if (steps.get(index) instanceof NoOpBarrierStep) {
+                    // Grab any labels and remove the barrier.
+                    final NoOpBarrierStep<?> noOpBarrierStep = (NoOpBarrierStep<?>) steps.get(index);
+                    labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
                     // Grab has containers and push them down.
@@ -122,6 +125,9 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
                         labels = hasStep.getLabels();
                         traversal.removeStep(hasStep);
+
+                        // Cannot use sample strategy after HasStep at this time so break.
+                        break;
                     } else {
                         hasContainers = new ArrayList<>();
                         break;
@@ -163,6 +169,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                             labels.clear();
                         }
                         traversal.addStep(index, step);
+
+                        // If sample comes before HasStep we are okay and don't need to break.
                     } catch (NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }

@@ -52,6 +52,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -222,7 +223,13 @@ public abstract class RelationalVertex extends FireflyVertex {
             // IMPORTANT NOTE:
             //  Index only returns the edge ids that are not in the local cache, so no need to remove them.
             final Iterator<FireflyId> edgeIdIterator = getIdsFromVertexByIndex(direction, labels, outputType);
-            edgeIdIterator.forEachRemaining(edgeIds::add);
+            while (edgeIdIterator.hasNext()) {
+                try {
+                    edgeIds.add(edgeIdIterator.next());
+                } catch (final NoSuchElementException e) {
+                    LOG.warn("Error getting supernode ids from vertex {}, this is likely from a concurrent removal.", id, e);
+                }
+            }
         }
         return edgeIds;
     }

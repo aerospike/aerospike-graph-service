@@ -8,14 +8,15 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -31,7 +32,10 @@ import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.both;
+import static org.junit.Assert.assertTrue;
 
 @Ignore
 public class SampleStrategyTest {
@@ -93,8 +97,8 @@ public class SampleStrategyTest {
     @Before
     public void before() {
         // Force drop each time so that config changes don"t cause issues.
-        //final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        //AerospikeConnection.connect(config).dropDatabase(null, true);
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        AerospikeConnection.connect(config).dropDatabase(null, true);
     }
 
     @Test
@@ -203,8 +207,6 @@ public class SampleStrategyTest {
         Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 10);
-        config.setProperty(ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, "false");
-        config.setProperty(ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
@@ -227,4 +229,54 @@ public class SampleStrategyTest {
     }
 
     // Add testing around has(..).sample(..) and sample(..).has(..)
+    @Test
+    public void testFSF(){
+
+
+        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 0);
+
+        //
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
+            //Traversal traversal = g.V().repeat(both().simplePath()).times(3).path();
+            //traversal.asAdmin().applyStrategies();
+            //System.out.println(traversal);
+            //long counter = 0;
+            //while (traversal.hasNext()) {
+            //    counter++;
+            //    assertTrue(((Path)traversal.next()).isSimple());
+            //}
+
+            List<Vertex> vertices = g.V().toList();
+            final Vertex v1 = g.V(325).next();
+            List<?> verticesOut = g.V(v1.id()).outE().toList();
+            //List<?> verticesIn = g.V(v1.id()).inE().toList();
+            List<?> verticesOut2 = g.V(v1.id()).out().toList();
+            //List<?> verticesIn2 = g.V(v1.id()).in().toList();
+                //System.out.println(verticesOut.size());
+                //System.out.println(verticesIn.size());
+                //System.out.println(verticesOut2.size());
+                //System.out.println(verticesIn2.size());
+            if (verticesOut.size() != verticesOut2.size()) {
+                System.out.println("mismatch out!=ouE" + verticesOut.size() + " != " + verticesOut2.size());
+            }
+            //if (verticesIn.size() != verticesIn2.size()) {
+            //    System.out.println("mismatch in!=inE" + verticesIn.size() + " != " + verticesIn2.size());
+            //}
+            System.out.println("8049");
+        }
+    }
+    // Output size: 12
+    //Output: [v[1], v[1], v[1], v[2], v[3], v[3], v[3], v[4], v[4], v[4], v[5], v[6]]
+    //Output size: 30
+    //Output: [v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[2], v[2], v[2], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[5], v[5], v[5], v[6], v[6], v[6]]
+    //Output size: 42
+    //Output: [v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[2], v[2], v[2], v[2], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[5], v[5], v[5], v[5], v[6], v[6], v[6], v[6]]
+    //32
+    //[path[v[1], v[3], v[4], v[5]], path[v[1], v[3], v[4], v[5]], path[v[1], v[4], v[3], v[6]], path[v[1], v[4], v[3], v[6]], path[v[4], v[1], v[3], v[6]], path[v[4], v[1], v[3], v[6]], path[v[4], v[3], v[1], v[2]], path[v[4], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[4]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[1]], path[v[6], v[3], v[4], v[1]], path[v[5], v[4], v[1], v[2]], path[v[5], v[4], v[1], v[2]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[3], v[1]], path[v[5], v[4], v[3], v[1]], path[v[3], v[1], v[4], v[5]], path[v[3], v[1], v[4], v[5]], path[v[3], v[4], v[1], v[2]], path[v[3], v[4], v[1], v[2]], path[v[2], v[1], v[3], v[6]], path[v[2], v[1], v[3], v[4]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[3]], path[v[2], v[1], v[4], v[3]]]
+    //[path[v[1], v[3], v[4], v[5]], path[v[1], v[4], v[3], v[6]], path[v[6], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[4]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[1]], path[v[5], v[4], v[3], v[1]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[1], v[2]], path[v[3], v[1], v[4], v[5]], path[v[3], v[4], v[1], v[2]], path[v[4], v[3], v[1], v[2]], path[v[4], v[1], v[3], v[6]], path[v[2], v[1], v[3], v[4]], path[v[2], v[1], v[3], v[6]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[3]]]
 }

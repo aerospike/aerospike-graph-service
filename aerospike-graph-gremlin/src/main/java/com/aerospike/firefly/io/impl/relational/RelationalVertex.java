@@ -203,7 +203,13 @@ public abstract class RelationalVertex extends FireflyVertex {
      * To get an exhaustive list of all ids you must call this in conjunction with getSupernodeVertexIds.
      */
     private List<FireflyId> getCachedEdgeIds(final Direction direction, final Set<String> labels) {
-        return getCachedIds(direction, labels).stream().map(id -> ((FireflyIdComposite) id).getEdgeId()).collect(Collectors.toList());
+        return getCachedIds(direction, labels).stream().map(id -> {
+            if (id instanceof FireflyIdComposite) {
+                return ((FireflyIdComposite) id).getEdgeId();
+            } else {
+                return id;
+            }
+        }).collect(Collectors.toList());
     }
 
     /**
@@ -240,7 +246,8 @@ public abstract class RelationalVertex extends FireflyVertex {
         return ids;
     }
 
-    private List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
+    // Only public for testing, if you use this function outside of testing, you're probably doing something wrong.
+    public List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting cached adjacent vertex ids from vertex {}.", id);
         // Get cached IDs
         final List<FireflyId> cachedIds = new ArrayList<>();

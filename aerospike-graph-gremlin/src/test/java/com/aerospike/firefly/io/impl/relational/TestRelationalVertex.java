@@ -79,7 +79,7 @@ public class TestRelationalVertex {
     public void scanAndCacheHaveEquivalentResultsOUT() {
         RelationalVertex aRelationalVertex = (RelationalVertex) GRAPH.traversal().V().next();
         List<FireflyId> idsByIndex = aRelationalVertex.getEdgeIdsFromVertex(Direction.OUT, Set.of());
-        List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getIdsFromVertexByIndex(Direction.OUT, Set.of(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID));
+        List<FireflyId> idsByScan = FireflyCloseableIteratorUtils.list(aRelationalVertex.getIdsFromVertexByScan(Direction.OUT, Set.of(), FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID));
         List<Long> longIdsByIndex = idsByIndex.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         List<Long> longIdsByScan = idsByScan.stream().map(id -> (Long) id.getStorageId()).collect(Collectors.toList());
         Collections.sort(longIdsByIndex);

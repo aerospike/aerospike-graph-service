@@ -269,7 +269,7 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validateInputData", true).iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", true).iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }
@@ -285,7 +285,7 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validateInputData", false).iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", false).iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }
@@ -301,10 +301,10 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validateInputData", "notABoolean").iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", "notABoolean").iterate();
             Assert.fail("Expected call to fail.");
         } catch (final Exception e) {
-            Assert.assertEquals("Expected bulk loader flag 'validateInputData' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
+            Assert.assertEquals("Expected bulk loader flag 'validate_input_data' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
         }
     }
 

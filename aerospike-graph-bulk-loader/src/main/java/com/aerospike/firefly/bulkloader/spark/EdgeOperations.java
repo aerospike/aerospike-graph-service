@@ -333,10 +333,10 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
-        if (this.config.hasAction(VERIFY_OUTPUT_DATA)) {
+        if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final String taskName = "Verify Edges";
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
-            LOGGER.info("verifyOutputData is enabled, starting the Edge write verification.");
+            LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
             sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         }

@@ -190,7 +190,7 @@ public class VertexOperations implements Serializable {
     }
 
     public void verifySampleVerticesAfterWrite(final Dataset<Row> sampledVertexDataset) {
-        if (this.config.hasAction(VERIFY_OUTPUT_DATA)) {
+        if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_VERTEX_WRITE)) {
             String taskName = "Verify Vertex";
             sampledVertexDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Vertex task", true);
             verifyVertices(sampledVertexDataset);

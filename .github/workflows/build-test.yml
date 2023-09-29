@@ -530,315 +530,315 @@ jobs:
             aerospike/firefly &
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark -DfailIfNoTests=false --no-transfer-progress
-  start-runner-l3-bulk-loader-pe:
-    name: Start L3 Bulk Loader Runner Phantom Edges
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-l3-bulk-loader:
-    name: Start L3 Bulk Loader Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  run-l3-bulk-loader-pe:
-    name: Run L3 Spark Bulk Loader Phantom Edges
-    timeout-minutes: 150
-    runs-on: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
-    needs: start-runner-l3-bulk-loader-pe
-    steps:
-      - uses: actions/checkout@v3
-      - name: Clamp Runtime Variables to Environment
-        run: |
-          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
-      - name: Clamp SHA to Environment (Push)
-        if: github.event_name == 'push'
-        run: |
-          echo "SHA_PATH=${GITHUB_SHA::7}-pe" >> $GITHUB_ENV
-          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
-      - name: Clamp SHA to Environment (Pull Request)
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)-pe" >> $GITHUB_ENV
-          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
-      - name: Read Workflow Configuration from Properties File
-        id: read_property
-        uses: christian-draeger/read-properties@1.1.1
-        with:
-          path: ${{ env.CONFIG_PATH }}
-          properties: 'data-size server-instances instance-type'
-      - name: Authorize gcloud CLI
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
-      - name: Set Up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - run: mkdir -p /home/runner && chmod -R 777 /home/runner
-      - run: echo "HOME=/home/runner" >> $GITHUB_ENV
-      - name: Download Benchmark Configuration from GCP
-        run: |
-          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
-      - name: Install Packages
-        run: |
-          sudo apt -y update
-          sudo apt -y install wget
-          sudo apt -y install jq
-          sudo apt -y install python3
-      - name: Download, Install, and Configure Aerolab
-        run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
-          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
-          aerolab config backend -t gcp -o firefly-aerospike
-      - name: Deploy Aerospike Cluster to GCP
-        env:
-          FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-        run: |
-          echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
-      - name: Generate Hosts List and Config for Deployed Cluster
-        run: |
-          aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
-      - name: Deploy Firefly Client Machine to GCP
-        run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
-          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
-          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
-          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
-      - name: Build Bulk Loader JAR
-        run: |
-          cd ${{ github.workspace }} && mvn clean install -DskipTests
-          cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
-      - name: Upload Bulk Loading Artifacts to GCP
-        run: |
-          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
-      - name: Run L3 Bulk Loading Job
-        run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-      - name: Run Phantom Edge Test on GCP
-        run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
-      - name: Delete Firefly Compute Instances (Cleanup)
-        if: always()
-        run: |
-          aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
-      - name: Delete Aerospike Compute Instances (Cleanup)
-        if: always()
-        run: |
-          aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
-      - name: Delete Dataproc Clusters (Cleanup)
-        if: always()
-        run: |
-          gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
-      - name: Delete Dataproc Job (Cleanup)
-        if: always()
-        run: |
-          gcloud dataproc jobs delete --region us-central1 -q ci-${{ env.SHA_PATH }}-job
-      - name: Delete Cloud Storage Artifacts (Cleanup)
-        if: always()
-        run: |
-          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
-  run-l3-bulk-loader:
-    name: Run L3 Spark Bulk Loader
-    timeout-minutes: 150
-    runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
-    needs: start-runner-l3-bulk-loader
-    steps:
-      - uses: actions/checkout@v3
-      - name: Clamp Runtime Variables to Environment
-        run: |
-          echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
-          echo "MONTH=$(date +%m)" >> $GITHUB_ENV
-          echo "DAY=$(date +%d)" >> $GITHUB_ENV
-          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
-      - name: Clamp SHA to Environment (Push)
-        if: github.event_name == 'push'
-        run: |
-          echo "SHA_PATH=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
-      - name: Clamp SHA to Environment (Pull Request)
-        if: github.event_name == 'pull_request'
-        run : |
-          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
-          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
-      - name: Read Workflow Configuration from Properties File
-        id: read_property
-        uses: christian-draeger/read-properties@1.1.1
-        with:
-          path: ${{ env.CONFIG_PATH }}
-          properties: 'data-size server-instances instance-type'
-      - name: Authorize gcloud CLI
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
-      - name: Set Up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - run: mkdir -p /home/runner && chmod -R 777 /home/runner
-      - run: echo "HOME=/home/runner" >> $GITHUB_ENV
-      - name: Download Benchmark Configuration from GCP
-        run: |
-          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
-          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
-      - name: Install Packages
-        run: |
-          sudo apt -y update
-          sudo apt -y install wget
-          sudo apt -y install jq
-          sudo apt -y install python3
-      - name: Download, Install, and Configure Aerolab
-        run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
-          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
-          aerolab config backend -t gcp -o firefly-aerospike
-      - name: Deploy Aerospike Cluster to GCP
-        env:
-          FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-        run: |
-          echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
-      - name: Generate Hosts List and Config for Deployed Cluster
-        run: |
-          aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
-          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
-      - name: Deploy Firefly Client Machine to GCP
-        run: |
-          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
-          cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
-          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
-          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
-          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
-      - name: Build Bulk Loader JAR
-        run: |
-          cd ${{ github.workspace }} && mvn clean install -DskipTests
-          cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
-      - name: Upload Bulk Loading Artifacts to GCP
-        run: |
-          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
-      - name: Run L3 Bulk Loading Job
-        run: |
-          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
-          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
-      - name: Archive L3 Bulk Loading Job Log
-        if: success() || failure()
-        run: |
-          cd ${{ github.workspace }}/scripts
-          mkdir ${{ env.YEAR }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}
-          gcloud dataproc jobs wait ci-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
-          gcloud storage mv gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_config.properties
-      - name: Upload L3 Bulk Loading Job Log to GCP
-        if: success() || failure()
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
-          destination: gha-ci-firefly-bulkloader/archive
-          gzip: false
-          process_gcloudignore: false
-      - name: Publish L3 Runtime Results
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: l3_benchmark.json
-          auto-push: true
-          alert-threshold: '125%'
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
-          benchmark-data-dir-path: docs/
-      - name: Run Benchmark on GCP
-        run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
-      - name: Upload Benchmark Results
-        run: |
-          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
-          gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
-      - name: Publish Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: Publish Benchmark Results
-          tool: 'customSmallerIsBetter'
-          output-file-path: aerospike-graph-gremlin/target/benchmark.json
-          auto-push: true
-          alert-threshold: '105%'
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
-          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
-          benchmark-data-dir-path: docs/
-      - name: Delete Firefly Compute Instances (Cleanup)
-        if: always()
-        run: |
-          aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
-      - name: Delete Aerospike Compute Instances (Cleanup)
-        if: always()
-        run: |
-          aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
-      - name: Delete Dataproc Clusters (Cleanup)
-        if: always()
-        run: |
-          gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
-      - name: Delete Dataproc Job (Cleanup)
-        if: always()
-        run: |
-          gcloud dataproc jobs delete --region us-central1 -q ci-${{ env.SHA_PATH }}-job
-      - name: Delete Cloud Storage Artifacts (Cleanup)
-        if: always()
-        run: |
-          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
+#  start-runner-l3-bulk-loader-pe:
+#    name: Start L3 Bulk Loader Runner Phantom Edges
+#    runs-on: ubuntu-latest
+#    outputs:
+#      label: ${{ steps.start-ec2-runner.outputs.label }}
+#      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+#    steps:
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ secrets.AWS_REGION }}
+#      - name: Start EC2 runner
+#        id: start-ec2-runner
+#        uses: machulav/ec2-github-runner@v2
+#        with:
+#          mode: start
+#          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+#          ec2-image-id: ami-0d006286a6209f4bc
+#          ec2-instance-type: t2.2xlarge
+#          subnet-id: subnet-0bdbb4255fbffb239
+#          security-group-id: sg-005fce4b475465f9e
+#  start-runner-l3-bulk-loader:
+#    name: Start L3 Bulk Loader Runner
+#    runs-on: ubuntu-latest
+#    needs: build-firefly-maven
+#    outputs:
+#      label: ${{ steps.start-ec2-runner.outputs.label }}
+#      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+#    steps:
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ secrets.AWS_REGION }}
+#      - name: Start EC2 runner
+#        id: start-ec2-runner
+#        uses: machulav/ec2-github-runner@v2
+#        with:
+#          mode: start
+#          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+#          ec2-image-id: ami-0d006286a6209f4bc
+#          ec2-instance-type: t2.2xlarge
+#          subnet-id: subnet-0bdbb4255fbffb239
+#          security-group-id: sg-005fce4b475465f9e
+#  run-l3-bulk-loader-pe:
+#    name: Run L3 Spark Bulk Loader Phantom Edges
+#    timeout-minutes: 150
+#    runs-on: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
+#    needs: start-runner-l3-bulk-loader-pe
+#    steps:
+#      - uses: actions/checkout@v3
+#      - name: Clamp Runtime Variables to Environment
+#        run: |
+#          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
+#      - name: Clamp SHA to Environment (Push)
+#        if: github.event_name == 'push'
+#        run: |
+#          echo "SHA_PATH=${GITHUB_SHA::7}-pe" >> $GITHUB_ENV
+#          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
+#      - name: Clamp SHA to Environment (Pull Request)
+#        if: github.event_name == 'pull_request'
+#        run: |
+#          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)-pe" >> $GITHUB_ENV
+#          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
+#      - name: Read Workflow Configuration from Properties File
+#        id: read_property
+#        uses: christian-draeger/read-properties@1.1.1
+#        with:
+#          path: ${{ env.CONFIG_PATH }}
+#          properties: 'data-size server-instances instance-type'
+#      - name: Authorize gcloud CLI
+#        uses: google-github-actions/auth@v1
+#        with:
+#          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
+#      - name: Set Up gcloud CLI
+#        uses: google-github-actions/setup-gcloud@v1
+#      - name: Set up JDK 11
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '11'
+#          distribution: 'temurin'
+#      - run: mkdir -p /home/runner && chmod -R 777 /home/runner
+#      - run: echo "HOME=/home/runner" >> $GITHUB_ENV
+#      - name: Download Benchmark Configuration from GCP
+#        run: |
+#          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
+#      - name: Install Packages
+#        run: |
+#          sudo apt -y update
+#          sudo apt -y install wget
+#          sudo apt -y install jq
+#          sudo apt -y install python3
+#      - name: Download, Install, and Configure Aerolab
+#        run: |
+#          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
+#          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
+#          aerolab config backend -t gcp -o firefly-aerospike
+#      - name: Deploy Aerospike Cluster to GCP
+#        env:
+#          FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+#        run: |
+#          echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
+#          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+#      - name: Generate Hosts List and Config for Deployed Cluster
+#        run: |
+#          aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
+#          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
+#      - name: Deploy Firefly Client Machine to GCP
+#        run: |
+#          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
+#          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
+#          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
+#          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-phantom-edge-test-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-phantom-edge-test-gcp.sh
+#      - name: Build Bulk Loader JAR
+#        run: |
+#          cd ${{ github.workspace }} && mvn clean install -DskipTests
+#          cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
+#      - name: Upload Bulk Loading Artifacts to GCP
+#        run: |
+#          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+#          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
+#      - name: Run L3 Bulk Loading Job
+#        run: |
+#          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc-pe.sh -n ci-${{ env.SHA_PATH }} -w 5 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+#      - name: Run Phantom Edge Test on GCP
+#        run: |
+#          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-phantom-edge-test-gcp.sh"
+#      - name: Delete Firefly Compute Instances (Cleanup)
+#        if: always()
+#        run: |
+#          aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
+#      - name: Delete Aerospike Compute Instances (Cleanup)
+#        if: always()
+#        run: |
+#          aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
+#      - name: Delete Dataproc Clusters (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
+#      - name: Delete Dataproc Job (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud dataproc jobs delete --region us-central1 -q ci-${{ env.SHA_PATH }}-job
+#      - name: Delete Cloud Storage Artifacts (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
+#  run-l3-bulk-loader:
+#    name: Run L3 Spark Bulk Loader
+#    timeout-minutes: 150
+#    runs-on: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
+#    needs: start-runner-l3-bulk-loader
+#    steps:
+#      - uses: actions/checkout@v3
+#      - name: Clamp Runtime Variables to Environment
+#        run: |
+#          echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
+#          echo "MONTH=$(date +%m)" >> $GITHUB_ENV
+#          echo "DAY=$(date +%d)" >> $GITHUB_ENV
+#          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
+#      - name: Clamp SHA to Environment (Push)
+#        if: github.event_name == 'push'
+#        run: |
+#          echo "SHA_PATH=${GITHUB_SHA::7}" >> $GITHUB_ENV
+#          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
+#      - name: Clamp SHA to Environment (Pull Request)
+#        if: github.event_name == 'pull_request'
+#        run : |
+#          echo "SHA_PATH=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)" >> $GITHUB_ENV
+#          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
+#      - name: Read Workflow Configuration from Properties File
+#        id: read_property
+#        uses: christian-draeger/read-properties@1.1.1
+#        with:
+#          path: ${{ env.CONFIG_PATH }}
+#          properties: 'data-size server-instances instance-type'
+#      - name: Authorize gcloud CLI
+#        uses: google-github-actions/auth@v1
+#        with:
+#          credentials_json: ${{ secrets.GCS_KEYFILE_B64 }}
+#      - name: Set Up gcloud CLI
+#        uses: google-github-actions/setup-gcloud@v1
+#      - name: Set up JDK 11
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '11'
+#          distribution: 'temurin'
+#      - run: mkdir -p /home/runner && chmod -R 777 /home/runner
+#      - run: echo "HOME=/home/runner" >> $GITHUB_ENV
+#      - name: Download Benchmark Configuration from GCP
+#        run: |
+#          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
+#          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
+#      - name: Install Packages
+#        run: |
+#          sudo apt -y update
+#          sudo apt -y install wget
+#          sudo apt -y install jq
+#          sudo apt -y install python3
+#      - name: Download, Install, and Configure Aerolab
+#        run: |
+#          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
+#          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
+#          aerolab config backend -t gcp -o firefly-aerospike
+#      - name: Deploy Aerospike Cluster to GCP
+#        env:
+#          FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+#        run: |
+#          echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
+#          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+#      - name: Generate Hosts List and Config for Deployed Cluster
+#        run: |
+#          aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
+#          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
+#          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
+#      - name: Deploy Firefly Client Machine to GCP
+#        run: |
+#          aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
+#          cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
+#          cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
+#          cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
+#          cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
+#      - name: Build Bulk Loader JAR
+#        run: |
+#          cd ${{ github.workspace }} && mvn clean install -DskipTests
+#          cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
+#      - name: Upload Bulk Loading Artifacts to GCP
+#        run: |
+#          gcloud storage cp ${{ github.workspace }}/scripts/l3_config.properties gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+#          gcloud storage cp ${{ github.workspace }}/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader.jar gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar
+#      - name: Run L3 Bulk Loading Job
+#        run: |
+#          cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
+#          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
+#          gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_benchmark.json
+#      - name: Archive L3 Bulk Loading Job Log
+#        if: success() || failure()
+#        run: |
+#          cd ${{ github.workspace }}/scripts
+#          mkdir ${{ env.YEAR }}
+#          mkdir ${{ env.YEAR }}/${{ env.MONTH }}
+#          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
+#          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}
+#          gcloud dataproc jobs wait ci-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
+#          gcloud storage mv gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_config.properties
+#      - name: Upload L3 Bulk Loading Job Log to GCP
+#        if: success() || failure()
+#        uses: google-github-actions/upload-cloud-storage@v1
+#        with:
+#          path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
+#          destination: gha-ci-firefly-bulkloader/archive
+#          gzip: false
+#          process_gcloudignore: false
+#      - name: Publish L3 Runtime Results
+#        uses: benchmark-action/github-action-benchmark@v1
+#        with:
+#          name: Publish Benchmark Results
+#          tool: 'customSmallerIsBetter'
+#          output-file-path: l3_benchmark.json
+#          auto-push: true
+#          alert-threshold: '125%'
+#          comment-on-alert: true
+#          fail-on-alert: false
+#          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+#          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+#          benchmark-data-dir-path: docs/
+#      - name: Run Benchmark on GCP
+#        run: |
+#          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo bash run-benchmark-gcp.sh"
+#      - name: Upload Benchmark Results
+#        run: |
+#          gcloud compute ssh --zone=us-central1-a aerolab4-${{ env.SHA_PATH }}-firefly-1 -- "sudo cat ./firefly/aerospike-graph-gremlin/target/benchmark.json" > ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json
+#          gcloud storage cp ${{ github.workspace }}/aerospike-graph-gremlin/target/benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/benchmark.json
+#      - name: Publish Benchmark Results
+#        uses: benchmark-action/github-action-benchmark@v1
+#        with:
+#          name: Publish Benchmark Results
+#          tool: 'customSmallerIsBetter'
+#          output-file-path: aerospike-graph-gremlin/target/benchmark.json
+#          auto-push: true
+#          alert-threshold: '105%'
+#          comment-on-alert: true
+#          fail-on-alert: false
+#          alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
+#          github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
+#          benchmark-data-dir-path: docs/
+#      - name: Delete Firefly Compute Instances (Cleanup)
+#        if: always()
+#        run: |
+#          aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
+#      - name: Delete Aerospike Compute Instances (Cleanup)
+#        if: always()
+#        run: |
+#          aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
+#      - name: Delete Dataproc Clusters (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud dataproc clusters delete --region us-central1 -q ci-${{ env.SHA_PATH }}
+#      - name: Delete Dataproc Job (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud dataproc jobs delete --region us-central1 -q ci-${{ env.SHA_PATH }}-job
+#      - name: Delete Cloud Storage Artifacts (Cleanup)
+#        if: always()
+#        run: |
+#          gcloud storage rm -r gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}
   test-heap-usage:
     name: Test Firefly Heap Usage
     timeout-minutes: 120
@@ -1741,27 +1741,6 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader.outputs.ec2-instance-id }}
-  stop-runner-l3-bulk-loader:
-    name: Stop L3 Spark Bulk Loader Runner
-    needs:
-      - run-l3-bulk-loader
-      - start-runner-l3-bulk-loader
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-l3-bulk-loader.outputs.ec2-instance-id }}
   stop-runner-spark-bulk-loader-lz4:
     name: Stop Spark Bulk Loader Runner lz4
     needs:
@@ -1783,24 +1762,45 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.ec2-instance-id }}
-  stop-runner-l3-bulk-loader-pe:
-    name: Stop L3 Spark Bulk Loader Runner Phantom Edges
-    needs:
-      - run-l3-bulk-loader-pe
-      - start-runner-l3-bulk-loader-pe
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.ec2-instance-id }}
+#  stop-runner-l3-bulk-loader-pe:
+#    name: Stop L3 Spark Bulk Loader Runner Phantom Edges
+#    needs:
+#      - run-l3-bulk-loader-pe
+#      - start-runner-l3-bulk-loader-pe
+#    runs-on: ubuntu-latest
+#    if: ${{ always() }}
+#    steps:
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ secrets.AWS_REGION }}
+#      - name: Stop EC2 runner
+#        uses: machulav/ec2-github-runner@v2
+#        with:
+#          mode: stop
+#          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+#          label: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.label }}
+#          ec2-instance-id: ${{ needs.start-runner-l3-bulk-loader-pe.outputs.ec2-instance-id }}
+#  stop-runner-l3-bulk-loader:
+#    name: Stop L3 Spark Bulk Loader Runner
+#    needs:
+#      - run-l3-bulk-loader
+#      - start-runner-l3-bulk-loader
+#    runs-on: ubuntu-latest
+#    if: ${{ always() }}
+#    steps:
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ secrets.AWS_REGION }}
+#      - name: Stop EC2 runner
+#        uses: machulav/ec2-github-runner@v2
+#        with:
+#          mode: stop
+#          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+#          label: ${{ needs.start-runner-l3-bulk-loader.outputs.label }}
+#          ec2-instance-id: ${{ needs.start-runner-l3-bulk-loader.outputs.ec2-instance-id }}

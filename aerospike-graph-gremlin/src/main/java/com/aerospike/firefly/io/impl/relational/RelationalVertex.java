@@ -149,8 +149,20 @@ public abstract class RelationalVertex extends FireflyVertex {
     public List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting edge ids from vertex {}.", id);
         final List<FireflyId> edgeIds = new ArrayList<>();
-        edgeIds.addAll(getSupernodeEdgeIds(direction, labels));
-        edgeIds.addAll(getCachedEdgeIds(direction, labels));
+
+        if (!isEdgeCacheOverflowed) {
+            edgeIds.addAll(getCachedEdgeIds(direction, labels));
+        } else {
+            edgeIds.addAll(getSupernodeEdgeIds(direction, labels));
+
+            // IMPORTANT NOTE:
+            //  Scan returns duplicates of the local cache so if we scanned (i.e if ADJACENCY_INDEX_ENABLED_FLAG is false),
+            //  do not add the local cache to the edgeIds list.
+            //  Meanwhile, index only returns the edge ids that are not in the local cache, so no duplicates.
+            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
+                edgeIds.addAll(getCachedEdgeIds(direction, labels));
+            }
+        }
         return edgeIds;
     }
 
@@ -210,28 +222,22 @@ public abstract class RelationalVertex extends FireflyVertex {
         }
 
         LOG.trace("Getting supernode edge ids from vertex {}.", id);
-        final List<FireflyId> edgeIds = new ArrayList<>();
+        final List<FireflyId> ids = new ArrayList<>();
         if (!graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
             // Worst case scenario, we have to scan. At this point we just bite the bullet, system is cheaping out on RAM
             // so performance will suck.
-            getIdsFromVertexByScan(direction, labels, outputType).forEachRemaining(edgeIds::add);
-
-            // IMPORTANT NOTE:
-            //  Scan returns duplicates of the local cache so need to remove them.
-            edgeIds.removeAll(getCachedVertexIds(direction, labels));
+            getIdsFromVertexByScan(direction, labels, outputType).forEachRemaining(ids::add);
         } else {
-            // IMPORTANT NOTE:
-            //  Index only returns the edge ids that are not in the local cache, so no need to remove them.
-            final Iterator<FireflyId> edgeIdIterator = getIdsFromVertexByIndex(direction, labels, outputType);
-            while (edgeIdIterator.hasNext()) {
+            final Iterator<FireflyId> idIterator = getIdsFromVertexByIndex(direction, labels, outputType);
+            while (idIterator.hasNext()) {
                 try {
-                    edgeIds.add(edgeIdIterator.next());
+                    ids.add(idIterator.next());
                 } catch (final NoSuchElementException e) {
                     LOG.warn("Error getting supernode ids from vertex {}, this is likely from a concurrent removal.", id, e);
                 }
             }
         }
-        return edgeIds;
+        return ids;
     }
 
     private List<FireflyId> getCachedIds(final Direction direction, final Set<String> labels) {

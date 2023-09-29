@@ -13,38 +13,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEY_TO_CMD;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.LOCAL_MODE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_EDGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_VERTEX;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_EDGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_VERTEX;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
     private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-firefly/conf/firefly-graph.properties";
-    private static final String CONFIG = "aerospike.graphloader.config";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
-    private static final String DRYRUN = "dryrun";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
-    private static final Set<String> INTERNAL_CONFIGS = Set.of(
-            VERTICES,
-            EDGES,
-            DRYRUN,
-            CONFIG,
-            "aerospike.graphloader.s3-endpoint",
-            SPARK_LOG_LEVEL,
-            ENABLE_DATAFRAME_CACHING,
-            DATAFRAME_STORAGE_TYPE
+    private static final Set<String> PUBLIC_PARAMS = Set.of(
+            VERTEX_DIRECTORY_KEY,
+            EDGE_DIRECTORY_KEY,
+            SAMPLING_PERCENTAGE,
+            REMOTE_USERNAME,
+            REMOTE_PASSKEY,
+            GCS_EMAIL,
+            GCS_KEYFILE_DIRECTORY
     );
 
     private static final Set<String> BOOLEAN_KEYS = Set.of(
@@ -61,14 +63,8 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     static {
         KEY_TO_ARG.put(VERTICES, null);
         KEY_TO_ARG.put(EDGES, null);
-        KEY_TO_ARG.put(DRYRUN, null);
-        KEY_TO_ARG.put(CONFIG, "c");
-        KEY_TO_ARG.put("aerospike.graphloader.remote.user", "u");
-        KEY_TO_ARG.put("aerospike.graphloader.remote.passkey", "p");
-        KEY_TO_ARG.put("aerospike.graphloader.gcs-keyfile", "gck");
-        KEY_TO_ARG.put("aerospike.graphloader.gcs-email", "gem");
+        KEY_TO_ARG.put(VALIDATE_INPUT_DATA, null);
         KEY_TO_ARG.putAll(KEY_TO_CMD);
-        KEY_TO_ARG.put("aerospike.graphloader.s3-endpoint", "s3e");
     }
 
     @Override
@@ -104,20 +100,19 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         // Get any provided parameters that are not allowed.
         final Sets.SetView<String> diff = Sets.difference(params.keySet(), KEY_TO_ARG.keySet());
         if (!diff.isEmpty()) {
-            final Sets.SetView<String> publicParams = Sets.symmetricDifference(INTERNAL_CONFIGS, KEY_TO_ARG.keySet());
-            throw new IllegalArgumentException("The bulk loader allows the following parameters: " + publicParams + ". " +
+            throw new IllegalArgumentException("The bulk loader allows the following parameters: " + PUBLIC_PARAMS + ". " +
                     "The following provided parameters are not allowed: " + diff + ".");
         }
 
         final List<String> args = new ArrayList<>();
         final Map<String, Object> mutableParams = new HashMap();
         mutableParams.putAll(params);
-        if (!mutableParams.containsKey(CONFIG)) {
-            mutableParams.put(CONFIG, DEFAULT_CONFIG_PATH);
+        if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
+            mutableParams.put(CONFIG_DIRECTORY_KEY, DEFAULT_CONFIG_PATH);
         }
         boolean vertices = true;
         boolean edges = true;
-        boolean dryrun = false;
+        boolean validateInputData = false;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -125,28 +120,28 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         // If you specify both as false, an error is returned.
         // If you specify 1 as true, that is the only element type loaded.
         // If you specify 1 as false, then only the other element type is loaded.
-        if (mutableParams.containsKey("vertices") && mutableParams.containsKey("edges")) {
-            vertices = getBooleanFromObject(mutableParams.get("vertices"), "vertices");
-            edges = getBooleanFromObject(mutableParams.get("edges"), "edges");
-        } else if (mutableParams.containsKey("vertices")) {
-            vertices = getBooleanFromObject(mutableParams.get("vertices"), "vertices");
+        if (mutableParams.containsKey(VERTICES) && mutableParams.containsKey(EDGES)) {
+            vertices = getBooleanFromObject(mutableParams.get(VERTICES), VERTICES);
+            edges = getBooleanFromObject(mutableParams.get(EDGES), EDGES);
+        } else if (mutableParams.containsKey(VERTICES)) {
+            vertices = getBooleanFromObject(mutableParams.get(VERTICES), VERTICES);
             edges = !vertices;
-        } else if (mutableParams.containsKey("edges")) {
-            edges = getBooleanFromObject(mutableParams.get("edges"), "edges");
+        } else if (mutableParams.containsKey(EDGES)) {
+            edges = getBooleanFromObject(mutableParams.get(EDGES), EDGES);
             vertices = !edges;
         }
 
         if (!vertices && !edges) {
-            throw new IllegalArgumentException("Either 'vertices' or 'edges' must be set to true.");
+            throw new IllegalArgumentException("Either '" + VERTICES + "' or '" + EDGES + "' must be set to true.");
         }
 
-        if (mutableParams.containsKey("dryrun")) {
-            dryrun = getBooleanFromObject(mutableParams.get("dryrun"), "dryrun");
+        if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
+            validateInputData = getBooleanFromObject(mutableParams.get(VALIDATE_INPUT_DATA), VALIDATE_INPUT_DATA);
         }
 
         for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
             final String key = config.getKey();
-            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(DRYRUN)) {
+            if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA)) {
                 // Actions are handled elsewhere
                 continue;
             }
@@ -156,22 +151,23 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
 
         // This will be local as far as spark is concerned.
         args.add(formatArg(LOCAL_MODE));
+        // Local mode has no Spark node workers that can fail individually to cause phantom edges.
+        args.add(formatArg(READ_ONLY));
 
-        if (dryrun) {
-            args.add(formatArg(DRY_RUN));
+        if (validateInputData) {
+            args.add(formatArg(VALIDATE_INPUT_DATA));
         }
 
-        if (vertices) {
-            // If we are loading vertices, add write/verify step.
-            args.add(formatArg(WRITE_VERTEX));
-            args.add(formatArg(VERIFY_VERTEX));
+        // These won't be simultaneously false due to check above.
+        if (!vertices) {
+            // If we are not loading vertices, disable step.
+            args.add(formatArg(DISABLE_VERTEX_WRITE));
         }
-
-        if (edges) {
-            // If we are loading edges, add write/verify steps.
-            args.add(formatArg((WRITE_EDGE)));
-            args.add(formatArg((VERIFY_EDGE)));
+        if (!edges) {
+            // If we are not loading edges, disable step.
+            args.add(formatArg((DISABLE_EDGE_WRITE)));
         }
+        args.add(formatArg((VERIFY_OUTPUT_DATA)));
 
         try {
             final Class<? extends FireflyBulkLoaderInterface> bulkLoaderClass = (Class<? extends FireflyBulkLoaderInterface>)

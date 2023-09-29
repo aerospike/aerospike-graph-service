@@ -30,9 +30,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.function.Supplier;
 
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VALIDATE_INPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ENABLE_DATAFRAME_CACHING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SAMPLING_PERCENTAGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.DRY_RUN;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.input_file_name;
 
@@ -150,7 +150,7 @@ public class DatasetOperations implements Serializable {
 
     public static void preflightCheck(final Dataset<Row> edgeDataset, final Dataset<Row> vertexDataset,
                                       final BulkLoaderConfigHelper config) {
-        if (config.hasAction(DRY_RUN)) {
+        if (config.hasAction(VALIDATE_INPUT_DATA)) {
             final String taskName = "Preflight check";
             edgeDataset.sparkSession().sparkContext().setJobGroup(taskName, taskName + " task", true);
             final Instant start = Instant.now();

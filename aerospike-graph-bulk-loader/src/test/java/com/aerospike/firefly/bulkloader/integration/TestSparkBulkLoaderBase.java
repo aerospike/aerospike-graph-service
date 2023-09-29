@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.spark.SparkException;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
     private static final String PROVIDED_ID_PROPERTY_NAME = "testIdName";
-    private static final String[] DEFAULT_PARAMS= {"-dryrun", "-writeedge", "-writevertex", "-verifyedge", "-verifyvertex"};
+    private static final String[] DEFAULT_PARAMS= {"-validate_input_data", "-verify_output_data"};
     protected FireflyGraph graph = null;
     static private final String EDGEID_TEST_DIRECTORIES = "src/test/resources/conf/packed/temp";
 
@@ -45,7 +46,7 @@ public abstract class TestSparkBulkLoaderBase {
     @AfterClass
     public static void afterClass() {
         try {
-            //clean all edgeid related temporary files after execution of test suite
+            // Clean all Edge ID related temporary files after execution of test suite
             FileUtils.deleteDirectory(new File(EDGEID_TEST_DIRECTORIES));
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -56,15 +57,16 @@ public abstract class TestSparkBulkLoaderBase {
     public void afterEach(){
         graph.getBaseGraph().dropDatabase(graph, true);
         Configuration config = getTestConfig();
-        String edgeIDDirecotry = config.getString(BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY);
-        if(edgeIDDirecotry != null ) {
-            try {
-                FileUtils.deleteDirectory(new File(edgeIDDirecotry));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            final String edgeIDDirectory = config.getString(BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY);
+            FileUtils.deleteDirectory(new File(edgeIDDirectory));
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        } catch (final ConfigurationRuntimeException cre) {
+            // Do Nothing
+        } finally {
+            graph.close();
         }
-        graph.close();
     }
 
 
@@ -236,7 +238,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateEdgeId() {
-        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId()}, DEFAULT_PARAMS));
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateEdgeId(), "-read_only"}, DEFAULT_PARAMS));
         testVertices();
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
@@ -263,7 +265,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getS3FileSystem(), "-u", System.getenv("AWS_ACCESS_KEY_ID"),
-                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY")},
+                        "-p", System.getenv("AWS_SECRET_ACCESS_KEY"), "-read_only"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -274,7 +276,8 @@ public abstract class TestSparkBulkLoaderBase {
     public void testGcsFileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(
                 new String[]{"-local", "-c", getGcsFileSystem(), "-u", System.getenv("GCS_PRIVATE_KEY_ID"),
-                        "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL")},
+                        "-p", System.getenv("GCS_PRIVATE_KEY"), "-gem", System.getenv("GCS_CLIENT_EMAIL"),
+                        "-read_only"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();
@@ -323,7 +326,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testGcsFileSystemKeyFile() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json"},
+                new String[]{"-local", "-c", getGcsFileSystem(), "-gck", System.getenv("GH_WORKSPACE") + "/gcs-keyfile.json", "-read_only"},
                 DEFAULT_PARAMS));
         testEdges();
         testVertices();

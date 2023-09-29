@@ -52,8 +52,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                 g.call("bulk-load")
                         .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
                         .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
-                        .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
-                        .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                        .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
+                        .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                         .next();
             } catch (final Exception e) {
                 Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
@@ -70,8 +70,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
                 g.call("bulk-load")
                         .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
                         .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
-                        .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
-                        .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                        .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                        .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                         .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
                         .next();
             } catch (final Exception e) {

@@ -175,7 +175,6 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
                 // Latch the size of the current id list.
                 final int previousSize = fireflyIdList.size();
 
-
                 final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction, edgeLabels);
                 FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
 

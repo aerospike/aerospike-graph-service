@@ -140,7 +140,6 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>
-                        <exclude>**/SampleStrategyTest*</exclude>
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>

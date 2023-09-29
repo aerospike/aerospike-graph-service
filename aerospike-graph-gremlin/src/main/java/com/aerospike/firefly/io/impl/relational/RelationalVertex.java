@@ -176,10 +176,22 @@ public abstract class RelationalVertex extends FireflyVertex {
     @Override
     public List<FireflyId> getVertexIdsFromVertex(final Direction direction, final Set<String> labels) {
         LOG.trace("Getting edge ids from vertex {}.", id);
-        final List<FireflyId> edgeIds = new ArrayList<>();
-        edgeIds.addAll(getSupernodeVertexIds(direction, labels));
-        edgeIds.addAll(getCachedVertexIds(direction, labels));
-        return edgeIds;
+        final List<FireflyId> vertexIds = new ArrayList<>();
+
+        if (!isEdgeCacheOverflowed) {
+            vertexIds.addAll(getCachedVertexIds(direction, labels));
+        } else {
+            vertexIds.addAll(getSupernodeVertexIds(direction, labels));
+
+            // IMPORTANT NOTE:
+            //  Scan returns duplicates of the local cache so if we scanned (i.e if ADJACENCY_INDEX_ENABLED_FLAG is false),
+            //  do not add the local cache to the vertexIds list.
+            //  Meanwhile, index only returns the vertex ids that are not in the local cache, so no duplicates.
+            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
+                vertexIds.addAll(getCachedVertexIds(direction, labels));
+            }
+        }
+        return vertexIds;
     }
 
     /**

@@ -2,22 +2,28 @@ package com.aerospike.firefly.sampling_strategy;
 
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
+import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.tinkerpop.gremlin.GraphHelper;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Comparator;
@@ -30,18 +36,14 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.both;
-import static org.junit.Assert.assertTrue;
 
-@Ignore
 public class SampleStrategyTest {
 
-    private static final int SUPERNODE_LOAD_SIZE = 18500;
-    private static final int RECORD_LIMIT = 10000;
+    private static final int SUPERNODE_LOAD_SIZE = 500;
+    private static final int RECORD_LIMIT = 100;
+    private static final int LEAF_COUNT = 10;
 
     public void loadSimpleSupernode(final GraphTraversalSource g) {
         // Clear graph.
@@ -58,24 +60,7 @@ public class SampleStrategyTest {
             wait1Second();
             g.addE("has_entity").from(v1).to(v2).iterate();
             wait1Second();
-        }
-    }
-
-    public void loadNeustarSupernode(final GraphTraversalSource g) {
-        // Clear graph.
-        g.V().drop().iterate();
-
-        // Load data.
-        final Vertex v1 = g.addV("entity").property("indexed", "value1").property("notindexed", "value2").next();
-        for (int i = 0; i < SUPERNODE_LOAD_SIZE; i++) {
-            final Vertex v2 = g.addV("entity-hop").
-                    property("property1", "value1").
-                    property("property2", "value2").
-                    next();
-            wait1Second();
-            g.addE("has_entity").from(v1).to(v2).iterate();
-            wait1Second();
-            for (int j = 0; j < 10; j++) {
+            for (int j = 0; j < LEAF_COUNT; j++) {
                 final Vertex v3 = g.addV("entity-hop2").
                         property("property1-2", "value1").
                         property("property2-2", "value2").
@@ -102,17 +87,14 @@ public class SampleStrategyTest {
     }
 
     @Test
-    public void test() {
+    public void testSampleStrategy() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 10);
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
-            //loadSimpleSupernode(g);
-
-            var x = g.V().has("indexed", "value1").out().sample(30).asAdmin();
-            x.applyStrategies();
+            loadSimpleSupernode(g);
             final List<Vertex> vertices1 = g.V().has("indexed", "value1").out().sample(30).toList();
             final List<Vertex> vertices2 = g.V().has("property1", "value1").in().sample(30).toList();
             final List<Edge> edges1 = g.V().has("indexed", "value1").outE().sample(30).toList();
@@ -136,28 +118,37 @@ public class SampleStrategyTest {
             Assert.assertEquals(30, edgeIds1.size());
             Assert.assertEquals(30, edgeIds2.size());
 
-            final List<Vertex> vertices3 = g.V().limit(30).has("property1", "value1").in().sample(30).toList();
-            final List<Vertex> vertices4 = g.V().limit(29).has("property1", "value1").in().sample(30).toList();
-            final List<Vertex> vertices5 = g.V().limit(31).has("property1", "value1").in().sample(30).toList();
+            final List<Vertex> vertices3 = g.V().has("property1", "value1").limit(30).in().sample(30).toList();
+            final List<Vertex> vertices4 = g.V().has("property1", "value1").limit(29).in().sample(30).toList();
+            final List<Vertex> vertices5 = g.V().has("property1", "value1").limit(31).in().sample(30).toList();
             Assert.assertEquals(30, vertices3.size());
             Assert.assertEquals(29, vertices4.size());
             Assert.assertEquals(30, vertices5.size());
 
-            final List<Edge> edges3 = g.V().limit(30).has("property1", "value1").inE().sample(30).toList();
-            final List<Edge> edges4 = g.V().limit(29).has("property1", "value1").inE().sample(30).toList();
-            final List<Edge> edges5 = g.V().limit(31).has("property1", "value1").inE().sample(30).toList();
+            final List<Edge> edges3 = g.V().has("property1", "value1").limit(30).inE().sample(30).toList();
+            final List<Edge> edges4 = g.V().has("property1", "value1").limit(29).inE().sample(30).toList();
+            final List<Edge> edges5 = g.V().has("property1", "value1").limit(31).inE().sample(30).toList();
             Assert.assertEquals(30, edges3.size());
             Assert.assertEquals(29, edges4.size());
             Assert.assertEquals(30, edges5.size());
+
+            final List<Vertex> allLeafVertex = g.V().has("indexed", "value1").out().sample(Integer.MAX_VALUE).out().sample(Integer.MAX_VALUE).toList();
+            Assert.assertEquals(LEAF_COUNT * SUPERNODE_LOAD_SIZE, allLeafVertex.size());
+            final Set<Vertex> allLeafVertexUnique = new HashSet<>(allLeafVertex);
+            Assert.assertEquals(LEAF_COUNT * SUPERNODE_LOAD_SIZE, allLeafVertexUnique.size());
+            for (final Vertex v : allLeafVertex) {
+                // Make sure they are all the leaf vertices.
+                Assert.assertEquals((Long) 0L, g.V(v.id()).out().count().next());
+            }
         }
     }
 
     @Test
-    public void testSupernode() {
-
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    public void testSupernodeVertexDirectWithAdjacencyIndex() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 22000);
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
+        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
@@ -203,80 +194,152 @@ public class SampleStrategyTest {
     }
 
     @Test
-    public void testNeustarPerformance() {
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    public void testSupernodeVertexDirectWithoutAdjacencyIndex() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 10);
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
+        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
-            //loadNeustarSupernode(g);
+            loadSimpleSupernode(g);
 
-            for (int i = 0; i < 20; i++) {
-                System.out.println(
-                        g.V().
-                        has("indexed", "value1").
-                        has("notindexed", "value2").
-                        out("has_entity").
-                        sample(30).
-                        outE("has_entity2").
-                        sample(30).
-                        subgraph("a").
-                        cap("a").profile().next());
-            }
+            final RelationalVertex supernode = (RelationalVertex) g.V().has("indexed", "value1").next();
+
+            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeEdgeIds.size());
+            Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
+
+            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeEdges.size());
+            Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
+
+            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeVertexIds.size());
+            Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
+
+            supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
+            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE , supernodeVertices.size());
+            Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
+
+            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
+            Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
+
+            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
+            Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
+
+            final List<FireflyId> allVertexIds = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertexIds.size());
+            Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());
+
+            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds);
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertices.size());
+            Assert.assertFalse(allVertices.stream().anyMatch(Objects::isNull));
+            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertices).size());
         }
-
     }
 
     // Add testing around has(..).sample(..) and sample(..).has(..)
     @Test
-    public void testFSF(){
-
-
-        Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    public void testStrategyApplication(){
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), 0);
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
+        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "true");
 
-        //
+
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
-            g.V().drop().iterate();
-            GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-            //Traversal traversal = g.V().repeat(both().simplePath()).times(3).path();
-            //traversal.asAdmin().applyStrategies();
-            //System.out.println(traversal);
-            //long counter = 0;
-            //while (traversal.hasNext()) {
-            //    counter++;
-            //    assertTrue(((Path)traversal.next()).isSimple());
-            //}
 
-            List<Vertex> vertices = g.V().toList();
-            final Vertex v1 = g.V(325).next();
-            List<?> verticesOut = g.V(v1.id()).outE().toList();
-            //List<?> verticesIn = g.V(v1.id()).inE().toList();
-            List<?> verticesOut2 = g.V(v1.id()).out().toList();
-            //List<?> verticesIn2 = g.V(v1.id()).in().toList();
-                //System.out.println(verticesOut.size());
-                //System.out.println(verticesIn.size());
-                //System.out.println(verticesOut2.size());
-                //System.out.println(verticesIn2.size());
-            if (verticesOut.size() != verticesOut2.size()) {
-                System.out.println("mismatch out!=ouE" + verticesOut.size() + " != " + verticesOut2.size());
-            }
-            //if (verticesIn.size() != verticesIn2.size()) {
-            //    System.out.println("mismatch in!=inE" + verticesIn.size() + " != " + verticesIn2.size());
-            //}
-            System.out.println("8049");
+            final GraphTraversal<Vertex, Vertex> traversalOutSample = g.V().out().sample(1);
+            traversalOutSample.asAdmin().applyStrategies();
+            List<Step> stepsOutSample = traversalOutSample.asAdmin().getSteps();
+            assertSteps(stepsOutSample, true, false, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalOutHasSample = g.V().out().has("foo", "bar").sample(1);
+            traversalOutHasSample.asAdmin().applyStrategies();
+            List<Step> stepsOutHasSample = traversalOutHasSample.asAdmin().getSteps();
+            assertSteps(stepsOutHasSample, false, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalHasOutSample = g.V().out().sample(1).has("foo", "bar");
+            traversalHasOutSample.asAdmin().applyStrategies();
+            List<Step> stepsHasOutSample = traversalHasOutSample.asAdmin().getSteps();
+            assertSteps(stepsHasOutSample, true, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalInSample = g.V().in().sample(1);
+            traversalInSample.asAdmin().applyStrategies();
+            List<Step> stepsInSample = traversalInSample.asAdmin().getSteps();
+            assertSteps(stepsInSample, true, false, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalInHasSample = g.V().in().has("foo", "bar").sample(1);
+            traversalInHasSample.asAdmin().applyStrategies();
+            List<Step> stepsInHasSample = traversalInHasSample.asAdmin().getSteps();
+            assertSteps(stepsInHasSample, false, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalHasInSample = g.V().in().sample(1).has("foo", "bar");
+            traversalHasInSample.asAdmin().applyStrategies();
+            List<Step> stepsHasInSample = traversalHasInSample.asAdmin().getSteps();
+            assertSteps(stepsHasInSample, true, true, true);
+
+            final GraphTraversal<Vertex, Edge> traversalOutESample = g.V().outE().sample(1);
+            traversalOutESample.asAdmin().applyStrategies();
+            List<Step> stepsOutESample = traversalOutESample.asAdmin().getSteps();
+            assertSteps(stepsOutESample, true, false, false);
+
+            final GraphTraversal<Vertex, Edge> traversalOutEHasSample = g.V().outE().has("foo", "bar").sample(1);
+            traversalOutEHasSample.asAdmin().applyStrategies();
+            List<Step> stepsOutEHasSample = traversalOutEHasSample.asAdmin().getSteps();
+            assertSteps(stepsOutEHasSample, false, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalHasOutESample = g.V().outE().sample(1).has("foo", "bar");
+            traversalHasOutESample.asAdmin().applyStrategies();
+            List<Step> stepsHasOutESample = traversalHasOutESample.asAdmin().getSteps();
+            assertSteps(stepsHasOutESample, true, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalInESample = g.V().inE().sample(1);
+            traversalInESample.asAdmin().applyStrategies();
+            List<Step> stepsInESample = traversalInESample.asAdmin().getSteps();
+            assertSteps(stepsInESample, true, false, false);
+
+            final GraphTraversal<Vertex, Edge> traversalInEHasSample = g.V().inE().has("foo", "bar").sample(1);
+            traversalInEHasSample.asAdmin().applyStrategies();
+            List<Step> stepsInEHasSample = traversalInEHasSample.asAdmin().getSteps();
+            assertSteps(stepsInEHasSample, false, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalHasInESample = g.V().inE().sample(1).has("foo", "bar");
+            traversalHasInESample.asAdmin().applyStrategies();
+            List<Step> stepsHasInESample = traversalHasInESample.asAdmin().getSteps();
+            assertSteps(stepsHasInESample, true, true, false);
         }
     }
-    // Output size: 12
-    //Output: [v[1], v[1], v[1], v[2], v[3], v[3], v[3], v[4], v[4], v[4], v[5], v[6]]
-    //Output size: 30
-    //Output: [v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[2], v[2], v[2], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[5], v[5], v[5], v[6], v[6], v[6]]
-    //Output size: 42
-    //Output: [v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[1], v[2], v[2], v[2], v[2], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[3], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[4], v[5], v[5], v[5], v[5], v[6], v[6], v[6], v[6]]
-    //32
-    //[path[v[1], v[3], v[4], v[5]], path[v[1], v[3], v[4], v[5]], path[v[1], v[4], v[3], v[6]], path[v[1], v[4], v[3], v[6]], path[v[4], v[1], v[3], v[6]], path[v[4], v[1], v[3], v[6]], path[v[4], v[3], v[1], v[2]], path[v[4], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[4]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[1]], path[v[6], v[3], v[4], v[1]], path[v[5], v[4], v[1], v[2]], path[v[5], v[4], v[1], v[2]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[3], v[1]], path[v[5], v[4], v[3], v[1]], path[v[3], v[1], v[4], v[5]], path[v[3], v[1], v[4], v[5]], path[v[3], v[4], v[1], v[2]], path[v[3], v[4], v[1], v[2]], path[v[2], v[1], v[3], v[6]], path[v[2], v[1], v[3], v[4]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[3]], path[v[2], v[1], v[4], v[3]]]
-    //[path[v[1], v[3], v[4], v[5]], path[v[1], v[4], v[3], v[6]], path[v[6], v[3], v[1], v[2]], path[v[6], v[3], v[1], v[4]], path[v[6], v[3], v[4], v[5]], path[v[6], v[3], v[4], v[1]], path[v[5], v[4], v[3], v[1]], path[v[5], v[4], v[3], v[6]], path[v[5], v[4], v[1], v[3]], path[v[5], v[4], v[1], v[2]], path[v[3], v[1], v[4], v[5]], path[v[3], v[4], v[1], v[2]], path[v[4], v[3], v[1], v[2]], path[v[4], v[1], v[3], v[6]], path[v[2], v[1], v[3], v[4]], path[v[2], v[1], v[3], v[6]], path[v[2], v[1], v[4], v[5]], path[v[2], v[1], v[4], v[3]]]
+
+    public void assertSteps(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
+        if (!hasHas) {
+            // Graph step, composite id step, limit step, cache step.
+            Assert.assertEquals(4, steps.size());
+            Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
+        } else if (!sampleFirst) {
+            Assert.assertEquals(4, steps.size());
+            // Graph step, composite id step, limit step, has step, cache step.
+            Assert.assertTrue(steps.get(2) instanceof SampleGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
+        } else {
+            // Graph step, composite id step, has step, sample step, cache step.
+            Assert.assertEquals(5, steps.size());
+            Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof HasStep);
+            Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+        }
+        Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
+        if (isVertex) {
+            Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+        } else {
+            Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
+        }
+    }
 }

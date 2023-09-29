@@ -584,11 +584,9 @@ jobs:
     needs: start-runner-l3-bulk-loader-pe
     steps:
       - uses: actions/checkout@v3
-      - name: Clamp Start Time to Environment
+      - name: Clamp Runtime Variables to Environment
         run: |
-          echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
-          echo "MONTH=$(date +%m)" >> $GITHUB_ENV
-          echo "DAY=$(date +%d)" >> $GITHUB_ENV
+          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
       - name: Clamp SHA to Environment (Push)
         if: github.event_name == 'push'
         run: |
@@ -618,6 +616,9 @@ jobs:
           distribution: 'temurin'
       - run: mkdir -p /home/runner && chmod -R 777 /home/runner
       - run: echo "HOME=/home/runner" >> $GITHUB_ENV
+      - name: Download Benchmark Configuration from GCP
+        run: |
+          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
       - name: Install Packages
         run: |
           sudo apt -y update
@@ -634,11 +635,11 @@ jobs:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
+          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
@@ -648,7 +649,6 @@ jobs:
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
-          ls -l ${{ github.workspace }}/scripts
           cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
       - name: Upload Bulk Loading Artifacts to GCP
         run: |
@@ -687,11 +687,12 @@ jobs:
     needs: start-runner-l3-bulk-loader
     steps:
       - uses: actions/checkout@v3
-      - name: Clamp Start Time to Environment
+      - name: Clamp Runtime Variables to Environment
         run: |
           echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "MONTH=$(date +%m)" >> $GITHUB_ENV
           echo "DAY=$(date +%d)" >> $GITHUB_ENV
+          echo "BENCHMARK=synthetic" >> $GITHUB_ENV
       - name: Clamp SHA to Environment (Push)
         if: github.event_name == 'push'
         run: |
@@ -721,6 +722,10 @@ jobs:
           distribution: 'temurin'
       - run: mkdir -p /home/runner && chmod -R 777 /home/runner
       - run: echo "HOME=/home/runner" >> $GITHUB_ENV
+      - name: Download Benchmark Configuration from GCP
+        run: |
+          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
+          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Install Packages
         run: |
           sudo apt -y update
@@ -737,11 +742,11 @@ jobs:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }}
+          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
           cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
@@ -753,7 +758,6 @@ jobs:
       - name: Build Bulk Loader JAR
         run: |
           cd ${{ github.workspace }} && mvn clean install -DskipTests
-          ls -l ${{ github.workspace }}/scripts
           cd aerospike-graph-bulk-loader/target && for f in aerospike-graph-bulk-loader*; do mv -- "$f" "aerospike-graph-bulk-loader.jar"; done
       - name: Upload Bulk Loading Artifacts to GCP
         run: |

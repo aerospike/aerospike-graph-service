@@ -336,7 +336,7 @@ public class EdgeOperations implements Serializable {
         if (this.config.hasAction(VERIFY_OUTPUT_DATA)) {
             final String taskName = "Verify Edges";
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
-            LOGGER.info("verify-output-data is enabled, starting the Edge write verification.");
+            LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
             sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         }

@@ -55,11 +55,11 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
 
     // ==Actions==
-    public static final String VERIFY_OUTPUT_DATA = "verify-output-data";
-    public static final String VALIDATE_INPUT_DATA = "validate-input-data";
-    public static final String DISABLE_EDGE_WRITE = "disable-edges";
-    public static final String DISABLE_VERTEX_WRITE = "disable-vertices";
-    public static final String READ_ONLY = "read-only";
+    public static final String VERIFY_OUTPUT_DATA = "verify_output_data";
+    public static final String VALIDATE_INPUT_DATA = "validate_input_data";
+    public static final String DISABLE_EDGE_WRITE = "disable_edges";
+    public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
+    public static final String READ_ONLY = "read_only";
 
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(

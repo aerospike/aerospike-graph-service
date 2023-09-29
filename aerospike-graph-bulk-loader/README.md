@@ -77,7 +77,7 @@ The following configuration options are available:
 | aerospike.graphloader.config                            | -c   | Yes if Call API \ No if Spark Submit                         | N/A           | Call API: `.properties` of the instance the Call API is made to. |
 | aerospike.graphloader.vertices                          | -vd  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
 | aerospike.graphloader.edges                             | -ed  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
-| aerospike.graphloader.temp-directory                              | -td  | No, unless `read-only` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read-only` flag disables this configuration. |
+| aerospike.graphloader.temp-directory                              | -td  | No, unless `read_only` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read_only` flag disables this configuration. |
 | aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                                                          | false         | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
 | aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                                                          | "~providedId" | Property key/name of provided ID when stored as a Property.  |
 | aerospike.graphloader.null-value                        | -nv  | Yes                                                          | "null"        | The String value when found in CSV which is parsed to a literal null. |
@@ -176,7 +176,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospi
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c config.properties -validate-input-data -verify-output-data
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c config.properties -validate_input_data -verify_output_data
 ```
 
 ##### config.properties
@@ -202,17 +202,17 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 | execution order | param name   |                                                                                                                            description                                                                                                                             |
 |-----------------|--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
 | 3               | writevertex  |                                                                                                             write vertices specified by config into db                                                                                                             |
-| 4               | verify-output-data |                                                                                                           verify post write the sampled vertices dataset                                                                                                           |
+| 4               | verify_output_data |                                                                                                           verify post write the sampled vertices dataset                                                                                                           |
 | 5               | writeedge    |                                                                                             write edges to db, assuming that corresponding vertices are present in db                                                                                              |
-| 6               | verify-output-data   |                                                                                                             verify sampled edges after writing into db                                                                                                             |
+| 6               | verify_output_data   |                                                                                                             verify sampled edges after writing into db                                                                                                             |
 
 | name             |                         description                          |                         side effect                          | Used in Call API Publically? |
 | ---------------- | :----------------------------------------------------------: | :----------------------------------------------------------: | ----------------- |
-| validate-input-data           | preflight check to verify contents of provided CSV files to prevent late failures caused by malformed CSV data after long runtimes and resource consumption |      may cause considerable overhead for large datasets      | No                |
-| verify-output-data | uses gremlin traversals to ensure a percentage of data was written to the database after it was written specified by `aerospike.graphloader.sampling-percentage` | overhead time proportional to the sampling percentage | Yes |
-| read-only | disables writing temporary data (persistent Edge IDs) to a file system while bulk loading to prevent the need of write access | may cause duplicate phantom edges due to Spark's retry logic for dead worker nodes | Yes               |
-| disable-edges | don't write edges |  | No |
-| disable-vertices | don't write vertices |  | No |
+| validate_input_data           | preflight check to verify contents of provided CSV files to prevent late failures caused by malformed CSV data after long runtimes and resource consumption |      may cause considerable overhead for large datasets      | No                |
+| verify_output_data | uses gremlin traversals to ensure a percentage of data was written to the database after it was written specified by `aerospike.graphloader.sampling-percentage` | overhead time proportional to the sampling percentage | Yes |
+| read_only | disables writing temporary data (persistent Edge IDs) to a file system while bulk loading to prevent the need of write access | may cause duplicate phantom edges due to Spark's retry logic for dead worker nodes | Yes               |
+| disable_edges | don't write edges |  | No |
+| disable_vertices | don't write vertices |  | No |
 
 
 
@@ -228,8 +228,8 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 
 | description        | command                                                      |
 | ------------------ | ------------------------------------------------------------ |
-| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disable-edges -validate-input-data -verify-output-data |
-| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disable-vertices -validate-input-data -verify-output-data |
+| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disable_edges -validate_input_data -verify_output_data |
+| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar -c c:/config/config.properties -disable_vertices -validate_input_data -verify_output_data |
 
 ##### sample config file
  ```

@@ -335,13 +335,12 @@ public abstract class RelationalVertex extends FireflyVertex {
             keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                     IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy);
         } else {
-            keyRecordIterator = FireflyCloseableIteratorUtils.concat(
-                    db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy),
-                    db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy));
+            return FireflyCloseableIteratorUtils.concat(
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
-
         return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
     }
 

@@ -170,7 +170,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                         }
                         traversal.addStep(index, step);
 
-                        // If sample comes before HasStep we are okay and don't need to break.
+                        // Cannot push down HasStep after pushing down sample so need to break.
+                        break;
                     } catch (NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }

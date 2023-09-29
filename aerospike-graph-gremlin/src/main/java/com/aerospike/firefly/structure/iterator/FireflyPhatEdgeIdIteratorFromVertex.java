@@ -10,8 +10,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,25 +54,20 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
 
     @Override
     protected void getNextKeyRecords() {
-        final Set<Object> outputIds = new HashSet<>();
+        final List<Object> outputIds = new ArrayList<>();
 
         final Record record = this.keyRecords.next().record;
         final Map<ByteBuffer, String> edgeIdToEdgeLabel = (Map<ByteBuffer, String>) record.getMap(db.LABEL_BIN);
-        Map<ByteBuffer, String> edgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
-        Map<ByteBuffer, String> edgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
-        if (edgeIdToInVertexId == null) {
-            edgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(Direction.IN.name());
-        }
-        if (edgeIdToOutVertexId == null) {
-            edgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(Direction.OUT.name());
-        }
 
         if (this.direction == Direction.BOTH || this.direction == Direction.OUT) {
+            final Map<ByteBuffer, String> edgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
+            final Map<ByteBuffer, String> combinedEdgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
+            combinedEdgeIdToOutVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.IN.name()));
             for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64()) &&
                         (labels.isEmpty() || labels.contains(edgeIdToEdgeLabel.get(edgeIdToVertexId.getKey())))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        outputIds.add(edgeIdToInVertexId.get(edgeIdToVertexId.getKey()));
+                        outputIds.add(combinedEdgeIdToOutVertexId.get(edgeIdToVertexId.getKey()));
                     } else {
                         outputIds.add(edgeIdToVertexId.getKey());
                     }
@@ -80,11 +76,14 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         }
 
         if (this.direction == Direction.BOTH || this.direction == Direction.IN) {
+            final Map<ByteBuffer, String> edgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
+            final Map<ByteBuffer, String> combinedEdgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
+            combinedEdgeIdToInVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.OUT.name()));
             for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToInVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64()) &&
                         (labels.isEmpty() || labels.contains(edgeIdToEdgeLabel.get(edgeIdToVertexId.getKey())))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        outputIds.add(edgeIdToOutVertexId.get(edgeIdToVertexId.getKey()));
+                        outputIds.add(combinedEdgeIdToInVertexId.get(edgeIdToVertexId.getKey()));
                     } else {
                         outputIds.add(edgeIdToVertexId.getKey());
                     }
@@ -108,6 +107,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         if (hasNext()) {
             final Object element = this.currentRecordIds.next();
             if (element == null) {
+                System.out.println("null excep");
                 throw FastNoSuchElementException.instance();
             }
             if (outputType.equals(OutputType.VERTEX_ID)) {

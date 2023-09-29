@@ -25,15 +25,6 @@ public class CacheInterationTest extends AbstractFireflySuite {
     }
 
     @Test
-    public void f() {
-        GraphTraversalSource g = graph.traversal();
-
-        final Graph tg = TinkerFactory.createModern();
-        GraphHelper.cloneElements(tg, graph);
-        graph.traversal().V().outE().next();
-    }
-
-    @Test
     public void testTransactionCacheStep() {
         GraphTraversalSource g = graph.traversal();
 

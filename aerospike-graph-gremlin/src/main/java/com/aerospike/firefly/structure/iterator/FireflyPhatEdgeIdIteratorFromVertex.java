@@ -61,13 +61,19 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
 
         if (this.direction == Direction.BOTH || this.direction == Direction.OUT) {
             final Map<ByteBuffer, String> edgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
-            final Map<ByteBuffer, String> combinedEdgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
-            combinedEdgeIdToOutVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.IN.name()));
+            Map<ByteBuffer, String> combinedEdgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
+            if (combinedEdgeIdToInVertexId == null) {
+                combinedEdgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(Direction.IN.name());
+            } else {
+                if (record.getMap(Direction.IN.name()) != null) {
+                    combinedEdgeIdToInVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.IN.name()));
+                }
+            }
             for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToOutVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64()) &&
                         (labels.isEmpty() || labels.contains(edgeIdToEdgeLabel.get(edgeIdToVertexId.getKey())))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        outputIds.add(combinedEdgeIdToOutVertexId.get(edgeIdToVertexId.getKey()));
+                        outputIds.add(combinedEdgeIdToInVertexId.get(edgeIdToVertexId.getKey()));
                     } else {
                         outputIds.add(edgeIdToVertexId.getKey());
                     }
@@ -77,13 +83,19 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
 
         if (this.direction == Direction.BOTH || this.direction == Direction.IN) {
             final Map<ByteBuffer, String> edgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getInVBinName());
-            final Map<ByteBuffer, String> combinedEdgeIdToInVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
-            combinedEdgeIdToInVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.OUT.name()));
+            Map<ByteBuffer, String> combinedEdgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(getOutVBinName());
+            if (combinedEdgeIdToOutVertexId == null) {
+                combinedEdgeIdToOutVertexId = (Map<ByteBuffer, String>) record.getMap(Direction.OUT.name());
+            } else {
+                if (record.getMap(Direction.OUT.name()) != null) {
+                    combinedEdgeIdToOutVertexId.putAll((Map<ByteBuffer, String>) record.getMap(Direction.OUT.name()));
+                }
+            }
             for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToInVertexId.entrySet()) {
                 if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashBase64()) &&
                         (labels.isEmpty() || labels.contains(edgeIdToEdgeLabel.get(edgeIdToVertexId.getKey())))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        outputIds.add(combinedEdgeIdToInVertexId.get(edgeIdToVertexId.getKey()));
+                        outputIds.add(combinedEdgeIdToOutVertexId.get(edgeIdToVertexId.getKey()));
                     } else {
                         outputIds.add(edgeIdToVertexId.getKey());
                     }

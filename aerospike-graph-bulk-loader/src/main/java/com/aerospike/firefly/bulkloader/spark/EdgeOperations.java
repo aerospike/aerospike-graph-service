@@ -69,23 +69,19 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.NULL_VALUE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.PROVIDED_EDGE_ID_PROPERTY_NAME;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.USE_EXISTING_EDGEIDS;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.VERIFY_EDGE;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.WRITE_EDGE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 
 public class EdgeOperations implements Serializable {
     public static final List<String> REQUIRED_EDGE_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER);
-    public static final List<String> REQUIRED_EDGEID_HEADERS = List.of(FROM_VERTEX_HEADER, TO_VERTEX_HEADER, EDGE_ID_COLUMN);
-    public static final String DATA_SUFFIX= "_data/";
-    public static final String METADATA_SUFFIX= "_meta/";
     private static final Logger LOGGER = LoggerFactory.getLogger(EdgeOperations.class);
     public final List<String> edgePaths;
     private final BulkLoaderConfigHelper config;
@@ -93,7 +89,7 @@ public class EdgeOperations implements Serializable {
     final boolean keepProvidedId;
     final String providedIdPropertyName;
     final String nullValue;
-    final boolean hasEdgeId;
+    final boolean usePersistedEdgeId;
 
     public EdgeOperations(final BulkLoaderConfigHelper config, final List<String> edgeCSVFiles) {
         this.config = Objects.requireNonNull(config);
@@ -102,8 +98,7 @@ public class EdgeOperations implements Serializable {
                 Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
         this.providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
         this.nullValue = this.config.getOrDefault(NULL_VALUE);
-        String edgeIDDirectory = config.getOrDefault(EDGEID_DIRECTORY_KEY);
-        this.hasEdgeId = !(null == edgeIDDirectory  || edgeIDDirectory.isEmpty());
+        this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
     }
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
@@ -143,7 +138,7 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
                     final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
-                            fireflyRow, metadataRow, hasEdgeId);
+                            fireflyRow, metadataRow, usePersistedEdgeId);
                     futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(),executor));
                 }
 
@@ -279,14 +274,14 @@ public class EdgeOperations implements Serializable {
     }
 
     /***
-     * Extracts {@link DatasetOperations#EDGE_ID_COLUMN} from a Dataframe row if present else returns null.
+     * Extracts {@link DatasetOperations#EDGE_ID_COLUMN} from a DataFrame Row if present, else returns null.
      * @param metadataRow
-     * @param hasEdgeId
+     * @param usePersistedEdgeId
      * @return
      */
     @Nullable
-    public static byte[] getEdgeIdSupplied(GenericRowWithSchema metadataRow, boolean hasEdgeId) {
-        return hasEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
+    public static byte[] getEdgeIdSupplied(final GenericRowWithSchema metadataRow, boolean usePersistedEdgeId) {
+        return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
     public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset) {
@@ -338,10 +333,10 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
-        if (this.config.hasAction(VERIFY_EDGE)) {
+        if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final String taskName = "Verify Edges";
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
-            LOGGER.info("verifyedge is enabled, starting the Edge write verification.");
+            LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
             verifySampleEdgesAfterWrite(sampledEdgeDataset);
             sampledEdgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
         }
@@ -423,28 +418,20 @@ public class EdgeOperations implements Serializable {
      * Assigns each edge record with an ~edgeID and writes them to user specified location.
      * @param edgeDataSet
      * @param writeLocation
+     * @param config
      */
-    public void writeEdgeIDsToStorage(final Dataset<Row> edgeDataSet, final String writeLocation, final Map<String, Object> config, final BulkLoaderConfigHelper bulkLoaderConfig) {
+    public void writeEdgeIDsToStorage(final Dataset<Row> edgeDataSet, final String writeLocation,
+                                      final Map<String, Object> config) {
         final Instant startWriteEdge = Instant.now();
         final String taskName = "Edges ID write";
-        StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
+        final StructType writeSchema = edgeDataSet.schema().add(DataTypes.createStructField(EDGE_ID_COLUMN, DataTypes.StringType, false));
         edgeDataSet.sparkSession().sparkContext().setJobGroup(taskName,
                 "Edges ID write task", true);
-        ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
-
-        // When USE_EXISTING_EDGEIDS is set, user must provide EDGEID_DIRECTORY_KEY.
-        if (bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
-          Preconditions.checkArgument(writeLocation != null && !writeLocation.isEmpty(), String.format("%s is set and %s is empty. Please set %s in the configuration file.", USE_EXISTING_EDGEIDS, EDGEID_DIRECTORY_KEY, EDGEID_DIRECTORY_KEY));
-        }
-
-        if (bulkLoaderConfig.hasAction(USE_EXISTING_EDGEIDS)) {
-            LOGGER.info(String.format("Skipping %s task Bulkloader will use existing edgeids", taskName));
-        } else {
-            final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
-            EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
-            edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
-            LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
-        }
+        final ExpressionEncoder<Row> encoder = RowEncoder.apply(writeSchema);
+        final Dataset<Row> EdgeIdDF =  edgeDataSet.mapPartitions(new EdgeIDAdditionFunction(config, writeSchema), encoder);
+        EdgeIdDF.write().option("header",true).mode(SaveMode.Overwrite).option("compression","bzip2").csv(writeLocation);
+        edgeDataSet.sparkSession().sparkContext().cancelJobGroup(taskName);
+        LOGGER.info("Execution time in seconds for Edge ID write task: " + Duration.between(startWriteEdge, Instant.now()).getSeconds());
     }
 
     /***
@@ -505,7 +492,7 @@ public class EdgeOperations implements Serializable {
     }
 
     public void writeEdgeToDB(final Dataset<Row> edgeIdDataSet) {
-        if (this.config.hasAction(WRITE_EDGE)) {
+        if (!this.config.hasAction(DISABLE_EDGE_WRITE)) {
             final Instant startWriteEdge = Instant.now();
             final String taskName = "Edges write to Aerospike Database";
             edgeIdDataSet.sparkSession().sparkContext().setJobGroup(taskName,

@@ -204,11 +204,11 @@ public class ProgressBar extends TimerTask {
 
     private String getEdgeIdProgress() {
         if (edgeIdWriteComplete) {
-            return "\t\tEdgeId writing complete\n";
+            return "\t\tTemp data writing complete\n";
         } else if (preflightCheckComplete) {
-            return "\t\tEdgeId writing in progress\n";
+            return "\t\tTemp data writing in progress\n";
         } else {
-            return "\t\tEdgeId writing not started\n";
+            return "\t\tTemp data writing not started\n";
         }
     }
 

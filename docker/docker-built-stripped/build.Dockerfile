@@ -55,7 +55,7 @@ RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true 
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
     then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0-SNAPSHOT' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
     fi
 
 # Remove source code.

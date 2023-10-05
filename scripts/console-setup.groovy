@@ -1,1 +1,1 @@
-:install com.aerospike aerospike-graph-gremlin 1.0.3
+:install com.aerospike aerospike-graph-gremlin 1.1.0

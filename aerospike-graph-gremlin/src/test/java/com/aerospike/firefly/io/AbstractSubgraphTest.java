@@ -1,6 +1,5 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
@@ -44,7 +43,6 @@ public class AbstractSubgraphTest {
     public static void preloadData() throws IOException {
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
-        Assume.assumeTrue(!StarPackedGraph.isStarPackedGraph(graph));
         loadAirRoutes();
         graph.close();
         db.close();

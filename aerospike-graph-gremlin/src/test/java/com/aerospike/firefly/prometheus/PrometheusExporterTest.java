@@ -5,16 +5,12 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -40,8 +36,8 @@ public class PrometheusExporterTest {
 
     public int getCountOfTraversals() throws IOException {
         String output = queryPrometheus();
-        Assert.assertTrue(output.contains("org_apache_tinkerpop_gremlin_server_GremlinServer_op_traversal_count "));
-        output = output.split("org_apache_tinkerpop_gremlin_server_GremlinServer_op_traversal_count ")[1];
+        Assert.assertTrue(output.contains("aerospike_graph_service_GremlinServer_op_traversal_count "));
+        output = output.split("aerospike_graph_service_GremlinServer_op_traversal_count ")[1];
         output = output.split("# HELP")[0];
         output = output.split("\\.")[0];
         return Integer.parseInt(output);
@@ -69,6 +65,6 @@ public class PrometheusExporterTest {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
         PrometheusMetricsServer.create(9090, "/metrics").start();
-        Assert.assertTrue(queryPrometheus().contains("jvm_memory_pool_bytes_used"));
+        Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
     }
 }

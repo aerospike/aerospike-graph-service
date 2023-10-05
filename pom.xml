@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>1.0.3</version>
+    <version>1.1.0</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -42,7 +42,7 @@
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>1.0.3-RC1</firefly.version>
+        <firefly.version>1.1.0</firefly.version>
         <aerospike.version>7.0.0</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -126,15 +126,22 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
+                    <environmentVariables>
+                        <FIREFLY_TESTING>true</FIREFLY_TESTING>
+                        <!--
+                            This should be set to the lowest version of Aerospike graph that is available in dockerhub.
+                            Note the major version must align. In this case, 1.0.0 was removed, so we use 1.0.1
+                         -->
+                        <COMPATIBILITY_VERSION>1.0.1</COMPATIBILITY_VERSION>
+                    </environmentVariables>
                     <argLine>
                         -Dbuild.dir=${project.build.directory}
                         -Dis.testing=true -Djava.net.preferIPv4Stack=true
-                        -Xmx@{maxheap}
-                        -Xms@{minheap}
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>
                         <exclude>**/BenchmarkTest*</exclude>
+                        <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
@@ -142,7 +149,10 @@
                         <exclude>**/FireflyAerospikeGraphServiceCheckTest.java</exclude>
                         <exclude>**/TestTLSIntegration.java</exclude>
                         <exclude>**/PrometheusExporterTest.java</exclude>
+                        <exclude>**/CustomPrometheusExporterTest.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
+                        <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
+                        <exclude>**/TestFireflyServer.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -13,7 +14,6 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.aerospike.firefly.process.call.FireflyMetadataServiceFactory.PRETTY_PRINT_FORMAT_SYSTEM;
 
@@ -31,6 +31,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     public void testSummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
+        Thread.sleep(3000);
         final List<Object> summaryCallEmpty = g.call("summary").toList();
         final List<Object> expectedEmpty = List.of(
                 Map.of(
@@ -42,7 +43,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                         "Total edge count", 0L));
         Assert.assertEquals(expectedEmpty, summaryCallEmpty);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(1000);
+        Thread.sleep(3000);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
         final Map<Object, Object> vertexLabels = g.V().group().by(__.label()).by(__.count()).next();
@@ -78,27 +79,37 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     }
 
     @Test
-    public void testSummaryOverflow() {
-        // Can take a few times to reproduce. We just want to make sure close() doesn't throw.
-        for (int j = 0; j < 5; j++) {
-            graph.fireflySummaryUpdater = new FireflyGraphSummaryUpdater(graph.getBaseGraph());
-            for (int i = 0; i < 75000; i++) {
-                final Set<String> properties = Set.of(String.format("%d", i));
-                graph.fireflySummaryUpdater.addVertexWriteToQueue(String.format("%d", i), properties);
-            }
-            graph.traversal().V().drop().iterate();
+    public void testSummaryOverflow() throws InterruptedException {
+        graph.traversal().V().drop().iterate();
+        Thread.sleep(5000);
+
+        for (int i = 0; i < 10000; i++) {
+            Vertex v = graph.traversal().addV(String.format("%d", i)).property(String.format("%d", i), String.format("%d", i)).next();
+            graph.traversal().addE(String.format("%d", i)).from(v).to(v).property(String.format("%d", i), String.format("%d", i)).iterate();
         }
+
+        // Sleep 5 seconds to allow recycle to trigger.
+        Thread.sleep(5000);
+
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.vertexProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeCounts.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+        Assert.assertTrue(graph.fireflySummaryUpdater.edgeProperties.size() <= FireflyGraphSummaryUpdater.MAP_RECYCLE_SIZE);
+
+        graph.traversal().V().drop().iterate();
     }
 
     @Test
     public void testPrettySummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         g.V().drop().iterate();
+        Thread.sleep(5000);
         final String summaryCall = (String) g.call("summary").with("pretty").next();
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         final long vertexCount = g.V().count().next();
         final long edgeCount = g.E().count().next();
 

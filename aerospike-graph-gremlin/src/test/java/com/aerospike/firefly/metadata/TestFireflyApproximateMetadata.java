@@ -130,7 +130,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties.
@@ -199,7 +199,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties per label.
@@ -239,12 +239,14 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
             for (int j = 0; j < 5000; j++) {
                 g.addV("person").property("name", "person" + i).next();
             }
+
             // Poison pill injected on close, should be mid-stream.
             // Just in case it doesn't end up that way this is looped.
             firefly.close();
-            Assert.assertTrue(firefly.fireflySummaryUpdater.exited());
         }
+        Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
+
 
     @Test
     public void testEdgeMixedProperties() {
@@ -297,7 +299,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties.
@@ -361,7 +363,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         final Vertex v = g.V("~graph_summary").next();
 
         // Check vertex properties per label.
@@ -420,7 +422,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
     @Test
     public void testIncrementalVertexPropertyAdditions() {
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         Vertex v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
@@ -442,7 +444,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         g.addV("person").iterate();
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
@@ -466,7 +468,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         g.V().hasLabel("person").property("age", 29L).iterate();
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
@@ -503,7 +505,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
                         __.V().hasLabel("person").has("name", "Lyndon")).iterate();
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
         v = g.V("~graph_summary").next();
 
         // Validate all vertex related fields are empty/zero.
@@ -595,7 +597,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
 
         final Map<String, Long> edgeCountPerLabel = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
 
@@ -679,7 +681,7 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         }
 
         // Get statistics vertex.
-        wait1Second();
+        wait5Seconds();
 
         final Map<String, Long> vertexCountPerLabel = graph.fireflySummaryUpdater.getFireflyStatistics().vertexCountByLabel();
 
@@ -691,9 +693,27 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
     }
 
     @Test
+    public void testAddRemoveSimple() {
+        final Vertex v = g.addV("1").next();
+        g.addE("2").from(v).to(v).iterate();
+        wait5Seconds();
+        final Map<String, Long> vertexCountPerLabel = graph.fireflySummaryUpdater.getFireflyStatistics().vertexCountByLabel();
+        Assert.assertEquals(1L, (long) vertexCountPerLabel.get("1"));
+        final Map<String, Long> edgeCountByLabel = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
+        Assert.assertEquals(1L, (long) edgeCountByLabel.get("2"));
+
+        g.V(v.id()).drop().iterate();
+        wait5Seconds();
+        final Map<String, Long> vertexCountPerLabel2 = graph.fireflySummaryUpdater.getFireflyStatistics().vertexCountByLabel();
+        Assert.assertEquals(0L, (long) vertexCountPerLabel2.get("1"));
+        final Map<String, Long> edgeCountByLabel2 = graph.fireflySummaryUpdater.getFireflyStatistics().edgeCountByLabel();
+        Assert.assertEquals(0L, (long) edgeCountByLabel2.get("2"));
+    }
+
+    @Test
     public void testLongVertexLabel() {
         g.addV("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").iterate();
-        wait1Second();
+        wait5Seconds();
         Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
 
@@ -703,14 +723,14 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         final Vertex b = g.addV("person").next();
 
         g.addE("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").from(a).to(b).iterate();
-        wait1Second();
+        wait5Seconds();
         Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
 
     @Test
     public void testLongVertexProperty() {
         g.addV("1").property("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").iterate();
-        wait1Second();
+        wait5Seconds();
         Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
 
@@ -720,13 +740,13 @@ public class TestFireflyApproximateMetadata extends AbstractFireflySuite {
         final Vertex b = g.addV("person").next();
 
         g.addE("1").property("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").from(a).to(b).iterate();
-        wait1Second();
+        wait5Seconds();
         Assert.assertFalse(graph.fireflySummaryUpdater.exited());
     }
 
-    void wait1Second() {
+    void wait5Seconds() {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(5000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

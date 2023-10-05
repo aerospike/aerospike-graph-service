@@ -1,0 +1,115 @@
+name: Publish Firefly Container
+
+# Publish the container if a tag of 'vX.Y.Z' is made.
+# Example: v0.0.1, v0.1.0, v1.0.0, etc.
+# THIS WILL NOT RUN ON TAGS WITH A DASH IN THEM (no release candidates)
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  GITHUB_REPOSITORY_NAME: citrusleaf
+  GITHUB_IMAGE_NAME: firefly
+  GITHUB_REGISTRY_URL: ghcr.io
+  DOCKERHUB_IMAGE_NAME: aerospike-graph-service
+  DOCKERHUB_REPOSITORY_NAME: aerospike
+  GCLOUD_REPOSITORY_NAME: gcr.io/aerospike-prod
+  GCLOUD_IMAGE_NAME: aerospike-graph-service
+
+
+jobs:
+  publish-dockerhub:
+    name: Publish Firefly Docker Image - Dockerhub
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Cloud Authentication
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GOOGLE_DOCKER_REPO_SECRET }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: aerospikebuildbot
+          password: ${{ secrets.AEROSPIKEBUILDBOT }}
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Publish Container
+        run: |
+          # Configure docker auth for gcloud
+          gcloud auth configure-docker -q
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          
+          # Strip prefixed v if it is a tag.
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # Find the release candidate number from ghcr.io.
+          GITHUB_IMAGE_BASE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME
+          source ./scripts/find-release-candidate.sh docker manifest inspect $GITHUB_IMAGE_BASE:$VERSION || true
+          
+          GITHUB_IMAGE=$GITHUB_IMAGE_BASE:$VERSION-rc$DOCKER_RC_TAG
+          
+          # Get registry URL and convert to lower case.
+          DOCKERHUB_IMAGE_BASE=$DOCKERHUB_REPOSITORY_NAME/$DOCKERHUB_IMAGE_NAME
+          GCLOUD_IMAGE_BASE=$GCLOUD_REPOSITORY_NAME/$GCLOUD_IMAGE_NAME
+          
+          # Set dockerhub output and latest image name.
+          DOCKERHUB_OUTPUT_IMAGE=$DOCKERHUB_IMAGE_BASE:$VERSION
+          DOCKERHUB_OUTPUT_IMAGE=$(echo $DOCKERHUB_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          DOCKERHUB_LATEST_IMAGE=$DOCKERHUB_IMAGE_BASE:latest
+          DOCKERHUB_LATEST_IMAGE=$(echo $DOCKERHUB_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          # Set gcloud output and latest image name.
+          GCLOUD_OUTPUT_IMAGE=$GCLOUD_IMAGE_BASE:$VERSION
+          GCLOUD_OUTPUT_IMAGE=$(echo $GCLOUD_OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          GCLOUD_LATEST_IMAGE=$GCLOUD_IMAGE_BASE:latest
+          GCLOUD_LATEST_IMAGE=$(echo $GCLOUD_LATEST_IMAGE | tr '[A-Z]' '[a-z]')
+        
+          # Pull base image.
+          docker pull $GITHUB_IMAGE
+          
+          # Retag image for dockerhub and gcloud.
+          docker tag $GITHUB_IMAGE $DOCKERHUB_OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE $DOCKERHUB_LATEST_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_OUTPUT_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_LATEST_IMAGE
+          
+          # Push all images.
+          docker push $DOCKERHUB_OUTPUT_IMAGE
+          docker push $DOCKERHUB_LATEST_IMAGE
+          docker push $GCLOUD_OUTPUT_IMAGE
+          docker push $GCLOUD_LATEST_IMAGE
+          
+          # Create immutable tags
+          DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}_1
+          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}_1
+          
+          # Retag image for immutability.
+          docker tag $GITHUB_IMAGE $DOCKERHUB_IMMUTABLE_IMAGE
+          docker tag $GITHUB_IMAGE $GCLOUD_IMMUTABLE_IMAGE
+          
+          # Push immutable images.
+          docker push $DOCKERHUB_IMMUTABLE_IMAGE
+          docker push $GCLOUD_IMMUTABLE_IMAGE

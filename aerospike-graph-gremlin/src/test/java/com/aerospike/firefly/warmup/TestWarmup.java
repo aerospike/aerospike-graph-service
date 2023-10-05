@@ -125,7 +125,6 @@ public class TestWarmup extends AbstractFireflySuite {
         Vertex va = graph.addVertex();
         Vertex vb = graph.addVertex();
         Edge ea = graph.traversal().V(va).addE(edgeLabel).to(vb).next();
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
         assertEquals((Long) 1L, graph.traversal().V(va.id()).count().next());
         assertEquals((Long) 1L, graph.traversal().V(vb.id()).count().next());
         assertEquals((Long) 1L, graph.traversal().E(ea.id()).count().next());
@@ -143,7 +142,6 @@ public class TestWarmup extends AbstractFireflySuite {
         FireflyGraph warmupgraph = FireflyGraph.open(warmupConfig);
         warmupdb.dropDatabase(warmupgraph, false);
         assertEquals((Long) 0L, warmupgraph.traversal().V().count().next());
-        graph.traversal().V(FireflyGraph.FIREFLY_WARMUP_VARIABLE_NAME).next();
         assertEquals((Long) 0L, warmupgraph.traversal().V().count().next());
     }
 

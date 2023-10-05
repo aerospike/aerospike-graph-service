@@ -86,7 +86,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -96,6 +95,8 @@ import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND
 import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
+import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
+import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -106,7 +107,6 @@ public class AerospikeConnection implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public final boolean STORAGE_DEBUGGER_FLAG;
 
-
     static {
         Value.UseBoolBin = true;
     }
@@ -114,6 +114,7 @@ public class AerospikeConnection implements AutoCloseable {
     private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
+    public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
 
     public final String GRAPH_ID;
     public final String V_LABEL_INDEX_NAME;
@@ -147,15 +148,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final String VERTEX_AERO_SET;
     public final String IN_VP_SET;
     public final String OUT_VP_SET;
-    public final String IN_IN_SET;
-    public final String IN_OUT_SET;
-    public final String OUT_IN_SET;
-    public final String OUT_OUT_SET;
     public final String SUMMARY_SET;
     public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
-    public final String EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN;
 
     public final String IN_EDGE_COUNTER_BIN;
     public final String OUT_EDGE_COUNTER_BIN;
@@ -189,18 +185,35 @@ public class AerospikeConnection implements AutoCloseable {
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
+    public final int CONNECT_TIMEOUT;
+    private final int TIMEOUT_DELAY;
+
     private static final AtomicLong instanceCounter = new AtomicLong(0);
 
     private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
     private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
     private final FireflyIdFactory idFactory;
+    public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
+
+    // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
+    public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
+    public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
+    public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
+
+    public Policy getPolicy() {
+        final Policy policy = new Policy();
+        policy.connectTimeout = this.CONNECT_TIMEOUT;
+        policy.timeoutDelay = this.TIMEOUT_DELAY;
+        return policy;
+    }
 
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
-        clientPolicy.maxConnsPerNode = threadPoolSize * 2;
-        clientPolicy.minConnsPerNode = threadPoolSize;
 
+        clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
+        clientPolicy.minConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf));
         // While our writes are not idempotent, we should not be retrying.
         clientPolicy.writePolicyDefault.maxRetries = 0;
         clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
@@ -217,18 +230,21 @@ public class AerospikeConnection implements AutoCloseable {
         final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
         if (Boolean.parseBoolean(tlsEnabled)) {
             clientPolicy.tlsPolicy = new TlsPolicy();
+
         }
+        clientPolicy.maxErrorRate = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf));
         return clientPolicy;
     }
 
     public static AerospikeClient setupDefaultClient(final Configuration conf, final ClientPolicy policy) {
-        final String host = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final String hostFromConf = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_HOST, conf);
+        final String hostsString = stripAllWhiteSpace(hostFromConf);
         final int port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_PORT, conf));
 
         final Optional<String[]> tlsNames;
         if (conf.containsKey(ConfigurationHelper.Keys.TLS_NAMES)) {
             tlsNames = Optional.of(conf.getString(ConfigurationHelper.Keys.TLS_NAMES).split(","));
-            if (Host.parseHosts(host, port).length != tlsNames.get().length) {
+            if (Host.parseHosts(hostsString, port).length != tlsNames.get().length) {
                 throw new IllegalArgumentException("Number of TLS names must match number of hosts");
             }
         } else {
@@ -239,7 +255,7 @@ public class AerospikeConnection implements AutoCloseable {
                         .map(tlsName -> new AbstractMap.SimpleEntry<>(tlsName.split(":")[0], tlsName.split(":")[1]))
                         .map(hostnameTlsNamePair -> new Host(hostnameTlsNamePair.getKey(), hostnameTlsNamePair.getValue(), port))
                         .collect(Collectors.toList()))
-                .orElse(Arrays.stream(Host.parseHosts(host, port)).collect(Collectors.toList()))
+                .orElse(Arrays.stream(Host.parseHosts(hostsString, port)).collect(Collectors.toList()))
                 .toArray(new Host[0]);
 
         final AerospikeClient aerospikeClient;
@@ -257,6 +273,10 @@ public class AerospikeConnection implements AutoCloseable {
         } else {
             return aerospikeClient;
         }
+    }
+
+    public static String stripAllWhiteSpace(final String hosts) {
+        return hosts.replaceAll("\\s+", "");
     }
 
     public static int getDefaultThreadPoolSize(final Settings gremlinServerSettings) {
@@ -297,8 +317,11 @@ public class AerospikeConnection implements AutoCloseable {
         SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
         SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
         STORAGE_DEBUGGER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf));
-
-
+        ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf));
+        ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
+        ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
+        ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
+        ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
@@ -317,10 +340,6 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.VERTEX_AERO_SET.name(), conf);
         IN_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_VP_SET.name(), conf);
         OUT_VP_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_VP_SET.name(), conf);
-        IN_IN_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_IN_SET.name(), conf);
-        IN_OUT_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.IN_OUT_SET.name(), conf);
-        OUT_IN_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_IN_SET.name(), conf);
-        OUT_OUT_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.OUT_OUT_SET.name(), conf);
         ID_MANAGER_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.ID_MANAGER_SET.name(), conf);
         EDGE_AERO_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.EDGE_AERO_SET.name(), conf);
         GRAPH_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.GRAPH_METADATA_SET.name(), conf);
@@ -336,7 +355,6 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
-        EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN.name(), conf);
         PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf);
         TYPE_HINTS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TYPE_HINTS_BIN.name(), conf);
         COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.COUNTER_BIN.name(), conf);
@@ -361,6 +379,9 @@ public class AerospikeConnection implements AutoCloseable {
         PROPERTY_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf));
         VERTEX_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf));
         EDGE_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf));
+
+        CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
+        TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
@@ -610,36 +631,105 @@ public class AerospikeConnection implements AutoCloseable {
         return krl;
     }
 
-    public ComparableVersion getDataModelVersion() {
+    public GraphMetadata getDataModelMetadata() {
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
         final Policy policy = new Policy();
         policy.sendKey = false;
         Record dataModelRec = read(k, policy);
-        if (dataModelRec == null)
-            return null;
-        return new ComparableVersion(dataModelRec.getString(DATA_MODEL_VER));
+        return new GraphMetadata(dataModelRec);
     }
 
-    public void setModelVersion(final String ver) {
+    public void setGraphMetadata(final String name, final String version) {
+        final Bin dataModelNameBin = new Bin(DATA_MODEL_NAME, name);
+        final Operation writeName = Operation.put(dataModelNameBin);
+        final Bin dataModelVersionBin = new Bin(DATA_MODEL_VER, version);
+        final Operation writeVersion = Operation.put(dataModelVersionBin);
+
         final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Bin b = new Bin(DATA_MODEL_VER, ver);
-        write(k, b);
+        this.operate(null, k, writeName, writeVersion);
     }
 
-    public String getDataModelName() {
-        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        final Record dataModelRec = read(k, policy);
-        if (dataModelRec == null)
-            return null;
-        return dataModelRec.getString(DATA_MODEL_NAME);
+    public synchronized void checkConfigurationCompatibility(final Configuration config) {
+        final Key key = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
+        final Map<String, String> existingConfig = getDataModelMetadata().getExistingImmutableConfigs();
+
+        if (config.containsKey(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase())
+                && config.getBoolean(ConfigurationHelper.Keys.WARMUP_MODE.toLowerCase())) {
+            // Warmup mode is enabled so we don't need to check the configuration,
+            // it's a compatible copy intended to be slightly different to not interfere.
+            // Note if we check it the summary mismatch will fail below, but we don't want
+            // it to write to the summary.
+            return;
+        }
+
+        if (existingConfig == null) {
+            // This is a fresh graph so write the immutable configurations
+            final Map<String, String> configurations = new HashMap<>();
+            for (final String configKey : IMMUTABLE_CONFIG_KEYS) {
+                configurations.put(configKey, getOrDefaultString(configKey, config));
+            }
+            final Bin configBin = new Bin(DATA_MODEL_CONF, configurations);
+            final Operation writeConfig = Operation.put(configBin);
+            this.operate(null, key, writeConfig);
+        } else {
+            final List<Operation> newImmutableConfigs = new ArrayList<>();
+            for (final String configKey : IMMUTABLE_CONFIG_KEYS) {
+                if (existingConfig.containsKey(configKey)) {
+                    if (!existingConfig.get(configKey).equalsIgnoreCase(getOrDefaultString(configKey, config))) {
+                        final String error = "Cannot start Aerospike Graph Service due to existing immutable graph " +
+                                "configuration '" + configKey + "' with value '" + existingConfig.get(configKey) +
+                                "' mismatching provided configuration value '" + getOrDefaultString(configKey, config) + "'.";
+                        LOG.error(error);
+                        throw new IllegalArgumentException(error);
+                    }
+                } else {
+                    // This is a newer version of Firefly with additional immutable configurations that we need to record.
+                    final Operation addImmutableConfig = MapOperation.put(MapPolicy.Default, DATA_MODEL_CONF,
+                            Value.get(configKey), Value.get(getOrDefaultString(configKey, config)));
+                    newImmutableConfigs.add(addImmutableConfig);
+                }
+            }
+            if (!newImmutableConfigs.isEmpty()) {
+                this.operate(null, key, newImmutableConfigs.toArray(new Operation[0]));
+            }
+        }
     }
 
-    public void setModelName(final String name) {
-        final Key k = new Key(namespace, GRAPH_METADATA_SET, DATA_MODEL_KEY);
-        final Bin b = new Bin(DATA_MODEL_NAME, name);
-        write(k, b);
+    public static class GraphMetadata {
+        private final Record metadataRecord;
+
+        private GraphMetadata(final Record metadata) {
+            this.metadataRecord = metadata;
+        }
+
+        public ComparableVersion getDataModelVersion() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return new ComparableVersion(this.metadataRecord.getString(DATA_MODEL_VER));
+            }
+        }
+
+        public String getDataModelName() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                return this.metadataRecord.getString(DATA_MODEL_NAME);
+            }
+        }
+
+        private Map<String, String> getExistingImmutableConfigs() {
+            if (this.metadataRecord == null) {
+                return null;
+            } else {
+                final Map<?, ?> fixedConfig = this.metadataRecord.getMap(DATA_MODEL_CONF);
+                if (fixedConfig == null) {
+                    return null;
+                } else {
+                    return (Map<String, String>) fixedConfig;
+                }
+            }
+        }
     }
 
     public static class InfoOps {
@@ -795,7 +885,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on-disk type of scalar values. If the value parameter is an ArrayList, return an
+     * Return the numeric id of the on disk type of scalar values. If the value parameter is an ArrayList, return an
      * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
      *
      * @param value Object to get type hint ID of
@@ -1464,10 +1554,6 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, INDEX_METADATA_SET, null);
             client.truncate(null, namespace, OUT_VP_SET, null);
             client.truncate(null, namespace, IN_VP_SET, null);
-            client.truncate(null, namespace, OUT_OUT_SET, null);
-            client.truncate(null, namespace, OUT_IN_SET, null);
-            client.truncate(null, namespace, IN_OUT_SET, null);
-            client.truncate(null, namespace, IN_IN_SET, null);
             client.truncate(null, namespace, SUMMARY_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the

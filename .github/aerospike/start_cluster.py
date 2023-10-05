@@ -13,6 +13,7 @@ def parse_cli():
     parser.add_argument('--aerospike_version', type=str, help="version of aerospike")
     parser.add_argument('--features_file', type=str, help="base64 encoded features file")
     parser.add_argument('--repo_path', type=str, help="repo path")
+    parser.add_argument('--single', help="one node cluster", action="store_true", default=False)
     parser.add_argument('--debug', help="debug logging", action="store_true", default=False)
     parser.add_argument('--test', help="test", action="store_true", default=False)
 
@@ -25,6 +26,7 @@ def parse_cli():
                 "features_file": cli.features_file,
                 "repo_path": cli.repo_path,
                 "aerospike_image": f"aerospike:{cli.aerospike_version}",
+                "single": cli.single,
                 "debug": cli.debug,
                 "test": cli.test if "test" in cli else False})
 
@@ -89,6 +91,14 @@ def shutdown(ctr_id: str, docker_client: DockerClient):
     container.stop()
 
 
+def start_aerospike_single(config, docker_client):
+    image = config.aerospike_image.split(':')[0]
+    tag = config.aerospike_image.split(':')[1]
+    docker_client.images.pull(repository=image, tag=tag)
+    ctr_id: str = start_aerospike_node(0, config, docker_client)
+    logger.info(f"started aerospike container {ctr_id}")
+    return ctr_id
+
 def start_aerospike_cluster(config, docker_client):
     image = config.aerospike_image.split(':')[0]
     tag = config.aerospike_image.split(':')[1]
@@ -114,12 +124,17 @@ if __name__ == '__main__':
     docker_client: DockerClient = docker.from_env()
     config = parse_cli()
     logger.basicConfig(level=logger.INFO)
-    if (config.debug):
+
+    if config.debug:
         logger.basicConfig(level=logger.DEBUG)
-    nodes: List = start_aerospike_cluster(config, docker_client)
-    time.sleep(2)
-    for i in range(0, 3):
-        assert healthcheck(i, nodes[i], docker_client)
-    if "test" in config and config.test:
-        for node in nodes:
-            shutdown(node, docker_client)
+
+    if config.single:
+        start_aerospike_single(config, docker_client)
+    else:
+        nodes: List = start_aerospike_cluster(config, docker_client)
+        time.sleep(2)
+        for i in range(0, 3):
+            assert healthcheck(i, nodes[i], docker_client)
+        if "test" in config and config.test:
+            for node in nodes:
+                shutdown(node, docker_client)

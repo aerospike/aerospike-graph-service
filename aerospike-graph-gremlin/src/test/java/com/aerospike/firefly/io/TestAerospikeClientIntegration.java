@@ -25,7 +25,6 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.star.packed.StarPackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -62,6 +61,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.io.AerospikeConnection.stripAllWhiteSpace;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
@@ -404,21 +404,22 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
             GraphHelper.cloneElements(TinkerFactory.createModern(), graph);
             while (AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size() == 0)
                 sleep(1000);
+            // Add extra long sleep since metadata task sometimes is busy or sleeping and comes in late
+            // and isn't removed.
+            sleep(5000);
             graph.traversal().V().drop().iterate();
             sleep(10000);
 
             // ID_MGR_SET  id manager set and G_META graph metadata are not removed by removing all vertices
             Set<String> x = AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient());
-            if(StarPackedGraph.isStarPackedGraph(graph))
-                throw new RuntimeException("StarPackedGraph not currently supported");
             assertEquals(Set.of(db.GRAPH_METADATA_SET, db.ID_MANAGER_SET, db.SUMMARY_SET), x);
-;
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 3 : 7, x.size());
+
+            assertEquals(3, x.size());
 
             Vertex a = graph.addVertex();
             Vertex b = graph.addVertex();
             Edge e = a.addEdge("edge", b);
-            assertEquals(!StarPackedGraph.isStarPackedGraph(graph) ? 5 : 10, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
+            assertEquals(5, AerospikeConnection.InfoOps.getNonEmptySetList(db.getNamespace(), db.getClient()).size());
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
@@ -598,4 +599,19 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals(2, hashRecords.length);
     }
 
+    @Test
+    public void testHostsWhiteSpaceStripping() {
+        final String singleHostname = " localhost  ";
+        assertEquals("localhost", stripAllWhiteSpace(singleHostname));
+        final String singleIP = "  172.17.0.1 ";
+        assertEquals("172.17.0.1", stripAllWhiteSpace(singleIP));
+        final String singleHostnamePort = " localhost:3000  ";
+        assertEquals("localhost:3000", stripAllWhiteSpace(singleHostnamePort));
+        final String singleIPPort = "  172.17.0.1: 3000 ";
+        assertEquals("172.17.0.1:3000", stripAllWhiteSpace(singleIPPort));
+        final String multi = " l ocalhost , aerospike.com, github.co m";
+        assertEquals("localhost,aerospike.com,github.com", stripAllWhiteSpace(multi));
+        final String multiPort = " localhost: 30 00,aerospike.com: 8080,github.com:8192";
+        assertEquals("localhost:3000,aerospike.com:8080,github.com:8192", stripAllWhiteSpace(multiPort));
+    }
 }

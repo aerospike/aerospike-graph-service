@@ -9,7 +9,7 @@ Help() {
    echo "
    Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>]
 
-   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-1.1.0.jar
+   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-2.0.0.jar
    -c gs://configbucket/fireflyconfig/bulk.properties -n check1 -w 10
 
    Note: This script expects the bulk loader jar and the properties file to be on gs upload these first via something like:

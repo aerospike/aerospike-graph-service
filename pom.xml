@@ -115,7 +115,7 @@
                 <configuration>
                     <apiToken>011ec57e-9bd5-4518-80e7-331f4408151a</apiToken>
                     <args>
-                        <arg>--all-projects</arg>
+                        <arg>--maven-aggregate-project</arg>
                         <arg>--severity-threshold=high</arg>
                     </args>
                 </configuration>

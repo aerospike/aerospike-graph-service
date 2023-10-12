@@ -44,7 +44,7 @@ jobs:
           sudo apt -y install python3
       - name: Generate Properties File from Benchmark Tag
         run: |
-          sudo python3 scripts/parse_benchmark_tag.py
+          sudo python3 scripts/parse_benchmark_tag.py ${{ github.ref_name }}
       - name: Read Workflow Configuration from Properties File
         id: read_property
         uses: christian-draeger/read-properties@1.1.1
@@ -84,12 +84,12 @@ jobs:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
           cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ steps.read_property.outputs.benchmark }}
-          cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/ci.properties
+          cd ${{ github.workspace }} && gcloud storage cp ${{ github.workspace }}/benchmark.properties gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly

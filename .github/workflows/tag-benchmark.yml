@@ -3,7 +3,7 @@ name: L3 Bulk Load and Benchmark Tag
 on:
   push:
     tags:
-      - '**-[0-9a-zA-Z]+-benchmark-[0-9]+g'
+      - '**-benchmark-[0-9a-zA-Z]+-[0-9]+g**'
 
 jobs:
   start-runner-l3-bulk-loader:
@@ -36,54 +36,26 @@ jobs:
     needs: start-runner-l3-bulk-loader
     steps:
       - uses: actions/checkout@v3
-      - name: Set 1G Configuration
-        if: endsWith(github.ref_name, '1g')
+      - name: Install Packages
         run: |
-          echo "CONFIG_PATH=./.github/benchmarks/1g.properties" >> $GITHUB_ENV
-      - name: Set 2G Configuration
-        if: endsWith(github.ref_name, '2g') && endsWith(github.ref_name, '32g') == false
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/2g.properties" >> $GITHUB_ENV
-      - name: Set 4G Configuration
-        if: endsWith(github.ref_name, '4g') && endsWith(github.ref_name, '64g') == false
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/4g.properties" >> $GITHUB_ENV
-      - name: Set 8G Configuration
-        if: endsWith(github.ref_name, '8g') && endsWith(github.ref_name, '128g') == false
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/8g.properties" >> $GITHUB_ENV
-      - name: Set 16G Configuration
-        if: endsWith(github.ref_name, '16g')
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/16g.properties" >> $GITHUB_ENV
-      - name: Set 32G Configuration
-        if: endsWith(github.ref_name, '32g')
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/32g.properties" >> $GITHUB_ENV
-      - name: Set 64G Configuration
-        if: endsWith(github.ref_name, '64g')
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/64g.properties" >> $GITHUB_ENV
-      - name: Set 128G Configuration
-        if: endsWith(github.ref_name, '128g')
-        run: |
-          echo "CONFIG_PATH=./.github/benchmarks/128g.properties" >> $GITHUB_ENV
+          sudo apt -y update
+          sudo apt -y install wget
+          sudo apt -y install jq
+          sudo apt -y install python3
+      - name: Generate Properties File from Benchmark Tag
+          sudo python3 scripts/parse_benchmark_tag.py
       - name: Read Workflow Configuration from Properties File
         id: read_property
         uses: christian-draeger/read-properties@1.1.1
         with:
-          path: ${{ env.CONFIG_PATH }}
-          properties: 'data-size server-instances instance-type'
+          path: benchmark.properties
+          properties: 'data-size server-instances instance-type benchmark ssd-count'
       - name: Clamp Runtime Variables to Environment
         run: |
           echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "MONTH=$(date +%m)" >> $GITHUB_ENV
           echo "DAY=$(date +%d)" >> $GITHUB_ENV
           echo "SHA_PATH=${GITHUB_SHA::5}-${{ steps.read_property.outputs.data-size }}" >> $GITHUB_ENV
-          benchmark=${{ github.ref_name }}
-          benchmark=${benchmark%%[-][b][e][n][c][h][m][a][r][k][-]*}
-          benchmark=${benchmark##*-}
-          echo "BENCHMARK=$benchmark" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:
@@ -99,29 +71,23 @@ jobs:
       - run: echo "HOME=/home/runner" >> $GITHUB_ENV
       - name: Download Benchmark Configuration from GCP
         run: |
-          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
-          gcloud storage cp gs://incremental-datasets/${{ env.BENCHMARK }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
-      - name: Install Packages
-        run: |
-          sudo apt -y update
-          sudo apt -y install wget
-          sudo apt -y install jq
-          sudo apt -y install python3
+          gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
+          gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/6.1.0/aerolab-linux-amd64-6.1.0.zip
-          unzip aerolab-linux-amd64-6.1.0.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.0-184016b/aerolab-linux-amd64-7.1.0.zip
+          unzip aerolab-linux-amd64-7.1.0.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/gcp/${{ steps.read_property.outputs.instance-type }}/aerospike.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
-          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ env.BENCHMARK }}
+          cd ${{ github.workspace }}/scripts && python3 generate_l3_config.py ${{ env.SHA_PATH }} ${{ steps.read_property.outputs.data-size }} ${{ steps.read_property.outputs.benchmark }}
           cd ${{ github.workspace }} && gcloud storage cp ${{ env.CONFIG_PATH }} gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/ci.properties
       - name: Deploy Firefly Client Machine to GCP
         run: |

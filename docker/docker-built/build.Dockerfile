@@ -52,7 +52,7 @@ RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0-SNAPSHOT.jar /opt/bulk-loader
+    mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.0.0-SNAPSHOT.jar /opt/bulk-loader
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
@@ -65,8 +65,8 @@ RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
     fi
 
 # Remove source code.

@@ -43,6 +43,7 @@ jobs:
           sudo apt -y install jq
           sudo apt -y install python3
       - name: Generate Properties File from Benchmark Tag
+        run: |
           sudo python3 scripts/parse_benchmark_tag.py
       - name: Read Workflow Configuration from Properties File
         id: read_property

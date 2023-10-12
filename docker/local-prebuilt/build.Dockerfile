@@ -50,10 +50,10 @@ WORKDIR /opt/aerospike-firefly
 # Install Firefly
 RUN if [[ $RELEASE_BUILD -eq "1" ]] ; \
 then mvn install:install-file \
-        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.0.0-SNAPSHOT.jar \
+        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-2.0.0.jar \
         -DgroupId=com.aerospike \
         -DartifactId=aerospike-graph-gremlin \
-        -Dversion=2.0.0-SNAPSHOT \
+        -Dversion=2.0.0 \
         -Dpackaging=jar \
         -DgeneratePom=true ; \
 else mvn install:install-file \
@@ -80,7 +80,7 @@ RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0' ;  \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
     fi
 

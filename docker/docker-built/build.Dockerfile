@@ -65,7 +65,7 @@ RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0' ;  \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
     fi
 

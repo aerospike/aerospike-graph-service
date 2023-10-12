@@ -10,13 +10,11 @@ ENV ENTRYPOINT=$ENTRYPOINT
 ENV TINKERPOP_VERSION='3.6.3'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV SPARK_VERSION='3.4.1'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
-ENV SPARK_URL="https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop3.tgz"
 
 # Install things required to create image.
 RUN yum -y update &&\
@@ -54,7 +52,7 @@ RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true 
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0' ;  \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
     fi
 

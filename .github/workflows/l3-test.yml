@@ -68,7 +68,7 @@ jobs:
           sudo apt -y install python3
       - name: Generate Properties File
         run: |
-          sudo python3 scripts/parse_benchmark_tag.py benchmark-synthetic-1g-n2d-standard-16
+          sudo python3 scripts/parse_benchmark_tag.py benchmark-synthetic-1g
       - name: Clamp SHA to Environment (Push)
         if: github.event_name == 'push'
         run: |

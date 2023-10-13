@@ -14,6 +14,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -145,7 +146,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                     throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
                 }
                 final String dirSeperator = FILE_SYSTEM.equals(LOCAL) ? File.separator : "/";
-                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + "tmpEdgeDir" : writeLocation + dirSeperator + "tmpEdgeDir";
+                final String tempEdgeDir = RandomStringUtils.randomAlphanumeric(8);
+                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + tempEdgeDir : writeLocation + dirSeperator + tempEdgeDir;
                 configureFileSystem(spark, cmd, writeLocation);
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, writeLocation, fileConfig);
             }

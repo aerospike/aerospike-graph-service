@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main,1.x-snyk,2.x-snyk]
 
 jobs:
   start-runner-l3-bulk-loader-pe:
@@ -101,8 +101,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.0-184016b/aerolab-linux-amd64-7.1.0.zip
-          unzip aerolab-linux-amd64-7.1.0.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.1/aerolab-linux-amd64-7.1.1.zip
+          unzip aerolab-linux-amd64-7.1.1.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -208,8 +208,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.0-184016b/aerolab-linux-amd64-7.1.0.zip
-          unzip aerolab-linux-amd64-7.1.0.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.1/aerolab-linux-amd64-7.1.1.zip
+          unzip aerolab-linux-amd64-7.1.1.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:

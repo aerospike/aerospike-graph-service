@@ -101,19 +101,9 @@
                 <executions>
                     <execution>
                         <id>snyk-test</id>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>snyk-monitor</id>
-                        <goals>
-                            <goal>monitor</goal>
-                        </goals>
                     </execution>
                 </executions>
                 <configuration>
-                    <apiToken>011ec57e-9bd5-4518-80e7-331f4408151a</apiToken>
                     <args>
                         <arg>--maven-aggregate-project</arg>
                         <arg>--severity-threshold=high</arg>

@@ -102,12 +102,6 @@
                     <execution>
                         <id>snyk-test</id>
                     </execution>
-                    <execution>
-                        <id>snyk-monitor</id>
-                        <goals>
-                            <goal>monitor</goal>
-                        </goals>
-                    </execution>
                 </executions>
                 <configuration>
                     <args>

@@ -53,9 +53,6 @@ jobs:
           properties: 'data-size server-instances instance-type benchmark ssd-count'
       - name: Clamp Runtime Variables to Environment
         run: |
-          echo "YEAR=$(date +%Y)" >> $GITHUB_ENV
-          echo "MONTH=$(date +%m)" >> $GITHUB_ENV
-          echo "DAY=$(date +%d)" >> $GITHUB_ENV
           echo "SHA_PATH=${GITHUB_SHA::5}-${{ steps.read_property.outputs.data-size }}" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
@@ -114,17 +111,14 @@ jobs:
         if: success() || failure()
         run: |
           cd ${{ github.workspace }}/scripts
-          mkdir ${{ env.YEAR }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}
-          mkdir ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}
-          gcloud dataproc jobs wait ci-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_metadata.txt 2>${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/l3_job_log.txt
+          mkdir ${{ github.ref_name }}
+          gcloud dataproc jobs wait ci-${{ env.SHA_PATH }}-job --region 'us-central1'> ${{ github.ref_name }}/l3_job_metadata.txt 2>${{ github.ref_name }}/l3_job_log.txt
           gcloud storage mv gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/l3_config.properties
       - name: Upload L3 Bulk Loading Job Log to GCP
         if: success() || failure()
         uses: google-github-actions/upload-cloud-storage@v1
         with:
-          path: ${{ github.workspace }}/scripts/${{ env.YEAR }}
+          path: ${{ github.workspace }}/scripts/${{ github.ref_name }}
           destination: gha-ci-firefly-bulkloader/archive
           gzip: false
           process_gcloudignore: false

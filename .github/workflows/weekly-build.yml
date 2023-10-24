@@ -3,7 +3,9 @@ name: Weekly Build
 on:
   schedule:
     # 8:00 AM UTC every Monday
-    - cron: '0 8 * * 1'
+    #- cron: '0 8 * * 1'
+    # Temporary: Every 10 minutes
+    - cron:  '*/10 * * * *'
 
 jobs:
   trigger-weekly-build:
@@ -18,4 +20,4 @@ jobs:
           gh pr create -B 1.x-snyk -H 1.x-dev --title 'Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 1.x-dev' --body 'Created by Github action'
           gh pr create -B 2.x-snyk -H 2.x-dev --title 'Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 2.x-dev' --body 'Created by Github action'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SNYK_WEEKLY_PAT }}

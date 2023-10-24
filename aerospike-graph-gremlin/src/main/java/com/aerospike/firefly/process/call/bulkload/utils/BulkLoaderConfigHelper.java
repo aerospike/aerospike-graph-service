@@ -12,32 +12,67 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BulkLoaderConfigHelper implements Serializable {
+    // ==CommandLine Configurations==
+    // Flag indicating that the job is running from IDE/JVM.
+    public static final String LOCAL_MODE = "local";
+    // Directory containing config file.
+    public static final String CONFIG_DIRECTORY_KEY = "aerospike.graphloader.config";
+    // Username/ID credential for cloud storage. Optional if local.
+    public static final String REMOTE_USERNAME = "aerospike.graphloader.remote-user";
+    // Password/Key/Secret credential for cloud storage. Optional if local.
+    public static final String REMOTE_PASSKEY = "aerospike.graphloader.remote-passkey";
+
+    // ==Google Cloud specific configurations (CommandLine ONLY)==
+    // Local-only path to Google Cloud key file for the Google Service Account.
+    public static final String GCS_KEYFILE_DIRECTORY = "aerospike.graphloader.gcs-keyfile";
+    // Email of the Google Service Account.
+    public static final String GCS_EMAIL = "aerospike.graphloader.gcs-email";
+
+    // ==Configurations shared with config file==
     // Directory containing the Vertex CSV files.
     public static final String VERTEX_DIRECTORY_KEY = "aerospike.graphloader.vertices";
     // Directory containing the Edge CSV files.
     public static final String EDGE_DIRECTORY_KEY = "aerospike.graphloader.edges";
-    //Directory where EdgeId data would be written
-    public static final String EDGEID_DIRECTORY_KEY = "aerospike.graphloader.edgeid";
+    // Directory where temporary data is written to for bulk loading.
+    public static final String TEMP_DIRECTORY_KEY = "aerospike.graphloader.temp-directory";
     // Boolean value to determine whether to keep provided ID values for Edges as a Property on the Edge.
     public static final String KEEP_PROVIDED_EDGE_ID_AS_PROPERTY = "aerospike.graphloader.keep-provided-edge-id-as-property";
     // The key of the property to store the provided IDs for Edges in.
     public static final String PROVIDED_EDGE_ID_PROPERTY_NAME = "aerospike.graphloader.provided-edge-id-property-name";
     // Percentage of the provided Vertex and Edge data to sample to verify integrity of the bulk load after completion.
     public static final String SAMPLING_PERCENTAGE = "aerospike.graphloader.sampling-percentage";
-    // Flag to enable/disable to caching of dataframe
-    public static final String ENABLE_DATAFRAME_CACHING = "aerospike.graphloader.dataframe-caching";
-    // Storage type for Dataframe persist operation
-    public static final String DATAFRAME_STORAGE_TYPE = "aerospike.graphloader.dataframe-storage-type";
     public static final String SPARK_LOG_LEVEL = "aerospike.graphloader.spark-log-level";
     // String value of what should be parsed as a literal null value for properties. The null character \0 is a good alternative choice for this.
     public static final String NULL_VALUE = "aerospike.graphloader.null-value";
     public static final String VERTEX_WRITE_BUFFER = "aerospike.graphloader.vertex-write-buffer";
     public static final String EDGE_WRITE_BUFFER = "aerospike.graphloader.edge-write-buffer";
+    // Flag to enable/disable to caching of dataframe
+    public static final String ENABLE_DATAFRAME_CACHING = "aerospike.graphloader.dataframe-caching";
+    // Storage type for Dataframe persist operation
+    public static final String DATAFRAME_STORAGE_TYPE = "aerospike.graphloader.dataframe-storage-type";
+
+    // ==Internal-only use configurations==
+    public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
+
+    // ==Actions==
+    public static final String VERIFY_OUTPUT_DATA = "verify_output_data";
+    public static final String VALIDATE_INPUT_DATA = "validate_input_data";
+    public static final String DISABLE_EDGE_WRITE = "disable_edges";
+    public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
+    public static final String READ_ONLY = "read_only";
+
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
+            Map.entry(CONFIG_DIRECTORY_KEY, "c"),
+            Map.entry(REMOTE_USERNAME, "u"),
+            Map.entry(REMOTE_PASSKEY, "p"),
+
+            Map.entry(GCS_KEYFILE_DIRECTORY, "gck"),
+            Map.entry(GCS_EMAIL, "gem"),
+
             Map.entry(VERTEX_DIRECTORY_KEY, "vd"),
             Map.entry(EDGE_DIRECTORY_KEY, "ed"),
-            Map.entry(EDGEID_DIRECTORY_KEY, "eid"),
+            Map.entry(TEMP_DIRECTORY_KEY, "td"),
             Map.entry(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY, "ki"),
             Map.entry(PROVIDED_EDGE_ID_PROPERTY_NAME, "ep"),
             Map.entry(NULL_VALUE, "nv"),
@@ -46,7 +81,9 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(VERTEX_WRITE_BUFFER, "vb"),
             Map.entry(EDGE_WRITE_BUFFER, "eb"),
             Map.entry(ENABLE_DATAFRAME_CACHING, "dc"),
-            Map.entry(DATAFRAME_STORAGE_TYPE, "dt")
+            Map.entry(DATAFRAME_STORAGE_TYPE, "dt"),
+
+            Map.entry(S3_ENDPOINT, "s3e")
     );
 
     private final Map<String, Object> fileConfig;
@@ -62,7 +99,6 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(NULL_VALUE, "null");
         put(VERTEX_WRITE_BUFFER, "10000");
         put(EDGE_WRITE_BUFFER, "10000");
-        put(EDGEID_DIRECTORY_KEY, "");
     }};
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {

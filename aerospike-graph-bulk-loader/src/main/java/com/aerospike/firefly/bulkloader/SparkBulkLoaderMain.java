@@ -10,8 +10,11 @@ import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterf
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -20,6 +23,7 @@ import org.apache.spark.sql.functions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -32,11 +36,17 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGEID_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_KEYFILE_DIRECTORY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.LOCAL_MODE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_PASSKEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.REMOTE_USERNAME;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.SPARK_LOG_LEVEL;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.TEMP_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERTEX_DIRECTORY_KEY;
-import static com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser.LOCAL_MODE;
 
 public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkBulkLoaderMain.class);
@@ -44,6 +54,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static final String S3 = "s3";
     private static final String GCS = "gcs";
     private static String FILE_SYSTEM;
+    private static boolean FILE_SYSTEM_MUTABLE;
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
@@ -63,7 +74,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final List<String> printableArgs = new ArrayList();
             String previous = "";
             for (final String current : args) {
-                if (previous.equals("-p") || previous.equals("-aerospike.graphloader.remote-passkey")) {
+                if (previous.equals("-p") || previous.equals("-" + REMOTE_PASSKEY)) {
                     char[] censoredPass = new char[current.length()];
                     Arrays.fill(censoredPass, '*');
                     printableArgs.add(new String(censoredPass));
@@ -80,6 +91,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Initialize Spark.
             FILE_SYSTEM = LOCAL;
+            FILE_SYSTEM_MUTABLE = true;
             final SparkSession spark = buildSparkSession(cmd);
             final String configPath = cmd.hasOption("c") ? cmd.getOptionValue("c") : null;
             Objects.requireNonNull(configPath);
@@ -93,6 +105,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
+            // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
+            FILE_SYSTEM_MUTABLE = false;
             final VertexOperations vertexOperations = new VertexOperations(config, vertexDirectories);
             final Dataset<Row> vertexDataset = DatasetOperations.loadDataset(spark, vertexDirectories,
                     VertexOperations.REQUIRED_VERTEX_HEADERS, DatasetOperations.getDfStorageLevel(config));
@@ -117,19 +131,26 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             }
             PROGRESS_BAR.setPreflightCheckComplete();
 
-            //Transform the edge data
+            // Persist Edge ID data to disk
             PROGRESS_BAR.setStartEdgeIdWrite();
-            final String edgeIDDirectory = config.getOrDefault(EDGEID_DIRECTORY_KEY);
-            final boolean edgeIdDirectorySet = !(null == edgeIDDirectory || edgeIDDirectory.isEmpty());
-
-            //If the flag was not set we will not write edgeIds to disk
-
-            if (edgeIdDirectorySet) {
-                edgeOperations.writeEdgeIDsToStorage(edgeDataset, edgeIDDirectory, fileConfig, config);
+            final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
+            String writeLocation = null;
+            if (edgeIdWriteDisabled) {
+                // Persisting Edge IDs is disabled. Do Nothing.
+                LOGGER.warn("{} mode detected. System will not write persistent Edge IDs to temp storage.", READ_ONLY);
             } else {
-                LOGGER.warn("{} was not provided. System will not write generated edgeids to persistent storage.", EDGEID_DIRECTORY_KEY);
+                // Check that the temp directory to write to is set.
+                try {
+                    writeLocation = config.getOrDefault(TEMP_DIRECTORY_KEY);
+                } catch (final ConfigurationRuntimeException cre) {
+                    throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
+                }
+                final String dirSeperator = FILE_SYSTEM.equals(LOCAL) ? File.separator : "/";
+                final String tempEdgeDir = RandomStringUtils.randomAlphanumeric(8);
+                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + tempEdgeDir : writeLocation + dirSeperator + tempEdgeDir;
+                configureFileSystem(spark, cmd, writeLocation);
+                edgeOperations.writeEdgeIDsToStorage(edgeDataset, writeLocation, fileConfig);
             }
-
             PROGRESS_BAR.setEdgeIdWriteComplete();
 
             // Supernode processing
@@ -148,9 +169,9 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Edge processing
             PROGRESS_BAR.setEdgeLoadStart();
             
-            // If EdgeId directory was set read from edgeId path else directly from edge dataset
-            final Dataset<Row> edgeIdDataset = !edgeIdDirectorySet ? edgeDataset :
-                    spark.read().option("header","true").csv(edgeIDDirectory);
+            // If Edge ID persistence mode was disabled, read directly from Edge CSVs - else read written Edge IDs from disk.
+            final Dataset<Row> edgeIdDataset = edgeIdWriteDisabled ? edgeDataset :
+                    spark.read().option("header", "true").csv(writeLocation);
 
             LOGGER.info("EdgeId dataset have {} partitions", edgeIdDataset.rdd().getPartitions().length);
             final Dataset<Row> persistededgeIdDataset = DatasetOperations.persistIfPossible(DatasetOperations.getDfStorageLevel(config), edgeIdDataset);
@@ -253,11 +274,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         //
         // This also means the only time changing the file system is allowed is from local to something else, which also
         // means that it should only be configured one time.
+        // FILE_SYSTEM_MUTABLE is set to false once the vertex directory is checked for its file system.
         final String uriFileSystem = getFileSystem(uri);
         if (FILE_SYSTEM.equals(uriFileSystem)) {
             // Don't need to do anything if file system did not change.
             return;
-        } else if (FILE_SYSTEM.equals(LOCAL)) {
+        } else if (FILE_SYSTEM.equals(LOCAL) && FILE_SYSTEM_MUTABLE) {
             LOGGER.info("Remote file system detected. Changing to '" + uriFileSystem + "' mode.");
             FILE_SYSTEM = uriFileSystem;
             if (FILE_SYSTEM.equals(S3)) {
@@ -280,14 +302,19 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                 } else {
                     // Credentials are only necessary in JVM/Local mode.
                     if (cmd.hasOption(LOCAL_MODE)) {
-                        final String gcsCredentialError = "Either 'aerospike.graphloader.gcs-keyfile' or all of 'aerospike.graphloader.gcs-email', 'aerospike.graphloader.remote-user', and 'aerospike.graphloader.remote-passkey' must be specified to read from GCS.";
+                        final String gcsCredentialError = "Either '" + GCS_KEYFILE_DIRECTORY + "' or all of '" +
+                                GCS_EMAIL+ "', '" + REMOTE_USERNAME + "', and '" + REMOTE_PASSKEY +
+                                "' must be specified to read from GCS.";
                         LOGGER.error(gcsCredentialError);
                         throw new FireflyBulkLoaderException(gcsCredentialError);
                     }
                 }
             }
         } else {
-            throw new IllegalArgumentException("Multiple remote file systems detected for parameters: 'aerospike.graphloader.config', 'aerospike.graphloader.vertices', 'aerospike.graphloader.edges'. Cross-platform is not supported in a single bulk load.");
+            throw new IllegalArgumentException("Multiple file systems detected for one or more parameters: '" +
+                    CONFIG_DIRECTORY_KEY + "', '" + VERTEX_DIRECTORY_KEY + "', '" +
+                    EDGE_DIRECTORY_KEY + "', '" + TEMP_DIRECTORY_KEY +
+                    "'. Cross-platform is not supported in a single bulk load.");
         }
     }
 

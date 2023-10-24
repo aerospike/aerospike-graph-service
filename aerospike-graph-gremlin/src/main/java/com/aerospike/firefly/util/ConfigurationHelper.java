@@ -5,6 +5,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,33 +117,44 @@ public final class ConfigurationHelper {
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
+        public static class Pair {
+            public final int numeric;
+            public final String english;
 
+            private Pair(final byte key, final String value) {
+                this.numeric = key;
+                this.english = value;
+            }
+
+            public static Pair of(final byte numeric, final String english) {
+                return new Pair(numeric, english);
+            }
+        }
         public enum Bins {
-            GRAPH_VARIABLES_BIN((byte) 1),
-            VERTEX_PROPERTY_NAME_TO_VALUE_BIN((byte) 2),
-            VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN((byte) 3),
-            RELATIONAL_VERTEX_TYPE_HINT_BIN((byte) 4),
-            EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN((byte) 5),
-            EDGE_CACHE_DISABLED_BIN((byte) 6),
-            IN_EDGES_BIN((byte) 7),
-            OUT_EDGES_BIN((byte) 8),
-            PROPERTIES_BIN((byte) 9),
-            TYPE_HINTS_BIN((byte) 10),
-            COUNTER_BIN((byte) 11),
-            ID_TYPE_BIN((byte) 12),
-            USER_KEY_BIN((byte) 13),
-            LABEL_BIN((byte) 14),
-            IN_EDGE_COUNTER_BIN((byte) 15),
-            OUT_EDGE_COUNTER_BIN((byte) 16),
-            VERTEX_PROPERTY_NAME_TO_ID_BIN((byte) 17);
+            GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
+            VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
+            VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
+            RELATIONAL_VERTEX_TYPE_HINT_BIN(Pair.of((byte) 4, "REL_VP_HINT")),
+            EDGE_CACHE_DISABLED_BIN(Pair.of((byte) 6, "ECACHE_OFF")),
+            IN_EDGES_BIN(Pair.of((byte) 7, "IN_EDGES")),
+            OUT_EDGES_BIN(Pair.of((byte) 8, "OUT_EDGES")),
+            PROPERTIES_BIN(Pair.of((byte) 9, "PROPERTIES")),
+            TYPE_HINTS_BIN(Pair.of((byte) 10, "TYPE_HINTS")),
+            COUNTER_BIN(Pair.of((byte) 11, "COUNTER")),
+            ID_TYPE_BIN(Pair.of((byte) 12, "ID_TYPE")),
+            USER_KEY_BIN(Pair.of((byte) 13, "USER_KEY")),
+            LABEL_BIN(Pair.of((byte) 14, "LABEL")),
+            IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
+            OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
+            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID"));
 
-            private final byte value;
+            private final Pair value;
 
-            Bins(byte b) {
+            Bins(final Pair b) {
                 this.value = b;
             }
 
-            public byte getValue() {
+            public Pair getValue() {
                 return value;
             }
 
@@ -152,30 +164,22 @@ public final class ConfigurationHelper {
         }
 
         public enum InternalConfigs {
-            GRAPH_VARIABLES_REC_KEY((byte) 0),
-            VERTEX_PROPERTY_NAME((byte) 3),
-            V_LABEL_INDEX_NAME((byte) 4),
-            E_LABEL_INDEX_NAME((byte) 5),
-            E_IN_INDEX_NAME((byte) 6),
-            E_OUT_INDEX_NAME((byte) 7),
-            VP_PROPERTIES((byte) 8),
-            VP_TYPE_HINTS((byte) 9),
-            GLOBAL((byte) 10),
-            SUPERNODES_IN((byte) 11),
-            SUPERNODES_OUT((byte) 12),
-            INDEX_METADATA_SET((byte) 13),
-            LABEL((byte) 14),
-            USER_SUPPLIED_ID_VERTEX_CACHE((byte) 15),
-            USER_SUPPLIED_ID_EDGE_CACHE((byte) 16),
-            USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE((byte) 17);
+            GRAPH_VARIABLES_REC_KEY(Pair.of((byte) 0, "GRAPH_VARS_REC")),
+            V_LABEL_INDEX_NAME(Pair.of((byte) 4, "V_LABEL_IDX")),
+            E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
+            E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
+            E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
+            SUPERNODES_IN(Pair.of((byte) 11, "SUPERNODE_IN")),
+            SUPERNODES_OUT(Pair.of((byte) 12, "SUPERNODE_OUT")),
+            INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA"));
 
-            private final byte value;
+            private final Pair value;
 
-            private InternalConfigs(byte value) {
+            InternalConfigs(Pair value) {
                 this.value = value;
             }
 
-            public int getValue() {
+            public Pair getValue() {
                 return value;
             }
 
@@ -186,33 +190,29 @@ public final class ConfigurationHelper {
         }
 
         public enum Sets {
-            GRAPH_VARIABLES_SET((byte) 0),
-            EDGE_AERO_SET((byte) 1),
-            VERTEX_AERO_SET((byte) 2),
-            IN_VP_SET((byte) 3),
-            OUT_VP_SET((byte) 4),
-            IN_IN_SET((byte) 5),
-            IN_OUT_SET((byte) 6),
-            OUT_IN_SET((byte) 7),
-            OUT_OUT_SET((byte) 8),
-            ID_MANAGER_SET((byte) 9),
-            SUMMARY_SET((byte) 10),
-            TEST_SET((byte) 11),
-            GRAPH_METADATA_SET((byte) 12),
-            USER_SUPPLIED_ID_CACHE_SET((byte) 30);
+            GRAPH_VARIABLES_SET(Pair.of((byte) 0, "GRAPH_VARS")),
+            EDGE_AERO_SET(Pair.of((byte) 1, "EDGES")),
+            VERTEX_AERO_SET(Pair.of((byte) 2, "VERTICES")),
+            IN_VP_SET(Pair.of((byte) 3, "IN_VP")),
+            OUT_VP_SET(Pair.of((byte) 4, "OUT_VP")),
+            ID_MANAGER_SET(Pair.of((byte) 9, "ID_MANAGER")),
+            SUMMARY_SET(Pair.of((byte) 10, "SUMMARY")),
+            TEST_SET(Pair.of((byte) 11, "TEST")),
+            GRAPH_METADATA_SET(Pair.of((byte) 12, "METADATA")),
+            USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE"));
 
-            private final byte value;
+            private final Pair value;
 
             public static Set<String> keys() {
                 return Arrays.stream(Sets.values()).map(Sets::name).collect(Collectors.toSet());
             }
 
-            public byte getValue() {
+            public Pair getValue() {
                 return value;
             }
 
-            Sets(byte b) {
-                this.value = b;
+            Sets(final Pair names) {
+                this.value = names;
             }
         }
     }
@@ -233,39 +233,6 @@ public final class ConfigurationHelper {
         put(Keys.ON_RECORD_ID_LIMIT, "8000");
         put(Keys.STORAGE_DEBUGGER_FLAG, "false");
         put(Keys.FIREFLY_DATA_MODEL, "packed");
-
-        put(Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), "G_VAR_REC");
-        put(Keys.Bins.GRAPH_VARIABLES_BIN.name(), "G_VAR_MAP");
-        put(Keys.Bins.PROPERTIES_BIN.name(), "PROPERTIES");
-        put(Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), "VP_N_ID");
-        put(Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), "VP_N_V");
-        put(Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), "VP_N_TH");
-        put(Keys.InternalConfigs.VERTEX_PROPERTY_NAME.name(), "VP_NAME");
-        put(Keys.Bins.EDGE_LABEL_TO_EDGE_LABEL_TO_EDGES_BIN.name(), "E_L_E_L_E");
-        put(Keys.InternalConfigs.VP_PROPERTIES.name(), "VP_PROP");
-        put(Keys.Bins.TYPE_HINTS_BIN.name(), "TYPE_HINTS");
-        put(Keys.InternalConfigs.VP_TYPE_HINTS.name(), "VP_TYPE_HINTS");
-        put(Keys.Bins.COUNTER_BIN.name(), "COUNTER");
-        put(Keys.Bins.ID_TYPE_BIN.name(), "ID_TYPE");
-        put(Keys.InternalConfigs.GLOBAL.name(), "GLOBAL");
-        put(Keys.Bins.IN_EDGE_COUNTER_BIN.name(), "IN_E_CTR");
-        put(Keys.Bins.OUT_EDGE_COUNTER_BIN.name(), "OUT_E_CTR");
-        put(Keys.Bins.IN_EDGES_BIN.name(), "IN_EDGES");
-        put(Keys.Bins.OUT_EDGES_BIN.name(), "OUT_EDGES");
-        put(Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), "CACHE_DISABLED");
-        put(Keys.InternalConfigs.INDEX_METADATA_SET.name(), "INDEX_META");
-        put(Keys.Bins.RELATIONAL_VERTEX_TYPE_HINT_BIN.name(), "V_TYP_HNT");
-        put(Keys.InternalConfigs.V_LABEL_INDEX_NAME.name(), "V_LABEL_IDX");
-        put(Keys.InternalConfigs.E_LABEL_INDEX_NAME.name(), "E_LABEL_IDX");
-        put(Keys.InternalConfigs.E_IN_INDEX_NAME.name(), "E_IN_INDEX");
-        put(Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), "E_OUT_INDEX");
-        put(Keys.Sets.USER_SUPPLIED_ID_CACHE_SET.name(), "USER_SUPPLIED_ID_CACHE_SET");
-        put(Keys.InternalConfigs.USER_SUPPLIED_ID_VERTEX_CACHE.name(), "USER_SUPPLIED_ID_VERTEX_CACHE");
-        put(Keys.InternalConfigs.USER_SUPPLIED_ID_EDGE_CACHE.name(), "USER_SUPPLIED_ID_EDGE_CACHE");
-        put(Keys.InternalConfigs.USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE.name(), "USER_SUPPLIED_ID_VERTEX_PROPERTY_CACHE");
-        put(Keys.InternalConfigs.SUPERNODES_IN.name(), "SUPERNODES_IN");
-        put(Keys.InternalConfigs.SUPERNODES_OUT.name(), "SUPERNODES_OUT");
-
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
@@ -295,7 +262,6 @@ public final class ConfigurationHelper {
         put(Keys.ADJACENCY_INDEX_ENABLED_FLAG, "true");
         put(Keys.PROMETHEUS_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
-
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
         put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
@@ -315,19 +281,6 @@ public final class ConfigurationHelper {
         put(Keys.ASCLIENT_LOG_ENABLED, "false");
         put(Keys.SUMMARY_TICKER_ENABLED_FLAG, "true");
         put(Keys.SUMMARY_ENABLED_FLAG, "true");
-        put(Keys.Sets.SUMMARY_SET.name(), "G_SUMMARY");
-        put(Keys.Sets.ID_MANAGER_SET.name(), "ID_MGR_SET");
-        put(Keys.Sets.GRAPH_METADATA_SET.name(), "G_META");
-        put(Keys.Sets.GRAPH_VARIABLES_SET.name(), "G_VAR");
-        put(Keys.Sets.EDGE_AERO_SET.name(), "EDGE");
-        put(Keys.Sets.VERTEX_AERO_SET.name(), "VERTEX");
-        put(Keys.Sets.IN_VP_SET.name(), "IN_VP");
-        put(Keys.Sets.OUT_VP_SET.name(), "OUT_VP");
-        put(Keys.Sets.IN_IN_SET.name(), "IN_IN");
-        put(Keys.Sets.IN_OUT_SET.name(), "IN_OUT");
-        put(Keys.Sets.OUT_IN_SET.name(), "OUT_IN");
-        put(Keys.Sets.OUT_OUT_SET.name(), "OUT_OUT");
-        put(Keys.Sets.TEST_SET.name(), "TEST_SET");
         put(Keys.BULK_LOADER_FLAG, "false");
         put(Keys.MAX_ERROR_RATE, "100");
         put(Keys.MAX_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings()) * 2));
@@ -409,22 +362,22 @@ public final class ConfigurationHelper {
             return config.getString(lowerKey);
         } else if (Keys.InternalConfigs.keys().contains(key)) {
             if (debugMode) {
-                return Keys.InternalConfigs.valueOf(key).name();
+                return Keys.InternalConfigs.valueOf(key).getValue().english;
             } else {
-                return Keys.InternalConfigs.valueOf(key).getValue();
+                return Keys.InternalConfigs.valueOf(key).getValue().numeric;
             }
         } else if (Keys.Sets.keys().contains(key)) {
             final String prefix = PREFIX_MASK.contains(lowerKey) ? "" : getPrefix(config);
             if (debugMode) {
-                return prefix + Keys.Sets.valueOf(key).name();
+                return prefix + Keys.Sets.valueOf(key).getValue().english;
             } else {
-                return prefix + Keys.Sets.valueOf(key).getValue();
+                return prefix + Keys.Sets.valueOf(key).getValue().numeric;
             }
         } else if (Keys.Bins.keys().contains(key)) {
             if (debugMode) {
-                return Keys.Bins.valueOf(key).name();
+                return Keys.Bins.valueOf(key).getValue().english;
             } else {
-                return Keys.Bins.valueOf(key).getValue();
+                return Keys.Bins.valueOf(key).getValue().numeric;
             }
         }
         return defaultValues.get(key);
@@ -438,7 +391,7 @@ public final class ConfigurationHelper {
             return null;
     }
 
-    private static String getPrefix(Configuration config) {
+    public static String getPrefix(Configuration config) {
         return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : defaultValues.get(Keys.GRAPH_ID) + "_";
     }
 

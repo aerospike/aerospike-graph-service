@@ -9,7 +9,7 @@ Help() {
    echo "
    Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>]
 
-   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-0.7.0-SNAPSHOT.jar
+   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-1.1.0.jar
    -c gs://configbucket/fireflyconfig/bulk.properties -n check1 -w 10
 
    Note: This script expects the bulk loader jar and the properties file to be on gs upload these first via something like:
@@ -77,13 +77,13 @@ echo "###################################"
 echo "creating spark cluster ${name}"
 echo "###################################"
 
-gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2-standard-8 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
+gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 
 echo "###################################"
 echo "running job ${name}"
 echo "###################################"
 
-{ gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name}  --region=us-central1 -- -c ${properties_file_uri} -dryrun -writevertex -verifyvertex -writeedge -verifyedge; } &
+{ gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate_input_data -verify_output_data; } &
 { echo "sleeping 9 minutes"; sleep 9m; echo "Killing ci-pe-w-3"; gcloud compute instances delete ${name}-w-3 --zone=us-central1-a --quiet; echo "Killing ci-pe-w-4"; gcloud compute instances delete ${name}-w-4 --zone=us-central1-a --quiet; } &
 
 wait

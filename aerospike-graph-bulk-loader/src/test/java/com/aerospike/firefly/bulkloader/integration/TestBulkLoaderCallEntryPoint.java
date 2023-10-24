@@ -260,7 +260,7 @@ public class TestBulkLoaderCallEntryPoint {
     }
 
     @Test
-    public void dryrunTrue() {
+    public void validateInputDataTrue() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -269,14 +269,14 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", true).iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", true).iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }
     }
 
     @Test
-    public void dryrunFalse() {
+    public void validateInputDataFalse() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -285,14 +285,14 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", false).iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", false).iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }
     }
 
     @Test
-    public void dryrunInvalidInput() {
+    public void validateInputDataInvalidInput() {
         // Right now calling the bulk loader here will fail with null config.
         // Once the parameters are determined this test can be updated.
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -301,10 +301,10 @@ public class TestBulkLoaderCallEntryPoint {
             g.V().drop().iterate();
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
-            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("dryrun", "notABoolean").iterate();
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", "notABoolean").iterate();
             Assert.fail("Expected call to fail.");
         } catch (final Exception e) {
-            Assert.assertEquals("Expected bulk loader flag 'dryrun' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
+            Assert.assertEquals("Expected bulk loader flag 'validate_input_data' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
         }
     }
 
@@ -386,8 +386,8 @@ public class TestBulkLoaderCallEntryPoint {
                     .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
                     .with("aerospike.graphloader.vertices", "s3://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "s3://gha-ci-firefly-bulkloader/edges/")
-                    .with("aerospike.graphloader.remote.user", System.getenv("AWS_ACCESS_KEY_ID"))
-                    .with("aerospike.graphloader.remote.passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
+                    .with("aerospike.graphloader.remote-user", System.getenv("AWS_ACCESS_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("AWS_SECRET_ACCESS_KEY"))
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
@@ -408,8 +408,8 @@ public class TestBulkLoaderCallEntryPoint {
                     .with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties")
                     .with("aerospike.graphloader.vertices", "gs://gha-ci-firefly-bulkloader/vertices/")
                     .with("aerospike.graphloader.edges", "gs://gha-ci-firefly-bulkloader/edges/")
-                    .with("aerospike.graphloader.remote.user", System.getenv("GCS_PRIVATE_KEY_ID"))
-                    .with("aerospike.graphloader.remote.passkey", System.getenv("GCS_PRIVATE_KEY"))
+                    .with("aerospike.graphloader.remote-user", System.getenv("GCS_PRIVATE_KEY_ID"))
+                    .with("aerospike.graphloader.remote-passkey", System.getenv("GCS_PRIVATE_KEY"))
                     .with("aerospike.graphloader.gcs-email", System.getenv("GCS_CLIENT_EMAIL"))
                     .iterate();
             Assert.assertNotEquals(0, g.V().count().next().longValue());

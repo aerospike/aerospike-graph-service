@@ -49,7 +49,7 @@ public class TestConfigurationUnit {
     public void returnsNormalNameInDebugMode() {
         final Configuration conf = ConfigurationHelper.loadFromResources("integration-test-settings.properties");
         conf.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "true");
-        assertEquals(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(),
+        assertEquals(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.getValue().english,
                 ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf));
     }
 
@@ -57,7 +57,7 @@ public class TestConfigurationUnit {
     public void returnNumericNameInNormalMode() {
         final Configuration conf = ConfigurationHelper.loadFromResources("integration-test-settings.properties");
         conf.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "false");
-        assertEquals(String.valueOf(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.getValue()),
+        assertEquals(String.valueOf(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.getValue().numeric),
                 ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.PROPERTIES_BIN.name(), conf));
     }
 }

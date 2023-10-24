@@ -3,9 +3,7 @@ name: Weekly Build
 on:
   schedule:
     # 8:00 AM UTC every Monday
-    #- cron: '0 8 * * 1'
-    # Temporary: Every 10 minutes
-    - cron:  '*/10 * * * *'
+    - cron: '0 8 * * 1'
 
 jobs:
   trigger-weekly-build:

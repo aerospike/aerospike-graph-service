@@ -29,12 +29,6 @@ public class FireflyVertexEdgeLocalCountStep extends MapStep<Vertex, Long> {
     protected Traverser.Admin<Long> processNextStart() throws NoSuchElementException {
         final Traverser.Admin<Vertex> traverser = this.starts.next();
         final FireflyVertex vertex = (FireflyVertex) traverser.get();
-        final long result;
-        if (vertex.isEdgeCacheOverflowed() || !Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, ((FireflyGraph) traversal.getGraph().get()).configuration()))) {
-            result = vertex.getEdgeIdsFromVertex(direction).size();
-        } else {
-            result = vertex.getEdgeCount(direction);
-        }
-        return traverser.split(result, this);
+        return traverser.split(vertex.getEdgeCount(direction), this);
     }
 }

@@ -10,9 +10,10 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
-import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +50,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     public abstract boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
-    public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction);
-
-    public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final String... edgeLabels);
+    public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels);
+    public abstract List<FireflyId> getVertexIdsFromVertex(final Direction direction, final Set<String> labels);
+    public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final Set<String> edgeLabels);
 
     protected abstract Set<String> readVertexPropertyKeys();
 
@@ -177,7 +178,8 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
 
     @Override
     public Iterator<Vertex> vertices(final Direction direction, final String... edgeLabels) {
-        return getVerticesFromVertex(direction, edgeLabels).iterator();
+        final Set<String> edgeLabelSet = new HashSet<>(Arrays.asList(edgeLabels));
+        return getVerticesFromVertex(direction, edgeLabelSet).iterator();
     }
 
     @Override

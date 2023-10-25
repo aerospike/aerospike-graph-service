@@ -5,6 +5,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.AfterClass;
@@ -157,6 +158,29 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             Assert.assertFalse(originalEdgeIds.contains((String) e2.id()));
             Assert.assertTrue(removedPackedIds.contains(edgeIdToPackingIdLong((String) e1.id())));
             Assert.assertTrue(removedPackedIds.contains(edgeIdToPackingIdLong((String) e2.id())));
+        }
+    }
+
+    @Test
+    public void testCompositeIdRecycle() {
+        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            final GraphTraversalSource g = graph.traversal();
+            final Vertex v1 = g.addV("one").next();
+            final Vertex v2 = g.addV("two").next();
+
+            final Set<Long> packingIds = new HashSet<>();
+            final Edge e1 = v1.addEdge("edge", v2);
+            final Edge e2 = v2.addEdge("edge", v1);
+            packingIds.add(edgeIdToPackingIdLong((String) e1.id()));
+            packingIds.add(edgeIdToPackingIdLong((String) e2.id()));
+            v1.edges(Direction.BOTH).forEachRemaining(e -> e.remove());
+            Assert.assertFalse(g.E(e1.id()).hasNext());
+            Assert.assertFalse(g.E(e2.id()).hasNext());
+            final Edge e3 = v1.addEdge("edge", v2);
+            final Edge e4 = v1.addEdge("edge", v1);
+            Assert.assertTrue(packingIds.contains(edgeIdToPackingIdLong((String) e3.id())));
+            Assert.assertTrue(packingIds.contains(edgeIdToPackingIdLong((String) e4.id())));
         }
     }
 

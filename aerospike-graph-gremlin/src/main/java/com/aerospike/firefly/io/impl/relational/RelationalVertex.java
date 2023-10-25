@@ -175,7 +175,7 @@ public abstract class RelationalVertex extends FireflyVertex {
      */
     @Override
     public List<FireflyId> getVertexIdsFromVertex(final Direction direction, final Set<String> labels) {
-        LOG.trace("Getting edge ids from vertex {}.", id);
+        LOG.trace("Getting vertex ids from vertex {}.", id);
         final List<FireflyId> vertexIds = new ArrayList<>();
 
         if (!isEdgeCacheOverflowed) {

@@ -1,5 +1,10 @@
 package com.aerospike.firefly;
 
+import com.aerospike.firefly.schema.GraphSchema;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,6 +55,25 @@ public class TestMain {
         public Long totalSindexEntries;
 
         public OutputYaml() {
+        }
+    }
+
+    @Test
+    public void testFoo() throws Exception {
+        try (final Graph graph = TinkerGraph.open()) {
+            final GraphTraversalSource g = graph.traversal();
+            final Vertex person = g.addV("person").
+                    property("name", "String").
+                    property("name.valueSize", 10L).
+                    property("name.sindexed", false).
+                    property("age", "Long").next();
+            g.addE("KNOWS").from(person).to(person).iterate();
+            g.addE("LIKES").from(person).to(person).
+                    property("since", "Long").
+                    property("since.sindexed", true).
+                    property("rating", "double").
+                    property("rating.sindexed", true).iterate();
+            GraphSchema graphSchema = Main.fromGraph(graph);
         }
     }
 

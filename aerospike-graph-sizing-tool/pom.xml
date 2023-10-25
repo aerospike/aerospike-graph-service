@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>aerospike-graph-sizing-tool</artifactId>
+    <name>Aerospike :: Graph Sizing Tool</name>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>

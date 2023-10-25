@@ -1,8 +1,12 @@
 package com.aerospike.firefly;
 
 import com.aerospike.firefly.schema.GraphSchema;
+import com.aerospike.firefly.schema.VertexSchema;
 import com.aerospike.firefly.sizing.SizingTool;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
@@ -14,8 +18,11 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class Main implements Callable<Exception> {
     @CommandLine.Parameters(index = "0", description = "Input Schema File.")
@@ -84,13 +91,42 @@ public class Main implements Callable<Exception> {
 
     // Add graphson/graph input support.
 
-    public static void fromGraph(final Graph graph) {
-
+    public static GraphSchema fromGraph(final Graph graph) {
+        final GraphTraversalSource g = graph.traversal();
+        return fromGraphTraversalSource(g);
     }
 
-    public static void fromGraphson(final Path pathToGraphson) {
-        // TODO: This should open tinkergraph.
+    public static GraphSchema fromGraphTraversalSource(final GraphTraversalSource g) {
+        // We do not know if the graph is remote or local, so we need to make sure the queries are valid for either.
+        final List<Map<Object, Object>> vertexElementMap = g.V().elementMap().toList();
+        for (final Map<Object, Object> vertexMap : vertexElementMap) {
+            final VertexSchema vertexSchema = new VertexSchema();
+            final Set<Object> keys = vertexMap.keySet();
+            keys.removeIf(key -> key.equals(T.id.toString()) ||
+                    key.toString().endsWith(".valueSize") ||
+                    key.toString().endsWith(".sindexed"));
+            vertexSchema.label = (String) vertexMap.get(T.label);
 
+        }
+        final GraphSchema graphSchema = null;
+        final SizingTool sizingTool = new SizingTool(graphSchema);
+        sizingTool.formatToFile("output.json");
+        return graphSchema;
+    }
+
+    public static GraphSchema fromGraphson(final Path pathToGraphson) {
+        if (!pathToGraphson.toFile().exists()) {
+            throw new RuntimeException("The provided graphson file '" + pathToGraphson.toAbsolutePath() + "' does not exist.");
+        }
+        try (final Graph graph = TinkerGraph.open()) {
+            // Load graph with graphson.
+            graph.traversal().io(pathToGraphson.toAbsolutePath().toString()).read().iterate();
+
+            // Get graph schema.
+            return fromGraph(graph);
+        } catch (final Exception e) {
+            throw new RuntimeException("Could not load graphson file '" + pathToGraphson.toAbsolutePath() + "'.", e);
+        }
     }
 
     public static List<Exception> testMain(String[] args) {

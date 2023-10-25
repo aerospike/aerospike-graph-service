@@ -123,6 +123,13 @@ public class SizingTool {
             for (final PropertySchema propertySchema : vertexSchema.properties) {
                 vertexRecordSize += (propertySchema.likelihood) * (vertexPropertyToSize(propertySchema));
             }
+
+            // TODO:
+            //  Need to think about how to make the edge labels not accumulate error.
+            totalLabelSize = graphSchema.edgeSchema.stream().
+                    mapToLong(edgeSchema -> edgeSchema.label.length()).sum();
+            EDGE_CACHE_KEY_ENTRY_OVERHEAD * graphSchema.edgeSchema.size();
+            getEdgeCountPerVertex() * (EDGE_CACHE_VALUE_ENTRY_OVERHEAD + EDGE_CACHE_ENTRY_SIZE);
             vertexRecordSize += (getEdgeCacheEntrySize() * getEdgeCountPerVertex());
         }
 

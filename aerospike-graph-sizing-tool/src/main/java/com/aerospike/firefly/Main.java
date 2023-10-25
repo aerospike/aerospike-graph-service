@@ -2,6 +2,7 @@ package com.aerospike.firefly;
 
 import com.aerospike.firefly.schema.GraphSchema;
 import com.aerospike.firefly.sizing.SizingTool;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
@@ -79,6 +80,17 @@ public class Main implements Callable<Exception> {
             System.exit(exitCode);
         }
         System.out.println("Success.");
+    }
+
+    // Add graphson/graph input support.
+
+    public static void fromGraph(final Graph graph) {
+
+    }
+
+    public static void fromGraphson(final Path pathToGraphson) {
+        // TODO: This should open tinkergraph.
+
     }
 
     public static List<Exception> testMain(String[] args) {

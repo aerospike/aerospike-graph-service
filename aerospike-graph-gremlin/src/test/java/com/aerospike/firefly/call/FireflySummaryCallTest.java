@@ -30,8 +30,9 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testSummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
+        Thread.sleep(5000);
         g.V().drop().iterate();
-        Thread.sleep(3000);
+        Thread.sleep(5000);
         final List<Object> summaryCallEmpty = g.call("summary").toList();
         final List<Object> expectedEmpty = List.of(
                 Map.of(
@@ -103,6 +104,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
     @Test
     public void testPrettySummary() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
+        Thread.sleep(5000);
         g.V().drop().iterate();
         Thread.sleep(5000);
         final String summaryCall = (String) g.call("summary").with("pretty").next();

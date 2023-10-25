@@ -56,6 +56,27 @@ public class FireflyBatchReadHelper {
         List<E> read(final List<HasContainer> hasContainers, final List<FireflyId> unorderedIds);
     }
 
+    public static <E extends FireflyElement, T extends Element> void populateElementMap(final Set<FireflyId> uniqueIdSet,
+                                                                                        final Map<FireflyId, E> elementMap,
+                                                                                        final List<HasContainer> aerospikeHasContainers,
+                                                                                        final ReadElements<E> readElements) {
+        // Read all IDs in a batch.
+        final List<FireflyId> unorderedIds = new ArrayList<>(uniqueIdSet);
+        final List<E> unorderedElements = readElements.read(aerospikeHasContainers, unorderedIds);
+
+        // If there is a mismatch we might have had concurrent removals or expression filtering. To fix this rematch the lists.
+        if (unorderedIds.size() != unorderedElements.size()) {
+            final Set<FireflyId> unorderedEdgesIds = unorderedElements.stream().map(e -> e.id).collect(Collectors.toSet());
+            final Set<FireflyId> missingIds = new HashSet<>(unorderedIds);
+            missingIds.removeAll(unorderedEdgesIds);
+            unorderedIds.removeAll(missingIds);
+        }
+
+        for (int i = 0; i < unorderedIds.size(); i++) {
+            elementMap.put(unorderedIds.get(i), unorderedElements.get(i));
+        }
+    }
+
 
     public static <E extends FireflyElement, T extends Element> void drainDataToOutput(final Step<T, T> notThat,
                                                                                        final List<FireflyId> fireflyIdList,
@@ -103,6 +124,13 @@ public class FireflyBatchReadHelper {
         fireflyIdList.clear();
         uniqueIdSet.clear();
         readInfo.clear();
+    }
+
+    public static <E extends FireflyElement, T extends Element> void runSample(final List<FireflyId> outputFireflyIdList,
+                                                            final Map<FireflyId, E> outputFireflyElementMap,
+                                                            final Set<Long> outputIds,
+                                                            final TraverserSet<T> output) {
+
     }
 
     public static <E extends FireflyElement> void addElementsToSet(final List<FireflyId> fireflyIdList,

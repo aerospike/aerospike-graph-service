@@ -248,6 +248,7 @@ public class RelationalEdge extends FireflyEdge {
             final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
                     removeSupernodesIn, removeSupernodesOut, removeInBin, removeOutBin, removePropertiesBin,
                     removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeLabelBin);
+            graph.edgeIdManager.recycleId(edgeId);
 
             // Result returned is always [<label>, null] since the label is removed first.
             final Command.OpResults results = (Command.OpResults) record.getValue(db.LABEL_BIN);

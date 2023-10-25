@@ -71,7 +71,16 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     public void recycleId(final FireflyId id) {
         synchronized (RecyclingBufferedNumericIdManager.class) {
             // We have enough recycled IDs to buffer them
-            final long recycledId = ((FireflyPhatEdgeId) id).getPackingId();
+            final long recycledId;
+            if (id instanceof FireflyPhatEdgeId) {
+                recycledId = ((FireflyPhatEdgeId) id).getPackingId();
+            } else if (id instanceof FireflyIdComposite) {
+                recycledId = ((FireflyPhatEdgeId)((FireflyIdComposite) id).getEdgeId()).getPackingId();
+            } else {
+                final String message = "Could not recycle ID of unexpected type " + id.getClass().getName();
+                LOG.error(message);
+                throw new IllegalArgumentException(message);
+            }
             if (recycledIds.size() >= bufferSize) {
                 LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
                 return;

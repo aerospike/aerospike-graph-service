@@ -51,7 +51,9 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
     public abstract boolean writeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel);
 
     public abstract List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels);
+
     public abstract List<FireflyId> getVertexIdsFromVertex(final Direction direction, final Set<String> labels);
+
     public abstract List<Vertex> getVerticesFromVertex(final Direction direction, final Set<String> edgeLabels);
 
     protected abstract Set<String> readVertexPropertyKeys();

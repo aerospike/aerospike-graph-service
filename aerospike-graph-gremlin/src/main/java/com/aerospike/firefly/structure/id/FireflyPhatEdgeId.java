@@ -17,10 +17,10 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
         this.capacity = capacity;
     }
 
-    public static long bytesIdToEdgeRecord(final ByteBuffer id) {
+    public long getPackingId() {
         // Edge byte array is [<recycledId>, <uniqueId>]
         // and the recycled id is used for the edge record.
-        final byte[] bytes = Arrays.copyOfRange(id.array(), 0, 8);
+        final byte[] bytes = Arrays.copyOfRange(((ByteBuffer)this.id).array(), 0, 8);
         final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.put(bytes);
         buffer.flip();
@@ -29,7 +29,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
 
     @Override
     public Object getStorageId() {
-        return bytesIdToEdgeRecord((ByteBuffer) this.id) / capacity;
+        return getPackingId() / capacity;
     }
 
     /**

@@ -3,6 +3,7 @@ Firefly
 Firefly is an [Apache TinkerPop3®](http://tinkerpop.apache.org) compliant graph database, backed by [Aerospike Enterprise®](https://aerospike.com/products/features-and-editions/).
 
 <img src="https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/images/tinkerpop-character.png" alt="TinkerPop" width="100"/>
+[CI Benchmark results](https://citrusleaf.github.io/firefly/index.html)
 
 Pre-requisites
 -----------

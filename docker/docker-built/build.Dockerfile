@@ -43,27 +43,28 @@ RUN cd /tmp &&\
 # Append to PATH for maven and server.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
+RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
+    tar zxvf /opt/spark.tgz -C /opt/ &&\
+    mv /opt/spark-$SPARK_VERSION-bin-hadoop3 /opt/spark
+
 # Add docker-default and scripts to docker container.
 ADD . /opt/aerospike-firefly
 WORKDIR /opt/aerospike-firefly
 
 # Build Firefly.
-RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
+RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospike-graph-sizing-tool -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
     mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0.jar /opt/bulk-loader
 
 # Move sizing-tool jar to /opt/sizing-tool.
-#RUN mkdir /opt/sizing-tool &&\
-#    mv /opt/aerospike-firefly/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.1.0.jar /opt/sizing-tool
+RUN mkdir /opt/sizing-tool &&\
+    mv /opt/aerospike-firefly/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.1.0.jar /opt/sizing-tool
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
-RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
-    tar zxvf /opt/spark.tgz -C /opt/ &&\
-    mv /opt/spark-$SPARK_VERSION-bin-hadoop3 /opt/spark &&\
-    python3 scripts/generate_classpath.py
+RUN python3 scripts/generate_classpath.py
 
 # Setup gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.

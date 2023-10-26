@@ -35,7 +35,7 @@ public class PluginUtil {
      * @param system The system to load the plugin into
      */
     public static void loadPlugin(final String pluginClass, final Configuration config, final Object system) {
-        final PluginInterface pluginImpl = (PluginInterface) openClassRef(pluginClass, null);
+        final Object pluginImpl = openClassRef(pluginClass, null);
         try {
             pluginImpl.getClass().getMethod(PluginInterface.Methods.PLUG_INTO, Object.class).invoke(pluginImpl, system);
         } catch (final Exception e) {

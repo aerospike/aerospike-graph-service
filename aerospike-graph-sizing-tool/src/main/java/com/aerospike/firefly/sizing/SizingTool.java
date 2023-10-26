@@ -9,10 +9,12 @@ import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileWriter;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class SizingTool {
     private final GraphSchema graphSchema;
 
@@ -26,8 +28,8 @@ public class SizingTool {
     private final static Long EDGE_RECORD_ENTRY_OVERHEAD = 20L; // 16 bytes for the key which is the edge id.
                                                                 // 4  bytes for the overhead of the map entry.
 
-    private Long vertexRecordCount;
-    private Long edgeRecordCount;
+    private Long vertexRecordCount = 0L;
+    private Long edgeRecordCount = 0L;
 
 
     public SizingTool(final GraphSchema graphSchema) {
@@ -65,14 +67,14 @@ public class SizingTool {
     }
 
     private static Long propertyTypeToSize(final PropertySchema propertySchema) {
-        switch (propertySchema.type) {
-            case "Integer":
-            case "Float":
+        switch (propertySchema.type.toLowerCase()) {
+            case "integer":
+            case "float":
                 return 4L;
-            case "Long":
-            case "Double":
+            case "long":
+            case "double":
                 return 8L;
-            case "String":
+            case "string":
             case "byte[]":
                 if (propertySchema.size == null || propertySchema.size <= 0L) {
                     throw new RuntimeException("Invalid property " + propertySchema.key + " type 'String/byte[]' " +
@@ -212,6 +214,16 @@ public class SizingTool {
                 }
             }
         }
+
+        for (final EdgeSchema edgeSchema : graphSchema.edgeSchema) {
+            for (final PropertySchema propertySchema : edgeSchema.properties) {
+                // Not supported.
+                if (propertySchema.sindexed) {
+                    throw new RuntimeException("Cannot create sindex on edge with label '" + edgeSchema.label + "' and " +
+                            " property '" + propertySchema.key + "'. Sindexing on edge properties is not supported at this time.");
+                }
+            }
+        }
         return (long) sindexEntries;
     }
 
@@ -242,13 +254,18 @@ public class SizingTool {
         }
     }
 
-    private void formatToYamlFile(final String outputPathAbsolute) {
+    public final Map<String, Long> asMap() {
         final Map<String, Long> map = new HashMap<>();
         map.put("vertexRecordCount", estimateVertexRecordCount());
         map.put("edgeRecordCount", estimateEdgeRecordCount());
         map.put("averageVertexRecordSize", estimateAverageVertexRecordSize());
         map.put("averageEdgeRecordSize", estimateAverageEdgeRecordSize());
         map.put("totalSindexEntries", totalSindexEntries());
+        return map;
+    }
+
+    private void formatToYamlFile(final String outputPathAbsolute) {
+        final Map<String, Long> map = asMap();
 
         final DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);

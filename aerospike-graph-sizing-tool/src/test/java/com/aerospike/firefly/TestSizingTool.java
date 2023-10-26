@@ -1,8 +1,10 @@
 package com.aerospike.firefly;
 
-import com.aerospike.firefly.schema.GraphSchema;
+import com.aerospike.firefly.sizing.SizingToolPlugin;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.json.JSONObject;
@@ -18,12 +20,17 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.aerospike.firefly.Main.testMain;
+import static com.aerospike.firefly.sizing.SizingToolMain.testMain;
 
-public class TestMain {
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
+public class TestSizingTool {
 
     @Test
     public void testCLIJson() throws IOException {
@@ -59,21 +66,35 @@ public class TestMain {
     }
 
     @Test
-    public void testFoo() throws Exception {
+    public void testGraph() throws Exception {
         try (final Graph graph = TinkerGraph.open()) {
             final GraphTraversalSource g = graph.traversal();
+
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("edgePackSize", 10).
+                    property("edgeCacheSize", 100).iterate();
+
             final Vertex person = g.addV("person").
+                    property("person.count", 100L).
                     property("name", "String").
                     property("name.valueSize", 10L).
                     property("name.sindexed", false).
                     property("age", "Long").next();
-            g.addE("KNOWS").from(person).to(person).iterate();
+
+            g.addE("KNOWS").from(person).to(person).
+                    property("KNOWS.count", 100L).
+                    iterate();
+
             g.addE("LIKES").from(person).to(person).
                     property("since", "Long").
-                    property("since.sindexed", true).
-                    property("rating", "double").
-                    property("rating.sindexed", true).iterate();
-            GraphSchema graphSchema = Main.fromGraph(graph);
+                    property("LIKES.count", 100L).
+                    property("rating", "Double").iterate();
+
+
+            PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);
+            Object f = g.call("sizing-tool").next();
+            System.out.println("f = " + f);
         }
     }
 
@@ -96,7 +117,7 @@ public class TestMain {
 
     @Test
     public void testCLIInvalidOutputFilePath() {
-        final List<Exception> exceptions = Main.testMain(new String[]{"src/test/resources/test_schema.yaml", "/foo/src/test/resources/test_schema.json"});
+        final List<Exception> exceptions = testMain(new String[]{"src/test/resources/test_schema.yaml", "/foo/src/test/resources/test_schema.json"});
         Assert.assertEquals(exceptions.size(), 1);
         Assert.assertEquals("Cannot create file: /foo/src/test/resources/test_schema.json.", exceptions.get(0).getMessage());
     }

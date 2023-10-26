@@ -1,6 +1,5 @@
 package com.aerospike.firefly.sizing;
 
-
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
@@ -12,6 +11,9 @@ import java.util.Set;
 
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class SizingToolServiceFactory <I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
 
     @Override

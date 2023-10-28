@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -14,6 +15,8 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
+import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -35,6 +38,8 @@ import java.util.TreeMap;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIndex;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingVertexProperty;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -264,19 +269,27 @@ public class PackedVertex extends RelationalVertex {
         }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        final Record result = this.db.operate(writePolicy, key, putValue, putId, putTypeHint, addKeyProperties, addKeyPropertiesTypeHints, getValues, getTypeHints,
-                getIds, getKeyProperties, getKeyPropertiesTypeHints);
+        try {
+            final Record result = this.db.operate(writePolicy, key, putValue, putId, putTypeHint, addKeyProperties, addKeyPropertiesTypeHints, getValues, getTypeHints,
+                    getIds, getKeyProperties, getKeyPropertiesTypeHints);
 
-        final Map<String, Object> vertexPropertyValues = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1)).orElse(new TreeMap<>());
-        final Map<String, Object> vertexPropertyTypeHints = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1)).orElse(new TreeMap<>());
-        final Map<String, Object> vertexPropertyIds = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1)).orElse(new TreeMap<>());
-        final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
-        final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
-        final Map<String, FireflyId> vertexPropertyFireflyIds = this.graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
+            final Map<String, Object> vertexPropertyValues = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1)).orElse(new TreeMap<>());
+            final Map<String, Object> vertexPropertyTypeHints = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1)).orElse(new TreeMap<>());
+            final Map<String, Object> vertexPropertyIds = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1)).orElse(new TreeMap<>());
+            final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
+            final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
+            final Map<String, FireflyId> vertexPropertyFireflyIds = this.graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
 
-        // Update this PackedVertex in JVM cache
-        updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
-        graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
+            // Update this PackedVertex in JVM cache
+            updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
+            graph.fireflySummaryUpdater.addVertexPropertiesWriteToQueue(label, Set.of(vertexProperty.key()));
+        } catch (final RecordTooBigException e) {
+            final VertexRecordSizeExceededException sizeExceededException =
+                    fromAddingVertexProperty((AerospikeException) e.getCause(), this.db,
+                    getRelevantVertexBins(this.db, key), this.id, vertexProperty.key());
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        }
     }
 
     /**

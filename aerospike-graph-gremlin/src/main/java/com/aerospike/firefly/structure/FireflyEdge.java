@@ -15,7 +15,9 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.impl.relational.packed.PackedEdgeProperty;
+import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -27,6 +29,8 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +41,7 @@ import java.util.Set;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException.fromAddingProperty;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -44,6 +49,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public abstract class FireflyEdge extends FireflyElement implements Edge {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyEdge.class);
     public boolean removed;
     protected final FireflyGraph graph;
     protected final FireflyId inVid;
@@ -225,6 +231,11 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.operate(writePolicy, key, valueOp, typeHintOp);
+        } catch (final RecordTooBigException e) {
+            final EdgeRecordSizeExceededException sizeExceededException =
+                    fromAddingProperty((AerospikeException) e.getCause(), db, key, edge.id, propertyKey);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
         } catch (AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case

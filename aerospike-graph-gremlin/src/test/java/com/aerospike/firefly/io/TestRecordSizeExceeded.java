@@ -86,18 +86,19 @@ public class TestRecordSizeExceeded {
     }
 
     @Test
-    public void testExceedViaEdgeCache() throws InterruptedException {
+    public void testExceedViaEdgeCache() {
         final GraphTraversalSource g = graph.traversal();
+        final String filler = getStringOfSize(511);
+        g.V(v1.id()).property(filler, filler).iterate();
         int addedEdges = 0;
         while (true) {
             try {
                 g.addE(String.valueOf(addedEdges)).from(v1).to(v2).iterate();
                 addedEdges++;
-                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount + addedEdges, e.outEdgeCount);
-                Assert.assertEquals(baseVertexPropertyCount, e.vertexPropertyCount);
+                Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
                 return;
             }
@@ -105,18 +106,19 @@ public class TestRecordSizeExceeded {
     }
 
     @Test
-    public void testExceedViaAddVertexProperty() throws InterruptedException {
+    public void testExceedViaAddVertexProperty() {
         final GraphTraversalSource g = graph.traversal();
+        final String filler = getStringOfSize(511);
+        g.V(v1.id()).property(filler, filler).iterate();
         int addedVertexProperties = 0;
         while (true) {
             try {
                 g.V(v1.id()).property("added" + addedVertexProperties, "added" + addedVertexProperties).iterate();
                 addedVertexProperties++;
-                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
-                Assert.assertEquals(baseVertexPropertyCount + addedVertexProperties, e.vertexPropertyCount);
+                Assert.assertEquals(baseVertexPropertyCount + addedVertexProperties + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount, e.vpPropertyCount);
                 return;
             }
@@ -124,19 +126,20 @@ public class TestRecordSizeExceeded {
     }
 
     @Test
-    public void testExceedViaAddVpProperty() throws InterruptedException {
+    public void testExceedViaAddVpProperty() {
         final GraphTraversalSource g = graph.traversal();
+        final String filler = getStringOfSize(511);
+        g.V(v1.id()).property(filler, filler).iterate();
         int addedVpProperties = 0;
         final FireflyVertexProperty vp = (FireflyVertexProperty) g.V(v1.id()).properties("base0").next();
         while (true) {
             try {
                 vp.property("added" + addedVpProperties, "added" + addedVpProperties);
                 addedVpProperties++;
-                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
-                Assert.assertEquals(baseVertexPropertyCount, e.vertexPropertyCount);
+                Assert.assertEquals(baseVertexPropertyCount + 1, e.vertexPropertyCount);
                 Assert.assertEquals(baseVpPropertyCount + addedVpProperties, e.vpPropertyCount);
                 return;
             }
@@ -144,16 +147,17 @@ public class TestRecordSizeExceeded {
     }
 
     @Test
-    public void testExceedEdgeRecord() throws InterruptedException {
+    public void testExceedEdgeRecord() {
         final GraphTraversalSource g = graph.traversal();
+        final String filler = getStringOfSize(681);
+        g.E(e0.id()).property(filler, filler).iterate();
         int addedProperties = 0;
         while (true) {
             try {
                 g.E(e0.id()).property("added" + addedProperties, "added"+ addedProperties).iterate();
                 addedProperties++;
-                Thread.sleep(5);
             } catch (final EdgeRecordSizeExceededException e) {
-                Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties, e.propertyCount);
+                Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
                 Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
                 break;
             }
@@ -162,8 +166,18 @@ public class TestRecordSizeExceeded {
             g.addE("exceeder").from(v1).to(v2).iterate();
             Assert.fail("Expected adding Edge to full packed record to fail");
         } catch (final EdgeRecordSizeExceededException e) {
-            Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties, e.propertyCount);
+            Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties + 1, e.propertyCount);
             Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);
         }
+    }
+
+    private String getStringOfSize(final int kb) {
+        // Java char is 2 bytes
+        final int charCount = kb * 1024 / 2;
+        final StringBuilder builder = new StringBuilder(charCount);
+        for (int i = 0; i < charCount; i++) {
+            builder.append('z');
+        }
+        return builder.toString();
     }
 }

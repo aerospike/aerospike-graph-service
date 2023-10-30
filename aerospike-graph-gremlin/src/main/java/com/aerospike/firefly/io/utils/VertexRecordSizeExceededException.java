@@ -15,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 
 public class VertexRecordSizeExceededException extends RuntimeException {
+    private static final String ADD_ECACHE_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing to Edge Cache with Edge ID %s";
+    private static final String ADD_VERTEX_PROPERTY_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing Vertex Property key %s";
+    private static final String ADD_VP_PROPERTY_BASE_MESSAGE = "Record size exceeded for Vertex with ID %s when writing Property key %s for Vertex Property %s";
     public final long inEdgeCount;
     public final long outEdgeCount;
     public final long vertexPropertyCount;
@@ -32,10 +35,8 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                           final AerospikeConnection db,
                                                                           final Record record, final FireflyId vertexId,
                                                                           final FireflyId edgeId) {
-        final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
-                " when writing to Edge Cache with Edge ID " +
-                Base64.getEncoder().encodeToString(((ByteBuffer) ((FireflyIdComposite) edgeId).getEdgeId().getUserId()).array());
-
+        final String baseMessage = String.format(ADD_ECACHE_BASE_MESSAGE, vertexId.getUserId(),
+                Base64.getEncoder().encodeToString(((ByteBuffer) ((FireflyIdComposite) edgeId).getEdgeId().getUserId()).array()));
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);
@@ -46,8 +47,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                              final Record record,
                                                                              final FireflyId vertexId,
                                                                              final String key) {
-        final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
-                " when writing Vertex Property key " + key;
+        final String baseMessage = String.format(ADD_VERTEX_PROPERTY_BASE_MESSAGE, vertexId.getUserId(), key);
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);
@@ -58,8 +58,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                          final Record record, final FireflyId vertexId,
                                                                          final String vpKey,
                                                                          final String key) {
-        final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
-                " when writing Property key " + key + " for Vertex Property " + vpKey;
+        final String baseMessage = String.format(ADD_VP_PROPERTY_BASE_MESSAGE, vertexId.getUserId(), key, vpKey);
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);

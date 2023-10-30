@@ -11,6 +11,8 @@ import java.util.Base64;
 import java.util.Map;
 
 public class EdgeRecordSizeExceededException extends RuntimeException {
+    private static final String ADD_EDGE_BASE_MESSAGE = "Record size exceeded for Edge pack when attempting to add Edge with ID %s";
+    private static final String ADD_PROPERTY_BASE_MESSAGE = "Record size exceeded for Edge pack when writing Property key %s for Edge with ID %s";
     public final long edgePackCount;
     public final long propertyCount;
     private EdgeRecordSizeExceededException(final String message, final AerospikeException cause,
@@ -24,8 +26,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
                                                                  final AerospikeConnection db,
                                                                  final Key key,
                                                                  final FireflyId edgeId) {
-        final String baseMessage = "Record size exceeded for Edge pack when attempting to add Edge with ID " +
-                getUserIdString(edgeId.getUserId());
+        final String baseMessage = String.format(ADD_EDGE_BASE_MESSAGE, getUserIdString(edgeId.getUserId()));
         final Map<?, Map<?, ?>> phatEdgePropertyMap = getPhatEdgeProperties(db, key);
         return new EdgeRecordSizeExceededException(buildMessage(baseMessage, phatEdgePropertyMap), cause,
                 phatEdgePropertyMap.size(), getEdgePropertyTotalCount(phatEdgePropertyMap));
@@ -36,8 +37,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
                                                                      final Key key,
                                                                      final FireflyId edgeId,
                                                                      final String propertyKey) {
-        final String baseMessage = "Record size exceeded for Edge pack when writing Property key " + propertyKey +
-                " for Edge with ID " + getUserIdString(edgeId.getUserId());
+        final String baseMessage = String.format(ADD_PROPERTY_BASE_MESSAGE, propertyKey, getUserIdString(edgeId.getUserId()));
         final Map<?, Map<?, ?>> phatEdgePropertyMap = getPhatEdgeProperties(db, key);
         return new EdgeRecordSizeExceededException(buildMessage(baseMessage, phatEdgePropertyMap), cause,
                 phatEdgePropertyMap.size(), getEdgePropertyTotalCount(phatEdgePropertyMap));
@@ -60,11 +60,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
     }
 
     private static long getEdgePropertyTotalCount(final Map<?, Map<?, ?>> phatEdgePropertyMap) {
-        long count = 0;
-        for (final Map<?, ?> map : phatEdgePropertyMap.values()) {
-            count += map.size();
-        }
-        return count;
+        return phatEdgePropertyMap.values().stream().mapToLong(Map::size).sum();
     }
 
     private static String getUserIdString(final Object userId) {

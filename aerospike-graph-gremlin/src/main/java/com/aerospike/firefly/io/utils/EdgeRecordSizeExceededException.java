@@ -5,7 +5,6 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.id.FireflyIdComposite;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -51,7 +50,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
 
     private static String buildMessage(final String baseMessage, final Map<?, Map<?, ?>> phatEdgePropertyMap) {
         final StringBuilder builder = new StringBuilder(baseMessage);
-        builder.append("Packed Edge count: ");
+        builder.append("\nPacked Edge count: ");
         builder.append(phatEdgePropertyMap.keySet().size());
         for (final Map.Entry<?, Map<?, ?>> entry : phatEdgePropertyMap.entrySet()) {
             builder.append("\nEdge ID " + getUserIdString(entry.getKey()) + " property count: ");

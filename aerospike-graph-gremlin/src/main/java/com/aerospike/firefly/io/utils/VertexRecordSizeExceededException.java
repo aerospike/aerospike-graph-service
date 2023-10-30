@@ -34,8 +34,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                           final FireflyId edgeId) {
         final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
                 " when writing to Edge Cache with Edge ID " +
-                Base64.getEncoder().encodeToString(((ByteBuffer) ((FireflyIdComposite) edgeId).getEdgeId().getUserId()).array()) + 
-                ".\n";
+                Base64.getEncoder().encodeToString(((ByteBuffer) ((FireflyIdComposite) edgeId).getEdgeId().getUserId()).array());
 
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
@@ -48,7 +47,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                              final FireflyId vertexId,
                                                                              final String key) {
         final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
-                " when writing Vertex Property key " + key + ".\n";
+                " when writing Vertex Property key " + key;
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);
@@ -60,7 +59,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
                                                                          final String vpKey,
                                                                          final String key) {
         final String baseMessage = "Record size exceeded for Vertex with ID " + vertexId.getUserId() +
-                " when writing Property key " + key + " for Vertex Property " + vpKey + ".\n";
+                " when writing Property key " + key + " for Vertex Property " + vpKey;
         final VertexRecordMetrics metrics = new VertexRecordMetrics(record, db);
         final String message = buildMessage(baseMessage, metrics);
         return new VertexRecordSizeExceededException(cause, message, metrics);
@@ -76,7 +75,7 @@ public class VertexRecordSizeExceededException extends RuntimeException {
 
     private static String buildMessage(final String baseMessage, final VertexRecordMetrics metrics) {
         final StringBuilder builder = new StringBuilder(baseMessage);
-        builder.append("IN Edge Cache size: ");
+        builder.append("\nIN Edge Cache size: ");
         builder.append(metrics.inEdgeCount);
         builder.append("\nOUT Edge Cache size: ");
         builder.append(metrics.outEdgeCount);

@@ -93,7 +93,7 @@ public class TestRecordSizeExceeded {
             try {
                 g.addE(String.valueOf(addedEdges)).from(v1).to(v2).iterate();
                 addedEdges++;
-                Thread.sleep(2);
+                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount + addedEdges, e.outEdgeCount);
@@ -112,7 +112,7 @@ public class TestRecordSizeExceeded {
             try {
                 g.V(v1.id()).property("added" + addedVertexProperties, "added" + addedVertexProperties).iterate();
                 addedVertexProperties++;
-                Thread.sleep(2);
+                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
@@ -132,7 +132,7 @@ public class TestRecordSizeExceeded {
             try {
                 vp.property("added" + addedVpProperties, "added" + addedVpProperties);
                 addedVpProperties++;
-                Thread.sleep(2);
+                Thread.sleep(5);
             } catch (final VertexRecordSizeExceededException e) {
                 Assert.assertEquals(baseInEdgeCount, e.inEdgeCount);
                 Assert.assertEquals(baseOutEdgeCount, e.outEdgeCount);
@@ -151,7 +151,7 @@ public class TestRecordSizeExceeded {
             try {
                 g.E(e0.id()).property("added" + addedProperties, "added"+ addedProperties).iterate();
                 addedProperties++;
-                Thread.sleep(2);
+                Thread.sleep(5);
             } catch (final EdgeRecordSizeExceededException e) {
                 Assert.assertEquals((baseEdgePropertyCount * 2) + addedProperties, e.propertyCount);
                 Assert.assertEquals(baseInEdgeCount + baseOutEdgeCount, e.edgePackCount);

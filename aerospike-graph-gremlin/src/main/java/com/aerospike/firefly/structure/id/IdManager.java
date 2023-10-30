@@ -25,8 +25,7 @@ public interface IdManager<T> {
     /**
      * Recycle an id for reuse.
      *
-     * @param graph graph handle
      * @param id    id to recycle
      */
-    void recycleId(final FireflyGraph graph, final T id);
+    void recycleId(final FireflyId id);
 }

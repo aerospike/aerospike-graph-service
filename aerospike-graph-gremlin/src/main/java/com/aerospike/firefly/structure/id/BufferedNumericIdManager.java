@@ -57,7 +57,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     }
 
     @Override
-    public void recycleId(final FireflyGraph graph, final Long id) {
+    public void recycleId(final FireflyId id) {
         throw new RuntimeException("Recycling IDs is not supported by BufferedNumericIdManager.");
     }
 }

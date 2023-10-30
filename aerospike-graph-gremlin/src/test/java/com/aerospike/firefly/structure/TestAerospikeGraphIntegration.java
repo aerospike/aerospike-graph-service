@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -633,7 +634,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of());
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);

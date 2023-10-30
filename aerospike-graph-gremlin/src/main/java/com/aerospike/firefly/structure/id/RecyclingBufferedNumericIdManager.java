@@ -15,7 +15,6 @@ import java.util.List;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
-
     private static final Logger LOG = LoggerFactory.getLogger(RecyclingBufferedNumericIdManager.class);
     private final long bufferSize;
     private final BufferedNumericIdManager uniqueIdManager;
@@ -52,7 +51,6 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public synchronized byte[] getNextId(final FireflyGraph graph) {
-
         final Long recycledId;
         synchronized (RecyclingBufferedNumericIdManager.class) {
             recycledId = recycledIds.isEmpty() ? recyclingIdManager.getNextId(graph) : recycledIds.remove(0);
@@ -70,12 +68,19 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     }
 
     @Override
-    public void recycleId(final FireflyGraph graph, final byte[] id) {
+    public void recycleId(final FireflyId id) {
         synchronized (RecyclingBufferedNumericIdManager.class) {
             // We have enough recycled IDs to buffer them
-            final byte[] recycledIdBytes = new byte[8];
-            System.arraycopy(id, 0, recycledIdBytes, 0, 8);
-            final long recycledId = bytesToLong(recycledIdBytes);
+            final long recycledId;
+            if (id instanceof FireflyPhatEdgeId) {
+                recycledId = ((FireflyPhatEdgeId) id).getPackingId();
+            } else if (id instanceof FireflyIdComposite) {
+                recycledId = ((FireflyPhatEdgeId)((FireflyIdComposite) id).getEdgeId()).getPackingId();
+            } else {
+                final String message = "Could not recycle ID of unexpected type " + id.getClass().getName();
+                LOG.error(message);
+                throw new IllegalArgumentException(message);
+            }
             if (recycledIds.size() >= bufferSize) {
                 LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
                 return;

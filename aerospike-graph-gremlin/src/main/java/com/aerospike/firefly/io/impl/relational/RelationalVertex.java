@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Key;
@@ -33,7 +34,8 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
-import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
+import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -64,6 +66,8 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIndex;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingToEdgeCache;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -575,27 +579,34 @@ public abstract class RelationalVertex extends FireflyVertex {
         // Operate on database.
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        final Record results = this.db.operate(writePolicy, key, incrementEdgeCounter, appendToEdgeCache, updateCacheState,
-                getCacheDisabled, getEdgeCount);
+        try {
+            final Record results = this.db.operate(writePolicy, key, incrementEdgeCounter, appendToEdgeCache, updateCacheState,
+                    getCacheDisabled, getEdgeCount);
 
-
-        this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
-        final long edgeCount = (long) OperationReturnHandler.getValueAtIndex(results, counterBinName, 1);
-        // Update this object's cache in JVM.
-        if (direction == Direction.IN) {
-            if (!this.inEdgeIds.containsKey(edgeLabel)) {
-                this.inEdgeIds.put(edgeLabel, new ArrayList<>());
+            this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
+            final long edgeCount = (long) OperationReturnHandler.getValueAtIndex(results, counterBinName, 1);
+            // Update this object's cache in JVM.
+            if (direction == Direction.IN) {
+                if (!this.inEdgeIds.containsKey(edgeLabel)) {
+                    this.inEdgeIds.put(edgeLabel, new ArrayList<>());
+                }
+                this.inEdgeIds.get(edgeLabel).add(edgeId);
+                this.inEdgeCount = edgeCount;
+            } else {
+                if (!this.outEdgeIds.containsKey(edgeLabel)) {
+                    this.outEdgeIds.put(edgeLabel, new ArrayList<>());
+                }
+                this.outEdgeIds.get(edgeLabel).add(edgeId);
+                this.outEdgeCount = edgeCount;
             }
-            this.inEdgeIds.get(edgeLabel).add(edgeId);
-            this.inEdgeCount = edgeCount;
-        } else {
-            if (!this.outEdgeIds.containsKey(edgeLabel)) {
-                this.outEdgeIds.put(edgeLabel, new ArrayList<>());
-            }
-            this.outEdgeIds.get(edgeLabel).add(edgeId);
-            this.outEdgeCount = edgeCount;
+            return true;
+        } catch (final RecordTooBigException e) {
+            final VertexRecordSizeExceededException sizeExceededException =
+                    fromAddingToEdgeCache((AerospikeException) e.getCause(), this.db,
+                            getRelevantVertexBins(this.db, key), this.id, edgeId);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
         }
-        return true;
     }
 
     static class PropertyValueIdMaps {

@@ -16,6 +16,8 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
+import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -28,6 +30,8 @@ import java.util.Map;
 import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingVpProperty;
+import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -113,7 +117,13 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.operate(writePolicy, opKey, writeValue, writeTypeHint);
-        } catch (AerospikeException ae) {
+        } catch (final RecordTooBigException rtbe) {
+            final VertexRecordSizeExceededException sizeExceededException =
+                    fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
+                    this.vertexId, this.key, propertyKey);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Vertex Property has been removed from the Vertex since in this case
                 // the key is the Vertex key due to Vertex Properties being packed and thus the key still exists.

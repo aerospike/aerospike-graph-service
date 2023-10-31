@@ -37,6 +37,11 @@ public class FireflyLoadingException extends RuntimeException {
         this.aerospikeException = cause;
     }
 
+    public FireflyLoadingException(final AerospikeException cause, final String message) {
+        super(message, cause);
+        this.aerospikeException = cause;
+    }
+
     public boolean isRetryable() {
         return RETRYABLE_CODES.contains(this.aerospikeException.getResultCode());
     }

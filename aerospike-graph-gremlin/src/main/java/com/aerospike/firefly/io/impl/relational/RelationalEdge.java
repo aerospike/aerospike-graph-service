@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.impl.relational;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
@@ -18,7 +19,9 @@ import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -39,6 +42,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException.fromAddingEdge;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -159,9 +163,16 @@ public class RelationalEdge extends FireflyEdge {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
-        db.operate(writePolicy, key, operations.toArray(new Operation[0]));
-        graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-        return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+        try {
+            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+            graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
+            return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+        } catch (final RecordTooBigException e) {
+            final EdgeRecordSizeExceededException sizeExceededException =
+                    fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        }
     }
 
     /**

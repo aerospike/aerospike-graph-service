@@ -21,6 +21,8 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
+import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -154,6 +156,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
+        } catch (final EdgeRecordSizeExceededException ersee) {
+            throw new FireflyLoadingException((AerospikeException) ersee.getCause(), ersee.getMessage());
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }
@@ -194,6 +198,8 @@ public abstract class RelationalGraph extends FireflyGraph {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
+        } catch (final VertexRecordSizeExceededException vrsee) {
+            throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }
@@ -232,6 +238,8 @@ public abstract class RelationalGraph extends FireflyGraph {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
             RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
+        } catch (final VertexRecordSizeExceededException vrsee) {
+            throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }

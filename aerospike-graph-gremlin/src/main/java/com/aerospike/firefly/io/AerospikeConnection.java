@@ -44,6 +44,7 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
+import com.aerospike.firefly.io.utils.RecordTooBigException;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -1727,7 +1728,7 @@ public class AerospikeConnection implements AutoCloseable {
                 case ResultCode.RECORD_TOO_BIG:
                     LOG.error("RECORD_TO_BIG error on key {}", key);
                     LOG.error(RECORD_TOO_BIG, ae);
-                    throw ae;
+                    throw new RecordTooBigException(ae);
                 case ResultCode.KEY_NOT_FOUND_ERROR:
                     LOG.debug(ELEMENT_NOT_FOUND, ae);
                     throw new ElementNotFoundException(ae);

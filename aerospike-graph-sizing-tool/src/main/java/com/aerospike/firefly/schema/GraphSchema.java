@@ -7,10 +7,10 @@ import java.util.List;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class GraphSchema {
-    public Long replicationFactor;
-    public Long maxEdgeCacheSize;
+    public Number replicationFactor;
+    public Number maxEdgeCacheSize;
     public Boolean vertexLabelSindex;
-    public Long edgePackSize;
+    public Number edgePackSize;
     public List<EdgeSchema> edgeSchema;
     public List<VertexSchema> vertexSchema;
 

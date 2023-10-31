@@ -9,7 +9,7 @@ import java.util.List;
  */
 public class EdgeSchema {
     public String label;
-    public Long count;
+    public Number count;
     public List<PropertySchema> properties;
 
     public EdgeSchema() {

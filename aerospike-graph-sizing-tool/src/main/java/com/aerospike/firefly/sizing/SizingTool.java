@@ -76,11 +76,11 @@ public class SizingTool {
                 return 8L;
             case "string":
             case "byte[]":
-                if (propertySchema.size == null || propertySchema.size <= 0L) {
+                if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
                     throw new RuntimeException("Invalid property " + propertySchema.key + " type 'String/byte[]' " +
                             "requires size set > 0. Got " + propertySchema.size + ".");
                 }
-                return propertySchema.size;
+                return propertySchema.size.longValue();
             default:
                 throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + propertySchema.type +
                         "' is not supported.");
@@ -90,7 +90,7 @@ public class SizingTool {
     public long estimateVertexRecordCount() {
         if (this.vertexRecordCount == 0L) {
             for (final VertexSchema vertexSchema : graphSchema.vertexSchema) {
-                vertexRecordCount += vertexSchema.count;
+                vertexRecordCount += vertexSchema.count.longValue();
             }
         }
         return this.vertexRecordCount;
@@ -99,9 +99,9 @@ public class SizingTool {
     public long estimateEdgeRecordCount() {
         if (this.edgeRecordCount == 0L) {
             for (final EdgeSchema edgeSchema : graphSchema.edgeSchema) {
-                edgeRecordCount += edgeSchema.count;
+                edgeRecordCount += edgeSchema.count.longValue();
             }
-            edgeRecordCount /= graphSchema.edgePackSize;
+            edgeRecordCount /= graphSchema.edgePackSize.longValue();
         }
         return this.edgeRecordCount;
     }
@@ -115,7 +115,7 @@ public class SizingTool {
     private long getEdgeCountPerVertex() {
         // Two cache entries per edge.
         // edgePackSize per edgeRecord.
-        return 2 * graphSchema.edgePackSize * estimateEdgeRecordCount() / estimateVertexRecordCount();
+        return 2 * graphSchema.edgePackSize.longValue() * estimateEdgeRecordCount() / estimateVertexRecordCount();
     }
 
     public long estimateAverageVertexRecordSize() {
@@ -123,7 +123,7 @@ public class SizingTool {
         for (final VertexSchema vertexSchema : graphSchema.vertexSchema) {
             vertexRecordSize += vertexSchema.label.length() + LABEL_OVERHEAD;
             for (final PropertySchema propertySchema : vertexSchema.properties) {
-                vertexRecordSize += (propertySchema.likelihood) * (vertexPropertyToSize(propertySchema));
+                vertexRecordSize += (propertySchema.likelihood.doubleValue()) * (vertexPropertyToSize(propertySchema));
             }
 
             // TODO:
@@ -146,7 +146,7 @@ public class SizingTool {
             edgeRecordSize += EDGE_RECORD_OVERHEAD;
             if (edgeSchema.properties != null) {
                 for (final PropertySchema propertySchema : edgeSchema.properties) {
-                    edgeRecordSize += (propertySchema.likelihood) * (edgePropertyToSize(propertySchema)); // Properties.
+                    edgeRecordSize += (propertySchema.likelihood.doubleValue()) * (edgePropertyToSize(propertySchema)); // Properties.
                 }
                 edgeRecordSize += EDGE_RECORD_ENTRY_OVERHEAD + edgeSchema.label.length() + LABEL_OVERHEAD; // Label.
                 edgeRecordSize += 2 * (EDGE_RECORD_ENTRY_OVERHEAD + EDGE_RECORD_VALUE_SIZE); // IN and OUT.
@@ -189,7 +189,7 @@ public class SizingTool {
                 localLargestVertexRecord += (1.0) * (propertyTypeToSize(propertySchema));
             }
             // Assume max cache
-            localLargestVertexRecord += (graphSchema.maxEdgeCacheSize * getEdgeCacheEntrySize());
+            localLargestVertexRecord += (graphSchema.maxEdgeCacheSize.longValue() * getEdgeCacheEntrySize());
 
             largestVertexRecord = Math.max(largestVertexRecord, localLargestVertexRecord);
         }
@@ -202,7 +202,7 @@ public class SizingTool {
         if (graphSchema.vertexLabelSindex) {
             // 1 sindex entry per
             for (final VertexSchema vertexSchema : graphSchema.vertexSchema) {
-                sindexEntries += vertexSchema.count;
+                sindexEntries += vertexSchema.count.longValue();
             }
         }
 
@@ -210,7 +210,7 @@ public class SizingTool {
             for (final PropertySchema propertySchema : vertexSchema.properties) {
                 // 1 entry per sindexed property, i.e likelihood * count
                 if (propertySchema.sindexed) {
-                    sindexEntries += (propertySchema.likelihood * vertexSchema.count);
+                    sindexEntries += (propertySchema.likelihood.doubleValue() * vertexSchema.count.longValue());
                 }
             }
         }

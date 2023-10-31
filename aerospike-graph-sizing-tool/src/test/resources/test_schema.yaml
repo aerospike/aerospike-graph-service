@@ -20,7 +20,5 @@ edgeSchema:
     properties:
       - key: since
         type: Long
-        sindexed: true
       - key: rating
         type: Double
-        sindexed: true

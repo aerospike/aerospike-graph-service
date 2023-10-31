@@ -48,15 +48,14 @@ public class SizingToolServiceFactory <I, R> implements Service.ServiceFactory<I
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
         final Graph graph = (Graph) ctx.getTraversal().getGraph().get();
         final SizingToolMain sizingToolMain = new SizingToolMain();
-        Map<String, Long> results = sizingToolMain.size(graph);
+        final Map<String, Long> results = sizingToolMain.size(graph);
         return CloseableIterator.of(IteratorUtils.of((R) results));
     }
 
 
     @Override
     public Map<String, String> describeParams() {
-        // TODO!
-        return Map.of("See sizing tool documentation", "TODO.");
+        return Map.of();
     }
 
     @Override

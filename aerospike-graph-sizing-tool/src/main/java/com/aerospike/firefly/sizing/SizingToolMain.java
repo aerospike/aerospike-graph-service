@@ -112,13 +112,13 @@ public class SizingToolMain implements Callable<Exception> {
             }
 
             final VertexSchema vertexSchema = new VertexSchema();
-            final String label = vertexMap.get(T.label).toString();
+            final String label = getValue(vertexMap, T.label, String.class);
             if (!vertexMap.containsKey(label + ".count")) {
                 throw new RuntimeException("Vertex '" + vertexMap.get(T.label) + "' does not have a '" + label + ".count' property.");
             } else if (!(vertexMap.get(label + ".count") instanceof Number)) {
                 throw new RuntimeException("Vertex '" + vertexMap.get(T.label) + "' has a '" + label + ".count' property that is not a Number.");
             }
-            vertexSchema.count = ((Number) vertexMap.get(label + ".count")).longValue();
+            vertexSchema.count = getValue(vertexMap, label + ".count", Number.class);
 
             final Set<Object> keys = new HashSet<>(vertexMap.keySet());
             keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
@@ -132,13 +132,13 @@ public class SizingToolMain implements Callable<Exception> {
                 propertySchema.key = keyString;
                 propertySchema.type = vertexMap.get(keyString).toString();
                 if (vertexMap.containsKey(keyString + ".valueSize")) {
-                    propertySchema.size = (Long) vertexMap.get(keyString + ".valueSize");
+                    propertySchema.size = getValue(vertexMap, keyString + ".valueSize", Number.class);
                 }
                 if (vertexMap.containsKey(keyString + ".sindexed")) {
-                    propertySchema.sindexed = (Boolean) vertexMap.get(keyString + ".sindexed");
+                    propertySchema.sindexed = getValue(vertexMap, keyString + ".sindexed", Boolean.class);
                 }
                 if (vertexMap.containsKey(keyString + ".likelihood")) {
-                    propertySchema.likelihood = (Double) vertexMap.get(keyString + ".likelihood");
+                    propertySchema.likelihood = getValue(vertexMap, keyString + ".likelihood", Double.class);
                 }
                 vertexSchema.properties.add(propertySchema);
             }
@@ -146,6 +146,17 @@ public class SizingToolMain implements Callable<Exception> {
             vertexSchemas.add(vertexSchema);
         }
         return vertexSchemas;
+    }
+
+    private static <T> T getValue(final Map<Object, Object> map, final Object key, final Class<T> clazz) {
+        final Object value = map.get(key);
+        if (value == null) {
+            throw new RuntimeException("Expected key '" + key + "' but only found '" + map.keySet() + "'.");
+        }
+        if (clazz.isAssignableFrom(value.getClass())) {
+            return (T) value;
+        }
+        throw new RuntimeException("Expected type " + clazz + " for key " + key + " but got " + value.getClass() + ".");
     }
 
     private static List<EdgeSchema> getEdgeSchema(final GraphTraversalSource g) {
@@ -157,13 +168,13 @@ public class SizingToolMain implements Callable<Exception> {
             edgeMap.remove(Direction.OUT);
 
             final EdgeSchema edgeSchema = new EdgeSchema();
-            final String label = edgeMap.get(T.label).toString();
+            final String label = getValue(edgeMap, T.label, String.class);
             if (!edgeMap.containsKey(label + ".count")) {
                 throw new RuntimeException("Edge '" + edgeMap.get(T.label) + "' does not have a '" + label + ".count' property.");
             } else if (!(edgeMap.get(label + ".count") instanceof Number)) {
                 throw new RuntimeException("Edge '" + edgeMap.get(T.label) + "' has a '" + label + ".count' property that is not a Number.");
             }
-            edgeSchema.count = ((Number) edgeMap.get(label + ".count")).longValue();
+            edgeSchema.count = getValue(edgeMap, label + ".count", Number.class);
 
             final Set<Object> keys = new HashSet<>(edgeMap.keySet());
             keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
@@ -177,13 +188,13 @@ public class SizingToolMain implements Callable<Exception> {
                 propertySchema.key = keyString;
                 propertySchema.type = edgeMap.get(keyString).toString();
                 if (edgeMap.containsKey(keyString + ".valueSize")) {
-                    propertySchema.size = (Long) edgeMap.get(keyString + ".valueSize");
+                    propertySchema.size = getValue(edgeMap, keyString + ".valueSize", Number.class);
                 }
                 if (edgeMap.containsKey(keyString + ".sindexed")) {
-                    propertySchema.sindexed = (Boolean) edgeMap.get(keyString + ".sindexed");
+                    propertySchema.sindexed = getValue(edgeMap, keyString + ".sindexed", Boolean.class);
                 }
                 if (edgeMap.containsKey(keyString + ".likelihood")) {
-                    propertySchema.likelihood = (Double) edgeMap.get(keyString + ".likelihood");
+                    propertySchema.likelihood = getValue(edgeMap, keyString + ".likelihood", Double.class);
                 }
                 edgeSchema.properties.add(propertySchema);
             }

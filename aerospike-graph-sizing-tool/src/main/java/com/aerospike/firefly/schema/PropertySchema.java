@@ -7,8 +7,8 @@ package com.aerospike.firefly.schema;
 public class PropertySchema {
     public String key;
     public String type;
-    public Long size;
-    public double likelihood;
+    public Number size;
+    public Number likelihood;
     public boolean sindexed;
 
     public PropertySchema() {

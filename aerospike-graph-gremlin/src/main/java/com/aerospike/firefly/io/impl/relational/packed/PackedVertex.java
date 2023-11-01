@@ -46,7 +46,21 @@ public class PackedVertex extends RelationalVertex {
                         final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints,
                         final boolean isEdgeCacheOverflowed,
                         final AerospikeConnection db) {
-        super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheOverflowed, db, vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
+        super(fid,
+                label,
+                graph,
+                inEdgeIds,
+                outEdgeIds,
+                inEdgeCount,
+                outEdgeCount,
+                vertexPropertyIds,
+                vertexPropertyValues,
+                vertexPropertyValuesTypeHints,
+                vertexPropertyIdToProperties,
+                vertexPropertyIdToTypeHints,
+                isEdgeCacheOverflowed,
+                db
+        );
 
         // To enable values to have index functions run, cardinality must be single.
         if (graph().features().vertex().getCardinality("") != VertexProperty.Cardinality.single) {

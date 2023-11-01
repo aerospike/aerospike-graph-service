@@ -36,8 +36,13 @@ public abstract class RelationalVertex extends FireflyVertex {
                                final Map<String, List<FireflyId>> outEdgeIds,
                                final long inEdgeCount,
                                final long outEdgeCount,
+                               final Map<String, FireflyId> vertexPropertyIds,
+                               final Map<String, Object> vertexPropertyValues,
+                               final Map<String, Object> vertexPropertyValuesTypeHints,
+                               final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
+                               final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints,
                                final boolean isEdgeCacheOverflowed,
-                               final AerospikeConnection db, final Map<String, FireflyId> vertexPropertyIds, final Map<String, Object> vertexPropertyValues, final Map<String, Object> vertexPropertyValuesTypeHints, final Map<Object, Map<String, Object>> vertexPropertyIdToProperties, final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints) {
+                               final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints, inEdgeCount, outEdgeCount, isEdgeCacheOverflowed, db);
     }
 
@@ -57,9 +62,21 @@ public abstract class RelationalVertex extends FireflyVertex {
                                           final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
                                           final boolean isEdgeCacheOverflowed,
                                           final AerospikeConnection db) {
-            return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                    vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
-                    vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
+            return new PackedVertex(
+                    fid,
+                    label,
+                    graph,
+                    inEdgeIds,
+                    outEdgeIds,
+                    inEdgeCount,
+                    outEdgeCount,
+                    vertexPropertyIds,
+                    vertexPropertyValues,
+                    vertexPropertyValuesTypeHints,
+                    vertexPropertyProperties,
+                    vertexPropertyPropertiesTypeHints,
+                    isEdgeCacheOverflowed,
+                    db);
         }
     }
 }

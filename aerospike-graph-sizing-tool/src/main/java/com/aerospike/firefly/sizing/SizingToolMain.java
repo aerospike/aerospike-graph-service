@@ -96,8 +96,6 @@ public class SizingToolMain implements Callable<Exception> {
         System.out.println("Success.");
     }
 
-    // Add graphson/graph input support.
-
     public static GraphSchema fromGraph(final Graph graph) {
         final GraphTraversalSource g = graph.traversal();
         return fromGraphTraversalSource(g);

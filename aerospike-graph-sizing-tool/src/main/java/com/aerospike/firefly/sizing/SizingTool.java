@@ -158,6 +158,7 @@ public class SizingTool {
         return (long) edgeRecordSize * 10; // 10 edges per record
     }
 
+    // TODO: Some of this is implemented, need to finish it and uncomment.
     //public long largestEdgeRecordSize() {
     //    double largestEdgeRecord = 0.0;
     //    for (final EdgeSchema edgeSchema : graphSchema.edgeSchema) {
@@ -267,6 +268,7 @@ public class SizingTool {
     private void formatToYamlFile(final String outputPathAbsolute) {
         final Map<String, Long> map = asMap();
 
+        // 'DumperOptions'
         final DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         options.setPrettyFlow(true);
@@ -292,6 +294,7 @@ public class SizingTool {
         }
     }
 
+    // TODO: Once the sizing tool is accurate we can remove this, this is just for reference.
     // Sizing tool notes:
     //
     // MISC:

@@ -1,7 +1,6 @@
 package com.aerospike.firefly.write;
 
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -111,7 +110,7 @@ public class WriteFailureTest {
     public void writeVertexPropertyFailure() {
         // Test that if we partially write a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(RelationalGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 
@@ -134,7 +133,7 @@ public class WriteFailureTest {
     public void removeVertexPropertyFailure() {
         // Test that if we partially remove a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(RelationalGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 

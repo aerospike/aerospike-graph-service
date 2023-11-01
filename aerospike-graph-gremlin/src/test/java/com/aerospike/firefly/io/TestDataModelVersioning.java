@@ -48,7 +48,7 @@ public class TestDataModelVersioning {
 
     public static void openGraphLinkedNewVersion() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), RelationalGraph.getDataModelName());
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
@@ -56,7 +56,7 @@ public class TestDataModelVersioning {
 
     public static void openGraphPacked() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), RelationalGraph.getDataModelName());
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();

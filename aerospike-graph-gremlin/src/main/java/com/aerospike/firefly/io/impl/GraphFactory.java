@@ -1,7 +1,6 @@
 package com.aerospike.firefly.io.impl;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -21,7 +20,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_M
  */
 final public class GraphFactory {
     private static final Map<String, Class<? extends FireflyGraph>> DATA_MODEL_MAP = ImmutableMap.of(
-            RelationalGraph.DATA_MODEL, PackedGraph.class
+            FireflyGraph.DATA_MODEL, PackedGraph.class
     );
     private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {

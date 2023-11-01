@@ -1,8 +1,8 @@
 package com.aerospike.firefly.io.impl.relational.packed;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
@@ -14,7 +14,7 @@ import java.util.Map;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class PackedVertex extends RelationalVertex {
+public class PackedVertex extends FireflyVertex {
 
     /**
      * Constructor for PackedVertex.

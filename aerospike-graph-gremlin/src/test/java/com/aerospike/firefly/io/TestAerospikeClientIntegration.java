@@ -24,7 +24,6 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -583,8 +582,8 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testKeyRead() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
+        FireflyVertex va = (FireflyVertex) graph.addVertex(T.id, "A");
+        FireflyVertex vb = (FireflyVertex) graph.addVertex(T.id, "B");
 
         Key keyaObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(va.id()));
         Key keybObj = new Key(db.getNamespace(), db.VERTEX_AERO_SET, Value.get(vb.id()));

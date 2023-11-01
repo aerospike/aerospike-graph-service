@@ -35,7 +35,6 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
@@ -667,7 +666,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
 
         // Write vertex property to Aerospike.
         final FireflyVertexProperty<V> fireflyVertexProperty = new PackedVertexProperty<>(
-                this, idValue, (PackedVertex) vertex, key, value, properties, typeHints);
+                this, idValue, (FireflyVertex) vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.
         vertex.writeVertexProperty(fireflyVertexProperty);

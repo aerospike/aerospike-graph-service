@@ -1,7 +1,7 @@
 package com.aerospike.firefly.sampling_strategy;
 
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
@@ -154,7 +154,7 @@ public class SampleStrategyTest {
 
             loadSimpleSupernode(g);
 
-            final RelationalVertex supernode = (RelationalVertex) g.V().has("indexed", "value1").next();
+            final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
 
             final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE - RECORD_LIMIT, supernodeEdgeIds.size());
@@ -204,7 +204,7 @@ public class SampleStrategyTest {
 
             loadSimpleSupernode(g);
 
-            final RelationalVertex supernode = (RelationalVertex) g.V().has("indexed", "value1").next();
+            final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
 
             final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
             Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeEdgeIds.size());

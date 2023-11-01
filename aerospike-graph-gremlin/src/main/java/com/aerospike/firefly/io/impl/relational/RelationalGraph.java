@@ -21,12 +21,15 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -35,6 +38,7 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +52,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
 import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_KEY;
@@ -58,6 +63,7 @@ import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_KEY;
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public abstract class RelationalGraph extends FireflyGraph {
+    public static final String DATA_MODEL = "packed";
     private static final Logger LOG = LoggerFactory.getLogger(RelationalGraph.class);
 
     /**
@@ -68,6 +74,11 @@ public abstract class RelationalGraph extends FireflyGraph {
      */
     public RelationalGraph(AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         super(db, conf, gremlinServerSettings);
+    }
+
+    // This function is used via reflection in Upgrade.java. Removing will cause issues.
+    public static String getDataModelName() {
+        return DATA_MODEL;
     }
 
     /**
@@ -205,7 +216,9 @@ public abstract class RelationalGraph extends FireflyGraph {
         }
     }
 
-    protected abstract int getTypeHint();
+    protected int getTypeHint() {
+        return PackedVertex.VERTEX_TYPE_HINT;
+    }
 
     /**
      * Function to write vertex to Aerospike.
@@ -386,5 +399,54 @@ public abstract class RelationalGraph extends FireflyGraph {
     @Override
     public long getEdgeCount() {
         return FireflyCloseableIteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
+    }
+
+    @Override
+    public String getDataModel() {
+        return RelationalGraph.getDataModelName();
+    }
+
+    /**
+     * Write vertex property to Aerospike.
+     *
+     * @param idValue FireflyId of vertex property to write.
+     * @param vertex  Vertex to write property to.
+     * @param key     Key of property to write.
+     * @param value   Value of property to write.
+     * @param <V>     Type of value to write.
+     * @return FireflyVertexProperty
+     */
+    @Override
+    public <V> FireflyVertexProperty<V> writeVertexProperty(final FireflyId idValue,
+                                                            final FireflyVertex vertex,
+                                                            final String key,
+                                                            final V value,
+                                                            final Object... keyValues) {
+        final Map<String, Object> properties = new TreeMap<>();
+        final Map<String, Object> typeHints = new TreeMap<>();
+        final boolean allowNullProperties = features().vertex().properties().supportsNullPropertyValues();
+
+        for (int i = 0; i < keyValues.length; i = i + 2) {
+            if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
+                if (keyValues[i + 1] != null) {
+                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    typeHints.put((String) keyValues[i], getSupportedType(keyValues[i + 1]));
+                } else if (allowNullProperties) {
+                    properties.put((String) keyValues[i], keyValues[i + 1]);
+                    typeHints.put((String) keyValues[i], SupportedValueTypes.get(String.class));
+                }
+                // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
+                // properties to remove, so just ignore.
+        }
+
+        // Write vertex property to Aerospike.
+        final FireflyVertexProperty<V> fireflyVertexProperty = new PackedVertexProperty<>(
+                this, idValue, (PackedVertex) vertex, key, value, properties, typeHints);
+
+        // Append vertex property to vertex.
+        vertex.writeVertexProperty(fireflyVertexProperty);
+
+        // Return FireflyVertexProperty.
+        return fireflyVertexProperty;
     }
 }

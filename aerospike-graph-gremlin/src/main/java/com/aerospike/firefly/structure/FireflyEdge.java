@@ -14,7 +14,6 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.packed.PackedEdgeProperty;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.io.utils.RecordTooBigException;
@@ -116,7 +115,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     public <V> Property<V> property(final String key) {
         if (properties.containsKey(key)) {
             final V casted = (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(properties.get(key), typeHints.get(key));
-            return new PackedEdgeProperty<>(graph, this, key, casted);
+            return new FireflyEdgeProperty<>(graph, this, key, casted);
         } else {
             return Property.empty();
         }
@@ -184,7 +183,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
 
             // Otherwise if there is only 1 key and it is not null, return the property if we have it, otherwise empty iterator.
             if (properties.containsKey(propertyKeys[0])) {
-                return FireflyCloseableIteratorUtils.of(new PackedEdgeProperty<>(graph, this, propertyKeys[0],
+                return FireflyCloseableIteratorUtils.of(new FireflyEdgeProperty<>(graph, this, propertyKeys[0],
                         (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
                                 properties.get(propertyKeys[0]), typeHints.get(propertyKeys[0]))));
             } else {
@@ -195,7 +194,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             final List<Property<V>> propertyList = new ArrayList<>();
             for (final String key : properties.keySet()) {
                 if (ElementHelper.keyExists(key, propertyKeys)) {
-                    propertyList.add(new PackedEdgeProperty<>(graph, this, key,
+                    propertyList.add(new FireflyEdgeProperty<>(graph, this, key,
                             (V) this.graph.getBaseGraph().convertValuetoTypeUsingHint(
                                     properties.get(key), typeHints.get(key))));
                 }
@@ -247,7 +246,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         }
 
         graph.fireflySummaryUpdater.addEdgePropertiesWriteToQueue(edge.label, Set.of(propertyKey));
-        return new PackedEdgeProperty<>(graph, edge, propertyKey, value);
+        return new FireflyEdgeProperty<>(graph, edge, propertyKey, value);
     }
 
     @Override

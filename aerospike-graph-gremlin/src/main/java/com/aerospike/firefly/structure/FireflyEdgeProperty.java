@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.relational.packed;
+package com.aerospike.firefly.structure;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -9,9 +9,6 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyEdge;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +19,8 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class PackedEdgeProperty<V> extends FireflyProperty<V> {
-    private static final Logger LOG = LoggerFactory.getLogger(PackedEdgeProperty.class);
+public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyEdgeProperty.class);
     private final FireflyGraph graph;
     private final FireflyEdge edge;
 
@@ -35,7 +32,7 @@ public class PackedEdgeProperty<V> extends FireflyProperty<V> {
      * @param key     Key of property.
      * @param value   Value of property.
      */
-    public PackedEdgeProperty(final FireflyGraph graph, final FireflyEdge edge, final String key, final V value) {
+    public FireflyEdgeProperty(final FireflyGraph graph, final FireflyEdge edge, final String key, final V value) {
         super(edge, key, value);
         this.graph = graph;
         this.edge = edge;

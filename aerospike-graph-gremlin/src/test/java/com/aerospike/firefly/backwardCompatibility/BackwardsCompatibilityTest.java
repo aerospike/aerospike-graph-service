@@ -1,4 +1,4 @@
-package com.aerospike.firefly.backward_compatibility;
+package com.aerospike.firefly.backwardCompatibility;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.util;
+package com.aerospike.firefly.test.datasets;
 
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;

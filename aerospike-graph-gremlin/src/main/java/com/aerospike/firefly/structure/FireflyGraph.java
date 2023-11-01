@@ -55,7 +55,7 @@ import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.util.HealthcheckServer;
+import com.aerospike.firefly.runtime.HealthcheckServer;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;

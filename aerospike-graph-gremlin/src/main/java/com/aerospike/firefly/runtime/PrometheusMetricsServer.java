@@ -1,4 +1,4 @@
-package com.aerospike.firefly.util;
+package com.aerospike.firefly.runtime;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;

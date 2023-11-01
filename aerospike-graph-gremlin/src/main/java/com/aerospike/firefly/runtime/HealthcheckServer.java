@@ -1,4 +1,4 @@
-package com.aerospike.firefly.util;
+package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import io.vertx.core.Future;

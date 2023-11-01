@@ -58,7 +58,6 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
-import com.aerospike.firefly.util.AerospikeClientProvider;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.Tokens;

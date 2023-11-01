@@ -1,4 +1,4 @@
-package com.aerospike.firefly.util;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.async.EventLoops;

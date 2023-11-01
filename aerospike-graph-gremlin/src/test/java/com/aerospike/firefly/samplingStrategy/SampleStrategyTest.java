@@ -1,4 +1,4 @@
-package com.aerospike.firefly.sampling_strategy;
+package com.aerospike.firefly.samplingStrategy;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyVertex;

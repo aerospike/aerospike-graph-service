@@ -22,7 +22,6 @@ import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.io.utils.RecordTooBigException;
@@ -62,7 +61,7 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public abstract class FireflyEdge extends FireflyElement implements Edge {
+public class FireflyEdge extends FireflyElement implements Edge {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyEdge.class);
     protected final AerospikeConnection db;
     public boolean removed;
@@ -84,7 +83,27 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
      * @param outVertexCacheWrite   was the edge written to the edge cache of the out vertex.
      * @param properties Edge properties.
      */
-    public static RelationalEdge writeEdge(final FireflyGraph graph,
+
+/*
+We must have a standard for if inV or outV occurs first
+the subtle issue here is that both of the 4-5th arguments have the same Type but are reversed in order.
+    public FireflyEdge(final FireflyId fid,
+                          final String label,
+                          final FireflyGraph graph,
+                          final FireflyId outVertex,
+                          final FireflyId inVertex,
+                          final Map<String, Object> properties,
+                          final Map<String, Object> typeHints) {
+    public FireflyEdge(final FireflyId id,
+                       final String label,
+                       final FireflyGraph graph,
+                       final FireflyId inVid,
+                       final FireflyId outVid,
+                       final Map<String, Object> properties,
+                       final Map<String, Object> typeHints)
+
+ */
+    public static FireflyEdge writeEdge(final FireflyGraph graph,
                                            final FireflyId edgeId,
                                            final String label,
                                            final List<Map.Entry<String, Object>> properties,
@@ -151,7 +170,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-            return RelationalEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+            return FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
@@ -180,7 +199,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         for (final FireflyId edgeId : edgeIds) {
             final FireflyRecord edgeRecord = edgeRecords.get(edgeId);
             if (edgeRecord != null) {
-                final RelationalEdge edge = RelationalEdgeFactory.create(edgeId, edgeRecord, graph);
+                final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, edgeRecord, graph);
                 if (edge != null) {
                     edges.add(edge);
                 }
@@ -278,8 +297,8 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
     public FireflyEdge(final FireflyId id,
                        final String label,
                        final FireflyGraph graph,
-                       final FireflyId inVid,
                        final FireflyId outVid,
+                       final FireflyId inVid,
                        final Map<String, Object> properties,
                        final Map<String, Object> typeHints) {
         super(id, label);
@@ -470,14 +489,14 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
         return StringFactory.edgeString(this);
     }
 
-    private static class RelationalEdgeFactory {
-        private static RelationalEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
+    private static class FireflyEdgeFactory {
+        private static FireflyEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
                                              final FireflyId outVertex, final FireflyId inVertex,
                                              final Map<String, Object> properties, final Map<String, Object> typeHints) {
-            return new RelationalEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
+            return new FireflyEdge(fid, label, graph, outVertex, inVertex, properties, typeHints);
         }
 
-        private static RelationalEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,
+        private static FireflyEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,
                                              final FireflyGraph graph) {
             if (fireflyRecord == null || fireflyRecord.record() == null) {
                 return null;
@@ -522,7 +541,7 @@ public abstract class FireflyEdge extends FireflyElement implements Edge {
             final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES_BIN).get(edgeIdMapKey);
             final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS_BIN).get(edgeIdMapKey);
 
-            return FireflyEdge.RelationalEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
+            return FireflyEdge.FireflyEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }
     }
 }

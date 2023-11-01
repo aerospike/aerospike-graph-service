@@ -1,6 +1,5 @@
 package com.aerospike.firefly.write;
 
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -82,7 +81,7 @@ public class WriteFailureTest {
 
             a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
             b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
-            RelationalEdge edge = FireflyEdge.writeEdge(fireflyGraph,
+            FireflyEdge edge = FireflyEdge.writeEdge(fireflyGraph,
                     fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail", new ArrayList<>(), a, b ,
                     true, true);
             Iterator<Edge> aOut = a.edges(Direction.OUT);

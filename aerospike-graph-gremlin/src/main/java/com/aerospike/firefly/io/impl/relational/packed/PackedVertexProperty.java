@@ -20,6 +20,7 @@ import com.aerospike.firefly.io.utils.ElementNotFoundException;
 import com.aerospike.firefly.io.utils.RecordTooBigException;
 import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Property;
@@ -41,7 +42,7 @@ import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.g
  */
 final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
     private static final Logger LOG = LoggerFactory.getLogger(PackedVertexProperty.class);
-    private final RelationalVertex vertex;
+    private final FireflyVertex vertex;
 
     /**
      * Constructor for PackedVertexProperty.
@@ -54,7 +55,7 @@ final public class PackedVertexProperty<V> extends FireflyVertexProperty<V> {
      */
     public PackedVertexProperty(final FireflyGraph graph,
                                 final FireflyId id,
-                                final RelationalVertex vertex,
+                                final FireflyVertex vertex,
                                 final String key,
                                 final Object value,
                                 final Map<String, Object> properties,

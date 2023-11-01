@@ -36,7 +36,6 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
@@ -339,7 +338,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     protected int getTypeHint() {
-        return RelationalVertex.VERTEX_TYPE_HINT;
+        return FireflyVertex.VERTEX_TYPE_HINT;
     }
 
     /**
@@ -360,7 +359,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
         final boolean isEdgeCacheOverflowed = !this.db.GLOBAL_EDGE_CACHE_ENABLED_FLAG ||
                 this.db.ON_RECORD_ID_LIMIT <= 0 || supernodeFlag != null;
-        return RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
+        return FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), true, isEdgeCacheOverflowed);
     }
 
     public void bulkWriteVertex(final FireflyId idValue,
@@ -370,7 +369,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
-            RelationalVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
+            FireflyVertex.writeVertex(this, idValue, label, properties, getTypeHint(), false, supernode);
         } catch (final VertexRecordSizeExceededException vrsee) {
             throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {
@@ -435,7 +434,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     public List<FireflyVertex> readVertices(final List<HasContainer> hasContainers, final List<FireflyId> idValues) {
-        return RelationalVertex.readVertices(this, hasContainers, idValues);
+        return FireflyVertex.readVertices(this, hasContainers, idValues);
     }
 
     /**
@@ -445,7 +444,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
      * @return Vertex.
      */
     public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
-        return RelationalVertex.fromRecord(this, keyRecord);
+        return FireflyVertex.fromRecord(this, keyRecord);
     }
 
     // This function is used via reflection in Upgrade.java. Removing will cause issues.

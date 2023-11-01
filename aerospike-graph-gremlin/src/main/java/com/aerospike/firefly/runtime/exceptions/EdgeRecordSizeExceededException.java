@@ -1,9 +1,9 @@
-package com.aerospike.firefly.io.utils;
+package com.aerospike.firefly.runtime.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.nio.ByteBuffer;

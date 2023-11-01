@@ -1,5 +1,6 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;

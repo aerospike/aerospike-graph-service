@@ -1,6 +1,6 @@
-package com.aerospike.firefly.io.impl;
+package com.aerospike.firefly.io.aerospike;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 

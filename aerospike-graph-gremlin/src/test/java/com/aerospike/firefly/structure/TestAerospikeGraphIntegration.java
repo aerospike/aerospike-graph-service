@@ -1,8 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;

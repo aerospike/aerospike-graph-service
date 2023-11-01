@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io;
+package com.aerospike.firefly.io.aerospike;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class ScanHitCounter {
-    final Map<String, AtomicLong> hitCount;
+    public final Map<String, AtomicLong> hitCount;
     final Map<UUID, String> scansByKey;
     final Map<UUID, AtomicLong> scanTimings;
 

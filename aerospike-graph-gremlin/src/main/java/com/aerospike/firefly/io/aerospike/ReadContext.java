@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io;
+package com.aerospike.firefly.io.aerospike;
 
 import java.util.Optional;
 

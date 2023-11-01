@@ -1,11 +1,12 @@
-package com.aerospike.firefly.io.utils;
+package com.aerospike.firefly.runtime.exceptions;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.structure.FireflyElement;
 
-import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
 
 public class ElementNotFoundException extends RuntimeException {
+    public static final String ELEMENT_NOT_FOUND = "Error: Element was dropped and no longer exists.";
+
     public ElementNotFoundException(final FireflyElement element, final AerospikeException cause) {
         super(ELEMENT_NOT_FOUND + element, cause);
     }

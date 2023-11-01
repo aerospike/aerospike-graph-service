@@ -28,16 +28,15 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.AerospikeLogger;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.ReadContext;
-import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
+import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.util.GraphFactory;
+import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
 import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory;
 import com.aerospike.firefly.process.call.FireflyMetadataServiceFactory;
@@ -52,11 +51,9 @@ import com.aerospike.firefly.structure.id.IdManager;
 import com.aerospike.firefly.structure.id.RecyclingBufferedNumericIdManager;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex;
-import com.aerospike.firefly.structure.util.FireflyHelper;
-import com.aerospike.firefly.structure.util.FireflyMetadataTask;
-import com.aerospike.firefly.structure.util.FireflyMetadataVertex;
-import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.util.FireflyHelper;
+import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
+import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.HealthcheckServer;
 import com.aerospike.firefly.util.LoggerUtil;
@@ -107,13 +104,13 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
-import static com.aerospike.firefly.structure.util.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
+import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static com.aerospike.firefly.util.Tokens.VERTEX_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
@@ -148,7 +145,7 @@ import static com.aerospike.firefly.util.Tokens.VERTEX_PROPERTY_ID_COUNTER;
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentations", reason = "Firefly does not support Float ids", computers = {"ALL"})
 @Graph.OptOut(test = "org.apache.tinkerpop.gremlin.structure.GraphTest", method = "shouldIterateEdgesWithNumericIdSupportUsingFloatRepresentation", reason = "Firefly does not support Float ids", computers = {"ALL"})
 
-public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
+public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static final String FIREFLY_CONFIGURATION_VARIABLE_NAME = "FIREFLY_CONFIGURATION";
     public static final String FIREFLY_WARMUP_VARIABLE_NAME = "FIREFLY_WARMUP";
     public static final String DATA_MODEL = "packed";
@@ -192,7 +189,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
     }
 
-    protected FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
+    public FireflyGraph(final AerospikeConnection db, final Configuration conf, final Settings gremlinServerSettings) {
         this.gremlinServerSettings = gremlinServerSettings;
         this.configuration = conf;
         db.createGraphIndexes();
@@ -665,7 +662,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         }
 
         // Write vertex property to Aerospike.
-        final FireflyVertexProperty<V> fireflyVertexProperty = new PackedVertexProperty<>(
+        final FireflyVertexProperty<V> fireflyVertexProperty = new FireflyVertexProperty<>(
                 this, idValue, (FireflyVertex) vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.

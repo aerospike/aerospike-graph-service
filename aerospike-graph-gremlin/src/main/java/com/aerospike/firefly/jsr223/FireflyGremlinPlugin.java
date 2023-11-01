@@ -1,9 +1,9 @@
 package com.aerospike.firefly.jsr223;
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.*;
-import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.HealthcheckServer;
 import com.aerospike.firefly.util.PrometheusMetricsServer;

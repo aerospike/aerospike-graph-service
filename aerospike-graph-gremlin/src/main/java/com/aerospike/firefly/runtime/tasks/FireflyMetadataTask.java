@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.runtime.tasks;
 
 import com.aerospike.firefly.io.FireflyMetadata;
 import org.slf4j.Logger;

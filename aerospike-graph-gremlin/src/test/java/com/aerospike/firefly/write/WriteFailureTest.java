@@ -1,6 +1,5 @@
 package com.aerospike.firefly.write;
 
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -115,7 +114,7 @@ public class WriteFailureTest {
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyId id = fireflyGraph.getIdFactory().createId(1, FireflyVertexProperty.class);
 
-            final FireflyVertexProperty fireflyVertexProperty = new PackedVertexProperty(fireflyGraph, id, (FireflyVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
+            final FireflyVertexProperty fireflyVertexProperty = new FireflyVertexProperty(fireflyGraph, id, (FireflyVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 

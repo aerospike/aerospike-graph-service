@@ -13,15 +13,14 @@ import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.utils.ElementNotFoundException;
-import com.aerospike.firefly.io.utils.RecordTooBigException;
-import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -36,19 +35,19 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingVpProperty;
-import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.getRelevantVertexBins;
+import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
+import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public abstract class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
+public class FireflyVertexProperty<V> extends FireflyElement implements VertexProperty<V> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PackedVertexProperty.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyVertexProperty.class);
     protected final boolean allowNullPropertyValues = false;
     protected final FireflyId vertexId;
     protected final String key;
@@ -60,16 +59,16 @@ public abstract class FireflyVertexProperty<V> extends FireflyElement implements
 
     public FireflyVertexProperty(final FireflyGraph graph,
                                  final FireflyId id,
-                                 final FireflyId vertexId,
+                                 final FireflyVertex vertex,
                                  final String key,
                                  final V value,
                                  final Map<String, Object> properties,
-                                 final Map<String, Object> typeHints, final FireflyVertex vertex) {
+                                 final Map<String, Object> typeHints) {
         super(id, key);
         if (!allowNullPropertyValues && null == value)
             throw new IllegalArgumentException("value cannot be null as feature supportsNullPropertyValues is false");
         this.graph = graph;
-        this.vertexId = vertexId;
+        this.vertexId = vertex.id;
         this.key = key;
         this.value = value;
         this.properties = properties == null ? new TreeMap<>() : properties;

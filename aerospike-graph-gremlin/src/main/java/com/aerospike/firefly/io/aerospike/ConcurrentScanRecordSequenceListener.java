@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -13,13 +13,11 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

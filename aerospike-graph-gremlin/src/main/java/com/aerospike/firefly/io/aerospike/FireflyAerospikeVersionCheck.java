@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
@@ -25,7 +25,7 @@ public class FireflyAerospikeVersionCheck {
 
     private static final Logger LOG = LoggerFactory.getLogger(FireflyAerospikeVersionCheck.class);
 
-    FireflyAerospikeVersionCheck(final String version) {
+    public FireflyAerospikeVersionCheck(final String version) {
         int extension1;
         if (version == null) {
             throw new IllegalArgumentException("Aerospike version cannot be null");
@@ -97,7 +97,7 @@ public class FireflyAerospikeVersionCheck {
         }
     }
 
-    static boolean validateVersion(final FireflyAerospikeVersionCheck version) {
+    public static boolean validateVersion(final FireflyAerospikeVersionCheck version) {
         return version.major > MAJOR_MINIMUM ||
                 (version.major == MAJOR_MINIMUM && (version.minor > MINOR_MINIMUM ||
                         (version.minor == MINOR_MINIMUM && (version.revision > REVISION_MINIMUM ||

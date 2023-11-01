@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.DataModelVersioning;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -62,7 +62,7 @@ public class TestDataModelVersioning {
         g = graph.traversal();
     }
 
-    public static class FakeGraph extends RelationalGraph {
+    public static class FakeGraph extends FireflyGraph {
 
         private static final String DATA_MODEL = "FAKE";
         private static String version = "0.0.1";

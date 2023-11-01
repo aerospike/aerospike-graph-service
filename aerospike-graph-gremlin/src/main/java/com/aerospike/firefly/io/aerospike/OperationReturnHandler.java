@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.utils;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.Record;
 

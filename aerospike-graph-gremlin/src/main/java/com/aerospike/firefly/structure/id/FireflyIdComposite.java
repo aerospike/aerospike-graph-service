@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure.id;
 
 import com.aerospike.client.util.Crypto;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 
 import java.nio.ByteBuffer;
 

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.util;
 
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
@@ -7,8 +7,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
-import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -26,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.aerospike.firefly.io.AerospikeConnection.SupportedValueTypes;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

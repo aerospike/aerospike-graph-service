@@ -4,7 +4,7 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.impl.ReadThroughCache;
+import com.aerospike.firefly.io.aerospike.ReadThroughRecordCache;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.GraphHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -51,7 +51,7 @@ public class CacheInterationTest extends AbstractFireflySuite {
         final Key key = new Key("test", "test", uuid.toString());
         final Bin bin = new Bin("test", "test");
         db.checkedPut(null, key, bin);
-        final FireflyCache cache = new ReadThroughCache(db, uuid);
+        final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
         final Record miss = cache.read(key);
         Assert.assertNotNull(miss);
         Assert.assertEquals("test", miss.getString("test"));

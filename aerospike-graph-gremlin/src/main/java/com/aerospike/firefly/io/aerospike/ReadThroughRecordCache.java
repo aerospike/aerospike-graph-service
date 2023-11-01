@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
@@ -6,7 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
 
-public class ReadThroughCache extends FireflyCache {
+public class ReadThroughRecordCache extends FireflyCache {
     private final AtomicLong hitCounter = new AtomicLong(0);
     private final AtomicLong missCounter = new AtomicLong(0);
 
@@ -67,7 +67,7 @@ public class ReadThroughCache extends FireflyCache {
         }
     }
 
-    public ReadThroughCache(final AerospikeConnection db, final UUID uuid) {
+    public ReadThroughRecordCache(final AerospikeConnection db, final UUID uuid) {
         super(uuid);
         this.db = db;
         cache = CacheBuilder.newBuilder().

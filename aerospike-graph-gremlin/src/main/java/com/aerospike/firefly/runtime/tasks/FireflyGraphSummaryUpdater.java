@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.runtime.tasks;
 
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
@@ -14,7 +14,7 @@ import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
 import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

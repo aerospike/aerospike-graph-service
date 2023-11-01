@@ -1,6 +1,5 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.*;

@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure.util;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Info;
@@ -19,7 +19,7 @@ public class FireflyAerospikeGraphServiceCheck {
         }
     }
 
-    static void validateInfoResponse(final String infoResponse) {
+    public static void validateInfoResponse(final String infoResponse) {
         if (infoResponse == null || "".equals(infoResponse)) {
             throw new RuntimeException("Failed to initialize graph-service due to unsupported Server version. " +
                     "Please ensure you're running Aerospike Server Enterprise Edition on all Aerospike nodes in the cluster.");

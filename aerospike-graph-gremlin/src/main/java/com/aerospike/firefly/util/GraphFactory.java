@@ -1,9 +1,8 @@
-package com.aerospike.firefly.io.impl;
+package com.aerospike.firefly.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.util.ConfigurationHelper;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
@@ -20,7 +19,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_M
  */
 final public class GraphFactory {
     private static final Map<String, Class<? extends FireflyGraph>> DATA_MODEL_MAP = ImmutableMap.of(
-            FireflyGraph.DATA_MODEL, PackedGraph.class
+            FireflyGraph.DATA_MODEL, FireflyGraph.class
     );
     private static final Logger LOG = LoggerFactory.getLogger(GraphFactory.class);
     public static FireflyGraph createGraph(final AerospikeConnection db, final Configuration config) {
@@ -30,10 +29,10 @@ final public class GraphFactory {
         } else {
             LOG.info("Constructing Graph for {} data model.", dataModel);
             try {
-                if (DataModelVersioning.checkNeedsUpgrade(PackedGraph.class, db))
-                    DataModelVersioning.errorNeedsUpgrade(PackedGraph.class, db);
+                if (DataModelVersioning.checkNeedsUpgrade(FireflyGraph.class, db))
+                    DataModelVersioning.errorNeedsUpgrade(FireflyGraph.class, db);
                 db.checkConfigurationCompatibility(config);
-                return new PackedGraph(db, config, getGremlinServerSettings());
+                return new FireflyGraph(db, config, getGremlinServerSettings());
             } catch (Exception e) {
                 throw new RuntimeException("Error constructing graph", e);
             }

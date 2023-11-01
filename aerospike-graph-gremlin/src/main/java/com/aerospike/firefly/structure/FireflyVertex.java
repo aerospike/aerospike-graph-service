@@ -29,21 +29,20 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
-import com.aerospike.firefly.io.utils.OperationReturnHandler;
-import com.aerospike.firefly.io.utils.RecordTooBigException;
-import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
+import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
+import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
-import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -71,12 +70,12 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.OperationReturnHandler.getValueAtIndex;
-import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingToEdgeCache;
-import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.fromAddingVertexProperty;
-import static com.aerospike.firefly.io.utils.VertexRecordSizeExceededException.getRelevantVertexBins;
+import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
+import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingToEdgeCache;
+import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVertexProperty;
+import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
 import static com.aerospike.firefly.util.Tokens.UNIMPLEMENTED;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
@@ -154,7 +153,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
             // Create the property.
             final FireflyId pid = graph.getIdFactory().createId(vertexPropertyIds.get(vertexProperty.getKey()), FireflyVertexProperty.class);
-            final FireflyVertexProperty<V> property = new PackedVertexProperty<>(graph, pid, this, vpKey, vpValue, vpProperties, vpTypeHints);
+            final FireflyVertexProperty<V> property = new FireflyVertexProperty<>(graph, pid, this, vpKey, (V) vpValue, vpProperties, vpTypeHints);
             vertexPropertyList.add(new AbstractMap.SimpleEntry<>(vertexProperty.getKey(), property));
         }
 
@@ -183,7 +182,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Map<String, Object> vpTypeHints = vertexPropertyIdToTypeHints.containsKey(vertexPropertyId.getStorageId()) ?
                 vertexPropertyIdToTypeHints.get(vertexPropertyId.getStorageId()) : new TreeMap<>();
         return FireflyCloseableIteratorUtils.of(
-                new PackedVertexProperty<>(graph, vertexPropertyId, this, key, vertexProperty, vpProperties, vpTypeHints));
+                (VertexProperty<V>) new FireflyVertexProperty<>(graph, vertexPropertyId, this, key, vertexProperty, vpProperties, vpTypeHints));
     }
 
     private void updateVertexPropertyJVMCache(final Map<String, FireflyId> vertexPropertyIds,
@@ -1226,19 +1225,19 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
     public static class FireflyVertexFactory {
         public static FireflyVertex create(final FireflyId fid,
-                                          final String label,
-                                          final FireflyGraph graph,
-                                          final Map<String, List<FireflyId>> inEdgeIds,
-                                          final Map<String, List<FireflyId>> outEdgeIds,
-                                          final long inEdgeCount,
-                                          final long outEdgeCount,
-                                          final Map<String, FireflyId> vertexPropertyIds,
-                                          final Map<String, Object> vertexPropertyValues,
-                                          final Map<String, Object> vertexPropertyValuesTypeHints,
-                                          final Map<Object, Map<String, Object>> vertexPropertyProperties,
-                                          final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
-                                          final boolean isEdgeCacheOverflowed,
-                                          final AerospikeConnection db) {
+                                           final String label,
+                                           final FireflyGraph graph,
+                                           final Map<String, List<FireflyId>> inEdgeIds,
+                                           final Map<String, List<FireflyId>> outEdgeIds,
+                                           final long inEdgeCount,
+                                           final long outEdgeCount,
+                                           final Map<String, FireflyId> vertexPropertyIds,
+                                           final Map<String, Object> vertexPropertyValues,
+                                           final Map<String, Object> vertexPropertyValuesTypeHints,
+                                           final Map<Object, Map<String, Object>> vertexPropertyProperties,
+                                           final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
+                                           final boolean isEdgeCacheOverflowed,
+                                           final AerospikeConnection db) {
 
             return new FireflyVertex(
                     fid,

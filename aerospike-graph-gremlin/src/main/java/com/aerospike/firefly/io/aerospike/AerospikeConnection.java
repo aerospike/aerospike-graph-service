@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io;
+package com.aerospike.firefly.io.aerospike;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
@@ -43,8 +43,10 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
-import com.aerospike.firefly.io.utils.ElementNotFoundException;
-import com.aerospike.firefly.io.utils.RecordTooBigException;
+import com.aerospike.firefly.io.FireflyCache;
+import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
+import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -56,8 +58,6 @@ import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
-import com.aerospike.firefly.structure.util.FireflyAerospikeGraphServiceCheck;
-import com.aerospike.firefly.structure.util.FireflyAerospikeVersionCheck;
 import com.aerospike.firefly.util.AerospikeClientProvider;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
@@ -92,8 +92,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.utils.ExceptionMessages.ELEMENT_NOT_FOUND;
-import static com.aerospike.firefly.io.utils.ExceptionMessages.RECORD_TOO_BIG;
+import static com.aerospike.firefly.runtime.exceptions.ElementNotFoundException.ELEMENT_NOT_FOUND;
+import static com.aerospike.firefly.runtime.exceptions.RecordTooBigException.RECORD_TOO_BIG;
 import static com.aerospike.firefly.structure.FireflyGraph.EP_INDEX_PREFIX;
 import static com.aerospike.firefly.structure.FireflyGraph.VP_INDEX_PREFIX;
 import static com.aerospike.firefly.util.ConfigurationHelper.IMMUTABLE_CONFIG_KEYS;
@@ -105,14 +105,14 @@ import static com.aerospike.firefly.util.ConfigurationHelper.getOrDefaultString;
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
 public class AerospikeConnection implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
+    public static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
     public final boolean STORAGE_DEBUGGER_FLAG;
 
     static {
         Value.UseBoolBin = true;
     }
 
-    private static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
+    public static final String DATA_MODEL_KEY = "DATA_MODEL_KEY";
     public static final String DATA_MODEL_NAME = "DATA_MODEL_NAME";
     public static final String DATA_MODEL_VER = "DATA_MODEL_VER";
     public static final String DATA_MODEL_CONF = "DATA_MODEL_CONF";
@@ -124,12 +124,12 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean E_LABEL_INDEX_ENABLED_FLAG;
     public final String E_IN_INDEX_NAME;
     public final String E_OUT_INDEX_NAME;
-    private static final int NumLoops = 2;
-    private static final int CommandsPerEventLoop = 50;
-    private static final int DelayQueueSize = 50;
-    private final EventLoops eventLoops;
-    private final AerospikeClient client;
-    private final String namespace;
+    public static final int NumLoops = 2;
+    public static final int CommandsPerEventLoop = 50;
+    public static final int DelayQueueSize = 50;
+    public final EventLoops eventLoops;
+    public final AerospikeClient client;
+    public final String namespace;
 
     public final String USER_KEY_BIN;
 
@@ -138,9 +138,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final String OUT_EDGES_BIN;
     public final String EDGE_CACHE_DISABLED_BIN;
     public final String RELATIONAL_VERTEX_TYPE_HINT_BIN;
-    private final String INDEX_METADATA_SET;
+    public final String INDEX_METADATA_SET;
 
-    protected final String GRAPH_METADATA_SET;
+    public final String GRAPH_METADATA_SET;
     public final String GRAPH_VARIABLES_SET;
     public final Object GRAPH_VARIABLES_REC_KEY;
     public final String GRAPH_VARIABLES_BIN;
@@ -159,8 +159,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final long ON_RECORD_ID_LIMIT;
     public final String PROPERTIES_BIN;
     public final String TYPE_HINTS_BIN;
-    protected final String COUNTER_BIN;
-    protected final String ID_MANAGER_SET;
+    public final String COUNTER_BIN;
+    public final String ID_MANAGER_SET;
     public final String ID_TYPE_BIN;
     public final String TEST_SET;
     public final Configuration conf;
@@ -188,13 +188,13 @@ public class AerospikeConnection implements AutoCloseable {
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
     public final int CONNECT_TIMEOUT;
-    private final int TIMEOUT_DELAY;
+    public final int TIMEOUT_DELAY;
 
-    private static final AtomicLong instanceCounter = new AtomicLong(0);
+    public static final AtomicLong instanceCounter = new AtomicLong(0);
 
-    private final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
-    private final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
-    private final FireflyIdFactory idFactory;
+    public final List<String> VALID_OPTIMIZED_TWO_HOP_STEPS = Arrays.asList("out_out", "out_in", "in_out", "in_in");
+    public final List<String> VALID_OPTIMIZED_HOP_CONSTRAINT_STEPS = Arrays.asList("out_vp", "in_vp");
+    public final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
@@ -301,7 +301,7 @@ public class AerospikeConnection implements AutoCloseable {
      *
      * @param conf Apache Configuration
      */
-    private AerospikeConnection(final Configuration conf,
+    public AerospikeConnection(final Configuration conf,
                                 final AerospikeClient client,
                                 final EventLoops eventLoops) {
         LOG.info("Initializing AerospikeConnection.");
@@ -510,7 +510,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param readContext read context
      * @return an Iterator of raw FireflyId
      */
-    private Iterator<FireflyId> scanAllIdsInSet(final ReadContext readContext) {
+    public Iterator<FireflyId> scanAllIdsInSet(final ReadContext readContext) {
         final String setName = readContext.getSetName();
         final Class<? extends FireflyElement> type;
         if (setName.equals(VERTEX_AERO_SET)) {
@@ -702,9 +702,9 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public static class GraphMetadata {
-        private final Record metadataRecord;
+        public final Record metadataRecord;
 
-        private GraphMetadata(final Record metadata) {
+        public GraphMetadata(final Record metadata) {
             this.metadataRecord = metadata;
         }
 
@@ -724,7 +724,7 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
 
-        private Map<String, String> getExistingImmutableConfigs() {
+        public Map<String, String> getExistingImmutableConfigs() {
             if (this.metadataRecord == null) {
                 return null;
             } else {
@@ -739,7 +739,7 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public static class InfoOps {
-        protected static class Keys {
+        public static class Keys {
             public static final String SET = "set";
             public static final String SETS = "sets";
             public static final String NS = "ns";
@@ -752,7 +752,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         //Parse the whole infoResponse and return it as a List of Maps
-        protected static List<Map<String, String>> parseRaw(String infoResponse) {
+        public static List<Map<String, String>> parseRaw(String infoResponse) {
             List<Map<String, String>> results = new ArrayList<>();
             Arrays.stream(infoResponse.split(";"))
                     .map(str -> str.split(":"))
@@ -773,7 +773,7 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         //
-        private static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
+        public static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
             Map<String, Map<String, String>> results = new TreeMap<>();
             Arrays.stream(infoResponse.split(";"))
                     .filter(str -> str.startsWith(Keys.NS + "=" + namespace))
@@ -997,7 +997,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param maxCommandsInQueue
      * @return
      */
-    private static EventLoops initializeEventLoops(
+    public static EventLoops initializeEventLoops(
             final EventLoopType eventLoopType,
             final int numLoops,
             final int commandsPerEventLoop,
@@ -1032,7 +1032,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param policy Aerospike Policy to use
      * @return Aerospike Record
      */
-    protected Record read(final Key key, final Policy policy) {
+    public Record read(final Key key, final Policy policy) {
         readMetric.addAndGet(1);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
@@ -1052,7 +1052,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param keys Array of Key to return records for
      * @return Array of Record
      */
-    protected Record[] read(final Key[] keys) {
+    public Record[] read(final Key[] keys) {
         final BatchPolicy batchPolicy = new BatchPolicy();
         batchPolicy.sendKey = false;
         return read(keys, batchPolicy);
@@ -1065,7 +1065,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param batchPolicy BatchPolicy to use
      * @return Array of Record
      */
-    protected Record[] read(final Key[] keys, final BatchPolicy batchPolicy) {
+    public Record[] read(final Key[] keys, final BatchPolicy batchPolicy) {
         readMetric.addAndGet(keys.length);
         final FireflyCache cache = transactionCache.get();
         final Record[] results;
@@ -1084,7 +1084,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param key  Key to write Bins into
      * @param bins Data Bin(s) to write
      */
-    protected void write(final Key key, final Bin... bins) {
+    public void write(final Key key, final Bin... bins) {
         Bin[] newBins;
         //@todo This is a temporary measure to pack the user key into a bin.
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
@@ -1103,7 +1103,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param key  Key to write Bins into
      * @param bins Data Bin(s) to write
      */
-    protected void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
+    public void write(final Key key, final boolean writeOnly, final int generation, final Bin... bins) {
         Bin[] newBins;
         //@todo This is a temporary measure to pack the user key into a bin.
         //@todo Remove when sendKey works to recover the user key for hash constructed keys
@@ -1353,7 +1353,7 @@ public class AerospikeConnection implements AutoCloseable {
         writeTypeHintedValueToMapWithPolicy(aeroSet, fid, mapName, mapKey, value, typeHintBinName, null);
     }
 
-    private <V> void writeTypeHintedValueToMapWithPolicy(final String aeroSet,
+    public <V> void writeTypeHintedValueToMapWithPolicy(final String aeroSet,
                                                          final FireflyId fid,
                                                          final String mapName,
                                                          final String mapKey,
@@ -1399,7 +1399,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param val
      * @return
      */
-    private Object typeCast(final Class clazz, final Object val) {
+    public Object typeCast(final Class clazz, final Object val) {
         if (clazz.equals(Integer.class))
             return Integer.class.isAssignableFrom(val.getClass()) ? (Integer) val : Math.toIntExact((Long) val);
         return clazz.cast(val);
@@ -1760,13 +1760,13 @@ public class AerospikeConnection implements AutoCloseable {
      * Aerospike client is a singleton per JVM.
      */
     public static class DefaultAerospikeClientProvider implements AerospikeClientProvider, AutoCloseable {
-        private static final AtomicLong OPEN_COUNT = new AtomicLong(0);
-        private static AerospikeClient client;
-        private static EventLoops eventLoops;
+        public static final AtomicLong OPEN_COUNT = new AtomicLong(0);
+        public static AerospikeClient client;
+        public static EventLoops eventLoops;
 
-        private static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
+        public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
-        private DefaultAerospikeClientProvider() {
+        public DefaultAerospikeClientProvider() {
         }
 
         public static AerospikeClientProvider connect(final Configuration conf) {
@@ -1815,4 +1815,10 @@ public class AerospikeConnection implements AutoCloseable {
             }
         }
     }
+
+    /**
+     * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
+     */
+
+    enum EventLoopType {DIRECT_NIO, NETTY_NIO, NETTY_EPOLL}
 }

@@ -36,7 +36,6 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
 import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
@@ -340,7 +339,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     }
 
     protected int getTypeHint() {
-        return PackedVertex.VERTEX_TYPE_HINT;
+        return RelationalVertex.VERTEX_TYPE_HINT;
     }
 
     /**

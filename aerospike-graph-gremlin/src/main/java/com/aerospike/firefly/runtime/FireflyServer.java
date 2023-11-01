@@ -1,4 +1,4 @@
-package com.aerospike.firefly.structure;
+package com.aerospike.firefly.runtime;
 
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;

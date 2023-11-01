@@ -1,6 +1,6 @@
 package com.aerospike.firefly.server;
 
-import com.aerospike.firefly.structure.FireflyServer;
+import com.aerospike.firefly.runtime.FireflyServer;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;

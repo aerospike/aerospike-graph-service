@@ -158,7 +158,8 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
     // AerospikeGraphService is a dummy class that allows us to instantiate a logger in FireflyGraph that says
     // AerospikeGraphService. We can eventually migrate to calling FireflyGraph AerospikeGraphService but this requires
     // docs changes, config updates, etc, and isn't worth it right now.
-    private static final Logger LOG = LoggerFactory.getLogger(AerospikeGraphService.class);
+    public static final String PRODUCT_NAME = "Aerospike Graph";
+    private static final Logger LOG = LoggerFactory.getLogger(PRODUCT_NAME);
 
     public static String FIREFLY_VERSION = "1.1.0";
     public final AtomicBoolean closed = new AtomicBoolean(false);

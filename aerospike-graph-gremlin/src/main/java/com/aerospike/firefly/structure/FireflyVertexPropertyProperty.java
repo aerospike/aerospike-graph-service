@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.impl.relational.packed;
+package com.aerospike.firefly.structure;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -9,10 +9,6 @@ import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyProperty;
-import com.aerospike.firefly.structure.FireflyVertex;
-import com.aerospike.firefly.structure.FireflyVertexProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,8 +19,8 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
  */
-public class PackedVertexPropertyProperty<V> extends FireflyProperty<V> {
-    private static final Logger LOG = LoggerFactory.getLogger(PackedVertexPropertyProperty.class);
+public class FireflyVertexPropertyProperty<V> extends FireflyProperty<V> {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyVertexPropertyProperty.class);
     private final FireflyGraph graph;
     private final FireflyVertexProperty<?> vertexProperty;
 
@@ -36,7 +32,7 @@ public class PackedVertexPropertyProperty<V> extends FireflyProperty<V> {
      * @param key     Key of property.
      * @param value   Value of property.
      */
-    public PackedVertexPropertyProperty(final FireflyGraph graph, final FireflyVertexProperty<?> vertexProperty, final String key, final V value) {
+    public FireflyVertexPropertyProperty(final FireflyGraph graph, final FireflyVertexProperty<?> vertexProperty, final String key, final V value) {
         super(vertexProperty, key, value);
         this.graph = graph;
         this.vertexProperty = vertexProperty;

@@ -34,7 +34,6 @@ import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.impl.relational.RelationalVertex;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.utils.OperationReturnHandler;
 import com.aerospike.firefly.io.utils.RecordTooBigException;
@@ -1087,7 +1086,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                     vpPropertiesBin,
                     vpPropertiesTypeHintsBin);
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-            return PackedVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
+            return RelationalVertex.PackedVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
                     0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
                     vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints, isEdgeCacheOverflowed, db);
         } else {
@@ -1183,7 +1182,7 @@ public abstract class FireflyVertex extends FireflyElement implements Vertex {
                     (Map<String, Object>) record.getMap(db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
             final Map<String, FireflyId> fireflyVertexPropertyIds =
                     graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
-            return PackedVertex.PackedVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
+            return RelationalVertex.PackedVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
                     inEdgeCount, outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues,
                     vertexPropertyTypeHints, vertexPropertyProperties, vertexPropertyPropertiesTypeHints,
                     edgeCacheOverflowed, db);

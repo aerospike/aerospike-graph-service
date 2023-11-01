@@ -32,20 +32,20 @@ public class PackedVertex extends RelationalVertex {
      * @param isEdgeCacheOverflowed         is the edge cache overflowed.
      * @param db                            Aerospike connection.
      */
-    protected PackedVertex(final FireflyId fid,
-                           final String label,
-                           final FireflyGraph graph,
-                           final Map<String, List<FireflyId>> inEdgeIds,
-                           final Map<String, List<FireflyId>> outEdgeIds,
-                           final long inEdgeCount,
-                           final long outEdgeCount,
-                           final Map<String, FireflyId> vertexPropertyIds,
-                           final Map<String, Object> vertexPropertyValues,
-                           final Map<String, Object> vertexPropertyValuesTypeHints,
-                           final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
-                           final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints,
-                           final boolean isEdgeCacheOverflowed,
-                           final AerospikeConnection db) {
+    public PackedVertex(final FireflyId fid,
+                        final String label,
+                        final FireflyGraph graph,
+                        final Map<String, List<FireflyId>> inEdgeIds,
+                        final Map<String, List<FireflyId>> outEdgeIds,
+                        final long inEdgeCount,
+                        final long outEdgeCount,
+                        final Map<String, FireflyId> vertexPropertyIds,
+                        final Map<String, Object> vertexPropertyValues,
+                        final Map<String, Object> vertexPropertyValuesTypeHints,
+                        final Map<Object, Map<String, Object>> vertexPropertyIdToProperties,
+                        final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints,
+                        final boolean isEdgeCacheOverflowed,
+                        final AerospikeConnection db) {
         super(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount, isEdgeCacheOverflowed, db, vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
 
         // To enable values to have index functions run, cardinality must be single.
@@ -56,24 +56,4 @@ public class PackedVertex extends RelationalVertex {
     }
 
 
-    public static class PackedVertexFactory {
-        public static PackedVertex create(final FireflyId fid,
-                                          final String label,
-                                          final FireflyGraph graph,
-                                          final Map<String, List<FireflyId>> inEdgeIds,
-                                          final Map<String, List<FireflyId>> outEdgeIds,
-                                          final long inEdgeCount,
-                                          final long outEdgeCount,
-                                          final Map<String, FireflyId> vertexPropertyIds,
-                                          final Map<String, Object> vertexPropertyValues,
-                                          final Map<String, Object> vertexPropertyValuesTypeHints,
-                                          final Map<Object, Map<String, Object>> vertexPropertyProperties,
-                                          final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
-                                          final boolean isEdgeCacheOverflowed,
-                                          final AerospikeConnection db) {
-            return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
-                    vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
-                    vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
-        }
-    }
 }

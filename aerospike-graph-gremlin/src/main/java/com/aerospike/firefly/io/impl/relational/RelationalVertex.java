@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io.impl.relational;
 
 import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -41,4 +42,24 @@ public abstract class RelationalVertex extends FireflyVertex {
     }
 
 
+    public static class PackedVertexFactory {
+        public static PackedVertex create(final FireflyId fid,
+                                          final String label,
+                                          final FireflyGraph graph,
+                                          final Map<String, List<FireflyId>> inEdgeIds,
+                                          final Map<String, List<FireflyId>> outEdgeIds,
+                                          final long inEdgeCount,
+                                          final long outEdgeCount,
+                                          final Map<String, FireflyId> vertexPropertyIds,
+                                          final Map<String, Object> vertexPropertyValues,
+                                          final Map<String, Object> vertexPropertyValuesTypeHints,
+                                          final Map<Object, Map<String, Object>> vertexPropertyProperties,
+                                          final Map<Object, Map<String, Object>> vertexPropertyPropertiesTypeHints,
+                                          final boolean isEdgeCacheOverflowed,
+                                          final AerospikeConnection db) {
+            return new PackedVertex(fid, label, graph, inEdgeIds, outEdgeIds, inEdgeCount, outEdgeCount,
+                    vertexPropertyIds, vertexPropertyValues, vertexPropertyValuesTypeHints,
+                    vertexPropertyProperties, vertexPropertyPropertiesTypeHints, isEdgeCacheOverflowed, db);
+        }
+    }
 }

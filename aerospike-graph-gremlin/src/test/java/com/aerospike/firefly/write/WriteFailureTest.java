@@ -58,7 +58,7 @@ public class WriteFailureTest {
             Assert.assertFalse(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class),
+            FireflyEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class),
                     "fail", new ArrayList<>(), a, b, true, true);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
@@ -82,7 +82,7 @@ public class WriteFailureTest {
 
             a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
             b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
-            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph,
+            RelationalEdge edge = FireflyEdge.writeEdge(fireflyGraph,
                     fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail", new ArrayList<>(), a, b ,
                     true, true);
             Iterator<Edge> aOut = a.edges(Direction.OUT);

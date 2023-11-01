@@ -35,7 +35,6 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.ReadContext;
 import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
@@ -474,7 +473,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         final boolean outVertexCacheWrite = outVertex.writeEdge(Direction.OUT, getIdFactory().createCompositeEdgeId(edgeId, inVertex.id), label);
 
         // Write edge to Aerospike and return FireflyEdge.
-        return RelationalEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite);
+        return FireflyEdge.writeEdge(this, edgeId, label, properties, inVertex, outVertex, inVertexCacheWrite, outVertexCacheWrite);
     }
 
     public void bulkWriteEdge(final byte[] edgeId, final String label, final List<Map.Entry<String, Object>> properties,
@@ -555,7 +554,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         // Remove edge.
         FireflyGraph.LOG.debug("Removing edge {}.", edgeId);
 
-        RelationalEdge.removeEdgeById(this, edgeId);
+        FireflyEdge.removeEdgeById(this, edgeId);
     }
 
     /**
@@ -568,7 +567,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (!hasContainers.isEmpty()) {
             throw new RuntimeException("Pushdown is not currently supported for Edges.");
         }
-        return RelationalEdge.readEdges(this, edgeIds);
+        return FireflyEdge.readEdges(this, edgeIds);
     }
 
     /**
@@ -852,7 +851,7 @@ public abstract class FireflyGraph implements Graph, WrappedGraph<AerospikeConne
         if (idList.isEmpty()) {
             return new FireflyBatchElementIterator<>(this, this.db.readElementIds(FireflyEdge.class), filters, this::readEdges);
         } else {
-            return RelationalEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
+            return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }
     }
 

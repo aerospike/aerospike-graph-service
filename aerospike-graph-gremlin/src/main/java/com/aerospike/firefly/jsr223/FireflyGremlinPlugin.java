@@ -2,7 +2,14 @@ package com.aerospike.firefly.jsr223;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.*;
+import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyElement;
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyGraphFeatures;
+import com.aerospike.firefly.structure.FireflyGraphVariables;
+import com.aerospike.firefly.structure.FireflyProperty;
+import com.aerospike.firefly.structure.FireflyVertex;
+import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.runtime.HealthcheckServer;

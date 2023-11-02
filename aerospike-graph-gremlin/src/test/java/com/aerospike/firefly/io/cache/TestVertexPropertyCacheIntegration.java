@@ -1,15 +1,7 @@
 package com.aerospike.firefly.io.cache;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.async.Monitor;
-import com.aerospike.client.policy.ScanPolicy;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import groovy.transform.builder.InitializerStrategy;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
@@ -17,9 +9,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.Iterator;
-import java.util.UUID;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 

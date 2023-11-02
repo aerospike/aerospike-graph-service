@@ -1,7 +1,7 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.utils.EdgeRecordSizeExceededException;
-import com.aerospike.firefly.io.utils.VertexRecordSizeExceededException;
+import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
+import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.util.ConfigurationHelper;

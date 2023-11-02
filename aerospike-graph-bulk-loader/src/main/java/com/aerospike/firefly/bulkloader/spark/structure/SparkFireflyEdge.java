@@ -2,7 +2,7 @@ package com.aerospike.firefly.bulkloader.spark.structure;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;

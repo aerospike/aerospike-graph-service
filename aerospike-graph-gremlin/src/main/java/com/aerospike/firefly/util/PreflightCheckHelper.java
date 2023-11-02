@@ -1,6 +1,6 @@
 package com.aerospike.firefly.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 
 import java.util.ArrayList;
 import java.util.List;

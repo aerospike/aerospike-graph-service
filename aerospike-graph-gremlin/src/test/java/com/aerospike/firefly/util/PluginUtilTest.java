@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.runtime.PluginInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Graph;

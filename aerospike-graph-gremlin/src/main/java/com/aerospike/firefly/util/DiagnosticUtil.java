@@ -1,8 +1,6 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.client.AerospikeClient;
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.firefly.io.AerospikeConnection;
 import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

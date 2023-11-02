@@ -1,5 +1,6 @@
 package com.aerospike.firefly.util;
 
+import com.aerospike.firefly.runtime.PluginInterface;
 import org.apache.commons.configuration2.Configuration;
 
 import java.util.Optional;

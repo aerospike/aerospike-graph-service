@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

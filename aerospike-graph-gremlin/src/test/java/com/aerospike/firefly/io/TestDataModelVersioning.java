@@ -1,8 +1,7 @@
 package com.aerospike.firefly.io;
 
-import com.aerospike.firefly.io.impl.DataModelVersioning;
-import com.aerospike.firefly.io.impl.relational.RelationalGraph;
-import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.DataModelVersioning;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
@@ -49,7 +48,7 @@ public class TestDataModelVersioning {
 
     public static void openGraphLinkedNewVersion() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), PackedGraph.DATA_MODEL);
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
@@ -57,13 +56,13 @@ public class TestDataModelVersioning {
 
     public static void openGraphPacked() {
         config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), PackedGraph.DATA_MODEL);
+        config.setProperty(ConfigurationHelper.Keys.FIREFLY_DATA_MODEL.toLowerCase(), FireflyGraph.getDataModelName());
         db = AerospikeConnection.connect(config);
         graph = FireflyGraph.open(config);
         g = graph.traversal();
     }
 
-    public static class FakeGraph extends RelationalGraph {
+    public static class FakeGraph extends FireflyGraph {
 
         private static final String DATA_MODEL = "FAKE";
         private static String version = "0.0.1";

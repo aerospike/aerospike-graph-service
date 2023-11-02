@@ -1,6 +1,7 @@
 package com.aerospike.firefly.io;
 
 import com.aerospike.client.query.IndexType;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;

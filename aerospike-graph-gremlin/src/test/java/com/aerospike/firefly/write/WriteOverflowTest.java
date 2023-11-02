@@ -1,6 +1,5 @@
 package com.aerospike.firefly.write;
 
-import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -42,7 +41,7 @@ public class WriteOverflowTest {
     @Before
     public void setup() {
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
         }
     }
 

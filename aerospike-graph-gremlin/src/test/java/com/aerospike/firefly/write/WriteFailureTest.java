@@ -1,9 +1,5 @@
 package com.aerospike.firefly.write;
 
-import com.aerospike.firefly.io.impl.relational.RelationalEdge;
-import com.aerospike.firefly.io.impl.relational.packed.PackedGraph;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
@@ -22,7 +18,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.TreeMap;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
@@ -60,7 +55,7 @@ public class WriteFailureTest {
             Assert.assertFalse(bOut.hasNext());
             Assert.assertFalse(bIn.hasNext());
 
-            RelationalEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class),
+            FireflyEdge.writeEdge(fireflyGraph, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class),
                     "fail", new ArrayList<>(), a, b, true, true);
             aOut = a.edges(Direction.OUT);
             aIn = a.edges(Direction.IN);
@@ -84,7 +79,7 @@ public class WriteFailureTest {
 
             a.writeEdge(Direction.IN, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
             b.writeEdge(Direction.OUT, fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail");
-            RelationalEdge edge = RelationalEdge.writeEdge(fireflyGraph,
+            FireflyEdge edge = FireflyEdge.writeEdge(fireflyGraph,
                     fireflyGraph.getIdFactory().createId(getBytesId(1), FireflyEdge.class), "fail", new ArrayList<>(), a, b ,
                     true, true);
             Iterator<Edge> aOut = a.edges(Direction.OUT);
@@ -112,14 +107,14 @@ public class WriteFailureTest {
     public void writeVertexPropertyFailure() {
         // Test that if we partially write a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 
             FireflyVertex a = (FireflyVertex) g.addV().next();
             FireflyId id = fireflyGraph.getIdFactory().createId(1, FireflyVertexProperty.class);
 
-            final FireflyVertexProperty fireflyVertexProperty = new PackedVertexProperty<>(fireflyGraph, id, (PackedVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
+            final FireflyVertexProperty fireflyVertexProperty = new FireflyVertexProperty(fireflyGraph, id, (FireflyVertex) a, "key", "value", new TreeMap<>(), new TreeMap<>());
             List<Object> properties = g.V().values("key").toList();
             Assert.assertTrue(properties.isEmpty());
 
@@ -135,7 +130,7 @@ public class WriteFailureTest {
     public void removeVertexPropertyFailure() {
         // Test that if we partially remove a vertex property, it does not show up half way.
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
-            Assume.assumeTrue(fireflyGraph.getDataModel().equals(PackedGraph.getDataModelName()));
+            Assume.assumeTrue(fireflyGraph.getDataModel().equals(FireflyGraph.getDataModelName()));
             fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             GraphTraversalSource g = fireflyGraph.traversal();
 

@@ -2,7 +2,7 @@ package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;

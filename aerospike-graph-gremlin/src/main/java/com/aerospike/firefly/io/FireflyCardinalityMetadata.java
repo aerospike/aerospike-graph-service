@@ -4,6 +4,7 @@ import com.aerospike.client.Info;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexType;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

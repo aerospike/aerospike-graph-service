@@ -146,10 +146,6 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
                     CTX.mapKey(Value.get(id.getStorageId())));
         }
 
-        final FireflyCache cache = graph.getBaseGraph().transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(opKey);
-        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {

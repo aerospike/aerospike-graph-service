@@ -165,7 +165,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));

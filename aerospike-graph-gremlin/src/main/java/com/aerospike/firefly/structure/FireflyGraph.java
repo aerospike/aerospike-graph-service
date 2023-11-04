@@ -528,7 +528,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
-        writePolicy.maxRetries = db.AEROSPIKE_WRITE_MAX_RETRY;
         final Key key = getKey(db, db.EDGE_AERO_SET, getIdFactory().createId(edgeId, FireflyEdge.class));
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));

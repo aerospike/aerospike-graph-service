@@ -10,7 +10,10 @@ import com.aerospike.client.Value;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
+import com.aerospike.client.cdt.ListOrder;
+import com.aerospike.client.cdt.ListPolicy;
 import com.aerospike.client.cdt.ListReturnType;
+import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
@@ -457,7 +460,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Create operations for writing to edge cache.
         final Bin edgeCounter = new Bin(counterBinName, 1);
         final Operation incrementEdgeCounter = Operation.add(edgeCounter);
+        // Create operations for writing to edge cache.
+        final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED,
+                ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendToEdgeCache = ListOperation.append(
+                preventDuplicates,
                 cacheBinName,
                 Value.get(edgeId.getCachedId()),
                 CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)

@@ -59,7 +59,7 @@ public class FireflyGraphFeatures implements Graph.Features {
 
         @Override
         public boolean supportsConcurrentAccess() {
-            return false;
+            return true;
         }
 
         @Override

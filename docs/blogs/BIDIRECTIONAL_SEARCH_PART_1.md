@@ -1,4 +1,4 @@
-# Bidirectional Search
+# Bidirectional Search Part I
 
 Bidirectional search is a type of graph search algorithm. Bidirectional search can be used to find the path
 between two constrained areas of the graph. It runs two simultaneous searches; one forward from the initial state,

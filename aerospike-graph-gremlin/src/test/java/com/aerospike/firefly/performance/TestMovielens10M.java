@@ -4,11 +4,10 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.IOUtil;
-import com.aerospike.firefly.util.Movielens;
+import com.aerospike.firefly.test.datasets.Movielens;
 import com.aerospike.firefly.util.Unzip;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -21,8 +20,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.Movielens.MOVIELENS_10M_URL;
-import static com.aerospike.firefly.util.Movielens.YEAR;
+import static com.aerospike.firefly.test.datasets.Movielens.MOVIELENS_10M_URL;
+import static com.aerospike.firefly.test.datasets.Movielens.YEAR;
 import static com.aerospike.firefly.util.Util.verifyClean;
 import static org.junit.Assert.assertEquals;
 

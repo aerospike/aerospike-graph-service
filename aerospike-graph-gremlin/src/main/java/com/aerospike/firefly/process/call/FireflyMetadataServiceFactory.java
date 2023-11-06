@@ -2,7 +2,7 @@ package com.aerospike.firefly.process.call;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.util.FireflyGraphSummaryUpdater;
+import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;

@@ -1,9 +1,5 @@
 package com.aerospike.firefly.process.traversal.strategy.profile;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.impl.ReadThroughCache;
-import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyProfileStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyStrategyBase;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -14,9 +10,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.ProfileSid
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import java.util.HashSet;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)

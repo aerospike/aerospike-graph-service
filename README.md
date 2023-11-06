@@ -68,5 +68,4 @@ if __name__ == '__main__':
     g = traversal().withRemote(drc)
     load_flights(g)
     drc.close()
-
 ```

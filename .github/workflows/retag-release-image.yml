@@ -103,8 +103,9 @@ jobs:
           docker push $GCLOUD_LATEST_IMAGE
           
           # Create immutable tags
-          DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}_1
-          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}_1
+          # Since Dockerfile is part of our repo, we use dot notation here. 
+          DOCKERHUB_IMMUTABLE_IMAGE=${DOCKERHUB_OUTPUT_IMAGE}.1
+          GCLOUD_IMMUTABLE_IMAGE=${GCLOUD_OUTPUT_IMAGE}.1
           
           # Retag image for immutability.
           docker tag $GITHUB_IMAGE $DOCKERHUB_IMMUTABLE_IMAGE

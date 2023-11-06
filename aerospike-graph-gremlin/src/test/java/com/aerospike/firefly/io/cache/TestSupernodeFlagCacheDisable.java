@@ -3,7 +3,7 @@ package com.aerospike.firefly.io.cache;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.junit.Assert;
@@ -21,7 +21,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Create vertex.
-        PackedVertex v = (PackedVertex) g.addV("test").next();
+        FireflyVertex v = (FireflyVertex) g.addV("test").next();
 
         // Validate ~supernode flag does not exist on vertex as it is virtual
         Assert.assertFalse(v.property("~supernode").isPresent());
@@ -33,7 +33,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         Assert.assertFalse(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
         // Set supernode flag and grab vertex.
-        v = (PackedVertex) g.V(v.id()).property("~supernode", true).next();
+        v = (FireflyVertex) g.V(v.id()).property("~supernode", true).next();
 
         // Validate ~supernode flag does not exist on vertex as it is virtual
         Assert.assertFalse(v.property("~supernode").isPresent());
@@ -44,7 +44,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
         // Grab vertex through id.
-        v = (PackedVertex) g.V(v.id()).next();
+        v = (FireflyVertex) g.V(v.id()).next();
 
         // Validate ~supernode flag does not exist on vertex as it is virtual
         Assert.assertFalse(v.property("~supernode").isPresent());
@@ -60,7 +60,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         final GraphTraversalSource g = graph.traversal();
 
         // Create vertex.
-        PackedVertex v = (PackedVertex) g.addV("test").property("~supernode", true).next();
+        FireflyVertex v = (FireflyVertex) g.addV("test").property("~supernode", true).next();
 
         // Validate ~supernode flag does not exist on vertex as it is virtual
         Assert.assertFalse(v.property("~supernode").isPresent());
@@ -71,7 +71,7 @@ public class TestSupernodeFlagCacheDisable extends AbstractFireflySuite {
         Assert.assertTrue(v.isEdgeCacheOverflowed());
         Assert.assertTrue(r.getBoolean(db.EDGE_CACHE_DISABLED_BIN));
 
-        v = (PackedVertex) g.V().hasLabel("test").next();
+        v = (FireflyVertex) g.V().hasLabel("test").next();
 
         // Validate ~supernode flag does not exist on vertex as it is virtual
         Assert.assertFalse(v.property("~supernode").isPresent());

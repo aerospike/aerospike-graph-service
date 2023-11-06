@@ -9,6 +9,7 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.io.Serializable;

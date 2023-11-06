@@ -1,6 +1,6 @@
 package com.aerospike.firefly.process;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;

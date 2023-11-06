@@ -1,8 +1,8 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
-import com.aerospike.firefly.io.impl.ReadThroughCache;
+import com.aerospike.firefly.io.aerospike.ReadThroughRecordCache;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -53,7 +53,7 @@ public class FireflyReadThroughCacheStrategy extends FireflyStrategyBase {
 
         // Now that we know this is a supported traversal.
         // Set the traversal thread-local reference.
-        final FireflyCache cache = new ReadThroughCache(db, uuid);
+        final FireflyCache cache = new ReadThroughRecordCache(db, uuid);
         db.transactionCache.set(cache);
 
         // Tack on the step that will remove the cache when it's finished.

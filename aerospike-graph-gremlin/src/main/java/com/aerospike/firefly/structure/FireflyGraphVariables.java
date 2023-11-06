@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.structure.util.FireflyHelper;
+import com.aerospike.firefly.util.FireflyHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 

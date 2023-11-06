@@ -1,6 +1,5 @@
 package com.aerospike.firefly.process.traversal.step;
 
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
 import com.aerospike.firefly.process.traversal.step.sideEffect.FireflyGraphStep;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -84,17 +83,17 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
 
         if (sampleSize != -1) {
             // For a sample we need to yank all the ids from the input vertices and then randomly select ones from that.
-            final Map<Traverser.Admin<Vertex>, RelationalVertex> inputVertices = new HashMap<>();
+            final Map<Traverser.Admin<Vertex>, FireflyVertex> inputVertices = new HashMap<>();
             while (!set.isEmpty()) {
                 final Traverser.Admin<Vertex> traverser = set.remove();
-                final RelationalVertex vertex = (RelationalVertex) traverser.get();
+                final FireflyVertex vertex = (FireflyVertex) traverser.get();
                 inputVertices.put(traverser, vertex);
             }
 
             // Create mapping of input vertex to output vertex ids.
             final Map<Traverser.Admin<Vertex>, List<FireflyId>> outputVertexIds = new HashMap<>();
             for (final Traverser.Admin<Vertex> input : inputVertices.keySet()) {
-                final RelationalVertex vertex = inputVertices.get(input);
+                final FireflyVertex vertex = inputVertices.get(input);
                 outputVertexIds.put(input, vertex.getVertexIdsFromVertex(direction, edgeLabels));
             }
 
@@ -169,9 +168,9 @@ public class FireflyCompositeIdStep extends CollectingBarrierStep<Vertex> {
             }
         } else {
             while (!set.isEmpty()) {
-                // Get next input traverser and get the RelationalVertex form of it.
+                // Get next input traverser and get the FireflyVertex form of it.
                 final Traverser.Admin<Vertex> traverser = set.remove();
-                final RelationalVertex vertex = (RelationalVertex) traverser.get();
+                final FireflyVertex vertex = (FireflyVertex) traverser.get();
 
                 // Latch the size of the current id list.
                 final int previousSize = fireflyIdList.size();

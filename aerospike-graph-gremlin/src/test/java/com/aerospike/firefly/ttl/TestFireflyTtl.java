@@ -1,0 +1,184 @@
+package com.aerospike.firefly.ttl;
+
+import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.util.ConfigurationHelper;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
+
+public class TestFireflyTtl {
+    private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+    static {
+        CONFIG.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "true");
+        CONFIG.setProperty(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL.toLowerCase(), 2000);
+        CONFIG.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "true");
+    }
+    private FireflyGraph graph;
+
+    @Before
+    public void beforeEach() {
+        this.graph = FireflyGraph.open(CONFIG);
+        this.graph.getBaseGraph().dropDatabase(graph, false);
+    }
+
+    @After
+    public void afterEach() {
+        this.graph.getBaseGraph().dropDatabase(graph, false);
+        this.graph.close();
+    }
+
+    @Test
+    public void testTtl() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+        final Vertex v1 = g.addV("v1").property("~ttl", 2000).next();
+        final Vertex v2 = g.addV("v2").next();
+        final Vertex v3 = g.addV("v3").next();
+        final Vertex v4 = g.addV("v4").next();
+        final Vertex v5 = g.addV("v5").property("~ttl", 200000).next();
+        final Edge v1tov2 = g.addE("edge").from(v1).to(v2).next();
+        final Edge v2tov1 = g.addE("edge").from(v2).to(v1).next();
+        final Edge v2tov3 = g.addE("edge").property("~ttl", 2000).from(v2).to(v3).next();
+        final Edge v3tov2 = g.addE("edge").from(v3).to(v2).next();
+        final Edge v2tov3longTtl = g.addE("edge").property("~ttl", 200000).from(v2).to(v3).next();
+        g.V(v4.id()).property("~ttl", 2000).iterate();
+
+        // Assert proper baseline
+        Assert.assertTrue(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Assert.assertTrue(g.V(v3.id()).hasNext());
+        Assert.assertTrue(g.V(v4.id()).hasNext());
+        Assert.assertTrue(g.V(v5.id()).hasNext());
+        Assert.assertTrue(g.E(v1tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov1.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3.id()).hasNext());
+        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
+        Assert.assertFalse(g.V().has("~ttl").hasNext());
+        Assert.assertFalse(g.E().has("~ttl").hasNext());
+
+        // Sleep for 2s for TTL to kick in
+        Thread.sleep(2000);
+        // Assert expected TTL elements are removed and edges attached to TTL vertices too as well
+        Assert.assertFalse(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Assert.assertTrue(g.V(v3.id()).hasNext());
+        Assert.assertFalse(g.V(v4.id()).hasNext());
+        Assert.assertTrue(g.V(v5.id()).hasNext());
+        Assert.assertFalse(g.E(v1tov2.id()).hasNext());
+        Assert.assertFalse(g.E(v2tov1.id()).hasNext());
+        Assert.assertFalse(g.E(v2tov3.id()).hasNext());
+        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
+
+        g.E(v3tov2.id()).property("~ttl", 2000).iterate();
+        Thread.sleep(2000);
+        Assert.assertFalse(g.E(v3tov2.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlVertexAlreadyDeleted() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+        // Put this Vertex expiry in the 2000-4000ms scan and schedule its deletion, and then delete it first manually
+        // to ensure it doesn't break the TTL scheduler.
+        final Vertex v1 = g.addV("v1").property("~ttl", 3000).next();
+        final Vertex v2 = g.addV("v2").property("~ttl", 3000).next();
+        Assert.assertTrue(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Thread.sleep(2500);
+        Assert.assertTrue(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        g.V(v1.id()).drop().iterate();
+        Assert.assertFalse(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Thread.sleep(500);
+        Assert.assertFalse(g.V(v2.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlEdgeAlreadyDeletedSingleEdge() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+        // Put this Edge expiry in the 2000-4000ms scan and schedule its deletion, and then delete it first manually
+        // to ensure it doesn't break the TTL scheduler. This is for when the Edge is the only one in the Edge pack.
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+        Edge e10 = null;
+        for (int i = 0; i < 10; i++) {
+            if (i == 9) {
+                e10 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
+            } else {
+                g.addE("edge").from(v1).to(v2).iterate();
+            }
+        }
+        final Edge e11 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
+        Assert.assertTrue(g.E(e10.id()).hasNext());
+        Assert.assertTrue(g.E(e11.id()).hasNext());
+        Thread.sleep(2500);
+        Assert.assertTrue(g.E(e10.id()).hasNext());
+        Assert.assertTrue(g.E(e11.id()).hasNext());
+        g.E(e11.id()).drop().iterate();
+        Assert.assertFalse(g.E(e11.id()).hasNext());
+        Assert.assertTrue(g.E(e10.id()).hasNext());
+        Thread.sleep(500);
+        Assert.assertFalse(g.E(e10.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlEdgeAlreadyDeletedMultipleEdge() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+        // Put this Edge expiry in the 2000-4000ms scan and schedule its deletion, and then delete it first manually
+        // to ensure it doesn't break the TTL scheduler. This is for when the Edge is not the only one in the Edge pack.
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+        final Edge e1 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
+        final Edge e2 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
+        Assert.assertTrue(g.E(e1.id()).hasNext());
+        Assert.assertTrue(g.E(e2.id()).hasNext());
+        Thread.sleep(2500);
+        Assert.assertTrue(g.E(e1.id()).hasNext());
+        Assert.assertTrue(g.E(e2.id()).hasNext());
+        g.E(e1.id()).drop().iterate();
+        Assert.assertFalse(g.E(e1.id()).hasNext());
+        Assert.assertTrue(g.E(e2.id()).hasNext());
+        Thread.sleep(500);
+        Assert.assertFalse(g.E(e2.id()).hasNext());
+    }
+
+    @Test
+    public void testInvalidTtlValue() {
+        final GraphTraversalSource g = this.graph.traversal();
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+        try {
+            g.addV("vertex").property("~ttl", "string").iterate();
+            Assert.fail("String ttl value succeeded for adding Vertex");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
+        }
+        try {
+            g.V(v1.id()).property("~ttl", "string").iterate();
+            Assert.fail("String ttl value succeeded for adding property to Vertex");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
+        }
+        try {
+            g.addE("edge").property("~ttl", "string").from(v1).to(v2).iterate();
+            Assert.fail("String ttl value succeeded for adding Edge");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
+        }
+        try {
+            final Edge e = g.addE("edge").from(v1).to(v2).next();
+            g.E(e.id()).property("~ttl", "string").iterate();
+            Assert.fail("String ttl value succeeded for adding property to Edge");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof IllegalArgumentException);
+        }
+    }
+}

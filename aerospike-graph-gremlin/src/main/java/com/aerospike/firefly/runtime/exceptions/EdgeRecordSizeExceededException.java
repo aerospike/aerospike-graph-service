@@ -63,7 +63,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
         return phatEdgePropertyMap.values().stream().mapToLong(Map::size).sum();
     }
 
-    private static String getUserIdString(final Object userId) {
+    public static String getUserIdString(final Object userId) {
         return Base64.getEncoder().encodeToString(((ByteBuffer) userId).array());
     }
 }

@@ -182,6 +182,11 @@ public class AerospikeConnection implements AutoCloseable {
     public final int MOVEMENT_BARRIER_SIZE;
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
     public final boolean SUMMARY_ENABLED_FLAG;
+    public final boolean TTL_ENABLED_FLAG;
+    public final String TTL_BIN;
+    public final String TTL_VERTEX_INDEX_NAME;
+    public final String TTL_EDGE_INDEX_NAME;
+    public final int TTL_PURGE_INTERVAL;
 
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
@@ -328,6 +333,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
+        TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
 
@@ -335,6 +341,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
         INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
+        TTL_PURGE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL, conf));
 
         OPTIMIZED_TWO_HOP_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_TWO_HOP_STEPS, conf);
         OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);
@@ -357,6 +364,8 @@ public class AerospikeConnection implements AutoCloseable {
         E_OUT_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), conf));
         V_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME.name(), conf));
         E_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_LABEL_INDEX_NAME.name(), conf));
+        TTL_VERTEX_INDEX_NAME =  String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_VERTEX_INDEX_NAME.name(), conf));
+        TTL_EDGE_INDEX_NAME =  String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.TTL_EDGE_INDEX_NAME.name(), conf));
         VERTEX_PROPERTY_NAME_TO_ID_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_ID_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_BIN.name(), conf);
         VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN.name(), conf);
@@ -375,6 +384,7 @@ public class AerospikeConnection implements AutoCloseable {
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.InternalConfigs.SUPERNODES_OUT.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
+        TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
 
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -945,6 +955,15 @@ public class AerospikeConnection implements AutoCloseable {
                     IndexType.STRING, IndexCollectionType.MAPVALUES);
         }
 
+        if (TTL_ENABLED_FLAG) {
+            createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
+                    TTL_VERTEX_INDEX_NAME, TTL_BIN,
+                    IndexType.NUMERIC, IndexCollectionType.DEFAULT);
+            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                    TTL_EDGE_INDEX_NAME, TTL_BIN,
+                    IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
+        }
+
         if (V_LABEL_INDEX_ENABLED_FLAG) {
             createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
                     V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT);
@@ -1186,13 +1205,14 @@ public class AerospikeConnection implements AutoCloseable {
      * Delete by Key
      *
      * @param key Aerospike Key to delete
+     * @return whether record existed on server before deletion
      */
-    public void delete(final Key key) {
+    public boolean delete(final Key key) {
         final FireflyCache cache = transactionCache.get();
         if (cache != null) {
             cache.invalidate(key);
         }
-        client.delete(null, key);
+        return client.delete(null, key);
     }
 
     /**

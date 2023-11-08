@@ -83,7 +83,7 @@ public class SizingToolMain implements Callable<Exception> {
                     .reduce("", (a, b) -> a + "\n" + b);
             final Yaml yaml = new Yaml(new Constructor(GraphSchema.class, new LoaderOptions()));
             return yaml.load(yamlText);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException("Could not read file: " + file.toPath(), e);
         }
     }
@@ -208,9 +208,6 @@ public class SizingToolMain implements Callable<Exception> {
             throw new RuntimeException("Graph does not have a '~metadata' vertex with a 'replicationFactor' property.");
         }
         graphSchema.replicationFactor = ((Number) metadata.get("replicationFactor")).longValue();
-        if (metadata.containsKey("maxEdgeCacheSize")) {
-            graphSchema.maxEdgeCacheSize = ((Number) metadata.get("maxEdgeCacheSize")).longValue();
-        }
         if (metadata.containsKey("maxEdgeCacheSize")) {
             graphSchema.maxEdgeCacheSize = ((Number) metadata.get("maxEdgeCacheSize")).longValue();
         }

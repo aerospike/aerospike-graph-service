@@ -25,6 +25,7 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
@@ -55,6 +56,7 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupporte
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
+import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.getUserIdString;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
@@ -156,6 +158,24 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             operations.add(writeOutVSupernode);
         }
 
+        if (data.containsKey(TTL_PROPERTY_KEY)) {
+            if (!db.TTL_ENABLED_FLAG) {
+                throw new TtlNotEnabledException();
+            }
+            final Object ttlValue = data.remove(TTL_PROPERTY_KEY);
+            typeHints.remove(TTL_PROPERTY_KEY);
+            if (Number.class.isAssignableFrom(ttlValue.getClass())) {
+                final long expirationTime = System.currentTimeMillis() + ((Number) ttlValue).longValue();
+                final Operation writeTtl = MapOperation.put(mapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
+                        Value.get(expirationTime));
+                operations.add(writeTtl);
+            } else {
+                throw new IllegalArgumentException(
+                        String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
+                                TTL_PROPERTY_KEY, ttlValue.getClass()));
+            }
+        }
+
         final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES_BIN,
                 Value.get(edgeId.getUserId()), Value.get(data, MapOrder.KEY_ORDERED));
         operations.add(writeProperties);
@@ -227,6 +247,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Operation removeTypeHints = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
 
         // Logic for deleting the entire phat edge record if it no longer contains individual edges.
         final Expression removeEmptyPhatEdgeExp = Exp.build(
@@ -246,14 +267,15 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Operation removeTypeHintsBin = ExpOperation.write(db.TYPE_HINTS_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         // This operation must be last since the expression checks the map in the label bin.
         final Operation removeLabelBin = ExpOperation.write(db.LABEL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         try {
             final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
-                    removeSupernodesIn, removeSupernodesOut, removeInBin, removeOutBin, removePropertiesBin,
-                    removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeLabelBin);
+                    removeSupernodesIn, removeSupernodesOut, removeTtl, removeInBin, removeOutBin, removePropertiesBin,
+                    removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin, removeLabelBin);
             graph.edgeIdManager.recycleId(edgeId);
 
             // Result returned is always [<label>, null] since the label is removed first.
@@ -268,7 +290,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
-            LOG.info("Ignoring exception when deleting Edge with id " + edgeId.getUserId() + " since it was not found.");
+            LOG.info("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
         }
     }
 
@@ -360,14 +382,29 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     public <V> Property<V> property(final String key, final V value) {
         FireflyHelper.legalPropertyKeyValueArray(key, value);
 
-        // Cannot be hidden key.
-        if (isHidden(key))
-            throw Edge.Exceptions.labelCanNotBeAHiddenKey(key);
-
-        // If edge is removed, cannot remove property.
+        // Edge is already removed.
         if (this.removed) {
             throw elementAlreadyRemoved(Edge.class, id);
         }
+
+        // Handle TTL.
+        if (TTL_PROPERTY_KEY.equals(key)) {
+            if (!db.TTL_ENABLED_FLAG) {
+                throw new TtlNotEnabledException();
+            }
+            if (Number.class.isAssignableFrom(value.getClass())) {
+                setTtl(((Number) value).longValue());
+                return Property.empty();
+            } else {
+                throw new IllegalArgumentException(
+                        String.format("Property value [%s] for key %s is of type %s and must be numeric", value, key,
+                                value.getClass()));
+            }
+        }
+
+        // Cannot be hidden key.
+        if (isHidden(key))
+            throw Property.Exceptions.propertyKeyCanNotBeAHiddenKey(key);
 
         // Remove the property.
         if ((!allowNullPropertyValues && null == value)) {
@@ -484,12 +521,40 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         return new FireflyEdgeProperty<>(graph, edge, propertyKey, value);
     }
 
+    private void setTtl(final long durationMilliseconds) {
+        final Key key = getKey(this.db, this.db.EDGE_AERO_SET, this.id);
+        final long expirationTime = System.currentTimeMillis() + durationMilliseconds;
+        final Value edgeIdMapKey = Value.get(this.id.getUserId());
+
+        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
+        final Operation writeTtl = MapOperation.put(policy, db.TTL_BIN, edgeIdMapKey, Value.get(expirationTime));
+
+        final WritePolicy writePolicy = new WritePolicy();
+        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
+        try {
+            db.operate(writePolicy, key, writeTtl);
+        } catch (final RecordTooBigException e) {
+            final EdgeRecordSizeExceededException sizeExceededException =
+                    fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
+            LOG.error(sizeExceededException.getMessage());
+            throw sizeExceededException;
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+                // Special logic to handle when Edge has been removed from the Phat Edge since in this case
+                // the key is the Phat Edge key and thus the key still exists.
+                throw new ElementNotFoundException(this, ae);
+            } else {
+                throw ae;
+            }
+        }
+    }
+
     @Override
     public String toString() {
         return StringFactory.edgeString(this);
     }
 
-    private static class FireflyEdgeFactory {
+    public static class FireflyEdgeFactory {
         private static FireflyEdge create(final FireflyId fid, final String label, final FireflyGraph graph,
                                              final FireflyId outVertex, final FireflyId inVertex,
                                              final Map<String, Object> properties, final Map<String, Object> typeHints) {
@@ -498,11 +563,17 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
         private static FireflyEdge create(final FireflyId edgeId, final FireflyRecord fireflyRecord,
                                              final FireflyGraph graph) {
-            if (fireflyRecord == null || fireflyRecord.record() == null) {
+            if (fireflyRecord == null) {
+                return null;
+            }
+            return create(edgeId, fireflyRecord.record(), graph);
+        }
+
+        public static FireflyEdge create(final FireflyId edgeId, final Record record, final FireflyGraph graph) {
+            if (record == null) {
                 return null;
             }
             final AerospikeConnection db = graph.getBaseGraph();
-            final Record record = fireflyRecord.record();
             final ByteBuffer edgeIdMapKey = (ByteBuffer) edgeId.getUserId();
             final Map<ByteBuffer, String> labels = (Map<ByteBuffer, String>) record.getMap(db.LABEL_BIN);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the
@@ -541,7 +612,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES_BIN).get(edgeIdMapKey);
             final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS_BIN).get(edgeIdMapKey);
 
-            return FireflyEdge.FireflyEdgeFactory.create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
+            return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }
     }
 }

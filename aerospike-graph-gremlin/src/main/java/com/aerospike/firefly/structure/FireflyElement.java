@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
  */
 public abstract class FireflyElement implements Element {
     public static final String DEBUG_STORAGE_PROPERTY = "debugStorage";
+    public static final String TTL_PROPERTY_KEY = "~ttl";
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;

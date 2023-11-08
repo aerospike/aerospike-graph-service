@@ -60,7 +60,7 @@ RUN mkdir /opt/bulk-loader &&\
 
 # Move sizing-tool jar to /opt/sizing-tool.
 RUN mkdir /opt/sizing-tool &&\
-    mv /opt/aerospike-firefly/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.1.0.jar /opt/sizing-tool
+    mv /opt/aerospike-firefly/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-2.0.0-SNAPSHOT.jar /opt/sizing-tool
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.

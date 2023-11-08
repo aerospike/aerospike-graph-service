@@ -150,7 +150,6 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL"));
 
-
             private final Pair value;
 
             Bins(final Pair b) {

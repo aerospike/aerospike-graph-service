@@ -56,6 +56,7 @@ import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.getUserIdString;
+import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -376,7 +377,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     public <V> Property<V> property(final String key, final V value) {
         FireflyHelper.legalPropertyKeyValueArray(key, value);
 
-        // If edge is removed, cannot remove property.
+        // Edge is already removed.
         if (this.removed) {
             throw elementAlreadyRemoved(Edge.class, id);
         }
@@ -392,6 +393,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                                 value.getClass()));
             }
         }
+
+        // Cannot be hidden key.
+        if (isHidden(key))
+            throw Property.Exceptions.propertyKeyCanNotBeAHiddenKey(key);
 
         // Remove the property.
         if ((!allowNullPropertyValues && null == value)) {

@@ -71,6 +71,8 @@ public class FireflyTtlHandler implements Closeable {
         private final ScheduledExecutorService scheduler;
         private final Key lockKey;
         private final WritePolicy acquireTtlLockPolicy;
+        private int lastFailureCode = ResultCode.OK;
+
         private TtlTimerTask(final FireflyGraph graph, final ScheduledExecutorService scheduler) {
             this.graph = graph;
             this.db = graph.getBaseGraph();
@@ -100,7 +102,8 @@ public class FireflyTtlHandler implements Closeable {
                 LOG.debug("Successfully grabbed TTL element purge lock. Starting TTL element purge.");
                 return true;
             } catch (final AerospikeException ae) {
-                if (ae.getResultCode() != ResultCode.KEY_EXISTS_ERROR) {
+                if (ae.getResultCode() != ResultCode.KEY_EXISTS_ERROR && this.lastFailureCode != ae.getResultCode()) {
+                    this.lastFailureCode = ae.getResultCode();
                     LOG.error("Encountered unexpected error when initializing TTL element purge.", ae);
                 }
                 LOG.debug("Could not grab TTL element purge lock. Sleeping until next interval.");

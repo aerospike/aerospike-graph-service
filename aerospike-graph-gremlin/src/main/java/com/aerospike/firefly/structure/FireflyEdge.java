@@ -25,6 +25,7 @@ import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
@@ -157,7 +158,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             operations.add(writeOutVSupernode);
         }
 
-        if (db.TTL_ENABLED_FLAG && data.containsKey(TTL_PROPERTY_KEY)) {
+        if (data.containsKey(TTL_PROPERTY_KEY)) {
+            if (!db.TTL_ENABLED_FLAG) {
+                throw new TtlNotEnabledException();
+            }
             final Object ttlValue = data.remove(TTL_PROPERTY_KEY);
             typeHints.remove(TTL_PROPERTY_KEY);
             if (Number.class.isAssignableFrom(ttlValue.getClass())) {
@@ -384,7 +388,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
 
         // Handle TTL.
-        if (this.graph.getBaseGraph().TTL_ENABLED_FLAG && TTL_PROPERTY_KEY.equals(key)) {
+        if (TTL_PROPERTY_KEY.equals(key)) {
+            if (!db.TTL_ENABLED_FLAG) {
+                throw new TtlNotEnabledException();
+            }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 setTtl(((Number) value).longValue());
                 return Property.empty();
@@ -606,7 +613,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS_BIN).get(edgeIdMapKey);
 
             return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
-
         }
     }
 }

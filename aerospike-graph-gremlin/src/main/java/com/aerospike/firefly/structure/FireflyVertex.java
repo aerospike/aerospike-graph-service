@@ -36,6 +36,7 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
@@ -798,7 +799,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         // Handle TTL.
-        if (this.graph.getBaseGraph().TTL_ENABLED_FLAG && TTL_PROPERTY_KEY.equals(key)) {
+        if (TTL_PROPERTY_KEY.equals(key)) {
+            if (!db.TTL_ENABLED_FLAG) {
+                throw new TtlNotEnabledException();
+            }
             if (Number.class.isAssignableFrom(value.getClass())) {
                 setTtl(((Number) value).longValue());
                 return VertexProperty.empty();
@@ -1077,7 +1081,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {
             final PropertyValueIdMaps propertyValueIdMaps = FireflyVertex.getPropertyValueIdMaps(graph, validProperties);
             // Handle special TTL property if flag is enabled.
-            if (db.TTL_ENABLED_FLAG && propertyValueIdMaps.valueMap.containsKey(TTL_PROPERTY_KEY)) {
+            if (propertyValueIdMaps.valueMap.containsKey(TTL_PROPERTY_KEY)) {
+                if (!db.TTL_ENABLED_FLAG) {
+                    throw new TtlNotEnabledException();
+                }
                 final Object ttlValue = propertyValueIdMaps.valueMap.remove(TTL_PROPERTY_KEY);
                 propertyValueIdMaps.idMap.remove(TTL_PROPERTY_KEY);
                 if (Number.class.isAssignableFrom(ttlValue.getClass())) {

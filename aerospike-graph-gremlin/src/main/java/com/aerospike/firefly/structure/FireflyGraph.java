@@ -172,10 +172,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final IdManager<Long> vertexIdManager;
     public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
-    private FireflyTtlHandler ttlHandler = null;
-    public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
-    public FireflyIndexMetadata fireflyIndexMetadata = null;
-    public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
+    private final FireflyTtlHandler ttlHandler;
+    public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
+    public final FireflyIndexMetadata fireflyIndexMetadata;
+    public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
     public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml";
 
@@ -221,9 +221,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
-        if (db.TTL_ENABLED_FLAG) {
-            this.ttlHandler = new FireflyTtlHandler(this);
-        }
+        // Create ttl background task.
+        this.ttlHandler = new FireflyTtlHandler(this);
 
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
@@ -1134,9 +1133,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
-        if (this.ttlHandler != null) {
-            this.ttlHandler.close();
-        }
+        this.ttlHandler.close();
         this.db.close();
     }
 

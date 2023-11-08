@@ -63,8 +63,8 @@ public class TestFireflyTtl {
         Assert.assertFalse(g.V().has("~ttl").hasNext());
         Assert.assertFalse(g.E().has("~ttl").hasNext());
 
-        // Sleep for 2s for TTL to kick in
-        Thread.sleep(2000);
+        // Sleep for 3s for TTL to kick in
+        Thread.sleep(3000);
         // Assert expected TTL elements are removed and edges attached to TTL vertices too as well
         Assert.assertFalse(g.V(v1.id()).hasNext());
         Assert.assertTrue(g.V(v2.id()).hasNext());
@@ -78,7 +78,7 @@ public class TestFireflyTtl {
         Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
 
         g.E(v3tov2.id()).property("~ttl", 2000).iterate();
-        Thread.sleep(2000);
+        Thread.sleep(3000);
         Assert.assertFalse(g.E(v3tov2.id()).hasNext());
     }
 
@@ -87,8 +87,8 @@ public class TestFireflyTtl {
         final GraphTraversalSource g = this.graph.traversal();
         // Put this Vertex expiry in the 2000-4000ms scan and schedule its deletion, and then delete it first manually
         // to ensure it doesn't break the TTL scheduler.
-        final Vertex v1 = g.addV("v1").property("~ttl", 3000).next();
-        final Vertex v2 = g.addV("v2").property("~ttl", 3000).next();
+        final Vertex v1 = g.addV("v1").property("~ttl", 3500).next();
+        final Vertex v2 = g.addV("v2").property("~ttl", 3500).next();
         Assert.assertTrue(g.V(v1.id()).hasNext());
         Assert.assertTrue(g.V(v2.id()).hasNext());
         Thread.sleep(2500);
@@ -97,7 +97,7 @@ public class TestFireflyTtl {
         g.V(v1.id()).drop().iterate();
         Assert.assertFalse(g.V(v1.id()).hasNext());
         Assert.assertTrue(g.V(v2.id()).hasNext());
-        Thread.sleep(500);
+        Thread.sleep(2000);
         Assert.assertFalse(g.V(v2.id()).hasNext());
     }
 
@@ -119,13 +119,13 @@ public class TestFireflyTtl {
         final Edge e11 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
         Assert.assertTrue(g.E(e10.id()).hasNext());
         Assert.assertTrue(g.E(e11.id()).hasNext());
-        Thread.sleep(2500);
+        Thread.sleep(2000);
         Assert.assertTrue(g.E(e10.id()).hasNext());
         Assert.assertTrue(g.E(e11.id()).hasNext());
         g.E(e11.id()).drop().iterate();
         Assert.assertFalse(g.E(e11.id()).hasNext());
         Assert.assertTrue(g.E(e10.id()).hasNext());
-        Thread.sleep(500);
+        Thread.sleep(2000);
         Assert.assertFalse(g.E(e10.id()).hasNext());
     }
 
@@ -136,8 +136,8 @@ public class TestFireflyTtl {
         // to ensure it doesn't break the TTL scheduler. This is for when the Edge is not the only one in the Edge pack.
         final Vertex v1 = g.addV("v1").next();
         final Vertex v2 = g.addV("v2").next();
-        final Edge e1 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
-        final Edge e2 = g.addE("edge").property("~ttl", 3000).from(v1).to(v2).next();
+        final Edge e1 = g.addE("edge").property("~ttl", 3500).from(v1).to(v2).next();
+        final Edge e2 = g.addE("edge").property("~ttl", 3500).from(v1).to(v2).next();
         Assert.assertTrue(g.E(e1.id()).hasNext());
         Assert.assertTrue(g.E(e2.id()).hasNext());
         Thread.sleep(2500);
@@ -146,7 +146,7 @@ public class TestFireflyTtl {
         g.E(e1.id()).drop().iterate();
         Assert.assertFalse(g.E(e1.id()).hasNext());
         Assert.assertTrue(g.E(e2.id()).hasNext());
-        Thread.sleep(500);
+        Thread.sleep(2000);
         Assert.assertFalse(g.E(e2.id()).hasNext());
     }
 

@@ -2,8 +2,8 @@
 
 Aerospike Graph Service supports TTL on Vertices and Edges. In order to assign 
 a TTL to an element, assign it a virtual property using the key `~ttl` and a 
-numeric value corresponding to how long the element should live before it is 
-automatically dropped from the graph in milliseconds. When an element expires 
+numeric value corresponding to how long the element should live in milliseconds 
+before it is automatically dropped from the graph. When an element expires 
 via TTL, the behaviour will have identical side effects as a normal element 
 drop, e.g. if a Vertex expires, all attached Edges to said Vertex will also be 
 dropped.

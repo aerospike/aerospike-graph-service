@@ -1,0 +1,24 @@
+replicationFactor: 2
+vertexLabelSindex: false
+maxEdgeCacheSize: 1000
+vertexSchema:
+  - label: person
+    count: 100
+    properties:
+      - key: name
+        type: String
+        size: 10
+        sindexed: false
+      - key: age
+        type: Long
+        sindexed: true
+edgeSchema:
+  - label: KNOWS
+    count: 1000
+  - label: LIKES
+    count: 1000
+    properties:
+      - key: since
+        type: Long
+      - key: rating
+        type: Double

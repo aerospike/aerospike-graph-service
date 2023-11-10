@@ -39,6 +39,7 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
+        <module>aerospike-graph-sizing-tool</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>

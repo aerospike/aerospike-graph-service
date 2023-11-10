@@ -183,6 +183,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean SUMMARY_TICKER_ENABLED_FLAG;
     public final boolean SUMMARY_ENABLED_FLAG;
     public final boolean TTL_ENABLED_FLAG;
+    public final boolean TTL_UPDATE_ANYTIME_FLAG;
     public final String TTL_BIN;
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
@@ -334,6 +335,7 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
+        TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
 

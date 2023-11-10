@@ -35,6 +35,7 @@ import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
@@ -755,6 +756,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Bin ttlBin = new Bin(this.db.TTL_BIN, expirationTime);
         final Operation writeTtl = Operation.put(ttlBin);
         this.db.operate(writePolicy, key, writeTtl);
+        if (durationMilliseconds < db.TTL_PURGE_INTERVAL) {
+            this.graph.scheduleElementForTtlNow(this, durationMilliseconds);
+        }
     }
 
     /**
@@ -995,6 +999,24 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     @Override
+    public long getTtlMillis() {
+        final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, this.id);
+        final Operation getTtlBin = Operation.get(this.db.TTL_BIN);
+        try {
+            final Record result = this.db.operate(null, key, getTtlBin);
+            final long expiryTime = result.getLong(this.db.TTL_BIN);
+            return expiryTime - System.currentTimeMillis();
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                // Vertex was already deleted.
+                throw new ElementNotFoundException(e);
+            }
+            LOG.error("Unexpected error when checking TTL for Vertex " + this.id(), e);
+            throw e;
+        }
+    }
+
+    @Override
     public String toString() {
         return StringFactory.vertexString(this);
     }
@@ -1078,6 +1100,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         }
 
         final List<Bin> binsToWrite = new ArrayList<>();
+        boolean scheduleTtlImmediately = false;
+        long ttlValueLong = 0;
         if (vertexTypeHint == FireflyVertex.VERTEX_TYPE_HINT) {
             final PropertyValueIdMaps propertyValueIdMaps = FireflyVertex.getPropertyValueIdMaps(graph, validProperties);
             // Handle special TTL property if flag is enabled.
@@ -1088,9 +1112,13 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 final Object ttlValue = propertyValueIdMaps.valueMap.remove(TTL_PROPERTY_KEY);
                 propertyValueIdMaps.idMap.remove(TTL_PROPERTY_KEY);
                 if (Number.class.isAssignableFrom(ttlValue.getClass())) {
-                    final long expirationTime = System.currentTimeMillis() + ((Number) ttlValue).longValue();
+                    ttlValueLong = ((Number) ttlValue).longValue();
+                    final long expirationTime = System.currentTimeMillis() + ttlValueLong;
                     final Bin ttlBin = new Bin(db.TTL_BIN, expirationTime);
                     binsToWrite.add(ttlBin);
+                    if (ttlValueLong < db.TTL_PURGE_INTERVAL) {
+                        scheduleTtlImmediately = true;
+                    }
                 } else {
                     throw new IllegalArgumentException(
                             String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
@@ -1158,9 +1186,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             FireflyRecord.writeElement(db, db.VERTEX_AERO_SET, vertexId, -1, createOnly,
                     binsToWrite.toArray(new Bin[0]));
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-            return FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(), new TreeMap<>(),
-                    0, 0, (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
-                    vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints, isEdgeCacheOverflowed, db);
+            final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
+                    new TreeMap<>(), 0, 0, (Map<String, FireflyId>) vertexPropertyIds,
+                    vertexPropertyValueMap, vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
+                    isEdgeCacheOverflowed, db);
+            if (scheduleTtlImmediately) {
+                graph.scheduleElementForTtlNow(vertex, ttlValueLong);
+            }
+            return vertex;
         } else {
             // Should never happen.
             throw new RuntimeException("Unknown vertex type hint: " + vertexTypeHint);

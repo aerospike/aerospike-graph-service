@@ -237,6 +237,12 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     }
 
     @Override
+    public long getTtlMillis() {
+        // This should never happen since this method is never invoked on a Vertex Property.
+        throw new IllegalStateException("TTL is not supported for Vertex Properties");
+    }
+
+    @Override
     public String toString() {
         return StringFactory.propertyString(this);
     }

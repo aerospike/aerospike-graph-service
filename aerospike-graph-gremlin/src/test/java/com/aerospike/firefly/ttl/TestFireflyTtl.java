@@ -14,17 +14,12 @@ import org.junit.Test;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 
 public class TestFireflyTtl {
-    private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-    static {
-        CONFIG.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "true");
-        CONFIG.setProperty(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL.toLowerCase(), 2000);
-        CONFIG.setProperty(ConfigurationHelper.Keys.DEBUG_MODE_FLAG, "true");
-    }
+    private static final Configuration DEFAULT_TTL_CONFIG = getConfig(2000, false);
     private FireflyGraph graph;
 
     @Before
     public void beforeEach() {
-        this.graph = FireflyGraph.open(CONFIG);
+        this.graph = FireflyGraph.open(DEFAULT_TTL_CONFIG);
         this.graph.getBaseGraph().dropDatabase(graph, false);
     }
 
@@ -36,50 +31,15 @@ public class TestFireflyTtl {
 
     @Test
     public void testTtl() throws InterruptedException {
-        final GraphTraversalSource g = this.graph.traversal();
-        final Vertex v1 = g.addV("v1").property("~ttl", 2000).next();
-        final Vertex v2 = g.addV("v2").next();
-        final Vertex v3 = g.addV("v3").next();
-        final Vertex v4 = g.addV("v4").next();
-        final Vertex v5 = g.addV("v5").property("~ttl", 200000).next();
-        final Edge v1tov2 = g.addE("edge").from(v1).to(v2).next();
-        final Edge v2tov1 = g.addE("edge").from(v2).to(v1).next();
-        final Edge v2tov3 = g.addE("edge").property("~ttl", 2000).from(v2).to(v3).next();
-        final Edge v3tov2 = g.addE("edge").from(v3).to(v2).next();
-        final Edge v2tov3longTtl = g.addE("edge").property("~ttl", 200000).from(v2).to(v3).next();
-        g.V(v4.id()).property("~ttl", 2000).iterate();
+        assertTtlAccuracy(this.graph);
+    }
 
-        // Assert proper baseline
-        Assert.assertTrue(g.V(v1.id()).hasNext());
-        Assert.assertTrue(g.V(v2.id()).hasNext());
-        Assert.assertTrue(g.V(v3.id()).hasNext());
-        Assert.assertTrue(g.V(v4.id()).hasNext());
-        Assert.assertTrue(g.V(v5.id()).hasNext());
-        Assert.assertTrue(g.E(v1tov2.id()).hasNext());
-        Assert.assertTrue(g.E(v2tov1.id()).hasNext());
-        Assert.assertTrue(g.E(v2tov3.id()).hasNext());
-        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
-        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
-        Assert.assertFalse(g.V().has("~ttl").hasNext());
-        Assert.assertFalse(g.E().has("~ttl").hasNext());
-
-        // Sleep for 3s for TTL to kick in
-        Thread.sleep(3000);
-        // Assert expected TTL elements are removed and edges attached to TTL vertices too as well
-        Assert.assertFalse(g.V(v1.id()).hasNext());
-        Assert.assertTrue(g.V(v2.id()).hasNext());
-        Assert.assertTrue(g.V(v3.id()).hasNext());
-        Assert.assertFalse(g.V(v4.id()).hasNext());
-        Assert.assertTrue(g.V(v5.id()).hasNext());
-        Assert.assertFalse(g.E(v1tov2.id()).hasNext());
-        Assert.assertFalse(g.E(v2tov1.id()).hasNext());
-        Assert.assertFalse(g.E(v2tov3.id()).hasNext());
-        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
-        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
-
-        g.E(v3tov2.id()).property("~ttl", 2000).iterate();
-        Thread.sleep(3000);
-        Assert.assertFalse(g.E(v3tov2.id()).hasNext());
+    @Test
+    public void testTtlScheduledImmediately() throws InterruptedException {
+        this.graph.close();
+        final Configuration longIntervalConfig = getConfig(10000000, false);
+        this.graph = FireflyGraph.open(longIntervalConfig);
+        assertTtlAccuracy(this.graph);
     }
 
     @Test
@@ -180,5 +140,278 @@ public class TestFireflyTtl {
         } catch (final Exception e) {
             Assert.assertTrue(e instanceof IllegalArgumentException);
         }
+    }
+
+    @Test
+    public void testUpdatingTtlVertex() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+
+        // Increase TTL
+        Vertex v = g.addV("v").property("~ttl", 4000).next();
+        Thread.sleep(1000);
+        g.V(v.id()).property("~ttl", 4000).iterate();
+        Thread.sleep(3500);
+        // If TTL update of the original 4000ms didn't work, then the element is gone now because it has been 4500ms
+        Assert.assertTrue(g.V(v.id()).hasNext());
+        Thread.sleep(1000);
+        // The new TTL is 1000ms + 4000ms so now that it has been 5500ms it should be gone
+        Assert.assertFalse(g.V(v.id()).hasNext());
+
+        // Decrease TTL
+        v = g.addV("v").property("~ttl", 4000).next();
+        g.V(v.id()).property("~ttl", 2000).next();
+        Assert.assertTrue(g.V(v.id()).hasNext());
+        Thread.sleep(2500);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+    }
+
+    @Test
+    public void testUpdatingTtlEdge() throws InterruptedException {
+        final GraphTraversalSource g = this.graph.traversal();
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+
+        // Increase TTL
+        Edge e = g.addE("e").property("~ttl", 4000).from(v1).to(v2).next();
+        Thread.sleep(1000);
+        g.E(e.id()).property("~ttl", 4000).iterate();
+        Thread.sleep(3500);
+        // If TTL update of the original 4000ms didn't work, then the element is gone now because it has been 4500ms
+        Assert.assertTrue(g.E(e.id()).hasNext());
+        Thread.sleep(1000);
+        // The new TTL is 1000ms + 4000ms so now that it has been 5500ms it should be gone
+        Assert.assertFalse(g.E(e.id()).hasNext());
+
+        // Decrease TTL
+        e = g.addE("v").property("~ttl", 4000).from(v1).to(v2).next();
+        g.E(e.id()).property("~ttl", 2000).next();
+        Assert.assertTrue(g.E(e.id()).hasNext());
+        Thread.sleep(2500);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlUpdateAnytimeFalseVertices() throws InterruptedException {
+        // TTL values that are lower than the TTL_PURGE_INTERVAL can not be increased.
+        GraphTraversalSource g = this.graph.traversal();
+        Vertex v = g.addV("v").property("~ttl", 1500).next();
+        g.V(v.id()).property("~ttl", 500).iterate();
+        // See that decreasing TTL works.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+        // See that increasing TTL doesn't work.
+        v = g.addV("v").property("~ttl", 1500).next();
+        g.V(v.id()).property("~ttl", 3000).iterate();
+        Thread.sleep(2000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+
+        // Elements with an expiry time that is within the current time + TTL_PURGE_INTERVAL can not increase its TTL.
+        // Reset the graph to start.
+        this.afterEach();
+        final Configuration config = getConfig(2500, false);
+        this.graph = FireflyGraph.open(config);
+        g = this.graph.traversal();
+        v = g.addV("v").property("~ttl", 4500).next();
+        Thread.sleep(3000);
+        // See that decreasing TTL works.
+        g.V(v.id()).property("~ttl", 500).iterate();
+        Thread.sleep(1000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+        // See that increasing TTL doesn't work.
+        v = g.addV("v").property("~ttl", 3000).next(); // This should expire at 7000ms, caught by the 5000ms-7500ms interval.
+        Thread.sleep(1500);
+        g.V(v.id()).property("~ttl", 10000).iterate();
+        // Check at the 7500ms mark.
+        Thread.sleep(2000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlUpdateAnytimeFalseEdges() throws InterruptedException {
+        // TTL values that are lower than the TTL_PURGE_INTERVAL can not be increased.
+        GraphTraversalSource g = this.graph.traversal();
+        Vertex v1 = g.addV("v1").next();
+        Vertex v2 = g.addV("v2").next();
+        Edge e = g.addE("e").property("~ttl", 1500).from(v1).to(v2).next();
+        g.E(e.id()).property("~ttl", 500).iterate();
+        // See that decreasing TTL works.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+        // See that increasing TTL doesn't work.
+        e = g.addE("e").property("~ttl", 1500).from(v1).to(v2).next();
+        g.E(e.id()).property("~ttl", 3000).iterate();
+        Thread.sleep(2000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+
+        // Elements with an expiry time that is within the current time + TTL_PURGE_INTERVAL can not increase its TTL.
+        // Reset the graph to start.
+        this.afterEach();
+        final Configuration config = getConfig(2500, false);
+        this.graph = FireflyGraph.open(config);
+        g = this.graph.traversal();
+        v1 = g.addV("v1").next();
+        v2 = g.addV("v2").next();
+        e = g.addE("e").property("~ttl", 4500).from(v1).to(v2).next();
+        Thread.sleep(3000);
+        // See that decreasing TTL works.
+        g.E(e.id()).property("~ttl", 500).iterate();
+        Thread.sleep(1000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+        // See that increasing TTL doesn't work.
+        e = g.addE("e").property("~ttl", 3000).from(v1).to(v2).next(); // This should expire at 7000ms, caught by the 5000ms-7500ms interval.
+        Thread.sleep(1500);
+        g.E(e.id()).property("~ttl", 10000).iterate();
+        // Check at the 7500ms mark.
+        Thread.sleep(2000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlUpdateAnytimeTrueVertices() throws InterruptedException {
+        this.afterEach();
+        Configuration config = getConfig(2000, true);
+        this.graph = FireflyGraph.open(config);
+        // Test updating TTL values that are lower than the TTL_PURGE_INTERVAL.
+        GraphTraversalSource g = this.graph.traversal();
+        Vertex v = g.addV("v").property("~ttl", 1500).next();
+        g.V(v.id()).property("~ttl", 500).iterate();
+        // See that decreasing TTL works.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+        // See that increasing TTL works.
+        v = g.addV("v").property("~ttl", 1500).next();
+        g.V(v.id()).property("~ttl", 3000).iterate();
+        Thread.sleep(2000);
+        Assert.assertTrue(g.V(v.id()).hasNext());
+        Thread.sleep(1500);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+
+        // Test Elements with an expiry time that is within the current time + TTL_PURGE_INTERVAL.
+        // Reset the graph to start.
+        this.afterEach();
+        config = getConfig(2500, true);
+        this.graph = FireflyGraph.open(config);
+        g = this.graph.traversal();
+        v = g.addV("v").property("~ttl", 4500).next();
+        Thread.sleep(3000);
+        // See that decreasing TTL works.
+        g.V(v.id()).property("~ttl", 500).iterate();
+        Thread.sleep(1000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+        // See that increasing TTL works.
+        v = g.addV("v").property("~ttl", 3000).next(); // This should expire at 7000ms, caught by the 5000ms-7500ms interval.
+        Thread.sleep(1500);
+        // Update TTL to be at the 8000ms mark.
+        g.V(v.id()).property("~ttl", 2500).iterate();
+        // Check at the 7500ms mark.
+        Thread.sleep(2000);
+        Assert.assertTrue(g.V(v.id()).hasNext());
+        // Check at the 8500ms mark.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.V(v.id()).hasNext());
+    }
+
+    @Test
+    public void testTtlUpdateAnytimeTrueEdges() throws InterruptedException {
+        this.afterEach();
+        Configuration config = getConfig(2000, true);
+        this.graph = FireflyGraph.open(config);
+        // Test updating TTL values that are lower than the TTL_PURGE_INTERVAL.
+        GraphTraversalSource g = this.graph.traversal();
+        Vertex v1 = g.addV("v1").next();
+        Vertex v2 = g.addV("v2").next();
+        Edge e = g.addE("e").property("~ttl", 1500).from(v1).to(v2).next();
+        g.E(e.id()).property("~ttl", 500).iterate();
+        // See that decreasing TTL works.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+        // See that increasing TTL works.
+        e = g.addE("e").property("~ttl", 1500).from(v1).to(v2).next();
+        g.E(e.id()).property("~ttl", 3000).iterate();
+        Thread.sleep(2000);
+        Assert.assertTrue(g.E(e.id()).hasNext());
+        Thread.sleep(1500);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+
+        // Test Elements with an expiry time that is within the current time + TTL_PURGE_INTERVAL.
+        // Reset the graph to start.
+        this.afterEach();
+        config = getConfig(2500, true);
+        this.graph = FireflyGraph.open(config);
+        g = this.graph.traversal();
+        v1 = g.addV("v1").next();
+        v2 = g.addV("v2").next();
+        e = g.addE("e").property("~ttl", 4500).from(v1).to(v2).next();
+        Thread.sleep(3000);
+        // See that decreasing TTL works.
+        g.E(e.id()).property("~ttl", 500).iterate();
+        Thread.sleep(1000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+        // See that increasing TTL works.
+        e = g.addE("e").property("~ttl", 3000).from(v1).to(v2).next(); // This should expire at 7000ms, caught by the 5000ms-7500ms interval.
+        Thread.sleep(1500);
+        // Update TTL to be at the 8000ms mark.
+        g.E(e.id()).property("~ttl", 2500).iterate();
+        // Check at the 7500ms mark.
+        Thread.sleep(2000);
+        Assert.assertTrue(g.E(e.id()).hasNext());
+        // Check at the 8500ms mark.
+        Thread.sleep(1000);
+        Assert.assertFalse(g.E(e.id()).hasNext());
+    }
+
+    private static void assertTtlAccuracy(final FireflyGraph graph) throws InterruptedException {
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV("v1").property("~ttl", 2000).next();
+        final Vertex v2 = g.addV("v2").next();
+        final Vertex v3 = g.addV("v3").next();
+        final Vertex v4 = g.addV("v4").next();
+        final Vertex v5 = g.addV("v5").property("~ttl", 200000).next();
+        final Edge v1tov2 = g.addE("edge").from(v1).to(v2).next();
+        final Edge v2tov1 = g.addE("edge").from(v2).to(v1).next();
+        final Edge v2tov3 = g.addE("edge").property("~ttl", 2000).from(v2).to(v3).next();
+        final Edge v3tov2 = g.addE("edge").from(v3).to(v2).next();
+        final Edge v2tov3longTtl = g.addE("edge").property("~ttl", 200000).from(v2).to(v3).next();
+        g.V(v4.id()).property("~ttl", 2000).iterate();
+
+        // Assert proper baseline
+        Assert.assertTrue(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Assert.assertTrue(g.V(v3.id()).hasNext());
+        Assert.assertTrue(g.V(v4.id()).hasNext());
+        Assert.assertTrue(g.V(v5.id()).hasNext());
+        Assert.assertTrue(g.E(v1tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov1.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3.id()).hasNext());
+        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
+        Assert.assertFalse(g.V().has("~ttl").hasNext());
+        Assert.assertFalse(g.E().has("~ttl").hasNext());
+
+        // Sleep for 3s for TTL to kick in
+        Thread.sleep(3000);
+        // Assert expected TTL elements are removed and edges attached to TTL vertices too as well
+        Assert.assertFalse(g.V(v1.id()).hasNext());
+        Assert.assertTrue(g.V(v2.id()).hasNext());
+        Assert.assertTrue(g.V(v3.id()).hasNext());
+        Assert.assertFalse(g.V(v4.id()).hasNext());
+        Assert.assertTrue(g.V(v5.id()).hasNext());
+        Assert.assertFalse(g.E(v1tov2.id()).hasNext());
+        Assert.assertFalse(g.E(v2tov1.id()).hasNext());
+        Assert.assertFalse(g.E(v2tov3.id()).hasNext());
+        Assert.assertTrue(g.E(v3tov2.id()).hasNext());
+        Assert.assertTrue(g.E(v2tov3longTtl.id()).hasNext());
+
+        g.E(v3tov2.id()).property("~ttl", 2000).iterate();
+        Thread.sleep(3000);
+        Assert.assertFalse(g.E(v3tov2.id()).hasNext());
+    }
+
+    private static Configuration getConfig(final int purgeIntervalMillis, final boolean allowTtlUpdateAnytime) {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty(ConfigurationHelper.Keys.TTL_ENABLED_FLAG.toLowerCase(), "true");
+        config.setProperty(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL.toLowerCase(), String.valueOf(purgeIntervalMillis));
+        config.setProperty(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG.toLowerCase(), String.valueOf(allowTtlUpdateAnytime));
+        return config;
     }
 }

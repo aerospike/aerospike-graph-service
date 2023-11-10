@@ -32,6 +32,8 @@ public abstract class FireflyElement implements Element {
         return this.label;
     }
 
+    public abstract long getTtlMillis();
+
     protected static IllegalStateException elementAlreadyRemoved(final Class<? extends Element> clazz, final Object id) {
         return new IllegalStateException(String.format("%s with id %s was removed.", clazz.getSimpleName(), id));
     }
@@ -47,5 +49,4 @@ public abstract class FireflyElement implements Element {
         int hashCode = ElementHelper.hashCode(this);
         return hashCode;
     }
-
 }

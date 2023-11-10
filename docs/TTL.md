@@ -16,23 +16,35 @@ in the `.properties` file used for Aerospike Graph Service.
 ```
 aerospike.graph.ttl.enabled=true
 aerospike.graph.ttl.purge.interval=300000
+aerospike.graph.ttl.update.anytime.enabled=false
 ```
 
-* aerospike.graph.ttl.enabled
+* `aerospike.graph.ttl.enabled`
   * Type: boolean
   * Default: false
   * Description: Whether the TTL feature is enabled for Aerospike Graph Service.
   * Notes: Enabling this feature creates background worker threads on the
     Aerospike Graph Service machine and an additional secondary index on 
     Vertices and Edges.
-* aerospike.graph.ttl.purge.interval
+* `aerospike.graph.ttl.purge.interval`
   * Type: int
   * Default: 300000
   * Description: Interval between scheduling future TTL purges in milliseconds. 
   * Notes: A higher value will use more RAM on the Aerospike Graph Service 
     machine but reduce processing overhead and reads to the database. This is 
     also the amount of time from an element's TTL in which updating its TTL 
-    cannot be guaranteed (see below).
+    cannot be guaranteed (see below) unless 
+    `aerospike.graph.ttl.update.anytime.enabled` is set to `true`.
+* `aerospike.graph.ttl.update.anytime.enabled`
+  * Type: boolean
+  * Default: false
+  * Description: Whether elements in the current purge schedule interval can 
+    have their TTL value increased.
+  * Notes: Enabling this feature will increase processing overhead and 
+    substantially increase the amount of reads to the database. It is 
+    recommended to keep this disabled and to reduce the value of 
+    `aerospike.graph.ttl.purge.interval` instead unless extending TTL of 
+    elements right before their expiry is paramount.
 
 ## Usage
 
@@ -55,9 +67,11 @@ g.V().hasLabel("v1").property("~ttl", 120000).iterate();
 
 ### Updating TTL and the aerospike.graph.ttl.purge.interval Configuration
 
+Note: If `aerospike.graph.ttl.update.anytime.enabled` is `true` this does not apply.
+
 In the following situations related to the time specified by the 
 aerospike.graph.ttl.purge.interval configuration, the TTL of an element cannot 
-be updated.
+be increased but can be decreased.
 
 1. If the value of the `~ttl` set is lesser or equal to 
    `aerospike.graph.ttl.purge.interval` at any time, e.g. via creation or update.

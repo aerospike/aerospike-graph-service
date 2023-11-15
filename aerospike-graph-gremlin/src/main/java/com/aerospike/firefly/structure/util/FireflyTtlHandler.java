@@ -226,7 +226,7 @@ public class FireflyTtlHandler implements Closeable {
                                     }
                                 }
                                 edge.remove();
-                            } catch (AerospikeException e) {
+                            } catch (final AerospikeException e) {
                                 LOG.error("Unexpected error occurred when removing TTL Edge ID {}: {}", edge.id(), e);
                             }
                         }, remainingTime, TimeUnit.MILLISECONDS);

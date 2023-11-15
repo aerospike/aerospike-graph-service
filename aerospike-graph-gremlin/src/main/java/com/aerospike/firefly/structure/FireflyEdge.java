@@ -571,7 +571,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Map<Object, Long> ttlMap = (Map<Object, Long>) result.getMap(this.db.TTL_BIN);
             final Long expiryTime = ttlMap.get(this.id.getUserId());
             if (expiryTime == null) {
-                // Edge was already deleted but phat Edge still exists.
+                // Edge was already deleted but phat Edge record still exists.
                 throw new ElementNotFoundException();
             }
             return expiryTime - System.currentTimeMillis();

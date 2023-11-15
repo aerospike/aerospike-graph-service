@@ -34,6 +34,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.structure.util.FireflyTtlHandler;
 import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
@@ -107,7 +108,7 @@ import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_KEY;
+import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
@@ -171,9 +172,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final IdManager<Long> vertexIdManager;
     public final IdManager<byte[]> edgeIdManager;
     public final IdManager<Long> vertexPropertyIdManager;
-    public FireflyCardinalityMetadata fireflyCardinalityMetadata = null;
-    public FireflyIndexMetadata fireflyIndexMetadata = null;
-    public FireflyGraphSummaryUpdater fireflySummaryUpdater = null;
+    private final FireflyTtlHandler ttlHandler;
+    public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
+    public final FireflyIndexMetadata fireflyIndexMetadata;
+    public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
     public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml";
 
@@ -218,6 +220,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             throw new RuntimeException("Edge property indexes are not currently supported.");
         }
         createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
+
+        // Create ttl background task.
+        this.ttlHandler = new FireflyTtlHandler(this);
 
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
@@ -349,7 +354,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                      final String label,
                                      final List<Map.Entry<String, Object>> properties) {
         // If the supernode property flag is set on the vertex write, remove it from the write steam and assign it.
-        final Map.Entry supernodeFlag = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_KEY)).findFirst().orElse(null);
+        final Map.Entry supernodeFlag = properties.stream().filter(e -> e.getKey().equals(SUPERNODE_PROPERTY_KEY)).findFirst().orElse(null);
         if (supernodeFlag != null) {
             properties.remove(supernodeFlag);
         }
@@ -662,7 +667,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Write vertex property to Aerospike.
         final FireflyVertexProperty<V> fireflyVertexProperty = new FireflyVertexProperty<>(
-                this, idValue, (FireflyVertex) vertex, key, value, properties, typeHints);
+                this, idValue, vertex, key, value, properties, typeHints);
 
         // Append vertex property to vertex.
         vertex.writeVertexProperty(fireflyVertexProperty);
@@ -1127,6 +1132,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyCardinalityMetadataTask.cancel();
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
+        this.ttlHandler.close();
         this.db.close();
     }
 

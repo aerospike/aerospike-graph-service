@@ -1,4 +1,4 @@
-FROM amazoncorretto:11
+FROM amazoncorretto:17
 
 # Set input arguments.
 ARG RELEASE_BUILD
@@ -7,10 +7,10 @@ ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
 # Set environment variables.
-ENV TINKERPOP_VERSION='3.6.3'
+ENV TINKERPOP_VERSION='3.7.0'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV SPARK_VERSION='3.4.0'
+ENV SPARK_VERSION='3.4.1'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"

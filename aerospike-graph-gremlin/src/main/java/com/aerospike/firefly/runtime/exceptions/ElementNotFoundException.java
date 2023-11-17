@@ -14,4 +14,8 @@ public class ElementNotFoundException extends RuntimeException {
     public ElementNotFoundException(final AerospikeException cause) {
         super(ELEMENT_NOT_FOUND, cause);
     }
+
+    public ElementNotFoundException() {
+        super(ELEMENT_NOT_FOUND);
+    }
 }

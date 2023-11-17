@@ -855,6 +855,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
+    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveMillis) {
+        this.ttlHandler.scheduleExpiryNow(element, timeToLiveMillis);
+    }
+
     /**
      * Create an Aerospike index Filter using the predicate and index info.
      *
@@ -955,7 +959,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
         }
     }
-
 
     public Expression hasContainerListToExpression(final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.

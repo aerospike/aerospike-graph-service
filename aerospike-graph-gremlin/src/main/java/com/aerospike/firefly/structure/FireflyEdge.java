@@ -106,13 +106,13 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
  */
     public static FireflyEdge writeEdge(final FireflyGraph graph,
-                                           final FireflyId edgeId,
-                                           final String label,
-                                           final List<Map.Entry<String, Object>> properties,
-                                           final FireflyVertex inVertex,
-                                           final FireflyVertex outVertex,
-                                           final boolean inVertexCacheWrite,
-                                           final boolean outVertexCacheWrite) {
+                                        final FireflyId edgeId,
+                                        final String label,
+                                        final List<Map.Entry<String, Object>> properties,
+                                        final FireflyVertex inVertex,
+                                        final FireflyVertex outVertex,
+                                        final boolean inVertexCacheWrite,
+                                        final boolean outVertexCacheWrite) {
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
@@ -158,6 +158,8 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             operations.add(writeOutVSupernode);
         }
 
+        boolean scheduleTtlImmediately = false;
+        long ttlValueLong = 0;
         if (data.containsKey(TTL_PROPERTY_KEY)) {
             if (!db.TTL_ENABLED_FLAG) {
                 throw new TtlNotEnabledException();
@@ -165,10 +167,14 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Object ttlValue = data.remove(TTL_PROPERTY_KEY);
             typeHints.remove(TTL_PROPERTY_KEY);
             if (Number.class.isAssignableFrom(ttlValue.getClass())) {
-                final long expirationTime = System.currentTimeMillis() + ((Number) ttlValue).longValue();
+                ttlValueLong = ((Number) ttlValue).longValue();
+                final long expirationTime = System.currentTimeMillis() + ttlValueLong;
                 final Operation writeTtl = MapOperation.put(mapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
                         Value.get(expirationTime));
                 operations.add(writeTtl);
+                if (ttlValueLong < db.TTL_PURGE_INTERVAL) {
+                    scheduleTtlImmediately = true;
+                }
             } else {
                 throw new IllegalArgumentException(
                         String.format("Property value [%s] for key %s is of type %s and must be numeric", ttlValue,
@@ -190,7 +196,11 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-            return FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+            if (scheduleTtlImmediately) {
+                graph.scheduleElementForTtlNow(edge, ttlValueLong);
+            }
+            return edge;
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingEdge((AerospikeException) e.getCause(), db, key, edgeId);
@@ -533,6 +543,9 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.operate(writePolicy, key, writeTtl);
+            if (durationMilliseconds < db.TTL_PURGE_INTERVAL) {
+                this.graph.scheduleElementForTtlNow(this, durationMilliseconds);
+            }
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, this.id, TTL_PROPERTY_KEY);
@@ -546,6 +559,29 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             } else {
                 throw ae;
             }
+        }
+    }
+
+    @Override
+    public long getTtlMillis() {
+        final Key key = getKey(this.db, this.db.EDGE_AERO_SET, this.id);
+        final Operation getTtlBin = Operation.get(this.db.TTL_BIN);
+        try {
+            final Record result = this.db.operate(null, key, getTtlBin);
+            final Map<Object, Long> ttlMap = (Map<Object, Long>) result.getMap(this.db.TTL_BIN);
+            final Long expiryTime = ttlMap.get(this.id.getUserId());
+            if (expiryTime == null) {
+                // Edge was already deleted but phat Edge record still exists.
+                throw new ElementNotFoundException();
+            }
+            return expiryTime - System.currentTimeMillis();
+        } catch (final AerospikeException e) {
+            if (e.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
+                // Edge was already deleted.
+                throw new ElementNotFoundException(e);
+            }
+            LOG.error("Unexpected error when checking TTL for Edge " + this.id(), e);
+            throw e;
         }
     }
 

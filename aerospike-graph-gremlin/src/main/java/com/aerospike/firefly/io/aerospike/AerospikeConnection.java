@@ -152,6 +152,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final String VERTEX_PROPERTY_NAME_TO_ID_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
+    public final String USAGE_STATS_SET;
+    public final String USAGE_STATS_BIN;
 
     public final String IN_EDGE_COUNTER_BIN;
     public final String OUT_EDGE_COUNTER_BIN;

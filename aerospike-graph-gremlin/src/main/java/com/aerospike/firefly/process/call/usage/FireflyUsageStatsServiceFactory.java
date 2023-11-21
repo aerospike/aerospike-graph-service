@@ -16,8 +16,8 @@ import java.util.Set;
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class FireflyUsageStatsServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    private static final Long MILLISECONDS_TO_HOURS = 1000 * 60 * 60L;
-    private static final Long HOURS_TO_YEARS = 24 * 365L;
+    public static final Long MILLISECONDS_TO_HOURS = 1000 * 60 * 60L;
+    public static final Long HOURS_TO_YEARS = 24 * 365L;
 
     @Override
     public String getName() {
@@ -59,8 +59,7 @@ public class FireflyUsageStatsServiceFactory<I, R> implements Service.ServiceFac
             final Long vcpus = (Long) usageStat.get("vcpus");
 
             // Total vcpu hours is sum of number of hours * number of vcpus.
-            totalVcpuHrs += ((double) (end - start) / MILLISECONDS_TO_HOURS) * vcpus;
-
+            totalVcpuHrs += ((double) (end - start) / (double) MILLISECONDS_TO_HOURS) * vcpus;
         }
         results.put("total-vcpu-hrs", totalVcpuHrs);
         results.put("total-vcpu-yrs", totalVcpuHrs / HOURS_TO_YEARS);

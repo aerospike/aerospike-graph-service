@@ -300,6 +300,7 @@ public final class ConfigurationHelper {
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL, "300000"); // 5 minute default
         put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
+        put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
     }};
 
 

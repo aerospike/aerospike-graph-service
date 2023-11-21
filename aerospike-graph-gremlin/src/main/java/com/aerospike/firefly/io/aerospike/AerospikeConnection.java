@@ -197,6 +197,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int CONNECT_TIMEOUT;
     public final int TIMEOUT_DELAY;
     public final long USAGE_STATS_UPDATE_INTERVAL;
+    public final boolean WARMUP_MODE;
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
@@ -365,7 +366,6 @@ public class AerospikeConnection implements AutoCloseable {
         INDEX_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.InternalConfigs.INDEX_METADATA_SET.name(), conf);
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.USER_SUPPLIED_ID_CACHE_SET.name(), conf);
 
-
         E_IN_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_IN_INDEX_NAME.name(), conf));
         E_OUT_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), conf));
         V_LABEL_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.V_LABEL_INDEX_NAME.name(), conf));
@@ -405,6 +405,7 @@ public class AerospikeConnection implements AutoCloseable {
         CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
         TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
         USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
+        WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);

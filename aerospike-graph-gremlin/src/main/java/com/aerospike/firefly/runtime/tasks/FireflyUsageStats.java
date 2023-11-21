@@ -5,7 +5,6 @@ import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Operation;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,16 +17,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-public class FireflyUsageStats implements AutoCloseable {
+public class FireflyUsageStats {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyUsageStats.class);
 
     private static FireflyUsageStats instance;
-    private final AerospikeConnection connection;
     private final FireflyUsageStatsTask task;
     private final Timer taskTimer = new Timer(true);
 
-    public FireflyUsageStats(final AerospikeConnection connection) {
-        this.connection = connection;
+    private FireflyUsageStats(final AerospikeConnection connection) {
         this.task = new FireflyUsageStatsTask(connection);
 
         // Schedule to run every USAGE_STATS_UPDATE_INTERVAL milliseconds.
@@ -40,6 +37,9 @@ public class FireflyUsageStats implements AutoCloseable {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
+            if (connection.WARMUP_MODE) {
+                return;
+            }
             if (instance == null) {
                 instance = new FireflyUsageStats(connection);
             }
@@ -55,11 +55,14 @@ public class FireflyUsageStats implements AutoCloseable {
         return instance.task.getAllUsageStats();
     }
 
-    @Override
-    public void close() throws Exception {
+    // Needs connection to see if warmup mode is enabled.
+    public static void close(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
             if (instance != null) {
-                instance.close();
+                if (connection.WARMUP_MODE) {
+                    return;
+                }
+                instance.taskTimer.cancel();
                 instance = null;
             }
         }
@@ -77,7 +80,7 @@ public class FireflyUsageStats implements AutoCloseable {
             key = new Key(connection.getNamespace(), connection.USAGE_STATS_SET, uuid.toString());
             map.put("uuid", uuid.toString());
             map.put("vcpus", Runtime.getRuntime().availableProcessors());
-            map.put("memory", Runtime.getRuntime().maxMemory());
+            map.put("memory-gb", Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024));
             map.put("epoch-ms-start", Instant.now().toEpochMilli());
             map.put("epoch-ms-final", Instant.now().toEpochMilli());
             final Bin bin = new Bin(connection.USAGE_STATS_BIN, map);

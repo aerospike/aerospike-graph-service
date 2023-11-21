@@ -176,7 +176,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final IdManager<Long> vertexPropertyIdManager;
     private final FireflyTtlHandler ttlHandler;
     public final FireflyCardinalityMetadata fireflyCardinalityMetadata;
-    public final FireflyUsageStats fireflyUsageStats;;
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
@@ -241,7 +240,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // Create usage statistics background task.
-        fireflyUsageStats = new FireflyUsageStats(db);
+        FireflyUsageStats.startUsageStats(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -1145,6 +1144,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
         this.ttlHandler.close();
+        FireflyUsageStats.close(db);
         this.db.close();
     }
 

@@ -111,6 +111,7 @@ public final class ConfigurationHelper {
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
         public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+        public static final String USAGE_STATS_UPDATE_INTERVAL = "USAGE_STATS_UPDATE_INTERVAL";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -149,7 +150,9 @@ public final class ConfigurationHelper {
             IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
             OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
-            TTL_BIN(Pair.of((byte) 18, "TTL"));
+            TTL_BIN(Pair.of((byte) 18, "TTL")),
+            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
+
 
             private final Pair value;
 
@@ -204,6 +207,7 @@ public final class ConfigurationHelper {
             SUMMARY_SET(Pair.of((byte) 10, "SUMMARY")),
             TEST_SET(Pair.of((byte) 11, "TEST")),
             GRAPH_METADATA_SET(Pair.of((byte) 12, "METADATA")),
+            USAGE_STATS_SET(Pair.of((byte) 13, "USAGE_STATS_SET")),
             USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE"));
 
             private final Pair value;

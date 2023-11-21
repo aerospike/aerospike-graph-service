@@ -1,13 +1,10 @@
 name: Publish Firefly Container
 
-# Publish the container if a tag of 'vX.Y.Z' is made.
-# Example: v0.0.1, v0.1.0, v1.0.0, etc.
-# THIS WILL NOT RUN ON TAGS WITH A DASH IN THEM (no release candidates)
-
+# Publish the container if a release is published.
+# See https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=released#release
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  release:
+    types: [published]
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -60,7 +57,8 @@ jobs:
           gcloud auth configure-docker -q
           
           # Strip git ref prefix (refs/tags or ref/heads).
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # From the release event structure, we expect to find it under this.
+          VERSION=$(echo "${{ github.event.release.tag_name }}" | sed -e 's,.*/\(.*\),\1,')
           
           # Strip prefixed v if it is a tag.
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')

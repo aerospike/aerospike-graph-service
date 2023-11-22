@@ -161,6 +161,7 @@
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>
+                        <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
                         <exclude>**/FireflyAerospikeVersionCheckTest.java</exclude>

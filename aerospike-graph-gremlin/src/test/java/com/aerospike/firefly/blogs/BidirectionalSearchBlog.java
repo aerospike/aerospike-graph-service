@@ -57,17 +57,15 @@ public class BidirectionalSearchBlog {
                                     __.select("B").in("route").dedup().as("B"))
                     ).
                     until(
-                                __.select("A").
-                                        values("code").as("a-code").
-                                        select("B").values("code").as("b-code").
+                                __.select("A").id().as("a-code").
+                                        select("B").id().as("b-code").
                                         select("a-code", "b-code").
                                         where("a-code", P.eq("b-code")).count().is(P.gt(0))).
                     project("path", "intersection-code").
                     by(
                             __.path().by("code")).
                     by(
-                            __.select("A").
-                                    values("code")).
+                            __.select("A").values("code")).
                     toList();
 
             for (final Map<String, Object> map : intersection) {
@@ -89,12 +87,10 @@ public class BidirectionalSearchBlog {
                 }
 
                 final List<String> completePath = new ArrayList<>();
-
-
-                assert middleRight.size() > 0;
-                assert middleLeft.size() > 0;
-
+                assert !middleRight.isEmpty();
+                assert !middleLeft.isEmpty();
                 Collections.reverse(middleRight);
+
                 if (middleLeft.get(middleLeft.size() - 1).equals(middleRight.get(0))) {
                     System.out.println("Intersection - " + middleLeft.get(middleLeft.size() - 1));
                     // Don't want to duplicate the intersection

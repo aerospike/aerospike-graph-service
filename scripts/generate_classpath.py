@@ -4,6 +4,7 @@ def main():
     print("Generating classpath...")
     spark_directory = "/opt/spark/jars"
     bulk_loader_directory = "/opt/bulk-loader"
+    sizing_tool_directory = "/opt/sizing-tool"
     classpath_string = ""
 
     # Open spark jars directory and grab path to all jar files.
@@ -18,6 +19,15 @@ def main():
     # Open bulk loader jars directory and grab path to all jar files.
     for filename in os.listdir(bulk_loader_directory):
         f = os.path.join(bulk_loader_directory, filename)
+        if os.path.isfile(f):
+            if classpath_string is "":
+                classpath_string += f
+            else:
+                classpath_string += ":" + f
+
+    # Open sizing tool jars directory and grab path to all jar files.
+    for filename in os.listdir(sizing_tool_directory):
+        f = os.path.join(sizing_tool_directory, filename)
         if os.path.isfile(f):
             if classpath_string is "":
                 classpath_string += f

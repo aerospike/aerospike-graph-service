@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;

@@ -1,13 +1,12 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.LinkedHashSet;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -19,7 +18,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private final long bufferSize;
     private final BufferedNumericIdManager uniqueIdManager;
     private final BufferedNumericIdManager recyclingIdManager;
-    private final List<Long> recycledIds = new LinkedList<>();
+    private final LinkedHashSet<Long> recycledIds = new LinkedHashSet<>();
     private final boolean allowUserSupplied;
 
     public RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
@@ -51,13 +50,9 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public synchronized byte[] getNextId(final FireflyGraph graph) {
-        final Long recycledId;
-        synchronized (RecyclingBufferedNumericIdManager.class) {
-            recycledId = recycledIds.isEmpty() ? recyclingIdManager.getNextId(graph) : recycledIds.remove(0);
-        }
         final Long uniqueId = uniqueIdManager.getNextId(graph);
         final byte[] id = new byte[16];
-        System.arraycopy(longToBytes(recycledId), 0, id, 0, 8);
+        System.arraycopy(longToBytes(getRecycledId(graph)), 0, id, 0, 8);
         System.arraycopy(longToBytes(uniqueId), 0, id, 8, 8);
         return id;
     }
@@ -69,23 +64,34 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public void recycleId(final FireflyId id) {
+        // We have enough recycled IDs to buffer them
+        final long recycledId;
+        if (id instanceof FireflyPhatEdgeId) {
+            recycledId = ((FireflyPhatEdgeId) id).getPackingId();
+        } else if (id instanceof FireflyIdComposite) {
+            recycledId = ((FireflyPhatEdgeId)((FireflyIdComposite) id).getEdgeId()).getPackingId();
+        } else {
+            final String message = "Could not recycle ID of unexpected type " + id.getClass().getName();
+            LOG.error(message);
+            throw new IllegalArgumentException(message);
+        }
+        if (recycledIds.size() >= bufferSize) {
+            LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
+            return;
+        }
         synchronized (RecyclingBufferedNumericIdManager.class) {
-            // We have enough recycled IDs to buffer them
-            final long recycledId;
-            if (id instanceof FireflyPhatEdgeId) {
-                recycledId = ((FireflyPhatEdgeId) id).getPackingId();
-            } else if (id instanceof FireflyIdComposite) {
-                recycledId = ((FireflyPhatEdgeId)((FireflyIdComposite) id).getEdgeId()).getPackingId();
-            } else {
-                final String message = "Could not recycle ID of unexpected type " + id.getClass().getName();
-                LOG.error(message);
-                throw new IllegalArgumentException(message);
+            this.recycledIds.add(recycledId);
+        }
+    }
+
+    private long getRecycledId(final FireflyGraph graph) {
+        synchronized (RecyclingBufferedNumericIdManager.class) {
+            if (recycledIds.isEmpty()) {
+                return recyclingIdManager.getNextId(graph);
             }
-            if (recycledIds.size() >= bufferSize) {
-                LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
-                return;
-            }
-            recycledIds.add(recycledId);
+            long id = this.recycledIds.iterator().next();
+            this.recycledIds.remove(id);
+            return id;
         }
     }
 }

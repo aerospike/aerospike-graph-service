@@ -1,11 +1,7 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.Value;
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.client.util.Crypto;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -54,8 +50,8 @@ public class PolyIdTest extends AbstractFireflySuite {
 
     @Test
     public void testFireflyIdPolyComposite() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
+        FireflyVertex va = (FireflyVertex) graph.addVertex(T.id, "A");
+        FireflyVertex vb = (FireflyVertex) graph.addVertex(T.id, "B");
 
         assertEquals("A", va.id.getUserId());
         assertEquals("B", vb.id.getUserId());

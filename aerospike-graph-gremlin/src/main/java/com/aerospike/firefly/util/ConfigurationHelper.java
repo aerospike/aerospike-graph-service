@@ -1,11 +1,10 @@
 package com.aerospike.firefly.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.AerospikeConnection.getDefaultThreadPoolSize;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -70,8 +69,11 @@ public final class ConfigurationHelper {
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String PROMETHEUS_PORT = "aerospike.graph.prometheus.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
-
         public static final String PLUGIN = "aerospike.graph.plugin";
+        public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
+        public static final String TTL_PURGE_INTERVAL = "aerospike.graph.ttl.purge.interval";
+        public static final String TTL_UPDATE_ANYTIME_FLAG = "aerospike.graph.ttl.update.anytime.enabled";
+
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
@@ -146,7 +148,8 @@ public final class ConfigurationHelper {
             LABEL_BIN(Pair.of((byte) 14, "LABEL")),
             IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
             OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
-            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID"));
+            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
+            TTL_BIN(Pair.of((byte) 18, "TTL"));
 
             private final Pair value;
 
@@ -169,6 +172,8 @@ public final class ConfigurationHelper {
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
+            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_V_IDX")),
+            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX")),
             SUPERNODES_IN(Pair.of((byte) 11, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 12, "SUPERNODE_OUT")),
             INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA"));
@@ -288,6 +293,9 @@ public final class ConfigurationHelper {
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
         put(Keys.DEBUG_MODE_FLAG, "false");
+        put(Keys.TTL_ENABLED_FLAG, "false");
+        put(Keys.TTL_PURGE_INTERVAL, "300000"); // 5 minute default
+        put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
     }};
 
 

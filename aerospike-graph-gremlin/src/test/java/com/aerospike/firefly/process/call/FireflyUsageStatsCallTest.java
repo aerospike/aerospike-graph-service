@@ -17,13 +17,13 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UP
 public class FireflyUsageStatsCallTest {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
-    public void cleanUsageStats() {
+    private void cleanUsageStats() {
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
             graph.getBaseGraph().getClient().truncate(null,
                     graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

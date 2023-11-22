@@ -51,8 +51,8 @@ public class FireflyUsageStats {
             if (instance == null) {
                 throw new RuntimeException("Error, cannot read usage stats before starting usage stats.");
             }
+            return instance.task.getAllUsageStats();
         }
-        return instance.task.getAllUsageStats();
     }
 
     // Needs connection to see if warmup mode is enabled.

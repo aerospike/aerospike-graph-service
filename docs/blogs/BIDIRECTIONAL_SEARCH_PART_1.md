@@ -1,6 +1,19 @@
 # Bidirectional Search Part I
 
-Bidirectional search is a type of graph search algorithm. Bidirectional search can be used to find the path
+This is part one of a two part series on bidirectional search. 
+
+This first part will explore:
+- Deriving expressions for search time when applying bidirectional search
+- Queries that can be used to implement bidirectional search in Gremlin
+- Comparing search time of bidirectional search to unidirectional search
+
+The second part will explore:
+- How to implement bidirectional search in a TinkerPop strategy
+- Comparing a strategy to a query for bidirectional search
+
+# Overview
+
+Bidirectional search is a graph search algorithm. Bidirectional search can be used to find the path
 between two constrained areas of the graph. It runs two simultaneous searches; one forward from the initial state,
 and one backward from the goal, stopping when the two meet in the middle.
 

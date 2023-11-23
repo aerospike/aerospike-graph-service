@@ -69,6 +69,10 @@ fi
 RUN mkdir /opt/bulk-loader &&\
     mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0.jar /opt/bulk-loader
 
+# Move java options script to /opt/scripts. This has to be done on each instantiation of the container.
+RUN mkdir /opt/scripts &&\
+    mv /opt/aerospike-firefly/scripts/generate_java_options.py /opt/scripts
+
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
 RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
@@ -88,7 +92,7 @@ RUN \
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
 # Remove extra packages
-RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
+RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Remove additional conflicting logger jars from spark.
 RUN rm /opt/spark/jars/slf4j-* && rm /opt/spark/jars/commons-logging*
@@ -109,5 +113,8 @@ RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-lo
 
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+
+# Make firefly owner of scripts dir.
+RUN chown firefly:firefly -R /opt/scripts/
 
 RUN rm -rf /root/.m2

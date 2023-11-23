@@ -58,11 +58,15 @@ RUN \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
     fi
 
+# Move java options script to /opt/scripts. This has to be done on each instantiation of the container.
+RUN mkdir /opt/scripts &&\
+    mv /opt/aerospike-firefly/scripts/generate_java_options.py /opt/scripts
+
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
 # Remove extra packages
-RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
+RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Add scripts and conf to container.
 ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
@@ -77,5 +81,8 @@ RUN useradd -m firefly
 
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+
+# Make firefly owner of scripts dir.
+RUN chown firefly:firefly -R /opt/scripts/
 
 RUN rm -rf /root/.m2

@@ -1,4 +1,4 @@
-FROM amazoncorretto:11
+FROM amazoncorretto:17
 
 # Set input arguments.
 ARG RELEASE_BUILD
@@ -7,10 +7,10 @@ ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
 # Set environment variables.
-ENV TINKERPOP_VERSION='3.6.3'
+ENV TINKERPOP_VERSION='3.7.0'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV SPARK_VERSION='3.4.0'
+ENV SPARK_VERSION='3.4.1'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
@@ -69,6 +69,10 @@ fi
 RUN mkdir /opt/bulk-loader &&\
     mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-2.0.0-SNAPSHOT.jar /opt/bulk-loader
 
+# Move java options script to /opt/scripts. This has to be done on each instantiation of the container.
+RUN mkdir /opt/scripts &&\
+    mv /opt/aerospike-firefly/scripts/generate_java_options.py /opt/scripts
+
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
 RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
@@ -88,7 +92,7 @@ RUN \
 RUN cd .. && rm -rf /opt/aerospike-firefly
 
 # Remove extra packages
-RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
+RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Remove additional conflicting logger jars from spark.
 RUN rm /opt/spark/jars/slf4j-* && rm /opt/spark/jars/commons-logging*
@@ -109,5 +113,8 @@ RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-lo
 
 # Make firefly owner of conf dir.
 RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+
+# Make firefly owner of scripts dir.
+RUN chown firefly:firefly -R /opt/scripts/
 
 RUN rm -rf /root/.m2

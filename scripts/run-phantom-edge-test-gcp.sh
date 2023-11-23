@@ -4,6 +4,7 @@ set -eo pipefail
 
 # Install Maven and Docker
 sudo apt -y update
+sudo apt -y install openjdk-17-jdk
 sudo apt -y install maven
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh

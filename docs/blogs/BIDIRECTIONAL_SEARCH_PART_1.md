@@ -119,7 +119,7 @@ The search area from C10->B4 will look like this:
 
 ```mermaid
 graph RL
-B4((B4)) --> C15((C15))  
+B4((B4)) --> C10((C10))  
 ```
 
 This search touches A, B1-4, and C15, a total of 6 vertices to find the path from A->C10.

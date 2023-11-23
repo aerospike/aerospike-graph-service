@@ -74,6 +74,7 @@ Visualizing this makes the search area more clear. Consider a graph with a branc
 a depth of 2 apart.
 
 A unidirectional search from A->B->C will look like this:
+
 ```mermaid
 graph LR
 A((A)) --> B1((B1))
@@ -105,16 +106,17 @@ Now consider a bidirectional search from A->C10. The search will start at A and 
 at this point an intersection is found and the search is done. 
 
 The search area from A->B1-4 will look like this:
+
 ```mermaid
 graph LR
 A((A)) --> B1((B1))
 A((A)) --> B2((B2))
 A((A)) --> B3((B3))
 A((A)) --> B4((B4))
-C15((C15)) <-- B4((B4))
 ```
 
 The search area from C10->B4 will look like this:
+
 ```mermaid
 graph RL
 B4((B4)) --> C15((C15))  

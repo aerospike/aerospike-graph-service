@@ -22,6 +22,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -261,6 +262,7 @@ public abstract class TestSparkBulkLoaderBase {
         Assert.assertFalse(success);
     }
 
+    @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")
     @Test
     public void testS3FileSystem() {
         SparkBulkLoader.main(ArrayUtils.addAll(

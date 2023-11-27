@@ -38,6 +38,7 @@ def main():
     with open("/opt/classpath.txt", "w+") as classpath:
         classpath.write(classpath_string)
 
+
 if __name__ == "__main__":
     main()
-    
+

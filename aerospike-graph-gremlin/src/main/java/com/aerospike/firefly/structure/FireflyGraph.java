@@ -34,6 +34,8 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
+import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.util.FireflyTtlHandler;
 import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
@@ -227,13 +229,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         // Create cardinality metadata background task that will populate cardinality for the named graph on the fly.
         fireflyCardinalityMetadata = new FireflyCardinalityMetadata(db, db.V_LABEL_INDEX_NAME, db.E_LABEL_INDEX_NAME, fireflyIndexMetadata);
         final TimerTask cardinalityMetadataTimerTask = new FireflyMetadataTask(fireflyCardinalityMetadata);
+
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
+        serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
         }
+
+        // Create usage statistics background task.
+        FireflyUsageStats.startUsageStats(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -1136,6 +1143,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
         this.ttlHandler.close();
+        FireflyUsageStats.close(db);
         this.db.close();
     }
 

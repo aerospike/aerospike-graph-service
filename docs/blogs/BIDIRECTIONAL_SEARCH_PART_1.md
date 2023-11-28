@@ -20,7 +20,7 @@ and one backward from the goal, stopping when the two meet in the middle.
 # Search Time
 
 The search time of searching a graph for the path between two constrained areas of the graph can be approximated
-as the search area that is being searched.
+as the area of the graph that is being searched.
 
 Consider a graph with a branching factor, `b`, where the search is run from a constrained area, `A` to another
 constrained area, `B`, where the shortest path between `A` and `B` has a depth, `d`.
@@ -53,6 +53,13 @@ is `b^(d/2) + b^(d/2)` for even `d` and `b^(d/2) + b^(d/2 + 1)` for odd `d`.
 These can be simplified to:
 - `2*b^(d/2)` for even `d`
 - `(1+b)*b^(d/2)` for odd `d`
+
+## Failure Case
+
+The only real failure case for bidirectional search is when the two searches do not intersect. This can happen
+if the two areas are not connected, or if the two areas are connected but the search depth is too deep and the
+intersection cannot be reached in a reasonable time frame.
+
 
 ## Expressions with Starting Areas Considered
 
@@ -216,6 +223,10 @@ g.
 Because this is not a native operation in gremlin and instead is done as a workaround, the query has some quirks.
 For example, the path returned is a little oddly ordered, which will be explained in the example below.
 
+## Failure Case
+
+Failure case handling is not considered. This can be handled by adding `or`ing the until block with a loops counter
+max, that makes sure the query exits if the depth exceeds a certain number.
 
 ## Bidirectional Search Example in Gremlin
 
@@ -285,7 +296,7 @@ for (final Map<String, Object> map : intersection){
     }
 ```
 
-It is obvious from the output that the path is not ordered as expected. The path returned needs to be deconstructed 
+The output path that is returned is not in order due to the nature of the gremlin query. The path returned needs to be deconstructed 
 and reconstructed, however this does show a full example of how to perform bidirectional search in a single query in 
 Gremlin.
 

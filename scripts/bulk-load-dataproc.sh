@@ -77,7 +77,7 @@ echo "###################################"
 echo "creating spark cluster ${name}"
 echo "###################################"
 
-gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
+gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --initialization-actions=gs://gha-ci-firefly-bulkloader/scripts/install-jdk-17.sh --properties 'spark-env:JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64,spark:spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 
 echo "###################################"
 echo "running job ${name}"
@@ -85,6 +85,6 @@ echo "###################################"
 
 l3_start=`date +%s`
 
-gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate_input_data -verify_output_data
+gcloud dataproc jobs submit spark --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate_input_data -verify_output_data
 
 echo $((($(date +%s)-$l3_start)/60)) > l3_runtime.txt

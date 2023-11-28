@@ -20,7 +20,7 @@ to an active instance of Firefly. The more advanced method is by running `spark-
 
 * Hardware with minimum 8GB of RAM
 * A running Spark cluster
-* Java 11+ installed (for building & running locally)
+* Java 17+ installed (for building & running locally)
 * CSV files containing vertices and edges to be loaded
   in [Gremlin data format](https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-gremlin.html)
     - These can live locally or in an AWS S3 bucket

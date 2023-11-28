@@ -5,6 +5,12 @@
 # Inject classpath. Without this gremlin-server doesn't load all the appropriate jars for the bulk loader.
 export CLASSPATH=$(cat /opt/classpath.txt)
 
+# Need to generate JAVA_OPTIONS for gremlin-server. This is assigned in the gremlin-server script.
+python3 /opt/scripts/generate_java_options.py
+
+# Enable deep reflection for Java 17 and configure JVM memory
+export JAVA_OPTIONS=$(cat /opt/scripts/java_options.txt)
+
 # Create trap that redirects a CTRL-C even into the stop_gremlin_server function.
 trap 'stop_gremlin_server' INT
 stop_gremlin_server() {

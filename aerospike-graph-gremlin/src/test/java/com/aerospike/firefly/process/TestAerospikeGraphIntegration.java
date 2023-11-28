@@ -88,7 +88,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.proper
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 import static org.apache.tinkerpop.gremlin.structure.Column.keys;
 import static org.apache.tinkerpop.gremlin.structure.Column.values;
-import static org.apache.tinkerpop.gremlin.util.tools.CollectionFactory.asMap;
+import static org.apache.tinkerpop.gremlin.util.CollectionUtil.asMap;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -226,7 +226,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
             // for graphs that have strong typing via schema it is possible that a value that came across as graphson
             // with lossiness will end up having a value expected to double to be coerced to float by the underlying
             // graph.
-            assertEquals(new Double(expected).floatValue(), e.value("weight"), 0.0001f);
+            assertEquals(Double.valueOf(expected).floatValue(), e.value("weight"), 0.0001f);
         }
     }
 
@@ -428,7 +428,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_io_read_withXreader_graphsonX() throws IOException {
-        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3d0.json", "").getAbsolutePath().replace('\\', '/');
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3.json", "").getAbsolutePath().replace('\\', '/');
         Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.graphson).read();
         this.printTraversalForm(traversal);
         traversal.iterate();
@@ -437,7 +437,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_io_read_withXreader_gryoX() throws IOException {
-        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3d0.kryo", "").getAbsolutePath().replace('\\', '/');
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3.kryo", "").getAbsolutePath().replace('\\', '/');
         Traversal<Object, Object> traversal = g.io(fileToRead).with(IO.reader, IO.gryo).read();
         this.printTraversalForm(traversal);
         traversal.iterate();
@@ -461,7 +461,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_io_readXjsonX() throws IOException {
-        final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3d0.json", "").getAbsolutePath().replace('\\', '/');
+        final String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GraphSONResourceAccess.class, "tinkerpop-modern-v3.json", "").getAbsolutePath().replace('\\', '/');
         final Traversal<Object, Object> traversal = g.io(fileToRead).read();
         printTraversalForm(traversal);
         traversal.iterate();
@@ -472,7 +472,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void g_io_readXkryoX() throws IOException {
-        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3d0.kryo", "").getAbsolutePath().replace('\\', '/');
+        String fileToRead = TestHelper.generateTempFileFromResource(ReadTest.class, GryoResourceAccess.class, "tinkerpop-modern-v3.kryo", "").getAbsolutePath().replace('\\', '/');
         Traversal<Object, Object> traversal = g.io(fileToRead).read();
         this.printTraversalForm(traversal);
         traversal.iterate();

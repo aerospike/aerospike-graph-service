@@ -1333,33 +1333,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Write a key-value pair into a Map on a Record.
-     * Also store a type hint so it can be reconstructed as the correct type.
-     * Pass additional Bins so 1 write can be made.
-     * UPDATE_ONLY write policy to prevent unintended writes to concurrently deleted elements.
-     *
-     * @param aeroSet
-     * @param fid
-     * @param mapName
-     * @param mapKey
-     * @param value
-     * @param typeHintBinName
-     * @param additionalBins
-     * @param <V>
-     */
-    public <V> void writeTypeHintedValueToMap(final String aeroSet,
-                                              final FireflyId fid,
-                                              final String mapName,
-                                              final String mapKey,
-                                              final V value,
-                                              final String typeHintBinName,
-                                              final Bin... additionalBins) {
-        final WritePolicy writePolicy = new WritePolicy();
-        writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
-        writeTypeHintedValueToMapWithPolicy(aeroSet, fid, mapName, mapKey, value, typeHintBinName, writePolicy, additionalBins);
-    }
-
-    /**
      * Write a Graph Variable as a key-value pair into a Map on a Record.
      * Also store a type hint so it can be reconstructed as the correct type.
      * Default write policy to allow creation and overwriting of Graph Variables.
@@ -1434,55 +1407,6 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * get the current value of an Id counter
-     *
-     * @param name name of Counter
-     * @return value of counter
-     */
-    public long getIdCounter(final String name) {
-        final Policy policy = new Policy();
-        policy.sendKey = false;
-        final Record record = read(new Key(namespace, ID_MANAGER_SET, name), policy);
-        return record.getLong(COUNTER_BIN);
-    }
-
-    /**
-     * Increment an Id counter by a suppled value and return its incremented value
-     *
-     * @param name      name of Counter to operate on
-     * @param increment value to increment by
-     * @return value of counter after operation
-     */
-    public long incrementAndGetIdCounter(final String name, long increment) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        final Bin ctr = new Bin(COUNTER_BIN, increment);
-        final Record record = this.operate(null, key,
-                Operation.add(ctr),
-                Operation.get(COUNTER_BIN));
-        return record.getLong(COUNTER_BIN);
-    }
-
-    /**
-     * Increment an Id counter by 1 and return its incremented value
-     *
-     * @param name name of Counter to operate on
-     * @return value of Counter after operation
-     */
-    public long incrementAndGetIdCounter(final String name) {
-        return incrementAndGetIdCounter(name, 1);
-    }
-
-    /**
-     * Decrement an Id counter by 1
-     *
-     * @param name of Counter to operate on
-     * @return value of counter after operation
-     */
-    public long decrementIdCounter(final String name) {
-        return decrementIdCounter(name, 1L);
-    }
-
-    /**
      * Decrement an Id counter.
      * <p>
      * This is primarily used to reserve a range of Ids for use and management of reserved Ids must be handled explicitly.
@@ -1498,66 +1422,6 @@ public class AerospikeConnection implements AutoCloseable {
                 Operation.add(ctr),
                 Operation.get(COUNTER_BIN));
         return record.getLong(COUNTER_BIN);
-    }
-
-    /**
-     * Zero an Id counter
-     *
-     * @param name name of Counter to operate on
-     * @return value of counter after operation
-     */
-    public long zeroIdCounter(final String name) {
-        final Bin ctr = new Bin(COUNTER_BIN, 0);
-        FireflyRecord.writeElement(this, ID_MANAGER_SET, FireflyIdPoly.fromObject(name, ID_MANAGER_SET), -1, ctr);
-        return 0L;
-    }
-
-    /**
-     * Offer a value, compare it to the current counter value.
-     * if the offered value is greater than the current counter value
-     * set the counter to the offered value, and return it.
-     * otherwise, increment the counter by 1, and return that.
-     *
-     * @param offer proposed value
-     * @param name  name of counter
-     * @return Incremented counter value or offered value
-     */
-
-    public long greaterOrIncrement(final long offer, final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        Expression gtexp = Exp.build(Exp.cond(
-                Exp.gt(
-                        Exp.val(offer),
-                        Exp.add(Exp.intBin(COUNTER_BIN), Exp.val(1))
-                ),
-                Exp.val(offer),
-                Exp.add(Exp.intBin(COUNTER_BIN), Exp.val(1))
-        ));
-        Record result = this.operate(null, key, ExpOperation.write(COUNTER_BIN, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER_BIN));
-        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER_BIN);
-        return (long) ret.get(1);
-    }
-
-    /**
-     * over a value and name a counter. return the greater of the two.
-     *
-     * @param offer proposed value
-     * @param name  name of counter to operate on
-     * @return value of counter or proposed value
-     */
-    public long greaterOrExisting(final long offer, final String name) {
-        final Key key = new Key(namespace, ID_MANAGER_SET, name);
-        Expression gtexp = Exp.build(Exp.cond(
-                Exp.gt(
-                        Exp.val(offer),
-                        Exp.add(Exp.intBin(COUNTER_BIN), Exp.val(1))
-                ),
-                Exp.val(offer),
-                Exp.intBin(COUNTER_BIN)
-        ));
-        Record result = this.operate(null, key, ExpOperation.write(COUNTER_BIN, gtexp, ExpWriteFlags.DEFAULT), Operation.get(COUNTER_BIN));
-        ArrayList<Object> ret = (ArrayList<Object>) result.getValue(COUNTER_BIN);
-        return (long) ret.get(1);
     }
 
     /**

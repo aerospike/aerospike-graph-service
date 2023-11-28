@@ -45,7 +45,7 @@
     <properties>
         <firefly.version>2.0.0-SNAPSHOT</firefly.version>
         <aerospike.version>7.0.0</aerospike.version>
-        <java.version>17</java.version>
+        <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <tinkerpop.version>3.7.0</tinkerpop.version>

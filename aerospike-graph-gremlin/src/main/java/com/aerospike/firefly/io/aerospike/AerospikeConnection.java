@@ -837,6 +837,17 @@ public class AerospikeConnection implements AutoCloseable {
             return (infoResponse != null && !infoResponse.isEmpty());
         }
 
+        public static String getClusterName(final AerospikeClient client) {
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
+            final String[] delimitedResponse = infoResponse.split(";");
+            for (int i = 0; i < delimitedResponse.length; i++) {
+                if (delimitedResponse[i].startsWith("cluster-name=")) {
+                    return delimitedResponse[i].split("=")[1];
+                }
+            }
+            throw new IllegalStateException("Could not find cluster-name in get-config response.");
+        }
+
         /**
          * Get a list of all the Sets in a namespace that have a number of records > 0
          *

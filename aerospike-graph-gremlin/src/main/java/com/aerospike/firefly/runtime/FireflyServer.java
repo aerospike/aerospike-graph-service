@@ -1,5 +1,9 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.client.AerospikeClient;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.structure.FireflyGraph;
+import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;
@@ -37,6 +41,10 @@ public class FireflyServer {
             fireflyServer.stop().join();
             return null;
         }).join();
+        final GraphManager graphManager = fireflyServer.gremlinServer.getServerGremlinExecutor().getGraphManager();
+        final FireflyGraph graph = (FireflyGraph) graphManager.getGraph("graph");
+        final AerospikeClient client = graph.getBaseGraph().getClient();
+        final String clusterName = AerospikeConnection.InfoOps.getClusterName(client);
         return fireflyServer;
     }
 

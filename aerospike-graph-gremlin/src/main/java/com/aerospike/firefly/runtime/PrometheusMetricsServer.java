@@ -156,7 +156,7 @@ public class PrometheusMetricsServer {
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
                                                         sample.labelNames, // Names are things like 'metric' so don't want to rename.
-                                                        listRename(sample.labelValues),
+                                                        sample.labelValues.stream().map(v -> v.replace(" ", "_")).collect(Collectors.toList()),
                                                         sample.value)).
                                         collect(Collectors.toList()));
                     }

@@ -44,7 +44,6 @@ public class SizingTool {
         //                  1 map entry of empty map for properties of vertex property values.
         //                  1 map entry of empty map for properties of vertex properties type hints
         long size = 0L;
-        // size += 5; // overhead
         size += propertySchema.key.length() * 3L; // vp name -> {type hint, value, id}
         size += propertyTypeToSize(propertySchema);
         size += 6; // 1 map entry of empty map for properties of vertex property.
@@ -150,28 +149,12 @@ public class SizingTool {
         for (final VertexSchema vertexSchema : graphSchema.vertexSchema) {
             vertexRecordSize += vertexSchema.label.length() + LABEL_OVERHEAD;
 
-            //GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
-            //        VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
-            //        VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN(Pair.of((byte) 3, "VP_HINT")),
-            //        RELATIONAL_VERTEX_TYPE_HINT_BIN(Pair.of((byte) 4, "REL_VP_HINT")),
-            //        IN_EDGES_BIN(Pair.of((byte) 7, "IN_EDGES")),
-            //        OUT_EDGES_BIN(Pair.of((byte) 8, "OUT_EDGES")),
-            //        PROPERTIES_BIN(Pair.of((byte) 9, "PROPERTIES")),
-            //        TYPE_HINTS_BIN(Pair.of((byte) 10, "TYPE_HINTS")),
-            //        COUNTER_BIN(Pair.of((byte) 11, "COUNTER")),
-            //        ID_TYPE_BIN(Pair.of((byte) 12, "ID_TYPE")),
-            //        USER_KEY_BIN(Pair.of((byte) 13, "USER_KEY")),
-            //        LABEL_BIN(Pair.of((byte) 14, "LABEL")),
-            //        IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
-            //        OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
-            //        VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
-            //vertexRecordSize += 8L; // user key avg
-            //vertexRecordSize += 8L; // user id type
-            //vertexRecordSize += 8L; // vertex type hint
-
             if (vertexSchema.properties.isEmpty()) {
-                vertexRecordSize += 2 * 5L; // type hints and properties empty.
-                vertexRecordSize += 4 * 5L; // vertex property k->v, type hint
+                // If there are no properties add 2 empty maps, 1 for properties type hints and properties.
+                // Additionally add 3 more empty maps, 1 for vertex property key-value pair, vertex property type hint
+                // vertex property to property id
+                vertexRecordSize += 2 * 6L;
+                vertexRecordSize += 3 * 6L;
             }
 
             for (final PropertySchema propertySchema : vertexSchema.properties) {

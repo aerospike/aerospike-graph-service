@@ -33,7 +33,6 @@ Hint() {
 name=spark${USER}${1}
 workers=${2:-20}
 bulk_jar_uri=XXX
-# bucket=${3:-gs://${USER}}
 properties_file_uri=XXX
 
 parsed=$(getopt -a -n minimal-spark.sh -o j:c:n:w: -- "$@")
@@ -77,7 +76,8 @@ echo "###################################"
 echo "creating spark cluster ${name}"
 echo "###################################"
 
-gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --initialization-actions=gs://gha-ci-firefly-bulkloader/scripts/install-jdk-17.sh --properties 'spark-env:JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64,spark:spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
+#TODO GRAPH-897: Replace with commented line for JDK 17 bulk loading if GCP images still don't support JDK 17 natively
+gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 
 echo "###################################"
 echo "running job ${name}"

@@ -285,7 +285,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
                     removeSupernodesIn, removeSupernodesOut, removeTtl, removeInBin, removeOutBin, removePropertiesBin,
                     removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin, removeLabelBin);
-            graph.edgeIdManager.recycleId(edgeId);
 
             // Result returned is always [<label>, null] since we have operations [removeLabel, removeLabelBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.LABEL_BIN);
@@ -296,6 +295,8 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 if (label instanceof String) {
                     graph.edgeIdManager.recycleId(edgeId);
                     graph.fireflySummaryUpdater.addEdgeRemoveToQueue((String) label);
+                } else {
+                    LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
                 }
             }
         } catch (final ElementNotFoundException e) {

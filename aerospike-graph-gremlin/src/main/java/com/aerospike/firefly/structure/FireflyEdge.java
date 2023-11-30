@@ -285,21 +285,24 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
                     removeSupernodesIn, removeSupernodesOut, removeTtl, removeInBin, removeOutBin, removePropertiesBin,
                     removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin, removeLabelBin);
-            graph.edgeIdManager.recycleId(edgeId);
 
-            // Result returned is always [<label>, null] since the label is removed first.
+            // Result returned is always [<label>, null] since we have operations [removeLabel, removeLabelBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.LABEL_BIN);
-            for (int i = 0; i < results.size(); i++) {
-                final Object result = results.get(i);
-                if (result instanceof String) {
-                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue((String) result);
-                    break;
+            if (results != null && !results.isEmpty()) {
+                final Object label = results.get(0);
+                // Check label value was returned to protect against concurrent deletes.
+                // If this Edge was already removed label returns null and this check returns false.
+                if (label instanceof String) {
+                    graph.edgeIdManager.recycleId(edgeId);
+                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue((String) label);
+                } else {
+                    LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
                 }
             }
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
             // the to-be-deleted vertices.
-            LOG.info("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
+            LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
         }
     }
 

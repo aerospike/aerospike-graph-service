@@ -1,5 +1,7 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
@@ -44,6 +46,10 @@ public class PrometheusMetricsServer {
 
     public static PrometheusMetricsServer create(final int port, final String path) {
         return new PrometheusMetricsServer(port, path);
+    }
+
+    public static void registerGraphMetrics(final AerospikeConnection db) {
+        CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
     }
 
     public void start() {

@@ -840,9 +840,12 @@ public class AerospikeConnection implements AutoCloseable {
         public static String getClusterName(final AerospikeClient client) {
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
             final String[] delimitedResponse = infoResponse.split(";");
-            for (int i = 0; i < delimitedResponse.length; i++) {
-                if (delimitedResponse[i].startsWith("cluster-name=")) {
-                    return delimitedResponse[i].split("=")[1];
+            for (final String s : delimitedResponse) {
+                if (s.startsWith("cluster-name=")) {
+                    if ("null".equals(s.split("=")[1])) {
+                        return "";
+                    }
+                    return s.split("=")[1];
                 }
             }
             throw new IllegalStateException("Could not find cluster-name in get-config response.");

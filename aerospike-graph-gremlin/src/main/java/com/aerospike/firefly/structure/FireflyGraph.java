@@ -241,6 +241,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create usage statistics background task.
         FireflyUsageStats.startUsageStats(db);
+
+        // Start metrics.
+        FireflyGremlinPlugin.initializeGraphMetrics(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {

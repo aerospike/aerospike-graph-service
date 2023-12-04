@@ -103,7 +103,7 @@ public class FireflyUsageStatsServiceFactory<I, R> implements Service.ServiceFac
 
     @Override
     public Map<String, String> describeParams() {
-        return Map.of("since", "Return usage stats since a certain date in format " + PATTERN + "'.");
+        return Map.of("since", "Return usage stats since a certain date in format '" + PATTERN + "'.");
     }
 
     @Override

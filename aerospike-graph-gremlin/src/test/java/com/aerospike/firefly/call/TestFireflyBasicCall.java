@@ -48,7 +48,7 @@ public class TestFireflyBasicCall {
                         break;
                     case "{\"name\":\"usage-stats\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
-                        Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
+                        Assert.assertEquals(infoPieces.get(2), "\"params\":{\"since\":\"Return usage stats since a certain date in format 'yyyy-MM-dd'.\"}}");
                         break;
                     default:
                         Assert.fail("Error, expected first piece of " + outputString +

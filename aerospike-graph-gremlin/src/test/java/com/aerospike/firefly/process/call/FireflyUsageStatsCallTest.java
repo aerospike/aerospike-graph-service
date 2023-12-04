@@ -1,8 +1,10 @@
 package com.aerospike.firefly.process.call;
 
+import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -27,8 +29,16 @@ public class FireflyUsageStatsCallTest {
             graph.getBaseGraph().getClient().truncate(null,
                     graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
+            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @AfterClass
+    public static void cleanUp() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         }
     }
 

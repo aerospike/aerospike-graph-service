@@ -55,6 +55,18 @@ public class FireflyUsageStats {
         }
     }
 
+    // THIS IS A TEST ONLY FUNCTION.
+    // Without this the test cannot reset the usage stats with a lower update interval.
+    public static void restartUsageStats(final AerospikeConnection connection) {
+        synchronized (FireflyUsageStats.class) {
+            // Only create once.
+            if (instance != null) {
+                instance.taskTimer.cancel();
+                instance = new FireflyUsageStats(connection);
+            }
+        }
+    }
+
     public static List<Map<String, Object>> readMetadata() {
         synchronized (FireflyUsageStats.class) {
             if (instance == null) {

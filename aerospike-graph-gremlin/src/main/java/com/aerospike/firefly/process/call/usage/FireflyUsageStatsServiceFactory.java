@@ -63,8 +63,8 @@ public class FireflyUsageStatsServiceFactory<I, R> implements Service.ServiceFac
             final SimpleDateFormat simpleDateFormat = new SimpleDateFormat(PATTERN);
             try {
                 final Date date = simpleDateFormat.parse((String) params.get("since"));
-                epochOffsetMilliseconds =date.getTime();
-            } catch (ParseException e) {
+                epochOffsetMilliseconds = date.getTime();
+            } catch (final ParseException e) {
                 throw new IllegalArgumentException("Failed to parse provided date '" + params.get("since") + "'. " +
                         "Expected date provided to be in format '" + PATTERN + "'. " + e.getMessage());
             }

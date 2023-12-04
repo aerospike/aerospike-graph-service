@@ -4,6 +4,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -18,7 +19,8 @@ import static org.junit.Assert.fail;
 public class FireflyUsageStatsCallTest {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
-    private void cleanUsageStats() {
+    @Before
+    public void cleanUsageStats() {
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
@@ -32,8 +34,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testSingleFirefly() {
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
@@ -70,8 +70,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testSinceParameterNull() {
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
@@ -88,9 +86,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testSinceParameterNonStringDate() {
-
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
@@ -107,8 +102,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testSinceParameterPreviousDate() {
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         final String previousDay = "2020-01-01";
@@ -146,9 +139,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testSinceParameterFutureDate() {
-
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         final String futureDay = "2030-01-01";
@@ -185,8 +175,6 @@ public class FireflyUsageStatsCallTest {
 
     @Test
     public void testMultiLocalFireflyProduces1Result() {
-        cleanUsageStats();
-
         FireflyGraph graph1 = null;
         FireflyGraph graph2 = null;
         FireflyGraph graph3 = null;

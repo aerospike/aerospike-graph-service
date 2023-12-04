@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedHashSet;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -18,7 +18,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
     private final long bufferSize;
     private final BufferedNumericIdManager uniqueIdManager;
     private final BufferedNumericIdManager recyclingIdManager;
-    private final LinkedHashSet<Long> recycledIds = new LinkedHashSet<>();
+    private final ConcurrentLinkedQueue<Long> recycledIds = new ConcurrentLinkedQueue<>();
     private final boolean allowUserSupplied;
 
     public RecyclingBufferedNumericIdManager(final String recyclingIdCounterName,
@@ -50,7 +50,7 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public synchronized byte[] getNextId(final FireflyGraph graph) {
-        final Long uniqueId = uniqueIdManager.getNextId(graph);
+        final Long uniqueId = this.uniqueIdManager.getNextId(graph);
         final byte[] id = new byte[16];
         System.arraycopy(longToBytes(getRecycledId(graph)), 0, id, 0, 8);
         System.arraycopy(longToBytes(uniqueId), 0, id, 8, 8);
@@ -64,7 +64,6 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
 
     @Override
     public void recycleId(final FireflyId id) {
-        // We have enough recycled IDs to buffer them
         final long recycledId;
         if (id instanceof FireflyPhatEdgeId) {
             recycledId = ((FireflyPhatEdgeId) id).getPackingId();
@@ -75,23 +74,19 @@ public class RecyclingBufferedNumericIdManager implements IdManager<byte[]> {
             LOG.error(message);
             throw new IllegalArgumentException(message);
         }
-        if (recycledIds.size() >= bufferSize) {
+        if (this.recycledIds.size() >= bufferSize) {
             LOG.warn("Recycled IDs buffer is full. Recycling ID " + recycledId + " will be dropped.");
             return;
         }
-        synchronized (RecyclingBufferedNumericIdManager.class) {
-            this.recycledIds.add(recycledId);
-        }
+        this.recycledIds.add(recycledId);
     }
 
     private long getRecycledId(final FireflyGraph graph) {
-        synchronized (RecyclingBufferedNumericIdManager.class) {
-            if (recycledIds.isEmpty()) {
-                return recyclingIdManager.getNextId(graph);
-            }
-            long id = this.recycledIds.iterator().next();
-            this.recycledIds.remove(id);
-            return id;
-        }
+        final Long recycledId = this.recycledIds.poll();
+        return recycledId != null ? recycledId : this.recyclingIdManager.getNextId(graph);
+    }
+
+    public int availableRecycledIds() {
+        return this.recycledIds.size();
     }
 }

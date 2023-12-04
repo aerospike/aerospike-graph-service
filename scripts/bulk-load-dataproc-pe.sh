@@ -33,7 +33,6 @@ Hint() {
 name=spark${USER}${1}
 workers=${2:-20}
 bulk_jar_uri=XXX
-# bucket=${3:-gs://${USER}}
 properties_file_uri=XXX
 
 parsed=$(getopt -a -n minimal-spark.sh -o j:c:n:w: -- "$@")
@@ -77,13 +76,15 @@ echo "###################################"
 echo "creating spark cluster ${name}"
 echo "###################################"
 
+#TODO GRAPH-897: Replace with commented line for JDK 17 bulk loading if GCP images still don't support JDK 17 natively
+#gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --initialization-actions=gs://gha-ci-firefly-bulkloader/scripts/install-jdk-17.sh --properties 'spark-env:JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64,spark:spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 
 echo "###################################"
 echo "running job ${name}"
 echo "###################################"
 
-{ gcloud dataproc jobs submit spark  --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate_input_data -verify_output_data; } &
+{ gcloud dataproc jobs submit spark --class=com.aerospike.firefly.bulkloader.SparkBulkLoader --jars=${bulk_jar_uri} --id ${name}-job --cluster=${name} --region=us-central1 -- -c ${properties_file_uri} -validate_input_data -verify_output_data; } &
 { echo "sleeping 9 minutes"; sleep 9m; echo "Killing ci-pe-w-3"; gcloud compute instances delete ${name}-w-3 --zone=us-central1-a --quiet; echo "Killing ci-pe-w-4"; gcloud compute instances delete ${name}-w-4 --zone=us-central1-a --quiet; } &
 
 wait

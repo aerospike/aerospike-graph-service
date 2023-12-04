@@ -11,13 +11,6 @@
 
     <artifactId>aerospike-graph-sizing-tool</artifactId>
     <name>Aerospike :: Graph Sizing Tool</name>
-
-    <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.aerospike</groupId>
@@ -111,7 +104,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.4</version>
+                <version>${mvn-shade-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -148,4 +141,9 @@
             </plugin>
         </plugins>
     </build>
+    <properties>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 </project>

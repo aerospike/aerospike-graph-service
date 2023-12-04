@@ -1,5 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
+import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
@@ -182,6 +183,32 @@ public class RecyclingBufferedNumericIdManagerIntegrationTest {
             Assert.assertTrue(packingIds.contains(edgeIdToPackingIdLong((String) e3.id())));
             Assert.assertTrue(packingIds.contains(edgeIdToPackingIdLong((String) e4.id())));
         }
+    }
+
+    @Test
+    public void testNoDuplicateRecyclingDueToDuplicateEdgeDrop() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        final FireflyGraph graph = FireflyGraph.open(config);
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+        final Edge e1 = g.addE("e1").from(v1).to(v2).next();
+        final Edge e2 = g.addE("e2").from(v1).to(v2).next();
+        final FireflyId edgeId1 = graph.getIdFactory().createId(e1.id(), FireflyEdge.class);
+        final FireflyId edgeId2 = graph.getIdFactory().createId(e2.id(), FireflyEdge.class);
+
+        final RecyclingBufferedNumericIdManager edgeIdManager = (RecyclingBufferedNumericIdManager) graph.edgeIdManager;
+        Assert.assertEquals(0, edgeIdManager.availableRecycledIds());
+        // Test removal within phat edge (record persists after removal of edge)
+        FireflyEdge.removeEdgeById(graph, edgeId1);
+        FireflyEdge.removeEdgeById(graph, edgeId1);
+        Assert.assertEquals(1, edgeIdManager.availableRecycledIds());
+        Assert.assertFalse(g.E(e1.id()).hasNext());
+        // Test removal of last edge in phat edge (record deleted after removal of edge)
+        FireflyEdge.removeEdgeById(graph, edgeId2);
+        FireflyEdge.removeEdgeById(graph, edgeId2);
+        Assert.assertEquals(2, edgeIdManager.availableRecycledIds());
+        Assert.assertFalse(g.E(e2.id()).hasNext());
     }
 
     private static byte[] getBaselineId() {

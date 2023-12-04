@@ -185,8 +185,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Stop spark session
             spark.stop();
         } finally {
-            PROGRESS_BAR_TIMER.cancel();
-            PROGRESS_BAR.close();
+            if (PROGRESS_BAR_TIMER != null) {
+                PROGRESS_BAR_TIMER.cancel();
+            }
+            if (PROGRESS_BAR != null) {
+                PROGRESS_BAR.close();
+            }
         }
     }
 

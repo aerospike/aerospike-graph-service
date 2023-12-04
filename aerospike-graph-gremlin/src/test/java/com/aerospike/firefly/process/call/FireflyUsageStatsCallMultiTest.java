@@ -65,9 +65,9 @@ public class FireflyUsageStatsCallMultiTest {
                 Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(1).get("memory-gb"));
             }
 
-            // Compare expected vcpu-hrs and vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hrs") > 2 * testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-yrs") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
+            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
+            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

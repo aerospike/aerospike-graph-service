@@ -43,6 +43,12 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
+            // Don't start in warm up due to config differences.
+            if (connection.WARMUP_MODE) {
+                return;
+            }
+
+            // Only create once.
             if (instance == null) {
                 instance = new FireflyUsageStats(connection);
             }

@@ -13,5 +13,18 @@ g.call("usage-stats").next()
 
 This will return a Map<String, Object> that contains the following fields:
 - raw: the raw usage stats data
-- total-vcpu-hrs: the total vcpu hours used by all services 
-- total-vcpu-yrs: the total vcpu years used by all services
+- total-vcpu: the total vcpu years used by all services
+
+The usage stats from a specific date can also be collected by invoking the follow command in gremlin:
+
+```
+g.call("usage-stats").with("since", "yyyy-mm-dd").next()
+```
+example:
+```
+g.call("usage-stats").with("since", "2023-03-30").next()
+```
+
+This will return a Map<String, Object> that contains the following fields:
+- raw: the raw usage stats data
+- total-vcpu: the total vcpu years used by all services since the provided date

@@ -4,6 +4,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -17,7 +18,9 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UP
 public class FireflyUsageStatsCallMultiTest {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
-    private void cleanUsageStats() {
+    @Before
+    public void cleanUsageStats() {
+        CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
             graph.getBaseGraph().getClient().truncate(null,
@@ -30,8 +33,6 @@ public class FireflyUsageStatsCallMultiTest {
 
     @Test
     public void testBackgroundDockerAddsToGraph() {
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {

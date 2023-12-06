@@ -36,6 +36,7 @@ public class PrometheusMetricsServer {
     private final String path;
     public static final int DEFAULT_PROMETHEUS_PORT = 9090;
     public static final String DEFAULT_PROMETHEUS_PATH = "/metrics";
+    public static boolean PROMETHEUS_RENAME_ENABLED = true;
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
 
@@ -49,6 +50,7 @@ public class PrometheusMetricsServer {
     }
 
     public static void registerGraphMetrics(final AerospikeConnection db) {
+        PROMETHEUS_RENAME_ENABLED = db.PROMETHEUS_RENAME_ENABLED;
         CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
     }
 
@@ -162,7 +164,19 @@ public class PrometheusMetricsServer {
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
                                                         sample.labelNames, // Names are things like 'metric' so don't want to rename.
-                                                        sample.labelValues.stream().map(v -> v.replace(" ", "_")).collect(Collectors.toList()),
+                                                        sample.labelValues.stream().
+                                                                map(v -> {
+                                                                    if (PROMETHEUS_RENAME_ENABLED) {
+                                                                        return v.
+                                                                                replace(" ", "_").
+                                                                                replace("-", "_").
+                                                                                replace("'", "").
+                                                                                replace("___", "_");
+                                                                    } else {
+                                                                        return v;
+                                                                    }
+                                                                }).
+                                                                collect(Collectors.toList()),
                                                         sample.value)).
                                         collect(Collectors.toList()));
                     }

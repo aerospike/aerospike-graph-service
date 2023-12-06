@@ -120,6 +120,8 @@ public final class ConfigurationHelper {
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
+        public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -296,6 +298,7 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
         put(Keys.TTL_PURGE_INTERVAL, "300000"); // 5 minute default

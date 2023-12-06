@@ -51,7 +51,15 @@ public class PrometheusMetricsServer {
 
     public static void registerGraphMetrics(final AerospikeConnection db) {
         PROMETHEUS_RENAME_ENABLED = db.PROMETHEUS_RENAME_ENABLED;
-        CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
+        try {
+            CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
+        } catch (final IllegalArgumentException e) {
+            // This happens if this is called multiple times because the collector is already registered, which is fine.
+            // This will be the case in testing when graph is opened multiple times.
+            if (!e.getMessage().contains("cluster_name_info is already in use by another Collector of type FireflyMetricCollector")) {
+                throw e;
+            }
+        }
     }
 
     public void start() {

@@ -120,7 +120,7 @@ public final class ConfigurationHelper {
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
-        public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename";
+        public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
 
         public static class Pair {
             public final int numeric;
@@ -135,6 +135,7 @@ public final class ConfigurationHelper {
                 return new Pair(numeric, english);
             }
         }
+
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
@@ -154,7 +155,6 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
-
 
             private final Pair value;
 

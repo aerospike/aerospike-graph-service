@@ -41,10 +41,6 @@ public class FireflyServer {
             fireflyServer.stop().join();
             return null;
         }).join();
-        final GraphManager graphManager = fireflyServer.gremlinServer.getServerGremlinExecutor().getGraphManager();
-        final FireflyGraph graph = (FireflyGraph) graphManager.getGraph("graph");
-        final AerospikeClient client = graph.getBaseGraph().getClient();
-        final String clusterName = AerospikeConnection.InfoOps.getClusterName(client);
         return fireflyServer;
     }
 

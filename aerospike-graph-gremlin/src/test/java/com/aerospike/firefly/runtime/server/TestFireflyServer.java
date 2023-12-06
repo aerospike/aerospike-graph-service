@@ -42,12 +42,6 @@ public class TestFireflyServer {
         uploadHeapUsage();
     }
 
-    @Test
-    public void testServerasdf() throws Exception {
-        server = FireflyServer.main(new String[] {"../conf/firefly-gremlin-server-local.yaml"});
-        Thread.sleep(30000);
-    }
-
     private static final Timer HEAP_REPORTING_TIMER = new Timer(true);
 
     private class HeapReport extends TimerTask {

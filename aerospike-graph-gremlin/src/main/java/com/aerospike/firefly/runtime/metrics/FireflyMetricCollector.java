@@ -19,8 +19,8 @@ public class FireflyMetricCollector extends Collector {
     @Override
     public List<MetricFamilySamples> collect() {
         return List.of(
-                new MetricFamilySamples(PREFIX + "cluster_name", Type.INFO, "Aerospike Cluster Name",
+                new MetricFamilySamples("cluster_name", Type.INFO, "Aerospike Cluster Name",
                         List.of(new MetricFamilySamples.Sample(
-                                PREFIX + "cluster_name", List.of("cluster_name"), List.of(clusterName), 0.0))));
+                                "cluster_name", List.of("cluster_name"), List.of(clusterName), 0.0))));
     }
 }

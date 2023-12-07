@@ -1,5 +1,5 @@
 ## Vertex Property Index Usage
-To create a vertex property index, use the following syntax in the firefly-graph.properties file:
+To create a vertex property index, use the following syntax in the aerospike-graph.properties file:
 ```
 aerospike.graph.index.vertex.properties=property_key1,property_key2,...
 ```
@@ -50,7 +50,7 @@ label: "knows"
 {
 }
 ```
-A sindex on name and age can be created by adding the following line to the firefly-graph.properties file:
+A sindex on name and age can be created by adding the following line to the aerospike-graph.properties file:
 ```
 aerospike.graph.index.vertex.properties=name,age
 aerospike.graph.index.vertex.label.enabled=true

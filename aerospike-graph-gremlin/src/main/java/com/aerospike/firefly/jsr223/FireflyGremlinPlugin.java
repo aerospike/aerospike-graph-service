@@ -83,6 +83,10 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         x.start();
     }
 
+    public static void initializeGraphMetrics(final AerospikeConnection db) {
+        PrometheusMetricsServer.registerGraphMetrics(db);
+    }
+
     public static void stopHealthcheckServer() {
         HealthcheckServer.get().stop(maybeError -> {
             if (maybeError.isPresent())

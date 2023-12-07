@@ -198,6 +198,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TIMEOUT_DELAY;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
+    public final boolean PROMETHEUS_RENAME_ENABLED;
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
@@ -406,6 +407,7 @@ public class AerospikeConnection implements AutoCloseable {
         TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
         USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
         WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
+        PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
@@ -835,6 +837,20 @@ public class AerospikeConnection implements AutoCloseable {
             // Using client.getNodes()[0] is okay here since if one is enterprise, the entire cluster is.
             final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.FEATURE_KEY);
             return (infoResponse != null && !infoResponse.isEmpty());
+        }
+
+        public static String getClusterName(final AerospikeClient client) {
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], "get-config");
+            final String[] delimitedResponse = infoResponse.split(";");
+            for (final String s : delimitedResponse) {
+                if (s.startsWith("cluster-name=")) {
+                    if ("null".equals(s.split("=")[1])) {
+                        return "";
+                    }
+                    return s.split("=")[1];
+                }
+            }
+            throw new IllegalStateException("Could not find cluster-name in get-config response.");
         }
 
         /**

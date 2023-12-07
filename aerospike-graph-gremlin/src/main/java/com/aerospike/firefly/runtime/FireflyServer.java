@@ -1,9 +1,5 @@
 package com.aerospike.firefly.runtime;
 
-import com.aerospike.client.AerospikeClient;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.tinkerpop.gremlin.server.GraphManager;
 import org.apache.tinkerpop.gremlin.server.GremlinServer;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.slf4j.Logger;

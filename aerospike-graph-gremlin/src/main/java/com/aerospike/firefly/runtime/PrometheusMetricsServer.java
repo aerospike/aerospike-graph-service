@@ -1,5 +1,7 @@
 package com.aerospike.firefly.runtime;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
@@ -34,6 +36,7 @@ public class PrometheusMetricsServer {
     private final String path;
     public static final int DEFAULT_PROMETHEUS_PORT = 9090;
     public static final String DEFAULT_PROMETHEUS_PATH = "/metrics";
+    public static boolean PROMETHEUS_RENAME_ENABLED = true;
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
 
@@ -44,6 +47,19 @@ public class PrometheusMetricsServer {
 
     public static PrometheusMetricsServer create(final int port, final String path) {
         return new PrometheusMetricsServer(port, path);
+    }
+
+    public static void registerGraphMetrics(final AerospikeConnection db) {
+        PROMETHEUS_RENAME_ENABLED = db.PROMETHEUS_RENAME_ENABLED;
+        try {
+            CollectorRegistry.defaultRegistry.register(new FireflyMetricCollector(db));
+        } catch (final IllegalArgumentException e) {
+            // This happens if this is called multiple times because the collector is already registered, which is fine.
+            // This will be the case in testing when graph is opened multiple times.
+            if (!e.getMessage().contains("cluster_name_info is already in use by another Collector of type FireflyMetricCollector")) {
+                throw e;
+            }
+        }
     }
 
     public void start() {
@@ -156,7 +172,19 @@ public class PrometheusMetricsServer {
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
                                                         sample.labelNames, // Names are things like 'metric' so don't want to rename.
-                                                        listRename(sample.labelValues),
+                                                        sample.labelValues.stream().
+                                                                map(v -> {
+                                                                    if (PROMETHEUS_RENAME_ENABLED) {
+                                                                        return v.
+                                                                                replace(" ", "_").
+                                                                                replace("-", "_").
+                                                                                replace("'", "").
+                                                                                replace("___", "_");
+                                                                    } else {
+                                                                        return v;
+                                                                    }
+                                                                }).
+                                                                collect(Collectors.toList()),
                                                         sample.value)).
                                         collect(Collectors.toList()));
                     }

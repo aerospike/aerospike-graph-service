@@ -296,11 +296,20 @@ public class SizingTool {
 
     public final Map<String, Long> asMap() {
         final Map<String, Long> map = new HashMap<>();
-        map.put("vertexRecordCount", estimateVertexRecordCount());
-        map.put("edgeRecordCount", estimateEdgeRecordCount());
-        map.put("averageVertexRecordSize", estimateAverageVertexRecordSize());
-        map.put("averageEdgeRecordSize", estimateAverageEdgeRecordSize());
+        final long vertexRecordCount = estimateVertexRecordCount();
+        final long edgeRecordCount = estimateEdgeRecordCount();
+        final long averageVertexRecordSize = estimateAverageVertexRecordSize();
+        final long averageEdgeRecordSize = estimateAverageEdgeRecordSize();
+        final long totalRecords = vertexRecordCount + edgeRecordCount;
+        final long totalSize = vertexRecordCount * averageVertexRecordSize + edgeRecordCount * averageEdgeRecordSize;
+        final long averageRecordSize = totalSize / totalRecords;
+        map.put("vertexRecordCount", vertexRecordCount);
+        map.put("edgeRecordCount", edgeRecordCount);
+        map.put("averageVertexRecordSize", averageVertexRecordSize);
+        map.put("averageEdgeRecordSize", averageEdgeRecordSize);
         map.put("totalSindexEntries", totalSindexEntries());
+        map.put("averageRecordSize", averageRecordSize);
+        map.put("totalRecordCount", totalRecords);
         return map;
     }
 

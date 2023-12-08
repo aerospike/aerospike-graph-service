@@ -158,13 +158,13 @@ A local example:
 ```
 # Docker run with files passed in.  
 docker run -p 8182:8182  \
-            -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-firefly/etc/ \
+            -v /<local path to root of a directory that contains 'sampledata/vertices' and 'sampledata/edges'>/:/opt/aerospike-graph/etc/ \
             ghcr.io/citrusleaf/firefly
 
 # Invoke call API with path to files in docker container.
 g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
-    .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
-    .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges")
+    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
+    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
 ```
 
 Most customers will likely use S3 or GCS, which is the recommended way.

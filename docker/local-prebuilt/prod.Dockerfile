@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.description = "Docker image for Aerospike Graph."
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
-ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
+ENV CONF_DIR="/opt/aerospike-graph/conf/docker-default"
 
 # Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
@@ -19,7 +19,7 @@ USER firefly
 
 HEALTHCHECK CMD ls /tmp/firefly-ready
 
-WORKDIR /opt/aerospike-firefly
+WORKDIR /opt/aerospike-graph
 
 # Entry point, run script.
 ENTRYPOINT ["scripts/gremlin-server-docker.sh"]

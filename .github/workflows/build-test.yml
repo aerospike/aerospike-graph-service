@@ -495,8 +495,8 @@ jobs:
           bash -x scripts/build-docker.sh aerospike/firefly-bulk-load linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly-bulk-load &
           
           echo "Sleeping for 30 seconds while docker image starts"
@@ -537,8 +537,8 @@ jobs:
           bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-firefly/conf/ \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-firefly/etc/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly &
           
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark -DfailIfNoTests=false --no-transfer-progress
@@ -1109,7 +1109,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/conf firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1145,7 +1145,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-firefly/conf firefly &
+          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/conf firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1182,7 +1182,7 @@ jobs:
           
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-firefly/conf firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/conf firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1218,7 +1218,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1255,7 +1255,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom properties file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties firefly &
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30

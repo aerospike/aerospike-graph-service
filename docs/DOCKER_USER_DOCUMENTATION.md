@@ -30,10 +30,10 @@ in production for most cases that do not require more advanced server configurat
 the properties file as shown below:
 
 ```
-docker run -p 8182:8182 -v /home/graph-user/graph/conf/firefly-graph.properties:/opt/aerospike-firefly/conf/firefly-graph.properties ghcr.io/citrusleaf/firefly
+docker run -p 8182:8182 -v /home/graph-user/graph/conf/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties ghcr.io/citrusleaf/firefly
 ```
 
-Where `/home/graph-user/graph/conf/firefly-graph.properties` is the path to the properties file on the host machine.
+Where `/home/graph-user/graph/conf/aerospike-graph.properties` is the path to the properties file on the host machine.
 
 An example properties file is provided below:
 
@@ -53,14 +53,14 @@ with the properties file to configure the server properties as well as the Graph
 To pass in a yaml file, the docker container is started as shown below:
 
 ```
-docker run -p 8182:8182 -v /home/graph-user/graph/conf:/opt/aerospike-firefly/conf ghcr.io/citrusleaf/firefly
+docker run -p 8182:8182 -v /home/graph-user/graph/conf:/opt/aerospike-graph/conf ghcr.io/citrusleaf/firefly
 ```
 
 For this command to execute properly, the host machine must have two files present at `/home/graph-user/graph/conf`.
 
-The files present must be a properties file named `firefly-graph.properties` and a yaml file named `gremlin-server.yaml`.
+The files present must be a properties file named `aerospike-graph.properties` and a yaml file named `gremlin-server.yaml`.
 
-An example `firefly-graph.properties` file is provided above already, and a sample `gremlin-server.yaml` is provided below:
+An example `aerospike-graph.properties` file is provided above already, and a sample `gremlin-server.yaml` is provided below:
 
 ```
 host: 0.0.0.0
@@ -68,7 +68,7 @@ port: 8182
 evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
-  graph: /opt/aerospike-firefly/conf/firefly-graph.properties}
+  graph: /opt/aerospike-graph/conf/aerospike-graph.properties}
 
 scriptEngines: {
   gremlin-groovy: {
@@ -103,7 +103,7 @@ ssl: {
   enabled: false}
 ```
 
-It is important to note the property `graphs: { graph: /opt/aerospike-firefly/conf/firefly-graph.properties}`
+It is important to note the property `graphs: { graph: /opt/aerospike-graph/conf/aerospike-graph.properties}`
 in the yaml file. This is required for the server to know where to find the properties file which was pathed 
 into the container there.
 

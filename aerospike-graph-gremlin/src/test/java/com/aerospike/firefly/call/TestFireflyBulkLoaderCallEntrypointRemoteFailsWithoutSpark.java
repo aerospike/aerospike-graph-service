@@ -21,7 +21,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
             g.E().drop().iterate();
             try {
                 g.call("bulk-load").
-                        with("aerospike.graphloader.config", "/opt/aerospike-firefly/etc/config.properties").next();
+                        with("aerospike.graphloader.config", "/opt/aerospike-graph/etc/config.properties").next();
             } catch (final Exception e) {
                 Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
             }
@@ -35,8 +35,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark {
             g.E().drop().iterate();
             try {
                 g.call("bulk-load")
-                        .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
-                        .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges").next();
+                        .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
+                        .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges").next();
             } catch (final Exception e) {
                 Assert.assertTrue(e.getMessage().contains("Error, to use the bulk loader via the call API, use the docker image with bulk loader support."));
             }

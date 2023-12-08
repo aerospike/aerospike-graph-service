@@ -20,7 +20,7 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             Assert.assertEquals("Success", g.call("bulk-load").
-                    with("aerospike.graphloader.config", "/opt/aerospike-firefly/etc/config.properties").next());
+                    with("aerospike.graphloader.config", "/opt/aerospike-graph/etc/config.properties").next());
         }
     }
 
@@ -30,8 +30,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
             g.V().drop().iterate();
             g.E().drop().iterate();
             Assert.assertEquals("Success", g.call("bulk-load")
-                    .with("aerospike.graphloader.vertices", "/opt/aerospike-firefly/etc/sampledata/vertices")
-                    .with("aerospike.graphloader.edges", "/opt/aerospike-firefly/etc/sampledata/edges")
+                    .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
+                    .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
                     .next());
         }
     }

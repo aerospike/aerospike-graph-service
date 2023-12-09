@@ -865,8 +865,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveMillis) {
-        this.ttlHandler.scheduleExpiryNow(element, timeToLiveMillis);
+    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveSeconds) {
+        this.ttlHandler.scheduleExpiryNow(element, timeToLiveSeconds);
     }
 
     /**

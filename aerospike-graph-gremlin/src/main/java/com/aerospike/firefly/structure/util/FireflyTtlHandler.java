@@ -20,10 +20,12 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyPhatEdgeId;
+import com.google.common.math.LongMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
@@ -37,33 +39,33 @@ public class FireflyTtlHandler implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyTtlHandler.class);
     private static final String TIMER_NAME = "TTL_TIMER";
     private final boolean isTtlEnabled;
-    private final int ttlPurgeInterval;
+    private final int ttlPurgeIntervalSeconds;
     private final boolean isTtlUpdatableAnytime;
     private ScheduledExecutorService scheduler;
     private Timer timer;
 
     public FireflyTtlHandler(final FireflyGraph graph) {
         this.isTtlEnabled = graph.getBaseGraph().TTL_ENABLED_FLAG;
-        this.ttlPurgeInterval = graph.getBaseGraph().TTL_PURGE_INTERVAL;
+        this.ttlPurgeIntervalSeconds = graph.getBaseGraph().TTL_PURGE_INTERVAL_SECONDS;
         this.isTtlUpdatableAnytime = graph.getBaseGraph().TTL_UPDATE_ANYTIME_FLAG;
         if (this.isTtlEnabled) {
             this.scheduler = Executors.newSingleThreadScheduledExecutor();
             this.timer = new Timer(TIMER_NAME, true);
-            this.timer.schedule(new TtlTimerTask(graph, this.scheduler), 0, this.ttlPurgeInterval);
+            this.timer.schedule(new TtlTimerTask(graph, this.scheduler), 0, this.ttlPurgeIntervalSeconds * 1000L);
         }
     }
 
-    public void scheduleExpiryNow(final FireflyElement element, final long timeToLiveMillis) {
+    public void scheduleExpiryNow(final FireflyElement element, final long timeToLiveSeconds) {
         if (this.isTtlEnabled) {
             this.scheduler.schedule(() -> {
                 try {
                     if (this.isTtlUpdatableAnytime) {
                         try {
-                            final long newTtl = element.getTtlMillis();
-                            if (newTtl > 0) {
+                            final long currentRemainingTtl = element.getTtlMillis();
+                            if (currentRemainingTtl > 0) {
                                 LOG.debug("Element ID " + element.id() +
-                                        " was scheduled for expiry but was found to have an updated TTL of " +
-                                        newTtl + " milliseconds.");
+                                        " was scheduled for expiry but was found to have an updated remaining TTL of " +
+                                        LongMath.divide(currentRemainingTtl, 1000L, RoundingMode.CEILING) + " seconds.");
                                 return;
                             }
                         } catch (final ElementNotFoundException e) {
@@ -81,7 +83,7 @@ public class FireflyTtlHandler implements Closeable {
                         LOG.error("Unexpected error occurred when removing TTL Element ID {}: {}", element.id(), e);
                     }
                 }
-            }, timeToLiveMillis, TimeUnit.MILLISECONDS);
+            }, timeToLiveSeconds, TimeUnit.SECONDS);
         } else {
             // This should never happen
             throw new IllegalStateException("Element was scheduled for TTL when TTL is not enabled.");
@@ -120,7 +122,7 @@ public class FireflyTtlHandler implements Closeable {
             final WritePolicy policy = new WritePolicy();
             policy.recordExistsAction = RecordExistsAction.CREATE_ONLY;
             // TTL on Aerospike is in seconds. Offset by 1 second to prevent jitter issues.
-            policy.expiration = (this.db.TTL_PURGE_INTERVAL / 1000) - 1;
+            policy.expiration = this.db.TTL_PURGE_INTERVAL_SECONDS - 1;
             this.acquireTtlLockPolicy = policy;
         }
 
@@ -152,7 +154,7 @@ public class FireflyTtlHandler implements Closeable {
         private void scheduleVertexDeletes() {
             final Iterator<KeyRecord> vertexRecordsToDelete = this.db.queryIndex(this.db.VERTEX_AERO_SET,
                     this.db.TTL_VERTEX_INDEX_NAME, Filter.range(this.db.TTL_BIN, 0,
-                            System.currentTimeMillis() + this.db.TTL_PURGE_INTERVAL), INDEX_POLICY);
+                            System.currentTimeMillis() + (this.db.TTL_PURGE_INTERVAL_SECONDS * 1000L)), INDEX_POLICY);
             int expiriesScheduled = 0;
             while (vertexRecordsToDelete.hasNext()) {
                 final KeyRecord vertexRecord = vertexRecordsToDelete.next();
@@ -164,11 +166,11 @@ public class FireflyTtlHandler implements Closeable {
                     try {
                         if (this.db.TTL_UPDATE_ANYTIME_FLAG) {
                             try {
-                                final long newTtl = vertex.getTtlMillis();
-                                if (newTtl > 0) {
+                                final long currentRemainingTtl = vertex.getTtlMillis();
+                                if (currentRemainingTtl > 0) {
                                     LOG.debug("Vertex ID " + vertex.id() +
-                                            " was scheduled for expiry but was found to have an updated TTL of " +
-                                            newTtl + " milliseconds.");
+                                            " was scheduled for expiry but was found to have an updated remaining TTL of " +
+                                            LongMath.divide(currentRemainingTtl, 1000L, RoundingMode.CEILING) + " seconds.");
                                     return;
                                 }
                             } catch (final ElementNotFoundException e) {
@@ -182,17 +184,17 @@ public class FireflyTtlHandler implements Closeable {
                     }
                 }, remainingTime, TimeUnit.MILLISECONDS);
             }
-            if (expiriesScheduled < this.db.TTL_PURGE_INTERVAL / 100) {
+            if (expiriesScheduled < this.db.TTL_PURGE_INTERVAL_SECONDS) {
                 LOG.debug("Scheduled " + expiriesScheduled + " Vertex TTL expiries within the next "
-                        + this.db.TTL_PURGE_INTERVAL + "ms.");
+                        + this.db.TTL_PURGE_INTERVAL_SECONDS + " seconds.");
             } else {
                 LOG.warn("Scheduled " + expiriesScheduled + " Vertex TTL expiries within the next "
-                        + this.db.TTL_PURGE_INTERVAL + "ms. System may experience stress due to expiry frequency.");
+                        + this.db.TTL_PURGE_INTERVAL_SECONDS + " seconds. System may experience stress due to expiry frequency.");
             }
         }
 
         private void scheduleEdgeDeletes() {
-            final long timeRangeMaximum = System.currentTimeMillis() + this.db.TTL_PURGE_INTERVAL;
+            final long timeRangeMaximum = System.currentTimeMillis() + (this.db.TTL_PURGE_INTERVAL_SECONDS * 1000L);
             final Iterator<KeyRecord> edgesToDelete = this.db.queryIndex(this.db.EDGE_AERO_SET,
                     this.db.TTL_EDGE_INDEX_NAME, Filter.range(this.db.TTL_BIN, IndexCollectionType.MAPVALUES, 0,
                             timeRangeMaximum), INDEX_POLICY);
@@ -213,11 +215,11 @@ public class FireflyTtlHandler implements Closeable {
                             try {
                                 if (this.db.TTL_UPDATE_ANYTIME_FLAG) {
                                     try {
-                                        final long newTtl = edge.getTtlMillis();
-                                        if (newTtl > 0) {
+                                        final long currentRemainingTtl = edge.getTtlMillis();
+                                        if (currentRemainingTtl > 0) {
                                             LOG.debug("Edge ID " + edge.id() +
-                                                    " was scheduled for expiry but was found to have an updated TTL of "
-                                                    + newTtl + " milliseconds.");
+                                                    " was scheduled for expiry but was found to have an updated remaining TTL of "
+                                                    + LongMath.divide(currentRemainingTtl, 1000L, RoundingMode.CEILING) + " seconds.");
                                             return;
                                         }
                                     } catch (final ElementNotFoundException e) {
@@ -233,12 +235,12 @@ public class FireflyTtlHandler implements Closeable {
                     }
                 }
             }
-            if (expiriesScheduled < this.db.TTL_PURGE_INTERVAL / 100) {
+            if (expiriesScheduled < this.db.TTL_PURGE_INTERVAL_SECONDS) {
                 LOG.debug("Scheduled " + expiriesScheduled + " Edge TTL expiries within the next "
-                        + this.db.TTL_PURGE_INTERVAL + "ms.");
+                        + this.db.TTL_PURGE_INTERVAL_SECONDS + " seconds.");
             } else {
                 LOG.warn("Scheduled " + expiriesScheduled + " Edge TTL expiries within the next "
-                        + this.db.TTL_PURGE_INTERVAL + "ms. System may experience stress due to expiry frequency.");
+                        + this.db.TTL_PURGE_INTERVAL_SECONDS + " seconds. System may experience stress due to expiry frequency.");
             }
         }
     }

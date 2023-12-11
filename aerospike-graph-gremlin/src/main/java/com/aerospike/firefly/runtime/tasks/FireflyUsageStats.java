@@ -43,8 +43,8 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
-            // Don't start in warm up due to config differences.
-            if (connection.WARMUP_MODE) {
+            // Don't start in warm up or bulk loading.
+            if (connection.WARMUP_MODE || connection.BULK_LOADER_FLAG) {
                 return;
             }
 
@@ -63,6 +63,20 @@ public class FireflyUsageStats {
             if (instance != null) {
                 instance.taskTimer.cancel();
                 instance = new FireflyUsageStats(connection);
+            }
+        }
+    }
+
+    public static void close(final AerospikeConnection connection) {
+        synchronized (FireflyUsageStats.class) {
+            // Don't shutdown in warm up or bulk loading.
+            if (connection.WARMUP_MODE || connection.BULK_LOADER_FLAG) {
+                return;
+            }
+
+            if (instance != null) {
+                instance.taskTimer.cancel();
+                instance = null;
             }
         }
     }

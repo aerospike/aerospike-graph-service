@@ -748,16 +748,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.isEdgeCacheOverflowed = true;
     }
 
-    private void setTtl(final long durationMilliseconds) {
-        final long expirationTime = System.currentTimeMillis() + durationMilliseconds;
+    private void setTtl(final long durationSeconds) {
+        final long expirationTime = System.currentTimeMillis() + (durationSeconds * 1000);
         final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, this.id);
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         final Bin ttlBin = new Bin(this.db.TTL_BIN, expirationTime);
         final Operation writeTtl = Operation.put(ttlBin);
         this.db.operate(writePolicy, key, writeTtl);
-        if (durationMilliseconds < db.TTL_PURGE_INTERVAL) {
-            this.graph.scheduleElementForTtlNow(this, durationMilliseconds);
+        if (durationSeconds < db.TTL_PURGE_INTERVAL_SECONDS) {
+            this.graph.scheduleElementForTtlNow(this, durationSeconds);
         }
     }
 
@@ -1113,10 +1113,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 propertyValueIdMaps.idMap.remove(TTL_PROPERTY_KEY);
                 if (Number.class.isAssignableFrom(ttlValue.getClass())) {
                     ttlValueLong = ((Number) ttlValue).longValue();
-                    final long expirationTime = System.currentTimeMillis() + ttlValueLong;
+                    final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
                     final Bin ttlBin = new Bin(db.TTL_BIN, expirationTime);
                     binsToWrite.add(ttlBin);
-                    if (ttlValueLong < db.TTL_PURGE_INTERVAL) {
+                    if (ttlValueLong < db.TTL_PURGE_INTERVAL_SECONDS) {
                         scheduleTtlImmediately = true;
                     }
                 } else {

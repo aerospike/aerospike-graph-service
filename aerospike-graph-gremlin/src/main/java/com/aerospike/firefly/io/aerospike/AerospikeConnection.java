@@ -189,7 +189,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final String TTL_BIN;
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
-    public final int TTL_PURGE_INTERVAL;
+    public final int TTL_PURGE_INTERVAL_SECONDS;
 
     public final long PROPERTY_ID_BUFFER_SIZE;
     public final long VERTEX_ID_BUFFER_SIZE;
@@ -348,7 +348,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
         INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
-        TTL_PURGE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL, conf));
+        TTL_PURGE_INTERVAL_SECONDS = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf));
 
         OPTIMIZED_TWO_HOP_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_TWO_HOP_STEPS, conf);
         OPTIMIZED_HOP_CONSTRAINT_STEPS = ConfigurationHelper.getOrDefaultList(ConfigurationHelper.Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, conf);

@@ -62,6 +62,13 @@ public class PrometheusMetricsServer {
         }
     }
 
+    // Not required except for bulk loader which hangs if it does not close this.
+    public static void close() {
+        if (vertx != null) {
+            vertx.close();
+        }
+    }
+
     public void start() {
         // If this is started, do not start twice. This shouldn't happen.
         LOG.info("Starting PrometheusMetricsServer on port {}.", port);

@@ -178,21 +178,7 @@ public class PrometheusMetricsServer {
                                 next.samples.stream().map(sample ->
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
-                                                        sample.labelNames.stream().map(n -> {
-                                                            if (n.contains(" ")) {
-                                                                System.out.println("FOUND SPACE: " + n);
-                                                            } else if (n.contains("-")) {
-                                                                System.out.println("FOUND DASH: " + n);
-                                                            } else if (n.contains("'")) {
-                                                                System.out.println("FOUND APOSTROPHE: " + n);
-                                                            } else if (n.contains("___")) {
-                                                                System.out.println("FOUND TRIPLE UNDERSCORE: " + n);
-                                                            }
-                                                            return n.replace(" ", "_").
-                                                                    replace("-", "_").
-                                                                    replace("'", "").
-                                                                    replace("___", "_");
-                                                        }).collect(Collectors.toList()),
+                                                        sample.labelNames,
                                                         sample.labelValues.stream().
                                                                 map(v -> {
                                                                     if (PROMETHEUS_RENAME_ENABLED) {

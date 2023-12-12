@@ -8,6 +8,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
+import com.aerospike.firefly.runtime.PrometheusMetricsServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -191,6 +192,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (PROGRESS_BAR != null) {
                 PROGRESS_BAR.close();
             }
+            PrometheusMetricsServer.close();
         }
     }
 

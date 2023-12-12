@@ -179,7 +179,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-firefly/conf/firefly-gremlin-server.yaml";
+    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/firefly-gremlin-server.yaml";
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;
@@ -241,6 +241,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create usage statistics background task.
         FireflyUsageStats.startUsageStats(db);
+
+        // Start metrics.
+        FireflyGremlinPlugin.initializeGraphMetrics(db);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -862,8 +865,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
     }
 
-    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveMillis) {
-        this.ttlHandler.scheduleExpiryNow(element, timeToLiveMillis);
+    public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveSeconds) {
+        this.ttlHandler.scheduleExpiryNow(element, timeToLiveSeconds);
     }
 
     /**
@@ -1143,7 +1146,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
         this.ttlHandler.close();
-        FireflyUsageStats.close(db);
         this.db.close();
     }
 

@@ -168,11 +168,11 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             typeHints.remove(TTL_PROPERTY_KEY);
             if (Number.class.isAssignableFrom(ttlValue.getClass())) {
                 ttlValueLong = ((Number) ttlValue).longValue();
-                final long expirationTime = System.currentTimeMillis() + ttlValueLong;
+                final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
                 final Operation writeTtl = MapOperation.put(mapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
                         Value.get(expirationTime));
                 operations.add(writeTtl);
-                if (ttlValueLong < db.TTL_PURGE_INTERVAL) {
+                if (ttlValueLong < db.TTL_PURGE_INTERVAL_SECONDS) {
                     scheduleTtlImmediately = true;
                 }
             } else {
@@ -533,9 +533,9 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         return new FireflyEdgeProperty<>(graph, edge, propertyKey, value);
     }
 
-    private void setTtl(final long durationMilliseconds) {
+    private void setTtl(final long durationSeconds) {
         final Key key = getKey(this.db, this.db.EDGE_AERO_SET, this.id);
-        final long expirationTime = System.currentTimeMillis() + durationMilliseconds;
+        final long expirationTime = System.currentTimeMillis() + (durationSeconds * 1000);
         final Value edgeIdMapKey = Value.get(this.id.getUserId());
 
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
@@ -545,8 +545,8 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             db.operate(writePolicy, key, writeTtl);
-            if (durationMilliseconds < db.TTL_PURGE_INTERVAL) {
-                this.graph.scheduleElementForTtlNow(this, durationMilliseconds);
+            if (durationSeconds < db.TTL_PURGE_INTERVAL_SECONDS) {
+                this.graph.scheduleElementForTtlNow(this, durationSeconds);
             }
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =

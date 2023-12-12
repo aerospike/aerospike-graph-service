@@ -1,9 +1,12 @@
 package com.aerospike.firefly.process.call;
 
+import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -17,21 +20,29 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UP
 public class FireflyUsageStatsCallMultiTest {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
 
-    private void cleanUsageStats() {
+    @Before
+    public void cleanUsageStats() {
+        CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             Thread.sleep(1);
             graph.getBaseGraph().getClient().truncate(null,
                     graph.getBaseGraph().namespace, graph.getBaseGraph().USAGE_STATS_SET, null);
             Thread.sleep(1);
+            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
+    @AfterClass
+    public static void cleanUp() {
+        try (final FireflyGraph graph = FireflyGraph.open(ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES))) {
+            FireflyUsageStats.restartUsageStats(graph.getBaseGraph());
+        }
+    }
+
     @Test
     public void testBackgroundDockerAddsToGraph() {
-        cleanUsageStats();
-
         // 5 seconds to update
         CONFIG.setProperty(USAGE_STATS_UPDATE_INTERVAL.toLowerCase(), "5000");
         try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
@@ -65,9 +76,8 @@ public class FireflyUsageStatsCallMultiTest {
                 Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(1).get("memory-gb"));
             }
 
-            // Compare expected vcpu-hrs and vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-hrs") > 2 * testVcpuCount * (8000f / MILLISECONDS_TO_HOURS));
-            Assert.assertTrue((Double) usageStats.get("total-vcpu-yrs") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
+            // Compare expected vcpu-yrs. We know lower bound since we know minimum time it could be but not upper.
+            Assert.assertTrue((Double) usageStats.get("total-vcpu") > 2 * testVcpuCount * (8000f / (MILLISECONDS_TO_HOURS * HOURS_TO_YEARS)));
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }

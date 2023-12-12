@@ -14,7 +14,7 @@ ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VE
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
-ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
+ENV CONF_DIR="/opt/aerospike-graph/conf/docker-default"
 
 # Install things required to create image.
 RUN yum -y update &&\
@@ -42,8 +42,8 @@ RUN cd /tmp &&\
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
 # Add docker-default and scripts to docker container.
-ADD . /opt/aerospike-firefly
-WORKDIR /opt/aerospike-firefly
+ADD . /opt/aerospike-graph
+WORKDIR /opt/aerospike-graph
 
 # Build Firefly.
 RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true -Dmaven.test.skip.exec=true clean install --no-transfer-progress
@@ -56,19 +56,20 @@ RUN \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 2.0.0-SNAPSHOT' ;  \
     fi
 
-# Move java options script to /opt/scripts. This has to be done on each instantiation of the container.
+# Move scripts to /opt/scripts. This has to be done on each instantiation of the container.
 RUN mkdir /opt/scripts &&\
-    mv /opt/aerospike-firefly/scripts/generate_java_options.py /opt/scripts
+    mv /opt/aerospike-graph/scripts/generate_java_options.py /opt/scripts &&\
+    mv /opt/aerospike-graph/scripts/inject_graph_class.py /opt/scripts
 
 # Remove source code.
-RUN cd .. && rm -rf /opt/aerospike-firefly
+RUN cd .. && rm -rf /opt/aerospike-graph
 
 # Remove extra packages
 RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Add scripts and conf to container.
-ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
-ADD scripts /opt/aerospike-firefly/scripts
+ADD conf/docker-default /opt/aerospike-graph/conf/docker-default
+ADD scripts /opt/aerospike-graph/scripts
 
 # Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
 RUN chmod +x scripts/gremlin-server-docker.sh
@@ -78,7 +79,7 @@ RUN chmod -R 777 $CONF_DIR
 RUN useradd -m firefly
 
 # Make firefly owner of conf dir.
-RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+RUN chown firefly:firefly -R /opt/aerospike-graph/conf/
 
 # Make firefly owner of scripts dir.
 RUN chown firefly:firefly -R /opt/scripts/

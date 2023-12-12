@@ -71,7 +71,7 @@ public final class ConfigurationHelper {
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
-        public static final String TTL_PURGE_INTERVAL = "aerospike.graph.ttl.purge.interval";
+        public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
         public static final String TTL_UPDATE_ANYTIME_FLAG = "aerospike.graph.ttl.update.anytime.enabled";
 
         // Semi internal semi external configs
@@ -120,6 +120,8 @@ public final class ConfigurationHelper {
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
+        public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -133,6 +135,7 @@ public final class ConfigurationHelper {
                 return new Pair(numeric, english);
             }
         }
+
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
@@ -152,7 +155,6 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
-
 
             private final Pair value;
 
@@ -296,9 +298,10 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
         put(Keys.TTL_ENABLED_FLAG, "false");
-        put(Keys.TTL_PURGE_INTERVAL, "300000"); // 5 minute default
+        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
         put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
     }};

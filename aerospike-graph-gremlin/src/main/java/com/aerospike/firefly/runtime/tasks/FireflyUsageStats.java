@@ -17,11 +17,17 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
+
+/**
+ * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
+ */
 public class FireflyUsageStats {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyUsageStats.class);
 
     private static FireflyUsageStats instance;
     private final FireflyUsageStatsTask task;
+
+    // Does not need to be closed because it is a daemon thread.
     private final Timer taskTimer = new Timer(true);
 
     private FireflyUsageStats(final AerospikeConnection connection) {
@@ -37,10 +43,25 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
+            // Don't start in warm up due to config differences.
             if (connection.WARMUP_MODE) {
                 return;
             }
+
+            // Only create once.
             if (instance == null) {
+                instance = new FireflyUsageStats(connection);
+            }
+        }
+    }
+
+    // THIS IS A TEST ONLY FUNCTION.
+    // Without this the test cannot reset the usage stats with a lower update interval.
+    public static void restartUsageStats(final AerospikeConnection connection) {
+        synchronized (FireflyUsageStats.class) {
+            // Only create once.
+            if (instance != null) {
+                instance.taskTimer.cancel();
                 instance = new FireflyUsageStats(connection);
             }
         }
@@ -52,19 +73,6 @@ public class FireflyUsageStats {
                 throw new RuntimeException("Error, cannot read usage stats before starting usage stats.");
             }
             return instance.task.getAllUsageStats();
-        }
-    }
-
-    // Needs connection to see if warmup mode is enabled.
-    public static void close(final AerospikeConnection connection) {
-        synchronized (FireflyUsageStats.class) {
-            if (instance != null) {
-                if (connection.WARMUP_MODE) {
-                    return;
-                }
-                instance.taskTimer.cancel();
-                instance = null;
-            }
         }
     }
 

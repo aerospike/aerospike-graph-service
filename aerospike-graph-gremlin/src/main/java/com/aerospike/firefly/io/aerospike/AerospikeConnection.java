@@ -198,7 +198,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final int TIMEOUT_DELAY;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
-    public final boolean BULK_LOADER_FLAG;
     public final boolean PROMETHEUS_RENAME_ENABLED;
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
@@ -408,7 +407,6 @@ public class AerospikeConnection implements AutoCloseable {
         TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
         USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
         WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
-        BULK_LOADER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf));
         PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
 
         cacheTasks = new ArrayList<>();

@@ -62,6 +62,13 @@ public class PrometheusMetricsServer {
         }
     }
 
+    // Not required except for bulk loader which hangs if it does not close this.
+    public static void close() {
+        if (vertx != null) {
+            vertx.close();
+        }
+    }
+
     public void start() {
         // If this is started, do not start twice. This shouldn't happen.
         LOG.info("Starting PrometheusMetricsServer on port {}.", port);
@@ -171,7 +178,21 @@ public class PrometheusMetricsServer {
                                 next.samples.stream().map(sample ->
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
-                                                        sample.labelNames, // Names are things like 'metric' so don't want to rename.
+                                                        sample.labelNames.stream().map(n -> {
+                                                            if (n.contains(" ")) {
+                                                                System.out.println("FOUND SPACE: " + n);
+                                                            } else if (n.contains("-")) {
+                                                                System.out.println("FOUND DASH: " + n);
+                                                            } else if (n.contains("'")) {
+                                                                System.out.println("FOUND APOSTROPHE: " + n);
+                                                            } else if (n.contains("___")) {
+                                                                System.out.println("FOUND TRIPLE UNDERSCORE: " + n);
+                                                            }
+                                                            return n.replace(" ", "_").
+                                                                    replace("-", "_").
+                                                                    replace("'", "").
+                                                                    replace("___", "_");
+                                                        }).collect(Collectors.toList()),
                                                         sample.labelValues.stream().
                                                                 map(v -> {
                                                                     if (PROMETHEUS_RENAME_ENABLED) {

@@ -43,7 +43,7 @@ public class FireflyUsageStats {
 
     public static void startUsageStats(final AerospikeConnection connection) {
         synchronized (FireflyUsageStats.class) {
-            // Don't start in warm up or bulk loading.
+            // Don't start in warm up due to config differences.
             if (connection.WARMUP_MODE) {
                 return;
             }

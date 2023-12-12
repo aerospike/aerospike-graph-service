@@ -178,7 +178,7 @@ public class PrometheusMetricsServer {
                                 next.samples.stream().map(sample ->
                                                 new Collector.MetricFamilySamples.Sample(
                                                         rename(sample.name),
-                                                        sample.labelNames,
+                                                        sample.labelNames, // Names are things like 'metric' so don't want to rename.
                                                         sample.labelValues.stream().
                                                                 map(v -> {
                                                                     if (PROMETHEUS_RENAME_ENABLED) {

@@ -9,87 +9,22 @@ ignore:
         created: 2023-10-06T01:08:25.974Z
   SNYK-JAVA-COMFASTERXMLJACKSONCORE-1048302:
     - '*':
-        reason: XML External Entity (XXE) Injection
+        reason: Test Dependency
         expires: 2100-01-01T00:00:00.000Z
         created: 2023-10-06T01:08:29.453Z
   SNYK-JAVA-COMFASTERXMLJACKSONCORE-2421244:
     - '*':
-        reason: Denial of Service (DoS)
+        reason: Test Dependency
         expires: 2100-01-01T00:00:00.000Z
         created: 2023-10-06T01:08:30.978Z
   SNYK-JAVA-NETMINIDEV-3369748:
     - '*':
-        reason: Denial of Service (DoS)
+        reason: Test Dependency
         expires: 2100-01-01T00:00:00.000Z
         created: 2023-10-06T01:08:32.870Z
-  SNYK-JAVA-ORGAPACHEIVY-5847858:
-    - '*':
-        reason: XML External Entity (XXE) Injection
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:34.723Z
-  SNYK-JAVA-COMGOOGLEPROTOBUF-173761:
-    - '*':
-        reason: Integer Overflow
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:39.582Z
-  SNYK-JAVA-COMGOOGLEPROTOBUF-2331703:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:43.540Z
-  SNYK-JAVA-COMGOOGLEPROTOBUF-3167772:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:45.781Z
-  SNYK-JAVA-ORGAPACHEIVY-3106014:
-    - '*':
-        reason: Directory Traversal
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:48.007Z
-  SNYK-JAVA-ORGAPACHEIVY-3106929:
-    - '*':
-        reason: Directory Traversal
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:51.374Z
-  SNYK-JAVA-ORGAPACHESPARK-5425123:
-    - '*':
-        reason: Improper Privilege Management
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:08:56.151Z
   SNYK-JAVA-ORGCODEHAUSJACKSON-534878:
     - '*':
         reason: XML External Entity (XXE) Injection
         expires: 2100-01-01T00:00:00.000Z
         created: 2023-10-06T01:08:59.834Z
-  SNYK-JAVA-ORGCODEHAUSJETTISON-3168085:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:09:02.550Z
-  SNYK-JAVA-ORGCODEHAUSJETTISON-3367610:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:09:04.680Z
-  SNYK-JAVA-ORGXERIALSNAPPY-5710960:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:09:07.950Z
-  SNYK-JAVA-ORGXERIALSNAPPY-5918282:
-    - '*':
-        reason: Allocation of Resources Without Limits or Throttling
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-06T01:09:11.254Z
-  SNYK-JAVA-IONETTY-5953332:
-    - '*':
-        reason: Denial of Service (DoS)
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-12T05:01:11.512Z
-  SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102:
-    - '*':
-        reason: Authorization Bypass Through User-Controlled Key
-        expires: 2100-01-01T00:00:00.000Z
-        created: 2023-10-12T21:42:25.727Z
 patch: {}

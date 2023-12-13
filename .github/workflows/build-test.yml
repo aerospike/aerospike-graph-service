@@ -605,7 +605,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.0/apache-tinkerpop-gremlin-server-3.7.0-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
           
@@ -614,10 +614,10 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
           
           echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
           
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
@@ -989,7 +989,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.0/apache-tinkerpop-gremlin-server-3.7.0-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
 
@@ -998,10 +998,10 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
 
           echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
@@ -1047,7 +1047,7 @@ jobs:
         run: |
           echo "Downloading gremlin-server"
           cd ..
-          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.0/apache-tinkerpop-gremlin-server-3.7.0-bin.zip --quiet
+          wget -O gremlin-server https://archive.apache.org/dist/tinkerpop/3.7.1/apache-tinkerpop-gremlin-server-3.7.1-bin.zip --quiet
           echo "Unzipping gremlin-server"
           unzip -qq gremlin-server
 
@@ -1056,10 +1056,10 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
 
           echo "Starting gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.0/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30

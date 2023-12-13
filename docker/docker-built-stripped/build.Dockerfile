@@ -54,8 +54,8 @@ RUN mvn -pl aerospike-graph-gremlin -am -Dmaven.test.skip=true -DskipTests=true 
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
     fi
 
 # Move scripts to /opt/scripts. This has to be done on each instantiation of the container.

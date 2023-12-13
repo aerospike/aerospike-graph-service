@@ -56,11 +56,11 @@ RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospik
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0.jar /opt/bulk-loader
+    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.2.0.jar /opt/bulk-loader
 
 # Move sizing-tool jar to /opt/sizing-tool.
 RUN mkdir /opt/sizing-tool &&\
-    mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.1.0.jar /opt/sizing-tool
+    mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.2.0.jar /opt/sizing-tool
 
 # Move scripts to /opt/scripts. This has to be done on each instantiation of the container.
 RUN mkdir /opt/scripts &&\
@@ -75,8 +75,8 @@ RUN python3 scripts/generate_classpath.py
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
     fi
 
 # Remove source code.

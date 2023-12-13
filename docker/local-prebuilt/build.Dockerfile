@@ -50,24 +50,24 @@ WORKDIR /opt/aerospike-graph
 # Install Firefly
 RUN if [[ $RELEASE_BUILD -eq "1" ]] ; \
 then mvn install:install-file \
-        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0.jar \
+        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.2.0.jar \
         -DgroupId=com.aerospike \
         -DartifactId=aerospike-graph-gremlin \
-        -Dversion=1.1.0 \
+        -Dversion=1.2.0 \
         -Dpackaging=jar \
         -DgeneratePom=true ; \
 else mvn install:install-file \
-        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0.jar \
+        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.2.0.jar \
         -DgroupId=com.aerospike \
         -DartifactId=aerospike-graph-gremlin \
-        -Dversion=1.1.0 \
+        -Dversion=1.2.0 \
         -Dpackaging=jar \
         -DgeneratePom=true ; \
 fi
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0.jar /opt/bulk-loader
+    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.2.0.jar /opt/bulk-loader
 
 # Move scripts to /opt/scripts. This has to be done on each instantiation of the container.
 RUN mkdir /opt/scripts &&\
@@ -85,8 +85,8 @@ RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
     fi
 
 # Remove source code.

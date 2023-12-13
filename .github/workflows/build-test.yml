@@ -614,7 +614,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
           
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
           
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -998,7 +998,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &
@@ -1056,7 +1056,7 @@ jobs:
           mvn clean install -DskipTests --no-transfer-progress
 
           echo "Installing Firefly in gremlin-server"
-          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0'
+          ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0'
 
           echo "Starting gremlin-server"
           ../apache-tinkerpop-gremlin-server-3.7.1/bin/gremlin-server.sh /actions-runner/_work/firefly/firefly/conf/firefly-gremlin-server-github-actions.yaml &

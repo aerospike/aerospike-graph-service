@@ -27,9 +27,9 @@ public class TestPhantomEdges {
         final long eCount = g.with("evaluationTimeout", 30 * 60 * 1000).E().count().next();
 
         // Compare to expected value.
-        Assert.assertEquals(eCount, 14000000L);
-        Assert.assertEquals(inECount, 14000000L);
-        Assert.assertEquals(outECount, 14000000L);
+        Assert.assertEquals(14000000L, eCount);
+        Assert.assertEquals(14000000L, inECount);
+        Assert.assertEquals(14000000L, outECount);
         driverRemoteConnection.close();
     }
 }

@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.description = "Stripped Docker image for Aerospik
 LABEL org.opencontainers.image.source = "https://github.com/citrusleaf/firefly"
 
 # Set environment variables.
-ENV TINKERPOP_VERSION='3.7.0'
+ENV TINKERPOP_VERSION='3.7.1'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"

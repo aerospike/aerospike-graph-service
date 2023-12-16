@@ -2,6 +2,8 @@ import sys
 
 benchmarks = {'synthetic'}
 
+storage_types = {'mmd', 'dmd', 'ddd'}
+
 default_instance_type = {
     '1g': 'n2d-standard-4',
     '2g': 'n2d-standard-4',
@@ -29,23 +31,38 @@ size_to_ssd_count = {
 def main(argv):
     tag = argv[1]
     split_tag = tag.split('-')
+
     benchmark_index = split_tag.index('benchmark')
+
     benchmark_name = split_tag[benchmark_index + 1]
     if benchmark_name not in benchmarks:
         raise ValueError(benchmark_name + ' is not a valid benchmark name')
+
     benchmark_size = split_tag[benchmark_index + 2]
     if size_to_ssd_count.get(benchmark_size) is None:
         raise ValueError('Benchmark size ' + benchmark_size + ' is invalid')
+
+    instance_offset_min = 3
+    instance_offset_max = 6
+    storage_type = 'mmd'
+    if split_tag[benchmark_index + 3] in storage_types:
+        storage_type = split_tag[benchmark_index + 3]
+        instance_offset_min = instance_offset_min + 1
+        instance_offset_max = instance_offset_max + 1
+
     benchmark_instance = default_instance_type[benchmark_size]
-    if len(split_tag) == (benchmark_index + 6):
-        benchmark_instance = '-'.join(split_tag[benchmark_index + 3:])
-    elif len(split_tag) != (benchmark_index + 3):
-        raise ValueError('Specified instance type ' + '-'.join(split_tag[benchmark_index + 3:]) + ' is invalid')
+    if len(split_tag) == (benchmark_index + instance_offset_max):
+        benchmark_instance = '-'.join(split_tag[benchmark_index + instance_offset_min:])
+    elif len(split_tag) != (benchmark_index + instance_offset_min):
+        raise ValueError('Specified instance type ' + '-'.join(split_tag[benchmark_index + instance_offset_min:])
+                         + ' is invalid')
+
     data_size = 'data-size=' + benchmark_size
     server_instances = 'server-instances=3'
     instance_type = 'instance-type=' + benchmark_instance
     benchmark = 'benchmark=' + benchmark_name
     ssd_count = 'ssd-count=' + size_to_ssd_count[benchmark_size]
+    storage_type = 'storage-type=' + storage_type
 
     with open('benchmark.properties', 'w') as properties:
         properties.write(f'{data_size}\n')
@@ -53,6 +70,7 @@ def main(argv):
         properties.write(f'{instance_type}\n')
         properties.write(f'{benchmark}\n')
         properties.write(f'{ssd_count}\n')
+        properties.write(f'{storage_type}\n')
 
 
 if __name__ == "__main__":

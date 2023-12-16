@@ -45,7 +45,7 @@ def main(argv):
     instance_offset_min = 3
     instance_offset_max = 6
     storage_type = 'mmd'
-    if split_tag[benchmark_index + 3] in storage_types:
+    if (benchmark_index + 3) < len(split_tag) and split_tag[benchmark_index + 3] in storage_types:
         storage_type = split_tag[benchmark_index + 3]
         instance_offset_min = instance_offset_min + 1
         instance_offset_max = instance_offset_max + 1

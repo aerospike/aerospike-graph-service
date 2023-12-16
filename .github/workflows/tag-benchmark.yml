@@ -50,10 +50,10 @@ jobs:
         uses: christian-draeger/read-properties@1.1.1
         with:
           path: benchmark.properties
-          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type'
+          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type tag-hash'
       - name: Clamp Runtime Variables to Environment
         run: |
-          echo "SHA_PATH=${GITHUB_SHA::5}-${{ steps.read_property.outputs.data-size }}" >> $GITHUB_ENV
+          echo "SHA_PATH=${{ steps.read_property.outputs.tag-hash }}" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:

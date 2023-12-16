@@ -63,6 +63,7 @@ def main(argv):
     benchmark = 'benchmark=' + benchmark_name
     ssd_count = 'ssd-count=' + size_to_ssd_count[benchmark_size]
     storage_type = 'storage-type=' + storage_type
+    tag_hash = 'tag-hash=' + str(abs(hash(tag)) % (10 ** 8))
 
     with open('benchmark.properties', 'w') as properties:
         properties.write(f'{data_size}\n')
@@ -71,6 +72,7 @@ def main(argv):
         properties.write(f'{benchmark}\n')
         properties.write(f'{ssd_count}\n')
         properties.write(f'{storage_type}\n')
+        properties.write(f'{tag_hash}\n')
 
 
 if __name__ == "__main__":

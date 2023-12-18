@@ -5,7 +5,7 @@
     <parent>
         <artifactId>firefly</artifactId>
         <groupId>com.aerospike</groupId>
-        <version>1.1.0</version>
+        <version>1.2.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -60,10 +60,28 @@
             <version>1.21</version>
             <scope>test</scope>
         </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEIVY-5847858 in spark-core_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.apache.ivy</groupId>
+            <artifactId>ivy</artifactId>
+            <version>2.5.2</version>
+        </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGXERIALSNAPPY-5918282 in spark-core_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.1.10.5</version>
+        </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102 in spark-core_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.7.2</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.1</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -79,7 +97,7 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.12</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.1</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -95,7 +113,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.463</version>
+            <version>1.12.590</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>
@@ -103,10 +121,16 @@
             <version>hadoop3-2.2.15</version>
             <classifier>shaded</classifier>
         </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-ORGCODEHAUSJETTISON-3168085 in spark-hadoop-cloud_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.codehaus.jettison</groupId>
+            <artifactId>jettison</artifactId>
+            <version>1.5.4</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hadoop-cloud_2.12</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.1</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
@@ -116,7 +140,7 @@
         <dependency>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
-            <version>3.5.0</version>
+            <version>${mvn-shade-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -188,7 +212,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.4</version>
+                <version>${mvn-shade-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -224,11 +248,8 @@
             </plugin>
         </plugins>
     </build>
-
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
 </project>

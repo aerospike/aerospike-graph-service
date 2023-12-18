@@ -1,7 +1,7 @@
 package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.client.query.RecordSet;
-import com.aerospike.firefly.io.ConcurrentScanRecordSequenceListener;
+import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.Iterator;

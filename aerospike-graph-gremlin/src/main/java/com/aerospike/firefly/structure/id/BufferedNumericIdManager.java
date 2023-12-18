@@ -1,6 +1,6 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -57,7 +57,7 @@ public class BufferedNumericIdManager implements IdManager<Long> {
     }
 
     @Override
-    public void recycleId(final FireflyGraph graph, final Long id) {
+    public void recycleId(final FireflyId id) {
         throw new RuntimeException("Recycling IDs is not supported by BufferedNumericIdManager.");
     }
 }

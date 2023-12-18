@@ -18,7 +18,6 @@ public class TestFireflyBasicCall {
 
     @Test
     public void testBasicCall() {
-
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
@@ -27,7 +26,7 @@ public class TestFireflyBasicCall {
 
             // The output is a list of strings that looks like:
             // [summary, bulk-load]
-            Assert.assertEquals(new HashSet<>(normalOutput), Set.of("summary", "bulk-load"));
+            Assert.assertEquals(new HashSet<>(normalOutput), Set.of("summary", "bulk-load", "usage-stats"));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
             // [{"name":"summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"bulk-load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
@@ -38,15 +37,23 @@ public class TestFireflyBasicCall {
                     Assert.fail("Error, split " + outputString + " into " + infoPieces.size() + " pieces via ',' delimiter, expected 3 pieces.");
                 }
 
-                if (infoPieces.get(0).equals("{\"name\":\"summary\"")) {
-                    Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
-                    Assert.assertEquals(infoPieces.get(2), "\"params\":{\"pretty\":\"Pretty print the output.\"}}");
-                } else if (infoPieces.get(0).equals("{\"name\":\"bulk-load\"")) {
-                    Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
-                    Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://docs.aerospike.com/graph/usage/bulk-loader\"}}");
-                } else {
-                    Assert.fail("Error, expected first piece of " + outputString +
-                            " to be \"name\":\"summary\" or \"name\":\"bulk-load\". Instead found " + infoPieces.get(0));
+                switch (infoPieces.get(0)) {
+                    case "{\"name\":\"summary\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertEquals(infoPieces.get(2), "\"params\":{\"pretty\":\"Pretty print the output.\"}}");
+                        break;
+                    case "{\"name\":\"bulk-load\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://docs.aerospike.com/graph/usage/bulk-loader\"}}");
+                        break;
+                    case "{\"name\":\"usage-stats\"":
+                        Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
+                        Assert.assertEquals(infoPieces.get(2), "\"params\":{\"since\":\"Return usage stats since a certain date in format 'yyyy-MM-dd'.\"}}");
+                        break;
+                    default:
+                        Assert.fail("Error, expected first piece of " + outputString +
+                                " to be \"name\":\"summary\" or \"name\":\"bulk-load\". Instead found " + infoPieces.get(0));
+                        break;
                 }
             }
         }

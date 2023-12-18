@@ -1,8 +1,5 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.client.Value;
-import com.aerospike.client.util.Crypto;
-
 import java.util.Arrays;
 
 /**

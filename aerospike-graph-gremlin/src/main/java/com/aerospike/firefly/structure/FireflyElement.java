@@ -1,14 +1,8 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-
-import java.util.HashMap;
-import java.util.Map;
 
 
 /**
@@ -17,6 +11,7 @@ import java.util.Map;
  */
 public abstract class FireflyElement implements Element {
     public static final String DEBUG_STORAGE_PROPERTY = "debugStorage";
+    public static final String TTL_PROPERTY_KEY = "~ttl";
     public final FireflyId id;
     protected String label;
     protected boolean removed = false;
@@ -37,6 +32,8 @@ public abstract class FireflyElement implements Element {
         return this.label;
     }
 
+    public abstract long getTtlMillis();
+
     protected static IllegalStateException elementAlreadyRemoved(final Class<? extends Element> clazz, final Object id) {
         return new IllegalStateException(String.format("%s with id %s was removed.", clazz.getSimpleName(), id));
     }
@@ -52,5 +49,4 @@ public abstract class FireflyElement implements Element {
         int hashCode = ElementHelper.hashCode(this);
         return hashCode;
     }
-
 }

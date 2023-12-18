@@ -1,0 +1,21 @@
+name: Weekly Build
+
+on:
+  schedule:
+    # 8:00 AM UTC every Monday
+    - cron: '0 8 * * 1'
+
+jobs:
+  trigger-weekly-build:
+    name: Trigger weekly build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set date
+        run: echo "WEEKLY=$(date '+%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Create Snyk pull requests
+        run: |
+          gh pr create -B 1.x-snyk -H 1.x-dev --title 'Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 1.x-dev' --body 'Created by Github action'
+          gh pr create -B 2.x-snyk -H 2.x-dev --title 'Weekly ${{ env.WEEKLY }}: Snyk vulnerability check 2.x-dev' --body 'Created by Github action'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SNYK_WEEKLY_PAT }}

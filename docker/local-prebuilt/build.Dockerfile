@@ -1,4 +1,4 @@
-FROM amazoncorretto:11
+FROM amazoncorretto:17
 
 # Set input arguments.
 ARG RELEASE_BUILD
@@ -7,15 +7,15 @@ ARG ENTRYPOINT
 ENV ENTRYPOINT=$ENTRYPOINT
 
 # Set environment variables.
-ENV TINKERPOP_VERSION='3.6.3'
+ENV TINKERPOP_VERSION='3.7.1'
 ENV MAVEN_VERSION='3.8.8'
 ENV JANSI_VERSION='2.4.0'
-ENV SPARK_VERSION='3.4.0'
+ENV SPARK_VERSION='3.4.1'
 ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-console-$TINKERPOP_VERSION-bin.zip"
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
-ENV CONF_DIR="/opt/aerospike-firefly/conf/docker-default"
+ENV CONF_DIR="/opt/aerospike-graph/conf/docker-default"
 ENV SPARK_URL="https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop3.tgz"
 
 # Install things required to create image.
@@ -44,30 +44,35 @@ RUN cd /tmp &&\
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"
 
 # Add docker-default and scripts to docker container.
-ADD . /opt/aerospike-firefly
-WORKDIR /opt/aerospike-firefly
+ADD . /opt/aerospike-graph
+WORKDIR /opt/aerospike-graph
 
 # Install Firefly
 RUN if [[ $RELEASE_BUILD -eq "1" ]] ; \
 then mvn install:install-file \
-        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0.jar \
+        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.2.0.jar \
         -DgroupId=com.aerospike \
         -DartifactId=aerospike-graph-gremlin \
-        -Dversion=1.1.0 \
+        -Dversion=1.2.0 \
         -Dpackaging=jar \
         -DgeneratePom=true ; \
 else mvn install:install-file \
-        -Dfile=/opt/aerospike-firefly/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.1.0.jar \
+        -Dfile=/opt/aerospike-graph/aerospike-graph-gremlin/target/aerospike-graph-gremlin-1.2.0.jar \
         -DgroupId=com.aerospike \
         -DartifactId=aerospike-graph-gremlin \
-        -Dversion=1.1.0 \
+        -Dversion=1.2.0 \
         -Dpackaging=jar \
         -DgeneratePom=true ; \
 fi
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-firefly/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.1.0.jar /opt/bulk-loader
+    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.2.0.jar /opt/bulk-loader
+
+# Move scripts to /opt/scripts. This has to be done on each instantiation of the container.
+RUN mkdir /opt/scripts &&\
+    mv /opt/aerospike-graph/scripts/generate_java_options.py /opt/scripts &&\
+    mv /opt/aerospike-graph/scripts/inject_graph_class.py /opt/scripts
 
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
@@ -80,22 +85,22 @@ RUN curl -L -o /opt/spark.tgz $SPARK_URL &&\
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
 RUN \
     if [[ $RELEASE_BUILD -eq "1" ]] ;  \
-    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
-    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.1.0' ;  \
+    then gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
+    else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
     fi
 
 # Remove source code.
-RUN cd .. && rm -rf /opt/aerospike-firefly
+RUN cd .. && rm -rf /opt/aerospike-graph
 
 # Remove extra packages
-RUN yum remove -y vim-minimal vim-data python3 unzip xz tar
+RUN yum remove -y vim-minimal vim-data unzip xz tar
 
 # Remove additional conflicting logger jars from spark.
 RUN rm /opt/spark/jars/slf4j-* && rm /opt/spark/jars/commons-logging*
 
 # Add scripts and conf to container.
-ADD conf/docker-default /opt/aerospike-firefly/conf/docker-default
-ADD scripts /opt/aerospike-firefly/scripts
+ADD conf/docker-default /opt/aerospike-graph/conf/docker-default
+ADD scripts /opt/aerospike-graph/scripts
 
 # Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
 RUN chmod +x scripts/gremlin-server-docker.sh
@@ -108,6 +113,9 @@ RUN useradd -m firefly
 RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-loader
 
 # Make firefly owner of conf dir.
-RUN chown firefly:firefly -R /opt/aerospike-firefly/conf/
+RUN chown firefly:firefly -R /opt/aerospike-graph/conf/
+
+# Make firefly owner of scripts dir.
+RUN chown firefly:firefly -R /opt/scripts/
 
 RUN rm -rf /root/.m2

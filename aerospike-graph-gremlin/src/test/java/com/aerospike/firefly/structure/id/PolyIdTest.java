@@ -1,11 +1,7 @@
 package com.aerospike.firefly.structure.id;
 
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.Value;
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
 import com.aerospike.firefly.structure.FireflyEdge;
+import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.client.util.Crypto;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -16,6 +12,7 @@ import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -53,8 +50,8 @@ public class PolyIdTest extends AbstractFireflySuite {
 
     @Test
     public void testFireflyIdPolyComposite() {
-        PackedVertex va = (PackedVertex) graph.addVertex(T.id, "A");
-        PackedVertex vb = (PackedVertex) graph.addVertex(T.id, "B");
+        FireflyVertex va = (FireflyVertex) graph.addVertex(T.id, "A");
+        FireflyVertex vb = (FireflyVertex) graph.addVertex(T.id, "B");
 
         assertEquals("A", va.id.getUserId());
         assertEquals("B", vb.id.getUserId());
@@ -62,7 +59,7 @@ public class PolyIdTest extends AbstractFireflySuite {
         FireflyEdge eab = (FireflyEdge) va.addEdge("knows", vb);
         FireflyEdge eba = (FireflyEdge) vb.addEdge("forgot", va);
 
-        List<FireflyId> edgeIds = vb.getEdgeIdsFromVertex(Direction.OUT);
+        List<FireflyId> edgeIds = vb.getCachedIds(Direction.OUT, Set.of());
         assertEquals(1, edgeIds.size());
         assertEquals(eba.id(), Crypto.encodeBase64(((ByteBuffer)edgeIds.get(0).getUserId()).array()));
         FireflyIdComposite fidc = (FireflyIdComposite) edgeIds.get(0);

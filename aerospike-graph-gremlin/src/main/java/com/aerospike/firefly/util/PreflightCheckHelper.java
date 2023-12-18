@@ -1,6 +1,6 @@
 package com.aerospike.firefly.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +10,9 @@ import java.util.List;
  */
 public class PreflightCheckHelper {
     private PreflightCheckHelper() {}
-    private static final Integer JAVA_ELEVEN = 11;
+    private static final Integer JAVA_SEVENTEEN = 17;
     private static final List<Integer> supportedJVMVersions = new ArrayList<>() {{
-        add(JAVA_ELEVEN);
+        add(JAVA_SEVENTEEN);
     }};
 
     public static void checkSupportedJVM() {

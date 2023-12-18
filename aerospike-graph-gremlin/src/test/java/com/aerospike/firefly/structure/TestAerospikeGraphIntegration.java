@@ -1,10 +1,7 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.firefly.io.AerospikeConnection;
-import com.aerospike.firefly.io.impl.GraphFactory;
-import com.aerospike.firefly.io.impl.relational.RelationalVertex;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertex;
-import com.aerospike.firefly.io.impl.relational.packed.PackedVertexProperty;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyBatchElementIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -58,6 +55,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -103,8 +101,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testReadWriteVertexProperty() {
-        final FireflyId vertexId = graph.getIdFactory().createFromManager(graph, PackedVertex.class);
-        final FireflyId vpid = graph.getIdFactory().createFromManager(graph, PackedVertexProperty.class);
+        final FireflyId vertexId = graph.getIdFactory().createFromManager(graph, FireflyVertex.class);
+        final FireflyId vpid = graph.getIdFactory().createFromManager(graph, FireflyVertexProperty.class);
         final FireflyVertex vertex = graph.writeVertex(vertexId, "aVertexLabel", new ArrayList<>());
         final FireflyVertexProperty fireflyVertexProperty = graph.writeVertexProperty(vpid, vertex, "aKey", "aValue");
 
@@ -633,7 +631,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN);
+        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of());
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);
@@ -1082,8 +1080,8 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
 
     @Test
     public void testOperateCache() {
-        RelationalVertex a = (RelationalVertex) graph.addVertex(T.label, "a");
-        RelationalVertex b = (RelationalVertex) graph.addVertex(T.label, "b");
+        FireflyVertex a = (FireflyVertex) graph.addVertex(T.label, "a");
+        FireflyVertex b = (FireflyVertex) graph.addVertex(T.label, "b");
         Edge e1 = graph.traversal().addE("oneLabel").from(a).to(b).next();
         Edge e2 = graph.traversal().addE("twoLabel").from(b).to(a).next();
         List<Edge> allEdges = graph.traversal().E().toList();

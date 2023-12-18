@@ -8,12 +8,13 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
+import com.aerospike.firefly.runtime.PrometheusMetricsServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -145,7 +146,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
                     throw new RuntimeException(String.format("%s is empty. Please set %s in the configuration file or use the %s flag with caution.", TEMP_DIRECTORY_KEY, TEMP_DIRECTORY_KEY, READ_ONLY), cre);
                 }
                 final String dirSeperator = FILE_SYSTEM.equals(LOCAL) ? File.separator : "/";
-                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + "tmpEdgeDir" : writeLocation + dirSeperator + "tmpEdgeDir";
+                final String tempEdgeDir = RandomStringUtils.randomAlphanumeric(8);
+                writeLocation =  writeLocation.endsWith(dirSeperator) ? writeLocation + tempEdgeDir : writeLocation + dirSeperator + tempEdgeDir;
                 configureFileSystem(spark, cmd, writeLocation);
                 edgeOperations.writeEdgeIDsToStorage(edgeDataset, writeLocation, fileConfig);
             }
@@ -184,8 +186,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Stop spark session
             spark.stop();
         } finally {
-            PROGRESS_BAR_TIMER.cancel();
-            PROGRESS_BAR.close();
+            if (PROGRESS_BAR_TIMER != null) {
+                PROGRESS_BAR_TIMER.cancel();
+            }
+            if (PROGRESS_BAR != null) {
+                PROGRESS_BAR.close();
+            }
+            PrometheusMetricsServer.close();
         }
     }
 

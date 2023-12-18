@@ -1,0 +1,30 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  SNYK-JAVA-ORGCODEHAUSJACKSON-3326362:
+    - '*':
+        reason: Improper Input Validation
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2023-10-06T01:08:25.974Z
+  SNYK-JAVA-COMFASTERXMLJACKSONCORE-1048302:
+    - '*':
+        reason: Test Dependency
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2023-10-06T01:08:29.453Z
+  SNYK-JAVA-COMFASTERXMLJACKSONCORE-2421244:
+    - '*':
+        reason: Test Dependency
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2023-10-06T01:08:30.978Z
+  SNYK-JAVA-NETMINIDEV-3369748:
+    - '*':
+        reason: Test Dependency
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2023-10-06T01:08:32.870Z
+  SNYK-JAVA-ORGCODEHAUSJACKSON-534878:
+    - '*':
+        reason: XML External Entity (XXE) Injection
+        expires: 2100-01-01T00:00:00.000Z
+        created: 2023-10-06T01:08:59.834Z
+patch: {}

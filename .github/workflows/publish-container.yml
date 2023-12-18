@@ -24,11 +24,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Java 11 Install
+      - name: Java 17 Install
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '17'
           distribution: 'temurin'
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
 
       - name: Build Bulk Loader
         run: |
@@ -95,16 +100,16 @@ jobs:
   
             # Switch back to 1.
             export EXTRA_BUILD_ARGS="--build-arg RELEASE_BUILD=0"
-            bash -x scripts/build-docker-local.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker-local.sh $OUTPUT_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
           else
             DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:unstable
             DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
             # Build and tag latest/unstable docker image. Note, we must push here since we cannot store the image in the cache since it isn't for our arch.
             echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
 
-            bash -x scripts/build-docker-local.sh $DOCKER_IMAGE linux/amd64 --push
-            bash -x scripts/build-docker-local.sh $OUTPUT_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+            bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
           fi
           echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
 

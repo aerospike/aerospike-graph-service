@@ -1,11 +1,12 @@
 package com.aerospike.firefly.structure.iterator;
 
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -19,11 +20,15 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
      * @param db                AerospikeConnection instance.
      * @param direction         The Direction from the Vertex.
      * @param vertexId          The ID of the Vertex.
+     * @param labels            The labels of the Edge to filter on.
      */
     public FireflyPhatEdgeIdIteratorFromIndexedVertex(final Iterator<KeyRecord> keyRecordIterator,
-                                                      final AerospikeConnection db, final Direction direction,
-                                                      final FireflyId vertexId) {
-        super(keyRecordIterator, db, direction, vertexId);
+                                                      final AerospikeConnection db,
+                                                      final Direction direction,
+                                                      final FireflyId vertexId,
+                                                      final Set<String> labels,
+                                                      final OutputType outputType) {
+        super(keyRecordIterator, db, direction, vertexId, labels, outputType);
     }
 
     @Override

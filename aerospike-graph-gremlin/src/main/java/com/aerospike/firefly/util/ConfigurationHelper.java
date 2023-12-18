@@ -1,11 +1,10 @@
 package com.aerospike.firefly.util;
 
-import com.aerospike.firefly.io.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.AerospikeConnection.getDefaultThreadPoolSize;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -64,13 +63,17 @@ public final class ConfigurationHelper {
         public static final String SUMMARY_ENABLED_FLAG = "aerospike.graph.summary.enabled";
         public static final String SUMMARY_TICKER_ENABLED_FLAG = "aerospike.graph.summary.ticker.enabled";
         public static final String PHAT_EDGE_SIZE = "aerospike.graph.phat.edge.size";
+        public static final String MOVEMENT_BARRIER_SIZE = "aerospike.graph.movement.barrier.size";
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
         public static final String PROMETHEUS_PORT = "aerospike.graph.prometheus.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
-
         public static final String PLUGIN = "aerospike.graph.plugin";
+        public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
+        public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
+        public static final String TTL_UPDATE_ANYTIME_FLAG = "aerospike.graph.ttl.update.anytime.enabled";
+
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
         public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
@@ -81,8 +84,10 @@ public final class ConfigurationHelper {
         public static final String ENABLE_FIREFLY_DROP_STRATEGY = "aerospike.graph.strategy.drop.enabled";
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
         public static final String ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.embedded.enabled";
+        public static final String ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = "aerospike.graph.strategy.composite.id.sampling.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
+        public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
@@ -106,6 +111,7 @@ public final class ConfigurationHelper {
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
         public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+        public static final String USAGE_STATS_UPDATE_INTERVAL = "USAGE_STATS_UPDATE_INTERVAL";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";
@@ -114,6 +120,8 @@ public final class ConfigurationHelper {
         public static final String MIN_CONNECTIONS_PER_NODE = "aerospike.client.minConnectionsPerNode";
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
+        public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
+
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -127,6 +135,7 @@ public final class ConfigurationHelper {
                 return new Pair(numeric, english);
             }
         }
+
         public enum Bins {
             GRAPH_VARIABLES_BIN(Pair.of((byte) 1, "GRAPH_VARS")),
             VERTEX_PROPERTY_NAME_TO_VALUE_BIN(Pair.of((byte) 2, "VP_NAME_VAL")),
@@ -143,7 +152,9 @@ public final class ConfigurationHelper {
             LABEL_BIN(Pair.of((byte) 14, "LABEL")),
             IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
             OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
-            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID"));
+            VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
+            TTL_BIN(Pair.of((byte) 18, "TTL")),
+            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
 
             private final Pair value;
 
@@ -166,6 +177,8 @@ public final class ConfigurationHelper {
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
+            TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_V_IDX")),
+            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX")),
             SUPERNODES_IN(Pair.of((byte) 11, "SUPERNODE_IN")),
             SUPERNODES_OUT(Pair.of((byte) 12, "SUPERNODE_OUT")),
             INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA"));
@@ -196,6 +209,7 @@ public final class ConfigurationHelper {
             SUMMARY_SET(Pair.of((byte) 10, "SUMMARY")),
             TEST_SET(Pair.of((byte) 11, "TEST")),
             GRAPH_METADATA_SET(Pair.of((byte) 12, "METADATA")),
+            USAGE_STATS_SET(Pair.of((byte) 13, "USAGE_STATS_SET")),
             USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE"));
 
             private final Pair value;
@@ -240,7 +254,9 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_FIREFLY_DROP_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, "true");
+        put(Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
+        put(Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
@@ -264,6 +280,7 @@ public final class ConfigurationHelper {
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
         put(Keys.EDGE_PROPERTY_INDEXES, "");
         put(Keys.PHAT_EDGE_SIZE, "10");
+        put(Keys.MOVEMENT_BARRIER_SIZE, "1000");
         put(Keys.LOG_LEVEL, "INFO");
         put(Keys.TLS, "false");
         put(Keys.AUTO_PRE_HEAT, "false");
@@ -281,7 +298,12 @@ public final class ConfigurationHelper {
         put(Keys.MIN_CONNECTIONS_PER_NODE, String.valueOf(getDefaultThreadPoolSize(FireflyGraph.getGremlinServerSettings())));
         put(Keys.CONNECT_TIMEOUT, "0");
         put(Keys.TIMEOUT_DELAY, "0");
+        put(Keys.PROMETHEUS_RENAME, "true");
         put(Keys.DEBUG_MODE_FLAG, "false");
+        put(Keys.TTL_ENABLED_FLAG, "false");
+        put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
+        put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
+        put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
     }};
 
 

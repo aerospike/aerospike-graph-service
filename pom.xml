@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.aerospike</groupId>
     <artifactId>firefly</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>pom</packaging>
     <!-- PROJECT DETAILS -->
     <name>Firefly</name>
@@ -39,25 +39,26 @@
     <modules>
         <module>aerospike-graph-gremlin</module>
         <module>aerospike-graph-bulk-loader</module>
+        <module>aerospike-graph-sizing-tool</module>
     </modules>
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
-        <firefly.version>1.1.0</firefly.version>
+        <firefly.version>1.2.0</firefly.version>
         <aerospike.version>7.0.0</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <tinkerpop.version>3.6.3</tinkerpop.version>
+        <tinkerpop.version>3.7.1</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
-        <logback.version>1.2.11</logback.version>
+        <logback.version>1.2.13</logback.version>
         <slf4j.version>1.7.30</slf4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
-        <vertx.version>4.4.1</vertx.version>
+        <vertx.version>4.4.6</vertx.version>
         <prometheus.version>0.16.0</prometheus.version>
         <!-- MAVEN PLUGIN VERSIONS -->
-        <mvn-shade-plugin.version>3.5.0</mvn-shade-plugin.version>
+        <mvn-shade-plugin.version>3.5.1</mvn-shade-plugin.version>
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
         <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
         <build-helper.version>3.3.0</build-helper.version>
@@ -93,6 +94,23 @@
             </testResource>
         </testResources>
         <plugins>
+            <plugin>
+                <groupId>io.snyk</groupId>
+                <artifactId>snyk-maven-plugin</artifactId>
+                <version>2.0.0</version>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>snyk-test</id>
+                    </execution>
+                </executions>
+                <configuration>
+                    <args>
+                        <arg>--maven-aggregate-project</arg>
+                        <arg>--severity-threshold=high</arg>
+                    </args>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.ec4j.maven</groupId>
                 <artifactId>editorconfig-maven-plugin</artifactId>
@@ -143,6 +161,7 @@
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>
+                        <exclude>**/FireflyUsageStatsCallMultiTest.java</exclude>
                         <exclude>**/TestMovielens1M.java</exclude>
                         <exclude>**/TestFireflyExceedHeap.java</exclude>
                         <exclude>**/FireflyAerospikeVersionCheckTest.java</exclude>

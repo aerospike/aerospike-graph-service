@@ -163,9 +163,7 @@ jobs:
       - name: Log Aerospike Server on Failure
         if: failure()
         run: |
-          echo “Copying server log ...”
           aerolab logs get -n ${{ env.SHA_PATH }} -p /var/log/syslog
-          echo “$(ls -lrt *)”
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()

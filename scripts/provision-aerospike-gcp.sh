@@ -87,19 +87,24 @@ echo creating ${name} cluster with ${instances} Aerospikes
 aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
 --zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --name=${name} --start=n;
 
-# Create partitions
-aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
+
 
 if [[ "$storage_type" = "dmd" ]] ; then
   echo "Setting up Aerospike with PI on disk, SI on memory, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 8,30,30,30
   # Create a filesystem on partition 1
   aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1 --fs-type=xfs --mount-options=noatime
   # Update configuration to use all-flash for 1 partition
   aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1 --configure=pi-flash
   # Update configuration to use devices for 3 partitions
   aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=2,3,4 --configure=device
+  # Update configuration sprigs for PI on disk
+  aerolab conf adjust --name=${name} set "namespace test.partition-tree-sprigs" 16384
 elif [[ "$storage_type" = "ddd" ]] ; then
   echo "Setting up Aerospike with PI on disk, SI on disk, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 8,4,43,43
   # Create a filesystem on partitions 1-2
   aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1,2 --fs-type=xfs --mount-options=noatime
   # Update configuration to use all-flash for 1,2 partitions for pi and si
@@ -107,8 +112,12 @@ elif [[ "$storage_type" = "ddd" ]] ; then
   aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=2 --configure=si-flash
   # Update configuration to use devices for 2 partitions
   aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=3,4 --configure=device
+  # Update configuration sprigs for PI on disk
+  aerolab conf adjust --name=${name} set "namespace test.partition-tree-sprigs" 16384
 else
   echo "Setting up Aerospike with PI on memory, SI on memory, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
   # Update configuration to use devices
   aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
 fi

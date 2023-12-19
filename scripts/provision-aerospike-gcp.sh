@@ -92,7 +92,7 @@ aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f
 if [[ "$storage_type" = "dmd" ]] ; then
   echo "Setting up Aerospike with PI on disk, SI on memory, data on disk"
   # Create partitions
-  aerolab cluster partition create --name=${name} --filter-type=nvme -p 9,29,29,29
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 12,28,28,28
   # Create a filesystem on partition 1
   aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1 --fs-type=xfs --mount-options=noatime
   # Update configuration to use all-flash for 1 partition
@@ -104,7 +104,7 @@ if [[ "$storage_type" = "dmd" ]] ; then
 elif [[ "$storage_type" = "ddd" ]] ; then
   echo "Setting up Aerospike with PI on disk, SI on disk, data on disk"
   # Create partitions
-  aerolab cluster partition create --name=${name} --filter-type=nvme -p 9,5,41,41
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 12,6,39,39
   # Create a filesystem on partitions 1-2
   aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1,2 --fs-type=xfs --mount-options=noatime
   # Update configuration to use all-flash for 1,2 partitions for pi and si

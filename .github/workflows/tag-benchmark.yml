@@ -77,8 +77,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.1/aerolab-linux-amd64-7.2.1.zip
-          unzip aerolab-linux-amd64-7.2.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.2/aerolab-linux-amd64-7.2.2.zip
+          unzip aerolab-linux-amd64-7.2.2.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -165,15 +165,12 @@ jobs:
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} -p /var/log/syslog
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log
-          aerolab attach shell -n ${{ env.SHA_PATH }} -- systemctl status aerospike
-          aerolab logs show -n ${{ env.SHA_PATH }} -j
-          aerolab attach shell -n ${{ env.SHA_PATH }} -- asadm -e info
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()
         run: |
           aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
       - name: Delete Aerospike Compute Instances (Cleanup)
-        if: success()
+        if: always()
         run: |
           aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
       - name: Delete Dataproc Clusters (Cleanup)

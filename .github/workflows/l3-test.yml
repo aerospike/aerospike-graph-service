@@ -105,8 +105,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/config_base.properties ${{ github.workspace }}/scripts/l3_config_base.properties
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.1/aerolab-linux-amd64-7.2.1.zip
-          unzip aerolab-linux-amd64-7.2.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.2/aerolab-linux-amd64-7.2.2.zip
+          unzip aerolab-linux-amd64-7.2.2.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -216,8 +216,8 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.1/aerolab-linux-amd64-7.2.1.zip
-          unzip aerolab-linux-amd64-7.2.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.2.2/aerolab-linux-amd64-7.2.2.zip
+          unzip aerolab-linux-amd64-7.2.2.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
@@ -311,8 +311,6 @@ jobs:
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} -p /var/log/syslog
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/aerospike-server-log
-          aerolab attach shell -n ${{ env.SHA_PATH }} -- asadm -e info
-          aerolab logs show -n ${{ env.SHA_PATH }} -j
       - name: Delete Aerospike Compute Instances (Cleanup)
         if: always()
         run: |

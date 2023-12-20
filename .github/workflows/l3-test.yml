@@ -311,8 +311,8 @@ jobs:
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} -p /var/log/syslog
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DAY }}/${{ env.SHA_PATH }}/aerospike-server-log
-          aerolab attach shell -n {{ env.SHA_PATH }} -- asadm -e info
-          aerolab logs show -n {{ env.SHA_PATH }} -j
+          aerolab attach shell -n ${{ env.SHA_PATH }} -- asadm -e info
+          aerolab logs show -n ${{ env.SHA_PATH }} -j
       - name: Delete Aerospike Compute Instances (Cleanup)
         if: always()
         run: |

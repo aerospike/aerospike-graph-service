@@ -165,14 +165,15 @@ jobs:
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} -p /var/log/syslog
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log
-          aerolab attach shell -n {{ env.SHA_PATH }} -- asadm -e info
-          aerolab logs show -n {{ env.SHA_PATH }} -j
+          aerolab attach shell -n ${{ env.SHA_PATH }} -- systemctl status aerospike
+          aerolab logs show -n ${{ env.SHA_PATH }} -j
+          aerolab attach shell -n ${{ env.SHA_PATH }} -- asadm -e info
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()
         run: |
           aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
       - name: Delete Aerospike Compute Instances (Cleanup)
-        if: always()
+        if: success()
         run: |
           aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
       - name: Delete Dataproc Clusters (Cleanup)

@@ -9,11 +9,11 @@ default_instance_type = {
     '1g': 'n2d-standard-4',
     '2g': 'n2d-standard-4',
     '4g': 'n2d-standard-4',
-    '8g': 'n2d-standard-4',
-    '16g': 'n2d-highmem-4',
-    '32g': 'n2d-highmem-8',
-    '64g': 'n2d-highmem-16',
-    '128g': 'n2d-highmem-32'
+    '8g': 'n2d-highmem-4',
+    '16g': 'n2d-highmem-8',
+    '32g': 'n2d-highmem-16',
+    '64g': 'n2d-highmem-32',
+    '128g': 'n2d-highmem-48'
 }
 
 # Expansion factor of 10 and 50% overhead. Each disk is fixed at 400 GB.

@@ -132,7 +132,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setPreflightCheckComplete();
 
             // Persist Edge ID data to disk
-            PROGRESS_BAR.setStartEdgeIdWrite();
             final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
             String writeLocation = null;
             if (edgeIdWriteDisabled) {

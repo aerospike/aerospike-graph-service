@@ -18,9 +18,7 @@ public class ProgressBar extends TimerTask {
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;
     private boolean vertexValidationComplete = false;
-
     private boolean edgeIdWriteComplete = false;
-    private long startEdgeIdWrite = 0L;
     private boolean edgeLoadComplete = false;
     private boolean edgeValidationComplete = false;
     private long startVertexTime = 0L;
@@ -44,12 +42,6 @@ public class ProgressBar extends TimerTask {
     public void setVertexLoadStart() {
         synchronized (ProgressBar.class) {
             this.startVertexTime = System.currentTimeMillis();
-        }
-    }
-
-    public void setStartEdgeIdWrite() {
-        synchronized (ProgressBar.class) {
-            this.startEdgeIdWrite = System.currentTimeMillis();
         }
     }
 
@@ -195,7 +187,7 @@ public class ProgressBar extends TimerTask {
     private String getSuperNodeExtractionProgress() {
         if (superNodeExtractionComplete) {
             return "\t\tSupernode extraction complete\n";
-        } else if (preflightCheckComplete) {
+        } else if (edgeIdWriteComplete) {
             return "\t\tSupernode extraction in progress\n";
         } else {
             return "\t\tSupernode extraction not started\n";

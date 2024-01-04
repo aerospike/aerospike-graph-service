@@ -6,6 +6,7 @@ features_file=./features.conf
 name=${USER} #set name of cluster to username + optional extra name identifier
 instance_type="n2d-standard-4" # Set instance type for Aerospike nodes in cluster. Default to n2d-standard-4
 ssd_count=1 # Amount of local ssd to attach to the instances. Each is 375 GiB
+storage_type=mmd # Storage architecture of primary/secondary indexes and data. Default to mmd
 
 
 Help()
@@ -36,7 +37,7 @@ Hints() {
   "
 }
 
-parsed=$(getopt -a -n provision-aerospike-gcp.sh -o i:s:c:f:n:o: -- "$@")
+parsed=$(getopt -a -n provision-aerospike-gcp.sh -o i:s:a:c:f:n:o: -- "$@")
 eval set -- "$parsed"
 
 while :
@@ -44,6 +45,8 @@ do
    case $1 in
         -i) #instance type
             instance_type=$2; shift 2;;
+        -a) #storage type
+            storage_type=$2; shift 2;;
         -s) #ssd count
             ssd_count=$2; shift 2;;
         -c) #cluster count
@@ -74,20 +77,50 @@ features_file=$features_file
 name=$name
 instance_type=${instance_type}
 ssd_count=${ssd_count}
+storage_type=${storage_type}
 =============================
 "
 
 echo creating ${name} cluster with ${instances} Aerospikes
 
 # Create Aerospike Cluster but don't start it yet
-aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.2.0.7 -f $features_file --customconf=$as_conf \
+aerolab cluster create -c ${instances} --instance ${instance_type} -v 6.4.0.7 -f $features_file --customconf=$as_conf \
 --zone=us-central1-a --disk=pd-ssd:20 --disk=local-ssd@${ssd_count} --name=${name} --start=n;
 
-# Create partitions
-aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
 
-# Update configuration to use devices
-aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
+
+if [[ "$storage_type" = "dmd" ]] ; then
+  echo "Setting up Aerospike with PI on disk, SI on memory, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 12,28,28,28
+  # Create a filesystem on partition 1
+  aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1 --fs-type=xfs --mount-options=noatime
+  # Update configuration to use all-flash for 1 partition
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1 --configure=pi-flash
+  # Update configuration to use devices for 3 partitions
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=2,3,4 --configure=device
+  # Update configuration sprigs for PI on disk
+  aerolab conf adjust --name=${name} set "namespace test.partition-tree-sprigs" 16384
+elif [[ "$storage_type" = "ddd" ]] ; then
+  echo "Setting up Aerospike with PI on disk, SI on disk, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 12,6,39,39
+  # Create a filesystem on partitions 1-2
+  aerolab cluster partition mkfs --name=${name} --filter-type=nvme --filter-partitions=1,2 --fs-type=xfs --mount-options=noatime
+  # Update configuration to use all-flash for 1,2 partitions for pi and si
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1 --configure=pi-flash
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=2 --configure=si-flash
+  # Update configuration to use devices for 2 partitions
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=3,4 --configure=device
+  # Update configuration sprigs for PI on disk
+  aerolab conf adjust --name=${name} set "namespace test.partition-tree-sprigs" 16384
+else
+  echo "Setting up Aerospike with PI on memory, SI on memory, data on disk"
+  # Create partitions
+  aerolab cluster partition create --name=${name} --filter-type=nvme -p 24,24,24,24
+  # Update configuration to use devices
+  aerolab cluster partition conf --name=${name} --namespace=test --filter-type=nvme --filter-partitions=1,2,3,4 --configure=device
+fi
 
 # Update configuration to use 80% of available instance memory
 aerolab conf namespace-memory --name=${name} --namespace=test --mem-pct=80

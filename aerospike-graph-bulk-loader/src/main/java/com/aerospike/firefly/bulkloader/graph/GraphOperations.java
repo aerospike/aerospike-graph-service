@@ -56,11 +56,10 @@ public class GraphOperations {
                                                   final boolean allowDetachedEdges,
                                                   final Set<byte[]> invalidEdgeIds) {
         int tryCount = 0;
-        boolean successful = false;
-        while (!successful) {
+        while (true) {
             try {
                 graph.bulkWriteEdgesToVertexCache(graph.getIdFactory().createId(vertexId, FireflyVertex.class), direction, edgeIds, label);
-                successful = true;
+                break;
             } catch (final FireflyLoadingException e) {
                 final AerospikeException cause = e.getCause();
                 if (!e.isRetryable()) {
@@ -68,11 +67,11 @@ public class GraphOperations {
                         if (allowDetachedEdges) {
                             LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                                     " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", cause);
-                            for (var edgeId: edgeIds) {
-                                byte[] edgeIdByte = (byte[]) edgeId.getObject();
+                            for (final Value edgeId: edgeIds) {
+                                final byte[] edgeIdByte = (byte[]) edgeId.getObject();
                                 invalidEdgeIds.add(edgeIdByte);
                             }
-                            return;
+                            break;
                         } else {
                             LOGGER.error("Failed to write edges with label " + label + " into " + direction +
                                     " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", cause);
@@ -132,11 +131,10 @@ public class GraphOperations {
 
         for (final FireflyIdComposite id : invalidEdges) {
             int tryCount = 0;
-            boolean successful = false;
-            while (!successful) {
+            while (true) {
                 try {
-                    graph.traversal().E(id).drop().iterate();
-                    successful = true;
+                    g.E(id).drop().iterate();
+                    break;
                 } catch (final AerospikeException e) {
                     final FireflyLoadingException fle = new FireflyLoadingException(e);
                     if (!fle.isRetryable()) {

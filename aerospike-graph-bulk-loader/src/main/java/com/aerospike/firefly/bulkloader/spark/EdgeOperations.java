@@ -125,7 +125,7 @@ public class EdgeOperations implements Serializable {
                 final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     if (futures.size() >= bufferSize) {
-                        CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                        final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
                         writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
                         LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
@@ -147,7 +147,7 @@ public class EdgeOperations implements Serializable {
                 }
 
                 LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
-                CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
                 LOGGER.info(String.format("Completed edge write task in partitionId %d", partitionId));
                 futures.clear();

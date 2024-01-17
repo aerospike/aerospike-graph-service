@@ -9,6 +9,7 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
@@ -93,6 +94,7 @@ public class CommandLineParser {
         options.addOption(new Option(READ_ONLY, "Disables intermediate writing to a temporary file to prevent potential duplicate edges."));
         options.addOption(new Option(DISABLE_EDGE_WRITE, "Disable Edge writing."));
         options.addOption(new Option(DISABLE_VERTEX_WRITE, "Disable Vertex writing."));
+        options.addOption(new Option(ALLOW_DETACHED_EDGES, "Allow and handle Edge datasets with invalid Vertex IDs."));
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

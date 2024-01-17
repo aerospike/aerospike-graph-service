@@ -1,5 +1,7 @@
 package com.aerospike.firefly.bulkloader.integration;
 
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
@@ -30,6 +32,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
 
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
@@ -99,6 +103,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getGcsFileSystem();
     protected abstract String getFailingClient();
+    protected abstract String getDetachedEdges();
 
     @Test
     public void testDataAccuracy() {
@@ -356,6 +361,28 @@ public abstract class TestSparkBulkLoaderBase {
                 Assert.assertEquals(0, (long) graph.traversal().E().count().next());
             }
             runCount++;
+        }
+    }
+
+    @Test
+    public void testAllowDetachedEdges() {
+        SparkBulkLoader.main(ArrayUtils.addAll(
+                new String[]{"-local", "-c", getDetachedEdges(), "-" + ALLOW_DETACHED_EDGES}, DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testNotAllowDetachedEdges() {
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-c", getDetachedEdges()}, DEFAULT_PARAMS));
+            Assert.fail("Detached Edge did not fail bulk load when it should have.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause() instanceof AerospikeException);
+            final AerospikeException cause = (AerospikeException) e.getCause();
+            Assert.assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, cause.getResultCode());
         }
     }
 

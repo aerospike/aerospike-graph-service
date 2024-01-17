@@ -31,9 +31,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.aerospike.firefly.bulkloader.SparkBulkLoaderMain.exponentialBackoff;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_TO_REMOVE;
@@ -56,32 +56,50 @@ public class VertexOperations implements Serializable {
 
     private void writeVertices(final Dataset<Row> unionVertexDS, final Set<Object> supernodes) {
         unionVertexDS.foreachPartition(rowIterator -> {
-            Instant start = Instant.now();
-            LOGGER.info("PartitionId in VertexDataset = " + TaskContext.getPartitionId());
-            final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
-            String taskName =  String.format("Vertex write in partition:{}", TaskContext.getPartitionId());
-            try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
-                ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ TaskContext.getPartitionId());
-                final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
+            final int partitionId = TaskContext.getPartitionId();
+            LOGGER.info("Starting to write VertexDataset in PartitionId: " + partitionId);
 
-                long vertexReceived = 0L;
-                AtomicLong vertexCompleted = new AtomicLong(0L);
+            try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
+                final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
+                final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
+                final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ partitionId);
+                final int bufferSize = getVertexWriteBufferSize();
+                LOGGER.info(String.format("Vertex write buffer size %d", bufferSize));
+
+                final Instant totalStart = Instant.now();
+                Instant start = Instant.now();
+                int batch = 1;
+                final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
-                    vertexReceived++;
+                    if (futures.size() >= bufferSize) {
+                        CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                        megaTask.join();
+                        LOGGER.info(String.format("Vertex write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d", partitionId,
+                                batch, Duration.between(start, Instant.now()).toMillis()));
+                        start = Instant.now();
+                        batch = batch + 1;
+                        if (megaTask.isCompletedExceptionally()) {
+                            throw new RuntimeException("Error occurred while writing vertices - see logs for more details");
+                        }
+                        futures.clear();
+                    }
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
                     final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes);
-                    vwt.write(executor, vertexCompleted);
+                    futures.add(vwt.write(executor));
                 }
 
-                LOGGER.info("Done submitting task:{}; waiting for the completion", taskName);
-
-                while (vertexReceived != vertexCompleted.get()) {
-                    Thread.sleep(1000);
-                    LOGGER.info("Waiting for completion of task:{}", taskName);
+                LOGGER.info(String.format("Done submitting vertex write task; waiting for their completion in partitionId %d", partitionId));
+                CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                megaTask.join();
+                LOGGER.info(String.format("Completed vertex write task in partitionId %d", partitionId));
+                futures.clear();
+                if (megaTask.isCompletedExceptionally()) {
+                    throw new RuntimeException("Error occurred while writing vertices - see logs for more details");
                 }
 
-                LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(start, Instant.now()).toMillis());
+                final String taskName = String.format("Vertex write in partition:{}", partitionId);
+                LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
     }

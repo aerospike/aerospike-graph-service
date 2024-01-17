@@ -7,6 +7,8 @@ import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadin
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
+import com.aerospike.firefly.structure.id.FireflyIdComposite;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,9 @@ public class GraphOperations {
                                                   final Object vertexId,
                                                   final Direction direction,
                                                   final String label,
-                                                  final List<Value> edgeIds) {
+                                                  final List<Value> edgeIds,
+                                                  final boolean allowDetachedEdges,
+                                                  final Set<byte[]> invalidEdgeIds) {
         int tryCount = 0;
         boolean successful = false;
         while (!successful) {
@@ -61,24 +65,35 @@ public class GraphOperations {
                 final AerospikeException cause = e.getCause();
                 if (!e.isRetryable()) {
                     if (cause.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR) {
-                        LOGGER.error("Failed to write edges with label " + label + " into " + direction +
-                                " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", e);
+                        if (allowDetachedEdges) {
+                            LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
+                                    " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", cause);
+                            for (var edgeId: edgeIds) {
+                                byte[] edgeIdByte = (byte[]) edgeId.getObject();
+                                invalidEdgeIds.add(edgeIdByte);
+                            }
+                            return;
+                        } else {
+                            LOGGER.error("Failed to write edges with label " + label + " into " + direction +
+                                    " edge cache for vertex ID " + vertexId + " due to vertex record key not found.", cause);
+                            throw cause;
+                        }
                     } else if (cause.getResultCode() == ResultCode.RECORD_TOO_BIG) {
                         LOGGER.error("Failed to write edges with label " + label + " into " + direction +
-                                " edge cache for vertex ID " + vertexId + " due to vertex record size too big.", e);
+                                " edge cache for vertex ID " + vertexId + " due to vertex record size too big.", cause);
                     } else {
                         LOGGER.error("Failed to write edges with label " + label + " into " + direction +
-                                " edge cache for vertex ID " + vertexId, e);
+                                " edge cache for vertex ID " + vertexId, cause);
                     }
                     throw cause;
                 } else if (++tryCount > RETRY_LIMIT) {
                     LOGGER.error("Failed to write edges with label " + label + " into " + direction +
-                            " edge cache for vertex ID " + vertexId + " after " + tryCount + " attempts.", e);
+                            " edge cache for vertex ID " + vertexId + " after " + tryCount + " attempts.", cause);
                     throw cause;
                 } else {
                     LOGGER.warn("Failed to write edges with label " + label + " into " + direction +
                             " edge cache for vertex ID " + vertexId +
-                            ". Attempt count: " + tryCount, e);
+                            ". Attempt count: " + tryCount, cause);
                     exponentialBackoff(tryCount);
                 }
             }
@@ -87,14 +102,16 @@ public class GraphOperations {
 
     public static void flushEdgeMap(final FireflyGraph graph,
                                     final Direction direction,
-                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap) {
+                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> edgeMap,
+                                    final boolean allowDetachedEdges,
+                                    final Set<byte[]> invalidEdgeIds) {
         for (Map.Entry<Object, ConcurrentHashMap<String, Set<Value>>> vertexIdToLabelMaps : edgeMap.entrySet()) {
             final Object vertexId = vertexIdToLabelMaps.getKey();
             final ConcurrentHashMap<String, Set<Value>> labelMaps = vertexIdToLabelMaps.getValue();
             for (Map.Entry<String, Set<Value>> labelToEdgeIds : labelMaps.entrySet()) {
                 try {
                     writeEdgesToFireflyVertex(graph, vertexId, direction, labelToEdgeIds.getKey(),
-                            new ArrayList<>(labelToEdgeIds.getValue()));
+                            new ArrayList<>(labelToEdgeIds.getValue()), allowDetachedEdges, invalidEdgeIds);
                 } catch (final RuntimeException e) {
                     LOGGER.error("Exception occurred while loading edges '{}' into vertex with id '{}'. Error message '{}'.",
                             labelToEdgeIds.getValue(), vertexId, e.getMessage(), e);
@@ -103,5 +120,37 @@ public class GraphOperations {
             }
         }
         edgeMap.clear();
+    }
+
+    public static void dropDetachedEdges(final FireflyGraph graph, final Set<byte[]> invalidEdgeIds) {
+        final Set<FireflyIdComposite> invalidEdges = new HashSet<>();
+        invalidEdgeIds.forEach(idBytes -> {
+            final FireflyIdComposite id = new FireflyIdComposite(graph.getBaseGraph(), idBytes);
+            invalidEdges.add(id);
+        });
+        final GraphTraversalSource g = graph.traversal();
+
+        for (final FireflyIdComposite id : invalidEdges) {
+            int tryCount = 0;
+            boolean successful = false;
+            while (!successful) {
+                try {
+                    graph.traversal().E(id).drop().iterate();
+                    successful = true;
+                } catch (final AerospikeException e) {
+                    final FireflyLoadingException fle = new FireflyLoadingException(e);
+                    if (!fle.isRetryable()) {
+                        LOGGER.error("Unexpected exception when attempting to purge detached Edge: ", e);
+                        throw e;
+                    } else if (++tryCount > RETRY_LIMIT) {
+                        LOGGER.error("Failed to purge detached Edge after " + tryCount + " attempts.", e);
+                        throw e;
+                    } else {
+                        LOGGER.warn("Failed to purge detached Edge. Attempt count: " + tryCount, e);
+                        exponentialBackoff(tryCount);
+                    }
+                }
+            }
+        }
     }
 }

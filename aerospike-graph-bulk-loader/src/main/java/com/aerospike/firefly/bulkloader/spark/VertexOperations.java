@@ -72,7 +72,7 @@ public class VertexOperations implements Serializable {
                 final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     if (futures.size() >= bufferSize) {
-                        CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                        final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
                         LOGGER.info(String.format("Vertex write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis()));
@@ -90,7 +90,7 @@ public class VertexOperations implements Serializable {
                 }
 
                 LOGGER.info(String.format("Done submitting vertex write task; waiting for their completion in partitionId %d", partitionId));
-                CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
                 LOGGER.info(String.format("Completed vertex write task in partitionId %d", partitionId));
                 futures.clear();

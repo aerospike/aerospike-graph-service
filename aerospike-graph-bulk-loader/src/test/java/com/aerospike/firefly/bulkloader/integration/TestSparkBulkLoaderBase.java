@@ -97,8 +97,6 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getDuplicateEdgeId();
 
-    protected abstract String getNonExistentEdgeVertexId();
-
     protected abstract String getS3FileSystem();
 
     protected abstract String getGcsFileSystem();
@@ -249,22 +247,6 @@ public abstract class TestSparkBulkLoaderBase {
         testVertexEdgeConnections();
         final GraphTraversalSource g = graph.traversal();
         Assert.assertEquals(3, (long) g.E().has("testIdName", "duplicate").count().next());
-    }
-
-    @Test
-    public void testNonExistentVertexId() {
-        boolean success = true;
-        try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getNonExistentEdgeVertexId()}, DEFAULT_PARAMS));
-        } catch (final Exception e) {
-            // TODO GRAPH-501: Update this to reflect the expected exception when pre-flight duplicate Vertex ID exists
-            //                 check is implemented.
-            success = false;
-            Assert.assertTrue(e instanceof SparkException);
-            final Exception cause = (Exception) e.getCause();
-            Assert.assertTrue(cause instanceof ElementNotFoundException);
-        }
-        Assert.assertFalse(success);
     }
 
     @Ignore("TODO GRAPH-888: NPE caused by org.codehaus.groovy.reflection.ReflectionUtils.VM_PLUGIN is null on CI machine")

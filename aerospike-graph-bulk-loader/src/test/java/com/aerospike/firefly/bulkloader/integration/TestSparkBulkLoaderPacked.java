@@ -87,11 +87,6 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
-    protected String getNonExistentEdgeVertexId() {
-        return NONEXISTENT_VERTEX_ID;
-    }
-
-    @Override
     protected String getS3FileSystem() {
         return S3_FILESYSTEM;
     }

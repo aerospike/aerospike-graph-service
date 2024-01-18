@@ -35,6 +35,7 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.ReadContext;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
+import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.util.FireflyTtlHandler;
 import com.aerospike.firefly.util.GraphFactory;
@@ -422,6 +423,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
             this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
+        } catch (final ElementNotFoundException enfe) {
+            throw new FireflyLoadingException((AerospikeException) enfe.getCause());
         } catch (final VertexRecordSizeExceededException vrsee) {
             throw new FireflyLoadingException((AerospikeException) vrsee.getCause(), vrsee.getMessage());
         } catch (final AerospikeException ae) {

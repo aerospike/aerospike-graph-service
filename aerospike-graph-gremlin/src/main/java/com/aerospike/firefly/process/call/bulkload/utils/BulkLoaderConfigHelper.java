@@ -60,6 +60,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String DISABLE_EDGE_WRITE = "disable_edges";
     public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
     public static final String READ_ONLY = "read_only";
+    public static final String ALLOW_DETACHED_EDGES = "allow_detached_edges";
 
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(

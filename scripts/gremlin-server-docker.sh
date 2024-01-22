@@ -5,11 +5,29 @@
 # Inject classpath. Without this gremlin-server doesn't load all the appropriate jars for the bulk loader.
 export CLASSPATH=$(cat /opt/classpath.txt)
 
-# Need to generate JAVA_OPTIONS for gremlin-server. This is assigned in the gremlin-server script.
-python3 /opt/scripts/generate_java_options.py
+# Generate properties file and gremlin-server yaml file.
+# Inputs are: input_properties_file_path, input_yaml_file_path, output_properties_file_path, output_yaml_file_path, output_java_options_file_path.
+# Note, input_properties_file_path is the same as output_properties_file_path, we just override it as we complete the config.
+# Also we run this script regardless of whether or not the user supplied a custom file. This is because we want to get the memory
+# configurations from the environment variables.
+python3 scripts/configure_aerospike_graph.py "/opt/aerospike-graph/aerospike-graph.properties" \
+    "$CONF_DIR/flattened-default-gremlin-server.yaml" \
+    "$OUTPUT_SERVER_YAML" \
+    "$CONF_DIR/aerospike-graph.properties" \
+    "$CONF_DIR/java_options.txt"
 
-# Enable deep reflection for Java 17 and configure JVM memory
-export JAVA_OPTIONS=$(cat /opt/scripts/java_options.txt)
+# Exit if the python script failed.
+if [ $? != 0 ];
+then
+    echo "Failed to configure Aerospike Graph Service. Exiting."
+    exit 1
+fi
+
+# Set the java options.
+export JAVA_OPTIONS=$(cat "$CONF_DIR/java_options.txt")
+
+# Configuration complete.
+echo "Successfully configured Aerospike Graph Service."
 
 # Create trap that redirects a CTRL-C even into the stop_gremlin_server function.
 trap 'stop_gremlin_server' INT
@@ -33,31 +51,21 @@ stop_gremlin_server() {
   echo "                         | |                                | |                                             "
   echo "                         |_|                                |_|                                             "
 
+  # Bootstrap gremlin-server.
   # If they passed in a server yaml
-  if [ -e /opt/aerospike-graph/conf/firefly-gremlin-server.yaml ]
+  if [ -e /opt/aerospike-graph/conf/aerospike-graph-service.yaml ]
   then
-    echo "==> Docker image is using custom firefly-gremlin-server.yaml <=="
-    echo "==== firefly-gremlin-server.yaml ===="
-    cat /opt/aerospike-graph/conf/firefly-gremlin-server.yaml
-    gremlin-server.sh /opt/aerospike-graph/conf/firefly-gremlin-server.yaml
+    # This is a precautionary override, just in case a customer really needs to.
+    # If they are using this they are on their own linking yaml->properties, but
+    # can still set the min heap and max heap via environment variables and it will work.
+    echo "==== Bootstrapping Aerospike Graph Service with custom gremlin-server.yaml. ===="
+    cat /opt/aerospike-graph/conf/aerospike-graph-service.yaml
+    gremlin-server.sh /opt/aerospike-graph/conf/aerospike-graph-service.yaml
 
   # Else if they passed only a properties file
-  elif [ -e /opt/aerospike-graph/conf/aerospike-graph.properties ]
-  then
-    echo "==> Docker image is using custom aerospike-graph.properties <=="
-    echo "==== firefly-gremlin-server.yaml ===="
-    cat $CONF_DIR/firefly-gremlin-server-custom.yaml
-    cp $CONF_DIR/firefly-gremlin-server-custom.yaml /opt/aerospike-graph/conf/firefly-gremlin-server.yaml
-    python3 /opt/scripts/inject_graph_class.py
-    gremlin-server.sh $CONF_DIR/firefly-gremlin-server-custom.yaml
-
-  # Else use the default server yaml and properties
   else
-    echo "==> Docker image is using default aerospike-graph.properties <=="
-    echo "==== firefly-gremlin-server.yaml ===="
-    cp $CONF_DIR/aerospike-graph.properties /opt/aerospike-graph/conf/aerospike-graph.properties
-    cp $CONF_DIR/firefly-gremlin-server-custom.yaml /opt/aerospike-graph/conf/firefly-gremlin-server.yaml
-    gremlin-server.sh $CONF_DIR/firefly-gremlin-server.yaml
+    echo "==== Bootstrapping Aerospike Graph Service with generated gremlin-server.yaml. ===="
+    gremlin-server.sh $OUTPUT_SERVER_YAML
   fi
 ) <&0 &
 child_pid=$!

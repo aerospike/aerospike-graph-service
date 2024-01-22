@@ -15,7 +15,7 @@ ENV GREMLIN_CONSOLE_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VE
 ENV GREMLIN_SERVER_URL="https://archive.apache.org/dist/tinkerpop/$TINKERPOP_VERSION/apache-tinkerpop-gremlin-server-$TINKERPOP_VERSION-bin.zip"
 ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_VERSION/jansi-$JANSI_VERSION.jar"
 ENV MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
-ENV CONF_DIR="/opt/aerospike-graph/conf/docker-default"
+ENV CONF_DIR="/opt/conf"
 ENV SPARK_URL="https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop3.tgz"
 
 # Install things required to create image.
@@ -56,20 +56,17 @@ RUN mvn -pl aerospike-graph-gremlin -pl aerospike-graph-bulk-loader -pl aerospik
 
 # Move bulk-loader jar to /opt/bulk-loader.
 RUN mkdir /opt/bulk-loader &&\
-    mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.2.0.jar /opt/bulk-loader
+     mv /opt/aerospike-graph/aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-1.2.0.jar /opt/bulk-loader
 
 # Move sizing-tool jar to /opt/sizing-tool.
 RUN mkdir /opt/sizing-tool &&\
     mv /opt/aerospike-graph/aerospike-graph-sizing-tool/target/aerospike-graph-sizing-tool-1.2.0.jar /opt/sizing-tool
 
-# Move scripts to /opt/scripts. This has to be done on each instantiation of the container.
-RUN mkdir /opt/scripts &&\
-    mv /opt/aerospike-graph/scripts/generate_java_options.py /opt/scripts &&\
-    mv /opt/aerospike-graph/scripts/inject_graph_class.py /opt/scripts
-
 # Build CLASSPATH before invoking gremlin-server. This is assigned in the gremlin-server script.
 # Note bulk-loader also needs to be in the classpath.
 RUN python3 scripts/generate_classpath.py
+
+RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
 
 # Setup gremlin-server. Install firefly in gremlin-server.
 # If RELEASE_BUILD is set, then use release build, otherwise use SNAPSHOT build.
@@ -88,8 +85,7 @@ RUN yum remove -y vim-minimal vim-data unzip xz tar
 # Remove additional conflicting logger jars from spark.
 RUN rm /opt/spark/jars/slf4j-* && rm /opt/spark/jars/commons-logging*
 
-# Add scripts and conf to container.
-ADD conf/docker-default /opt/aerospike-graph/conf/docker-default
+# Add scripts to container.
 ADD scripts /opt/aerospike-graph/scripts
 
 # Make gremlin-server-docker.sh runnable and make files in config dir read/write/executable.
@@ -103,9 +99,6 @@ RUN useradd -m firefly
 RUN chown firefly:firefly -R /opt/spark && chown firefly:firefly -R /opt/bulk-loader && chown firefly:firefly -R /opt/sizing-tool
 
 # Make firefly owner of conf dir.
-RUN chown firefly:firefly -R /opt/aerospike-graph/conf/
-
-# Make firefly owner of scripts dir.
-RUN chown firefly:firefly -R /opt/scripts/
+RUN chown firefly:firefly -R $CONF_DIR
 
 RUN rm -rf /root/.m2

@@ -53,14 +53,14 @@ stop_gremlin_server() {
 
   # Bootstrap gremlin-server.
   # If they passed in a server yaml
-  if [ -e /opt/aerospike-graph/conf/aerospike-graph-service.yaml ]
+  if [ -e /opt/aerospike-graph/custom/aerospike-graph-service.yaml ]
   then
     # This is a precautionary override, just in case a customer really needs to.
     # If they are using this they are on their own linking yaml->properties, but
     # can still set the min heap and max heap via environment variables and it will work.
     echo "==== Bootstrapping Aerospike Graph Service with custom gremlin-server.yaml. ===="
-    cat /opt/aerospike-graph/conf/aerospike-graph-service.yaml
-    gremlin-server.sh /opt/aerospike-graph/conf/aerospike-graph-service.yaml
+    cat /opt/aerospike-graph/custom/aerospike-graph-service.yaml
+    gremlin-server.sh /opt/aerospike-graph/custom/aerospike-graph-service.yaml
 
   # Else if they passed only a properties file
   else

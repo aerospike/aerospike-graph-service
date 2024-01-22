@@ -35,7 +35,7 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-graph/conf/aerospike-graph.properties";
+    private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph.properties";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();

@@ -495,7 +495,7 @@ jobs:
           bash -x scripts/build-docker.sh aerospike/firefly-bulk-load linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly-bulk-load &
           
@@ -537,7 +537,7 @@ jobs:
           bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly &
           

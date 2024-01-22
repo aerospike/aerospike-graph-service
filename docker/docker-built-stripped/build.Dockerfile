@@ -58,6 +58,8 @@ RUN \
     else gremlin-server.sh install 'com.aerospike aerospike-graph-gremlin 1.2.0' ;  \
     fi
 
+RUN mkdir -p $CONF_DIR && mv /opt/aerospike-graph/conf/docker-default/flattened-default-gremlin-server.yaml $CONF_DIR/flattened-default-gremlin-server.yaml
+
 # Remove source code.
 RUN cd .. && rm -rf /opt/aerospike-graph
 

@@ -99,6 +99,9 @@ processors:
         for line in lines:
             yaml.write(line + "\n")
 
+    with open(output_yaml_file, "r") as prop:
+        print("Generated yaml file: " + output_yaml_file + " - " + prop.read())
+
 def generate_properties(properties, output_properties_file):
     with open(output_properties_file, "w") as prop:
         if "gremlin.graph=com.aerospike.firefly.structure.FireflyGraph" not in properties:

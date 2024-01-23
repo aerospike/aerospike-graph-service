@@ -1109,7 +1109,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1145,7 +1145,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph firefly &
+          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1182,7 +1182,7 @@ jobs:
           
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           

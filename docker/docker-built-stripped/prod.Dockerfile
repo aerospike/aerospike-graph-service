@@ -18,7 +18,7 @@ ENV JANSI_URL="https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/$JANSI_
 ENV MAVEN_URL="https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz"
 ENV AIR_ROUTES_50K_URL="https://raw.githubusercontent.com/krlawrence/graph/master/sample-data/air-routes-latest.graphml"
 ENV CONF_DIR="/opt/conf"
-ENV OUTPUT_SERVER_YAML="/opt/aerospike-graph/conf/aerospike-graph-service.yaml"
+ENV OUTPUT_SERVER_YAML="$CONF_DIR/aerospike-graph-service.yaml"
 
 # Append to PATH for maven/console.
 ENV PATH="$PATH:/opt/apache-maven-$MAVEN_VERSION/bin:/opt/gremlin-console/bin:/opt/gremlin-server/bin"

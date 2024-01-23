@@ -111,7 +111,7 @@ public final class ConfigurationHelper {
         public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
         public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
         public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
-        public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update-interval";
+        public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
         public static final String CLIENT_FAILURE_RATE = "aerospike.graph.failure.client.rate";

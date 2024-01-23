@@ -20,9 +20,9 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
                 if not "=" in line:
                     invalid.append(line)
                 keys.append(line.split("=")[0])
-                if line.startswith("aerospike.graph-service.max-heap"):
+                if line.startswith("aerospike.graph-service.heap.max"):
                     java_options_max_heap = line
-                elif line.startswith("aerospike.graph-service.min-heap"):
+                elif line.startswith("aerospike.graph-service.heap.min"):
                     java_options_min_heap = line
                 elif line.startswith("aerospike.graph-service"):
                     valid_yaml.append(line)
@@ -37,9 +37,9 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
     for key, value in os.environ.items():
         if key in keys:
             keys_in_both_properties_and_environment.append(key)
-        if key.startswith("aerospike.graph-service.max-heap"):
+        if key.startswith("aerospike.graph-service.heap.max"):
             java_options_max_heap = f"{key}={value}"
-        elif key.startswith("aerospike.graph-service.min-heap"):
+        elif key.startswith("aerospike.graph-service.heap.min"):
             java_options_min_heap = f"{key}={value}"
         elif key.startswith("aerospike.graph-service"):
             valid_yaml.append(f"{key}={value}")
@@ -114,14 +114,14 @@ def generate_java_options(java_options_file_path, max_heap, min_heap):
 
     # We are deprecating JAVA_OPTIONS in favor of using our notation. Users don't need to know we are using Java.
     if max_heap is not None:
-        print("aerospike.graph-service.max-heap was set to " + max_heap + ". Using this value for -Xmx.")
+        print("aerospike.graph-service.heap.max was set to " + max_heap + ". Using this value for -Xmx.")
         java_options += f" -Xmx{max_heap.split('=')[1]} "
     else:
         mem_mib = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024. ** 2)
         max_memory = int(mem_mib * 0.8)  # 80% of system memory
         java_options += f" -Xmx{max_memory}m"
     if min_heap is not None:
-        print("aerospike.graph-service.min-heap was set to " + min_heap + ". Using this value for -Xms.")
+        print("aerospike.graph-service.heap.min was set to " + min_heap + ". Using this value for -Xms.")
         java_options += f" -Xms{min_heap.split('=')[1]} "
 
     user_java_options = os.environ.get("JAVA_OPTIONS")

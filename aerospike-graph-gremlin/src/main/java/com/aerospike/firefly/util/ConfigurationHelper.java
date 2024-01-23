@@ -55,6 +55,10 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_WRITE_MAX_RETRY = "aerospike.client.write.max.retry";
         public static final String TLS = "aerospike.client.tls";
         public static final String TLS_NAMES = "aerospike.client.tls.name";
+        public static final String AUTH_MODE = "aerospike.client.auth.mode";
+        public static final String CLIENT_SERVICES_ALTERNATE = "aerospike.client.services.alternate";
+        public static final String CLUSTER_NAME = "aerospike.client.cluster.name";
+
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
         public static final String ADJACENCY_INDEX_ENABLED_FLAG = "aerospike.graph.index.adjacency.enabled";
@@ -121,6 +125,7 @@ public final class ConfigurationHelper {
         public static final String CONNECT_TIMEOUT = "aerospike.client.connectTimeout";
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
+        public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
 
         public static class Pair {
             public final int numeric;
@@ -304,6 +309,10 @@ public final class ConfigurationHelper {
         put(Keys.TTL_PURGE_INTERVAL_SECONDS, "300"); // 5 minute default
         put(Keys.TTL_UPDATE_ANYTIME_FLAG, "false");
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
+        put(Keys.AUTH_MODE, "internal");
+        put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
+        put(Keys.CLUSTER_NAME, null);
+        put(Keys.VALIDATE_CLUSTER_NAME, "true");
     }};
 
 

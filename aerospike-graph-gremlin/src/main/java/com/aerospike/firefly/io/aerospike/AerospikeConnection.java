@@ -26,6 +26,7 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.exp.ExpOperation;
 import com.aerospike.client.exp.ExpWriteFlags;
 import com.aerospike.client.exp.Expression;
+import com.aerospike.client.policy.AuthMode;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
@@ -225,11 +226,9 @@ public class AerospikeConnection implements AutoCloseable {
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
-
         clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         clientPolicy.minConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf));
-        // While our writes are not idempotent, we should not be retrying.
-        clientPolicy.writePolicyDefault.maxRetries = 0;
+
         clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
         clientPolicy.eventLoops = eventLoops;
 
@@ -247,6 +246,16 @@ public class AerospikeConnection implements AutoCloseable {
 
         }
         clientPolicy.maxErrorRate = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf));
+        clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());
+        final String useServicesAlternate = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
+        clientPolicy.useServicesAlternate = Boolean.parseBoolean(useServicesAlternate);
+        final String clusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLUSTER_NAME, conf);
+        if (clusterName != null) {
+            clientPolicy.clusterName = clusterName;
+        }
+        // This setting should only be disabled for internal testing use.
+        final String validateClusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
+        clientPolicy.validateClusterName = Boolean.parseBoolean(validateClusterName);
         return clientPolicy;
     }
 

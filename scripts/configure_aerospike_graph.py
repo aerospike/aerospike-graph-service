@@ -53,7 +53,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
 
     if len(invalid) > 0:
         raise Exception("Error configuring Aerospike Graph Service.\n\tInvalid properties found: " + str(invalid) + ". Properties must start with 'aerospike' and " + \
-                    "e in the format 'aerospike.key=value'")
+                    "be in the format 'aerospike.key=value'")
 
     generate_yaml(valid_yaml, default_yaml_file, output_yaml_file, output_properties_file)
     generate_properties(valid_properties, output_properties_file)

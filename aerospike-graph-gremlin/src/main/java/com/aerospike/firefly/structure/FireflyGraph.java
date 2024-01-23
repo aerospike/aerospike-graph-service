@@ -180,7 +180,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/firefly-gremlin-server.yaml";
+    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/gremlin-server.yaml";
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;

@@ -1691,7 +1691,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         public static final DefaultAerospikeClientProvider INSTANCE = new DefaultAerospikeClientProvider();
 
-        public DefaultAerospikeClientProvider() {
+        private DefaultAerospikeClientProvider() {
         }
 
         public static AerospikeClientProvider connect(final Configuration conf) {

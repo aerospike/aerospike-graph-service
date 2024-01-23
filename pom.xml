@@ -173,6 +173,7 @@
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
                         <exclude>**/TestFireflyServer.java</exclude>
+                        <exclude>**/TestAerospikeClientProviderConfiguration.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

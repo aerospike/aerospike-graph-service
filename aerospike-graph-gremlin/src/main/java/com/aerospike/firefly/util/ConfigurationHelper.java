@@ -311,7 +311,7 @@ public final class ConfigurationHelper {
         put(Keys.USAGE_STATS_UPDATE_INTERVAL, "3600000"); // 1 hour default
         put(Keys.AUTH_MODE, "internal");
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
-        put(Keys.CLUSTER_NAME, null);
+        put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
     }};
 

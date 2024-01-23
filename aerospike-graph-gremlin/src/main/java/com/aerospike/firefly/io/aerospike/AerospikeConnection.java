@@ -250,7 +250,7 @@ public class AerospikeConnection implements AutoCloseable {
         final String useServicesAlternate = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
         clientPolicy.useServicesAlternate = Boolean.parseBoolean(useServicesAlternate);
         final String clusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLUSTER_NAME, conf);
-        if (clusterName != null) {
+        if (clusterName != null && !clusterName.isBlank()) {
             clientPolicy.clusterName = clusterName;
         }
         // This setting should only be disabled for internal testing use.

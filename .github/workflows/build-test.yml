@@ -690,6 +690,7 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
     timeout-minutes: 120

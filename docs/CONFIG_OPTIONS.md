@@ -26,6 +26,22 @@ Configuration options are broken into 3 sections:
 | aerospike.graph.summary.enabled            | true           | true, false                                                         | Enable Aerospike Graph summary metadata.                                                                           |
 | aerospike.graph.summary.ticker.enabled     | true           | true, false                                                         | Enable Aerospike Graph summary metadata ticker.                                                                    |
 
+## Gremlin Server configs
+
+Gremlin server configs are exposed as aerospike.graph-service.* in the properties file. These configs are injected into gremlin-server.
+Min and max heap can also be configured here.
+
+| Config                                        | Default               | Allowed Values                                | Description                                                                                                                 |
+|-----------------------------------------------|-----------------------|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| aerospike.graph-service.heap.min              | None                  | String that follows JAVA_OPTIONS xms standard | Minimum heap size                                                                                                           |
+| aerospike.graph-service.heap.max              | 80% available memory  | String that follows JAVA_OPTIONS xmx standard | Maximum heap size                                                                                                           |
+| aerospike.graph-service.port                  | 8182                  | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#port                   |
+| aerospike.graph-service.threadPoolWorker      | 8                     | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#threadPoolWorker       |
+| aerospike.graph-service.gremlinPool           | availableProcessors() | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#gremlinPool            |
+| aerospike.graph-service.evaluationTimeout     | 10000                 | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#evaluationTimeout      |
+| aerospike.graph-service.idleConnectionTimeout | 0                     | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#idleConnectionTimeout  |
+
+
 ## Hybrid Configs
 
 | Config                                                | Default | Description                                                                                                                                                   |

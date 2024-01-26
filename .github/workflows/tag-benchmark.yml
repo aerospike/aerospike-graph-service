@@ -161,7 +161,7 @@ jobs:
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Log Aerospike Server on Failure
-        if: success || failure()
+        if: success() || failure()
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} --journal
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log

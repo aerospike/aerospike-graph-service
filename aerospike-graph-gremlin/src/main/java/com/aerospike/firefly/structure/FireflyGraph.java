@@ -519,10 +519,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         operations.add(writeLabel);
 
         final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
         operations.add(writeInV);
         final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
         operations.add(writeOutV);
 
         // Write to supernodes bin if vertex cache overflowed.

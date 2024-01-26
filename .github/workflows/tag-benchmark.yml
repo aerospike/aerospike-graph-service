@@ -161,16 +161,16 @@ jobs:
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
       - name: Log Aerospike Server on Failure
-        if: success() || failure()
+        if: failure()
         run: |
           aerolab logs get -n ${{ env.SHA_PATH }} --journal
           gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log
       - name: Delete Firefly Compute Instances (Cleanup)
-        if: success()
+        if: always()
         run: |
           aerolab client destroy -f -n ${{ env.SHA_PATH }}-firefly
       - name: Delete Aerospike Compute Instances (Cleanup)
-        if: success()
+        if: always()
         run: |
           aerolab cluster destroy -f -n ${{ env.SHA_PATH }}
       - name: Delete Dataproc Clusters (Cleanup)

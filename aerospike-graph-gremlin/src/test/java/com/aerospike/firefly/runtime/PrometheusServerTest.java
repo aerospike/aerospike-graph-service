@@ -23,7 +23,7 @@ public class PrometheusServerTest {
             final String output = queryPrometheus();
 
             // Check cluster_name. Note default is empty string.
-            Assert.assertTrue(output.contains("aerospike_graph_service_cluster_name{cluster_name=\"\",}"));
+            Assert.assertTrue(output.contains("aerospike_graph_service_cluster_name{cluster_name=\"test\",}"));
 
             // Check that things are renamed.
             Assert.assertTrue(output.contains("G1_Survivor_Space"));
@@ -42,7 +42,7 @@ public class PrometheusServerTest {
             final String output = queryPrometheus();
 
             // Check cluster_name. Note default is empty string.
-            Assert.assertTrue(output.contains("aerospike_graph_service_cluster_name{cluster_name=\"\",}"));
+            Assert.assertTrue(output.contains("aerospike_graph_service_cluster_name{cluster_name=\"test\",}"));
 
             // Check that things are renamed.
             Assert.assertTrue(output.contains("G1 Survivor Space"));

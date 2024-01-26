@@ -140,10 +140,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         operations.add(writeLabel);
 
         final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
-                Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
+                Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHash()));
         operations.add(writeInV);
         final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
-                Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
+                Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHash()));
         operations.add(writeOutV);
 
         // Write to supernodes bin if vertex cache overflowed.
@@ -627,7 +627,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 return null;
             }
 
-            final FireflyId outVertex = FireflyIdPoly.fromBase64Hash((String) outVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+            final FireflyId outVertex = FireflyIdPoly.fromHash((byte[]) outVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
 
             Map<?, ?> inVMap = record.getMap(Direction.IN.name());
             if ((inVMap == null || !inVMap.containsKey(edgeIdMapKey))) {
@@ -635,7 +635,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 return null;
             }
 
-            final FireflyId inVertex = FireflyIdPoly.fromBase64Hash((String) inVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+            final FireflyId inVertex = FireflyIdPoly.fromHash((byte[]) inVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
 
             final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES_BIN).get(edgeIdMapKey);
             final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS_BIN).get(edgeIdMapKey);

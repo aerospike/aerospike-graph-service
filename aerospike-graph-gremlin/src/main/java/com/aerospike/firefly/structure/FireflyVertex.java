@@ -915,7 +915,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final String binName = direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name();
             exp = Exp.build(
                     Exp.gt(
-                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(binName)),
+                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(binName)),
                             Exp.val(0)
                     ));
         } else {
@@ -923,11 +923,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             exp = Exp.build(
                     Exp.or(
                             Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.IN.name())),
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.IN.name())),
                                     Exp.val(0)
                             ),
                             Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.OUT.name())),
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.OUT.name())),
                                     Exp.val(0)
                             )
                     ));

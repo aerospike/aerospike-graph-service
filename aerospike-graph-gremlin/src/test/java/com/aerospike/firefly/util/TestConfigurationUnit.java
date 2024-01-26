@@ -2,14 +2,10 @@ package com.aerospike.firefly.util;
 
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.Assert.*;
 

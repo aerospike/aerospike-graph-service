@@ -406,7 +406,7 @@ public class TestEdgeCacheIntegration {
             amount++;
             edges.next();
         }
-        Assert.assertEquals(amount, expected);
+        Assert.assertEquals(expected, amount);
     }
 
     private static class FireflyTestVertexes {

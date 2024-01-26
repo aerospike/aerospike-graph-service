@@ -5,7 +5,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,5 +42,12 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
     @Override
     protected String getOutVBinName() {
         return this.db.SUPERNODES_OUT_BIN;
+    }
+
+    @Override
+    protected boolean isEdgeAttachedToThisVertex(final Map.Entry<ByteBuffer, ?> phatEdgeIndividualEntry) {
+        // Vertex ID is a byte[] when from an index.
+        final byte[] vertexIdBytes = (byte[]) phatEdgeIndividualEntry.getValue();
+        return Arrays.equals(vertexIdBytes, this.vertexId.getKeyHash());
     }
 }

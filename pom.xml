@@ -44,10 +44,10 @@
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
         <firefly.version>2.0.0-SNAPSHOT</firefly.version>
-        <aerospike.version>7.0.0</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+        <aerospike-client.version>7.2.1</aerospike-client.version>
         <tinkerpop.version>3.7.1</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>

@@ -983,10 +983,10 @@ public class AerospikeConnection implements AutoCloseable {
         if (ADJACENCY_INDEX_ENABLED_FLAG) {
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
             createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                     E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                    IndexType.STRING, IndexCollectionType.MAPVALUES);
+                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
         }
 
         if (TTL_ENABLED_FLAG) {

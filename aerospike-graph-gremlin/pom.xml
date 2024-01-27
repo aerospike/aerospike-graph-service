@@ -14,7 +14,7 @@
         <dependency>
             <groupId>com.aerospike</groupId>
             <artifactId>aerospike-client-bc-jdk8</artifactId>
-            <version>${aerospike.version}</version>
+            <version>${aerospike-client.version}</version>
         </dependency>
         <!-- TINKERPOP -->
         <dependency>

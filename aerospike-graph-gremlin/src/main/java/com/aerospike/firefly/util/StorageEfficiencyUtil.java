@@ -3,10 +3,6 @@ package com.aerospike.firefly.util;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 
-import java.io.ByteArrayOutputStream;
-import java.util.Map;
-import java.util.UUID;
-
 public class StorageEfficiencyUtil {
 
     public static class StorageEfficiencyReport {

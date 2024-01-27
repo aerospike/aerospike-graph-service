@@ -915,7 +915,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final String binName = direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name();
             exp = Exp.build(
                     Exp.gt(
-                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(binName)),
+                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(binName)),
                             Exp.val(0)
                     ));
         } else {
@@ -923,11 +923,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             exp = Exp.build(
                     Exp.or(
                             Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.IN.name())),
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.IN.name())),
                                     Exp.val(0)
                             ),
                             Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHashBase64()), Exp.mapBin(Direction.OUT.name())),
+                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.OUT.name())),
                                     Exp.val(0)
                             )
                     ));
@@ -948,16 +948,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         final Iterator<KeyRecord> keyRecordIterator;
         if (direction == Direction.OUT) {
             keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
-                    IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy);
+                    IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else if (direction == Direction.IN) {
             keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
-                    IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy);
+                    IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else {
             return FireflyCloseableIteratorUtils.concat(
                     new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
+                            IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
                     new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHashBase64()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
+                            IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
         return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
     }

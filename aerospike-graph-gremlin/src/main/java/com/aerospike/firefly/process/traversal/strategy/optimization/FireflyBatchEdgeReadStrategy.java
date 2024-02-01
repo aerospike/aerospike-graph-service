@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
@@ -105,6 +106,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
 
 
             int sampleSize = -1;
+            long limitSize = -1;
 
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
@@ -175,21 +177,51 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     } catch (NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }
+                } else if (steps.get(index) instanceof RangeGlobalStep) {
+                    if (sampleSize != -1 || limitSize != -1) {
+                        // Already grabbed this, still looping to see if a HasStep is present, but we found this instead.
+                        break;
+                    }
+                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                        break;
+                    }
+
+                    final long low = ((RangeGlobalStep<?>) steps.get(index)).getLowRange();
+                    final long high = ((RangeGlobalStep<?>) steps.get(index)).getHighRange();
+
+                    if (low != 0) {
+                        break;
+                    }
+
+                    // Get the limit size.
+                    limitSize = high;
+
+                    // No need to add limit set since it's already there.
                 } else {
                     // Unknown step, break.
                     break;
                 }
             }
 
-            // Replace vertex step with composite id step.
-            traversal.addStep(index, new FireflyBatchEdgeReadStep(
-                    traversal,
-                    vertexStep.getDirection(),
-                    vertexStep.getEdgeLabels(),
-                    labels,
-                    hasContainers,
-                    sampleSize,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            if (limitSize != -1 || sampleSize != -1) {
+                traversal.addStep(index, new FireflyBatchEdgeSampleLimitReadStep(
+                        traversal,
+                        vertexStep.getDirection(),
+                        vertexStep.getEdgeLabels(),
+                        labels,
+                        hasContainers,
+                        sampleSize,
+                        limitSize,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            } else {
+                traversal.addStep(index, new FireflyBatchEdgeReadStep(
+                        traversal,
+                        vertexStep.getDirection(),
+                        vertexStep.getEdgeLabels(),
+                        labels,
+                        hasContainers,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            }
         }
     }
 }

@@ -89,9 +89,11 @@ public final class ConfigurationHelper {
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
         public static final String ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.embedded.enabled";
         public static final String ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = "aerospike.graph.strategy.composite.id.sampling.enabled";
+        public static final String ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = "aerospike.graph.strategy.composite.id.limit.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
+        public static final String ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = "aerospike.graph.strategy.batch.edge.read.limit.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
@@ -260,8 +262,10 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, "true");
+        put(Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "true");
+        put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");

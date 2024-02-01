@@ -111,6 +111,12 @@ import static com.aerospike.client.query.IndexType.STRING;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
+import static com.aerospike.firefly.structure.FireflyEdge.IN_V_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.LABEL_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_INDEX;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
@@ -495,54 +501,54 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                               final boolean outVSupernode) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
-        final Map<String, Object> data = new TreeMap<>();
+        final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
-        properties.forEach(prop -> {
-            final String key = prop.getKey();
-            final Object value = prop.getValue();
+        properties.forEach(property -> {
+            final String key = property.getKey();
+            final Object value = property.getValue();
             FireflyHelper.validatePropertyValue(value);
 
             if (value == null) {
-                data.remove(key);
+                propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
                 typeHints.put(key, getSupportedType(value));
-                data.put(key, value);
+                propertyMap.put(key, value);
             }
         });
 
+        final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+
         final List<Operation> operations = new ArrayList<>();
         // CREATE and UPDATE are both okay since this is idempotent.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Operation writeLabel = MapOperation.put(mapPolicy,db.LABEL_BIN,
-                Value.get(edgeId), Value.get(label));
-        operations.add(writeLabel);
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
 
-        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
-        operations.add(writeInV);
-        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
-        operations.add(writeOutV);
+        // Add label to Edge data.
+        edgeData.add(LABEL_INDEX, Value.get(label));
+        // Add IN and OUT to Edge data.
+        edgeData.add(IN_V_INDEX, Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
+        edgeData.add(OUT_V_INDEX, Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
-            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN_BIN,
+            final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
                     Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
-            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT_BIN,
+            final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
                     Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
             operations.add(writeOutVSupernode);
         }
 
-        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES_BIN,
-                Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
-        operations.add(writeProperties);
-        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS_BIN,
-                Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        operations.add(writeTypeHints);
+        // Add properties and type hints to Edge data.
+        edgeData.add(PROPERTIES_INDEX, Value.get(propertyMap));
+        edgeData.add(TYPE_HINTS_INDEX, Value.get(typeHints));
+
+        // Create Operation for writing Edge data.
+        final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+                Value.get(edgeId), Value.get(edgeData));
+        operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;

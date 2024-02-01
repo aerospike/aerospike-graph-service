@@ -584,19 +584,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         LOG.trace("Getting edge ids from vertex {}.", id);
         final List<FireflyId> edgeIds = new ArrayList<>();
 
-        if (!isEdgeCacheOverflowed) {
-            edgeIds.addAll(getCachedEdgeIds(direction, labels));
-        } else {
+        edgeIds.addAll(getCachedEdgeIds(direction, labels));
+        if (isEdgeCacheOverflowed) {
             edgeIds.addAll(getSupernodeEdgeIds(direction, labels));
-
-            // IMPORTANT NOTE:
-            //  Scan returns duplicates of the local cache so if we scanned (i.e if ADJACENCY_INDEX_ENABLED_FLAG is false),
-            //  do not add the local cache to the edgeIds list.
-            //  Meanwhile, index only returns the edge ids that are not in the local cache, so no duplicates.
-            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
-                edgeIds.addAll(getCachedEdgeIds(direction, labels));
-            }
         }
+
         return edgeIds;
     }
 
@@ -611,19 +603,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         LOG.trace("Getting vertex ids from vertex {}.", id);
         final List<FireflyId> vertexIds = new ArrayList<>();
 
-        if (!isEdgeCacheOverflowed) {
-            vertexIds.addAll(getCachedVertexIds(direction, labels));
-        } else {
+        vertexIds.addAll(getCachedVertexIds(direction, labels));
+        if (isEdgeCacheOverflowed) {
             vertexIds.addAll(getSupernodeVertexIds(direction, labels));
-
-            // IMPORTANT NOTE:
-            //  Scan returns duplicates of the local cache so if we scanned (i.e if ADJACENCY_INDEX_ENABLED_FLAG is false),
-            //  do not add the local cache to the vertexIds list.
-            //  Meanwhile, index only returns the vertex ids that are not in the local cache, so no duplicates.
-            if (graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
-                vertexIds.addAll(getCachedVertexIds(direction, labels));
-            }
         }
+
         return vertexIds;
     }
 
@@ -669,23 +653,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                            final Set<String> labels,
                                            final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType) {
         if (!this.isEdgeCacheOverflowed) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
         LOG.trace("Getting supernode edge ids from vertex {}.", id);
         final List<FireflyId> ids = new ArrayList<>();
-        if (!graph.getBaseGraph().ADJACENCY_INDEX_ENABLED_FLAG) {
-            // Worst case scenario, we have to scan. At this point we just bite the bullet, system is cheaping out on RAM
-            // so performance will suck.
-            getIdsFromVertexByScan(direction, labels, outputType).forEachRemaining(ids::add);
-        } else {
-            final Iterator<FireflyId> idIterator = getIdsFromVertexByIndex(direction, labels, outputType);
-            while (idIterator.hasNext()) {
-                try {
-                    ids.add(idIterator.next());
-                } catch (final NoSuchElementException e) {
-                    LOG.warn("Error getting supernode ids from vertex {}; this is likely from a concurrent removal.", id, e);
-                }
+        final Iterator<FireflyId> idIterator = getIdsFromVertexByIndex(direction, labels, outputType);
+        while (idIterator.hasNext()) {
+            try {
+                ids.add(idIterator.next());
+            } catch (final NoSuchElementException e) {
+                LOG.warn("Error getting supernode ids from vertex {}; this is likely from a concurrent removal.", id, e);
             }
         }
         return ids;
@@ -897,46 +875,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 FireflyCloseableIteratorUtils.filter(edgeIterator,
                         edge -> this.graph.graphComputerView.legalEdge(this, edge)) :
                 edgeIterator;
-    }
-
-    /**
-     * Get iterator of edge ids from vertex for specified Direction using a scan.
-     * public visibility for testing.
-     *
-     * @param direction Direction to scan.
-     * @return Iterator of edge ids.
-     */
-    public Iterator<FireflyId> getIdsFromVertexByScan(final Direction direction,
-                                                      final Set<String> labels,
-                                                      final FireflyPhatEdgeIdIteratorFromVertex.OutputType outputType) {
-        final Expression exp;
-        if (direction == Direction.OUT || direction == Direction.IN) {
-            // If direction is in or out, get that specific direction.
-            final String binName = direction == Direction.OUT ? Direction.OUT.name() : Direction.IN.name();
-            exp = Exp.build(
-                    Exp.gt(
-                            MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(binName)),
-                            Exp.val(0)
-                    ));
-        } else {
-            // If direction is both, we need to get in and out.
-            exp = Exp.build(
-                    Exp.or(
-                            Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.IN.name())),
-                                    Exp.val(0)
-                            ),
-                            Exp.gt(
-                                    MapExp.getByValue(MapReturnType.COUNT, Exp.val(this.id.getKeyHash()), Exp.mapBin(Direction.OUT.name())),
-                                    Exp.val(0)
-                            )
-                    ));
-        }
-        // Create scan policy, need bin data for this.
-        final ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = true;
-        final Iterator<KeyRecord> i = scanAllRecordsInSet(db.EDGE_AERO_SET, exp, policy);
-        return new FireflyPhatEdgeIdIteratorFromVertex(i, this.db, direction, this.id, labels, outputType);
     }
 
     protected Iterator<FireflyId> getIdsFromVertexByIndex(final Direction direction,

@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.EDGE_ID;
 import static com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex.OutputType.VERTEX_ID;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 public class SampleStrategyTest {
@@ -147,7 +146,6 @@ public class SampleStrategyTest {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
-        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "true");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
 
@@ -192,63 +190,12 @@ public class SampleStrategyTest {
         }
     }
 
-    @Test
-    public void testSupernodeVertexDirectWithoutAdjacencyIndex() {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
-        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
-        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "false");
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            final GraphTraversalSource g = graph.traversal();
-
-            loadSimpleSupernode(g);
-
-            final FireflyVertex supernode = (FireflyVertex) g.V().has("indexed", "value1").next();
-
-            final List<FireflyId> supernodeEdgeIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), EDGE_ID);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeEdgeIds.size());
-            Assert.assertFalse(supernodeEdgeIds.stream().anyMatch(Objects::isNull));
-
-            final List<FireflyEdge> supernodeEdges = graph.readEdges(List.of(), supernodeEdgeIds);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeEdges.size());
-            Assert.assertFalse(supernodeEdges.stream().anyMatch(Objects::isNull));
-
-            final List<FireflyId> supernodeVertexIds = supernode.getSupernodeIds(Direction.OUT, Set.of(), VERTEX_ID);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, supernodeVertexIds.size());
-            Assert.assertFalse(supernodeVertexIds.stream().anyMatch(Objects::isNull));
-
-            supernodeVertexIds.sort(Comparator.comparing(FireflyId::toString));
-            final List<FireflyVertex> supernodeVertices = graph.readVertices(List.of(), supernodeVertexIds);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE , supernodeVertices.size());
-            Assert.assertFalse(supernodeVertices.stream().anyMatch(Objects::isNull));
-
-            final List<FireflyId> allEdgeIds = supernode.getEdgeIdsFromVertex(Direction.OUT, Set.of());
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdgeIds.size());
-            Assert.assertFalse(allEdgeIds.stream().anyMatch(Objects::isNull));
-
-            final List<FireflyEdge> allEdges = graph.readEdges(List.of(), allEdgeIds);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allEdges.size());
-            Assert.assertFalse(allEdges.stream().anyMatch(Objects::isNull));
-
-            final List<FireflyId> allVertexIds = supernode.getVertexIdsFromVertex(Direction.OUT, Set.of());
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertexIds.size());
-            Assert.assertFalse(allVertexIds.stream().anyMatch(Objects::isNull));
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertexIds).size());
-
-            final List<FireflyVertex> allVertices = graph.readVertices(List.of(), allVertexIds);
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, allVertices.size());
-            Assert.assertFalse(allVertices.stream().anyMatch(Objects::isNull));
-            Assert.assertEquals(SUPERNODE_LOAD_SIZE, new HashSet<>(allVertices).size());
-        }
-    }
-
     // Add testing around has(..).sample(..) and sample(..).has(..)
     @Test
     public void testStrategyApplication(){
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
-        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "true");
 
 
         try (final FireflyGraph graph = FireflyGraph.open(config)) {

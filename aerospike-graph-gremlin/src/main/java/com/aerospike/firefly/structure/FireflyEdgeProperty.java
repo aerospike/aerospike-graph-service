@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_INDEX;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -47,15 +49,15 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
 
-        final Operation removeProperty = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
-        final Operation removeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey));
+        final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
+                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_INDEX));
+        final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
+                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_INDEX));
 
         try {
             edge.removePropertyFromCache(key());
             db.operate(null, key, removeProperty, removeTypeHint);
-        } catch (AerospikeException ae) {
+        } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case the key is
                 // the Phat Edge key and thus the key still exists.

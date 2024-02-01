@@ -171,7 +171,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_WRITE_MAX_RETRY;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
-    public final boolean ADJACENCY_INDEX_ENABLED_FLAG;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
@@ -188,6 +187,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean TTL_ENABLED_FLAG;
     public final boolean TTL_UPDATE_ANYTIME_FLAG;
     public final String TTL_BIN;
+    public final String EDGE_DATA_BIN;
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
     public final int TTL_PURGE_INTERVAL_SECONDS;
@@ -335,7 +335,6 @@ public class AerospikeConnection implements AutoCloseable {
 
         V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
         E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
-        ADJACENCY_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG, conf));
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf));
         SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
         SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
@@ -402,6 +401,7 @@ public class AerospikeConnection implements AutoCloseable {
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
         USAGE_STATS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USAGE_STATS_BIN.name(), conf);
+        EDGE_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_DATA_BIN.name(), conf);
 
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -553,7 +553,7 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.trace("Scanning {} ids.", setName);
         if (setName.equals(EDGE_AERO_SET)) {
             final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(readContext, null, new ScanPolicy(),
-                    this.LABEL_BIN);
+                    this.EDGE_DATA_BIN);
             return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
         } else {
             final Iterator<KeyRecord> i = scanAllKeysInSet(readContext, null);
@@ -980,14 +980,10 @@ public class AerospikeConnection implements AutoCloseable {
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
-        if (ADJACENCY_INDEX_ENABLED_FLAG) {
-            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
-            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
-        }
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
+                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
+                IndexType.BLOB, IndexCollectionType.MAPVALUES);
 
         if (TTL_ENABLED_FLAG) {
             createIndex(existingIndexes, setFromElementType(FireflyVertex.class),

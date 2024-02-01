@@ -1,6 +1,8 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeSampleLimitReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
@@ -143,6 +145,63 @@ public class SampleStrategyTest {
     }
 
     @Test
+    public void testLimitStrategy() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            loadSimpleSupernode(g);
+            final List<Vertex> vertices1 = g.V().has("indexed", "value1").out().limit(30).toList();
+            final List<Vertex> vertices2 = g.V().has("property1", "value1").in().limit(30).toList();
+            final List<Edge> edges1 = g.V().has("indexed", "value1").outE().limit(30).toList();
+            final List<Edge> edges2 = g.V().has("property1", "value1").inE().limit(30).toList();
+            Assert.assertEquals(30, vertices1.size());
+            Assert.assertEquals(30, vertices2.size());
+            Assert.assertEquals(30, edges1.size());
+            Assert.assertEquals(30, edges2.size());
+
+            final Set<Object> vertexIds1 = vertices1.stream().map(Element::id).collect(Collectors.toSet());
+            final Set<Object> vertexIds2 = vertices2.stream().map(Element::id).collect(Collectors.toSet());
+
+            // Graph structure is 1->many and many<-1 so this should hold true.
+            Assert.assertEquals(30, vertexIds1.size());
+            Assert.assertEquals(1, vertexIds2.size());
+
+            final Set<Object> edgeIds1 = edges1.stream().map(Element::id).collect(Collectors.toSet());
+            final Set<Object> edgeIds2 = edges2.stream().map(Element::id).collect(Collectors.toSet());
+
+            // Edges are unique.
+            Assert.assertEquals(30, edgeIds1.size());
+            Assert.assertEquals(30, edgeIds2.size());
+
+            final List<Vertex> vertices3 = g.V().has("property1", "value1").limit(30).in().limit(30).toList();
+            final List<Vertex> vertices4 = g.V().has("property1", "value1").limit(29).in().limit(30).toList();
+            final List<Vertex> vertices5 = g.V().has("property1", "value1").limit(31).in().limit(30).toList();
+            Assert.assertEquals(30, vertices3.size());
+            Assert.assertEquals(29, vertices4.size());
+            Assert.assertEquals(30, vertices5.size());
+
+            final List<Edge> edges3 = g.V().has("property1", "value1").limit(30).inE().limit(30).toList();
+            final List<Edge> edges4 = g.V().has("property1", "value1").limit(29).inE().limit(30).toList();
+            final List<Edge> edges5 = g.V().has("property1", "value1").limit(31).inE().limit(30).toList();
+            Assert.assertEquals(30, edges3.size());
+            Assert.assertEquals(29, edges4.size());
+            Assert.assertEquals(30, edges5.size());
+
+            final List<Vertex> allLeafVertex = g.V().has("indexed", "value1").out().limit(Integer.MAX_VALUE).out().limit(Integer.MAX_VALUE).toList();
+            Assert.assertEquals(LEAF_COUNT * SUPERNODE_LOAD_SIZE, allLeafVertex.size());
+            final Set<Vertex> allLeafVertexUnique = new HashSet<>(allLeafVertex);
+            Assert.assertEquals(LEAF_COUNT * SUPERNODE_LOAD_SIZE, allLeafVertexUnique.size());
+            for (final Vertex v : allLeafVertex) {
+                // Make sure they are all the leaf vertices.
+                Assert.assertEquals((Long) 0L, g.V(v.id()).out().count().next());
+            }
+        }
+    }
+
+    @Test
     public void testSupernodeVertexDirectWithAdjacencyIndex() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
@@ -242,9 +301,8 @@ public class SampleStrategyTest {
         }
     }
 
-    // Add testing around has(..).sample(..) and sample(..).has(..)
     @Test
-    public void testStrategyApplication(){
+    public void testStrategyApplicationSample(){
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
         config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
@@ -257,66 +315,159 @@ public class SampleStrategyTest {
             final GraphTraversal<Vertex, Vertex> traversalOutSample = g.V().out().sample(1);
             traversalOutSample.asAdmin().applyStrategies();
             List<Step> stepsOutSample = traversalOutSample.asAdmin().getSteps();
-            assertSteps(stepsOutSample, true, false, true);
+            assertStepsSample(stepsOutSample, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalOutHasSample = g.V().out().has("foo", "bar").sample(1);
             traversalOutHasSample.asAdmin().applyStrategies();
             List<Step> stepsOutHasSample = traversalOutHasSample.asAdmin().getSteps();
-            assertSteps(stepsOutHasSample, false, true, true);
+            assertStepsSample(stepsOutHasSample, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasOutSample = g.V().out().sample(1).has("foo", "bar");
             traversalHasOutSample.asAdmin().applyStrategies();
             List<Step> stepsHasOutSample = traversalHasOutSample.asAdmin().getSteps();
-            assertSteps(stepsHasOutSample, true, true, true);
+            assertStepsSample(stepsHasOutSample, true, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalInSample = g.V().in().sample(1);
             traversalInSample.asAdmin().applyStrategies();
             List<Step> stepsInSample = traversalInSample.asAdmin().getSteps();
-            assertSteps(stepsInSample, true, false, true);
+            assertStepsSample(stepsInSample, true, false, true);
 
             final GraphTraversal<Vertex, Vertex> traversalInHasSample = g.V().in().has("foo", "bar").sample(1);
             traversalInHasSample.asAdmin().applyStrategies();
             List<Step> stepsInHasSample = traversalInHasSample.asAdmin().getSteps();
-            assertSteps(stepsInHasSample, false, true, true);
+            assertStepsSample(stepsInHasSample, false, true, true);
 
             final GraphTraversal<Vertex, Vertex> traversalHasInSample = g.V().in().sample(1).has("foo", "bar");
             traversalHasInSample.asAdmin().applyStrategies();
             List<Step> stepsHasInSample = traversalHasInSample.asAdmin().getSteps();
-            assertSteps(stepsHasInSample, true, true, true);
+            assertStepsSample(stepsHasInSample, true, true, true);
 
             final GraphTraversal<Vertex, Edge> traversalOutESample = g.V().outE().sample(1);
             traversalOutESample.asAdmin().applyStrategies();
             List<Step> stepsOutESample = traversalOutESample.asAdmin().getSteps();
-            assertSteps(stepsOutESample, true, false, false);
+            assertStepsSample(stepsOutESample, true, false, false);
 
             final GraphTraversal<Vertex, Edge> traversalOutEHasSample = g.V().outE().has("foo", "bar").sample(1);
             traversalOutEHasSample.asAdmin().applyStrategies();
             List<Step> stepsOutEHasSample = traversalOutEHasSample.asAdmin().getSteps();
-            assertSteps(stepsOutEHasSample, false, true, false);
+            assertStepsSample(stepsOutEHasSample, false, true, false);
 
             final GraphTraversal<Vertex, Edge> traversalHasOutESample = g.V().outE().sample(1).has("foo", "bar");
             traversalHasOutESample.asAdmin().applyStrategies();
             List<Step> stepsHasOutESample = traversalHasOutESample.asAdmin().getSteps();
-            assertSteps(stepsHasOutESample, true, true, false);
+            assertStepsSample(stepsHasOutESample, true, true, false);
 
             final GraphTraversal<Vertex, Edge> traversalInESample = g.V().inE().sample(1);
             traversalInESample.asAdmin().applyStrategies();
             List<Step> stepsInESample = traversalInESample.asAdmin().getSteps();
-            assertSteps(stepsInESample, true, false, false);
+            assertStepsSample(stepsInESample, true, false, false);
 
             final GraphTraversal<Vertex, Edge> traversalInEHasSample = g.V().inE().has("foo", "bar").sample(1);
             traversalInEHasSample.asAdmin().applyStrategies();
             List<Step> stepsInEHasSample = traversalInEHasSample.asAdmin().getSteps();
-            assertSteps(stepsInEHasSample, false, true, false);
+            assertStepsSample(stepsInEHasSample, false, true, false);
 
             final GraphTraversal<Vertex, Edge> traversalHasInESample = g.V().inE().sample(1).has("foo", "bar");
             traversalHasInESample.asAdmin().applyStrategies();
             List<Step> stepsHasInESample = traversalHasInESample.asAdmin().getSteps();
-            assertSteps(stepsHasInESample, true, true, false);
+            assertStepsSample(stepsHasInESample, true, true, false);
         }
     }
 
-    public void assertSteps(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
+    @Test
+    public void testStrategyApplicationLimit(){
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        config.setProperty("aerospike.graph.index.vertex.properties", "indexed");
+        config.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), RECORD_LIMIT);
+        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG.toLowerCase(), "true");
+
+
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+
+            final GraphTraversal<Vertex, Vertex> traversalOutLimit = g.V().out().limit(1);
+            traversalOutLimit.asAdmin().applyStrategies();
+            List<Step> stepsOutLimit = traversalOutLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsOutLimit, true, false, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalOutHasLimit = g.V().out().has("foo", "bar").limit(1);
+            traversalOutHasLimit.asAdmin().applyStrategies();
+            List<Step> stepsOutHasLimit = traversalOutHasLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsOutHasLimit, false, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalHasOutLimit = g.V().out().limit(1).has("foo", "bar");
+            traversalHasOutLimit.asAdmin().applyStrategies();
+            List<Step> stepsHasOutLimit = traversalHasOutLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsHasOutLimit, true, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalInLimit = g.V().in().limit(1);
+            traversalInLimit.asAdmin().applyStrategies();
+            List<Step> stepsInLimit = traversalInLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsInLimit, true, false, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalInHasLimit = g.V().in().has("foo", "bar").limit(1);
+            traversalInHasLimit.asAdmin().applyStrategies();
+            List<Step> stepsInHasLimit = traversalInHasLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsInHasLimit, false, true, true);
+
+            final GraphTraversal<Vertex, Vertex> traversalHasInLimit = g.V().in().limit(1).has("foo", "bar");
+            traversalHasInLimit.asAdmin().applyStrategies();
+            List<Step> stepsHasInLimit = traversalHasInLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsHasInLimit, true, true, true);
+
+            final GraphTraversal<Vertex, Edge> traversalOutELimit = g.V().outE().limit(1);
+            traversalOutELimit.asAdmin().applyStrategies();
+            List<Step> stepsOutELimit = traversalOutELimit.asAdmin().getSteps();
+            assertStepsLimit(stepsOutELimit, true, false, false);
+
+            final GraphTraversal<Vertex, Edge> traversalOutEHasLimit = g.V().outE().has("foo", "bar").limit(1);
+            traversalOutEHasLimit.asAdmin().applyStrategies();
+            List<Step> stepsOutEHasLimit = traversalOutEHasLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsOutEHasLimit, false, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalHasOutELimit = g.V().outE().limit(1).has("foo", "bar");
+            traversalHasOutELimit.asAdmin().applyStrategies();
+            List<Step> stepsHasOutELimit = traversalHasOutELimit.asAdmin().getSteps();
+            assertStepsLimit(stepsHasOutELimit, true, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalInELimit = g.V().inE().limit(1);
+            traversalInELimit.asAdmin().applyStrategies();
+            List<Step> stepsInELimit = traversalInELimit.asAdmin().getSteps();
+            assertStepsLimit(stepsInELimit, true, false, false);
+
+            final GraphTraversal<Vertex, Edge> traversalInEHasLimit = g.V().inE().has("foo", "bar").limit(1);
+            traversalInEHasLimit.asAdmin().applyStrategies();
+            List<Step> stepsInEHasLimit = traversalInEHasLimit.asAdmin().getSteps();
+            assertStepsLimit(stepsInEHasLimit, false, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalHasInELimit = g.V().inE().limit(1).has("foo", "bar");
+            traversalHasInELimit.asAdmin().applyStrategies();
+            List<Step> stepsHasInELimit = traversalHasInELimit.asAdmin().getSteps();
+            assertStepsLimit(stepsHasInELimit, true, true, false);
+
+            final GraphTraversal<Vertex, Edge> traversalHasInESkip = g.V().inE().skip(1).has("foo", "bar");
+            traversalHasInESkip.asAdmin().applyStrategies();
+            List<Step> stepsHasInELimitSkip = traversalHasInESkip.asAdmin().getSteps();
+
+            // Doesn't apply with skip(). (This is required since it is also a RangeGlobalStep with limit()).
+            Assert.assertTrue(stepsHasInELimitSkip.get(0) instanceof FireflyGraphStep);
+            Assert.assertTrue(stepsHasInELimitSkip.get(1) instanceof FireflyBatchEdgeReadStep);
+            Assert.assertTrue(stepsHasInELimitSkip.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(stepsHasInELimitSkip.get(3) instanceof HasStep);
+
+            final GraphTraversal<Vertex, Vertex> traversalHasInSkip = g.V().in().skip(1).has("foo", "bar");
+            traversalHasInSkip.asAdmin().applyStrategies();
+            List<Step> stepsHasInLimitSkip = traversalHasInSkip.asAdmin().getSteps();
+
+            // Doesn't apply with skip(). (This is required since it is also a RangeGlobalStep with limit()).
+            Assert.assertTrue(stepsHasInLimitSkip.get(0) instanceof FireflyGraphStep);
+            Assert.assertTrue(stepsHasInLimitSkip.get(1) instanceof FireflyCompositeIdStep);
+            Assert.assertTrue(stepsHasInLimitSkip.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(stepsHasInLimitSkip.get(3) instanceof HasStep);
+        }
+    }
+
+    public void assertStepsSample(List<Step> steps, final boolean sampleFirst, final boolean hasHas, final boolean isVertex) {
         if (!hasHas) {
             // Graph step, composite id step, limit step, cache step.
             Assert.assertEquals(4, steps.size());
@@ -336,9 +487,51 @@ public class SampleStrategyTest {
         }
         Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
         if (isVertex) {
-            Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+            if (sampleFirst) {
+                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdLimitSampleStep);
+            } else {
+                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+            }
         } else {
-            Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
+            if (sampleFirst) {
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeSampleLimitReadStep);
+            } else {
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
+            }
+        }
+    }
+
+    public void assertStepsLimit(List<Step> steps, final boolean limitFirst, final boolean hasHas, final boolean isVertex) {
+        if (!hasHas) {
+            // Graph step, composite id step, limit step, cache step.
+            Assert.assertEquals(4, steps.size());
+            Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
+        } else if (!limitFirst) {
+            Assert.assertEquals(4, steps.size());
+            // Graph step, composite id step, limit step, has step, cache step.
+            Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
+        } else {
+            // Graph step, composite id step, has step, sample step, cache step.
+            Assert.assertEquals(5, steps.size());
+            Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
+            Assert.assertTrue(steps.get(3) instanceof HasStep);
+            Assert.assertTrue(steps.get(4) instanceof FireflyCacheGCStep);
+        }
+        Assert.assertTrue(steps.get(0) instanceof FireflyGraphStep);
+        if (isVertex) {
+            if (limitFirst) {
+                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdLimitSampleStep);
+            } else {
+                Assert.assertTrue(steps.get(1) instanceof FireflyCompositeIdStep);
+            }
+        } else {
+            if (limitFirst) {
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeSampleLimitReadStep);
+            } else {
+                Assert.assertTrue(steps.get(1) instanceof FireflyBatchEdgeReadStep);
+            }
         }
     }
 }

@@ -1574,6 +1574,30 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public void createIndexBackground(
+            final List<String> existingIndexes,
+            final String set,
+            final String indexName,
+            final String binName,
+            final String keyName,
+            final IndexType type,
+            final IndexCollectionType indexCollectionType
+    ) {
+        if (existingIndexes.contains(indexName)) {
+            throw new RuntimeException("Index " + indexName + " already exists");
+        } else {
+            LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
+        }
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        if (keyName != null) {
+            final CTX ctx = CTX.mapKey(Value.get(keyName));
+            client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
+        } else {
+            client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
+        }
+    }
+
     public String getVpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, VP_INDEX_PREFIX);
     }
@@ -1602,8 +1626,6 @@ public class AerospikeConnection implements AutoCloseable {
             final IndexType type,
             final IndexCollectionType indexCollectionType
     ) {
-        if (set.contains(WarmupUtil.getWarmupArenaName()))
-            return;
         if (existingIndexes.contains(indexName)) {
             LOG.debug("Index {} already exists", indexName);
             return;

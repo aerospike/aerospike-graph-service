@@ -181,6 +181,14 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
         }
     }
 
+    public List<String> getVertexPropertyIndexes() {
+        return vertexStringPropertyCardinalityInfo.stream().map(cardinalityInfo -> cardinalityInfo.property).collect(Collectors.toList());
+    }
+
+    public boolean getVertexLabelIndexExists() {
+        return vertexLabelCardinalityInfo != null;
+    }
+
     private Long getValue(final String info, final String pattern) {
         for (final String s : info.split(";")) {
             if (s.startsWith(pattern)) {
@@ -211,6 +219,14 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
             this.totalEntries = totalEntries;
             this.entriesPerBval = entriesPerBval;
             this.property = property;
+        }
+
+        public Long getCardinality() {
+            if (!valid || totalEntries == null || entriesPerBval == null) {
+                return null;
+            }
+            // Entries per bval = total entries / cardinality.
+            return totalEntries / entriesPerBval;
         }
     }
 }

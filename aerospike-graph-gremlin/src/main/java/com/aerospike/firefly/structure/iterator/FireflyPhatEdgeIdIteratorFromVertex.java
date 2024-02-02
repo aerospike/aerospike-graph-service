@@ -18,9 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.aerospike.firefly.structure.FireflyEdge.IN_V_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.LABEL_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
 
 /**
  * @author Simon Zhao (<a href="https://www.linkedin.com/in/simonthezhao/</a>)
@@ -68,9 +68,9 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         if (this.direction == Direction.OUT || this.direction == Direction.BOTH) {
             final Set<ByteBuffer> outEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.OUT);
             for (final ByteBuffer edgeId : outEdgeIds) {
-                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_INDEX))) {
+                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        final byte[] vertexId = (byte[]) edgeIdToData.get(edgeId).get(IN_V_INDEX);
+                        final byte[] vertexId = (byte[]) edgeIdToData.get(edgeId).get(IN_V_POSITION);
                         outputIds.add(vertexId);
                     } else {
                         outputIds.add(edgeId);
@@ -82,9 +82,9 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
         if (this.direction == Direction.IN || this.direction == Direction.BOTH) {
             final Set<ByteBuffer> inEdgeIds = getIndividualEdgeIdsAttachedToVertex(record, Direction.IN);
             for (final ByteBuffer edgeId : inEdgeIds) {
-                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_INDEX))) {
+                if (labels.isEmpty() || labels.contains((String) edgeIdToData.get(edgeId).get(LABEL_POSITION))) {
                     if (outputType == OutputType.VERTEX_ID) {
-                        final byte[] vertexId = (byte[]) edgeIdToData.get(edgeId).get(OUT_V_INDEX);
+                        final byte[] vertexId = (byte[]) edgeIdToData.get(edgeId).get(OUT_V_POSITION);
                         outputIds.add(vertexId);
                     } else {
                         outputIds.add(edgeId);
@@ -102,7 +102,7 @@ public class FireflyPhatEdgeIdIteratorFromVertex extends FireflyPhatEdgeIdIterat
             // Direction.BOTH should not be propagated here and should be combined at a higher level.
             throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
         } else {
-            directionIndex = direction == Direction.OUT ? OUT_V_INDEX : IN_V_INDEX;
+            directionIndex = direction == Direction.OUT ? OUT_V_POSITION : IN_V_POSITION;
         }
 
         final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();

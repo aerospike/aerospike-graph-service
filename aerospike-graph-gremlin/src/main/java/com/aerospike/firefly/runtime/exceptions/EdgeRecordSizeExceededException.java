@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 
 public class EdgeRecordSizeExceededException extends RuntimeException {
     private static final String ADD_EDGE_BASE_MESSAGE = "Record size exceeded for Edge pack when attempting to add Edge with ID %s";
@@ -52,7 +52,7 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
         final Map<?, List<?>> allEdgeData = (Map<?, List<?>>) db.operate(null, key, getEdgeData).getMap(db.EDGE_DATA_BIN);
         final Map<Object, Map<?, ?>> edgeIdToProperties = new HashMap<>();
         for (final Map.Entry<?, List<?>> edgeData : allEdgeData.entrySet()) {
-            edgeIdToProperties.put(edgeData.getKey(), (Map<?, ?>) edgeData.getValue().get(PROPERTIES_INDEX));
+            edgeIdToProperties.put(edgeData.getKey(), (Map<?, ?>) edgeData.getValue().get(PROPERTIES_POSITION));
         }
         return edgeIdToProperties;
     }

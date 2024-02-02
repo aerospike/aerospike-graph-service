@@ -13,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
@@ -50,9 +50,9 @@ public class FireflyEdgeProperty<V> extends FireflyProperty<V> {
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
 
         final Operation removeProperty = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_INDEX));
+                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
         final Operation removeTypeHint = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(key()),
-                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_INDEX));
+                MapReturnType.NONE, CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
 
         try {
             edge.removePropertyFromCache(key());

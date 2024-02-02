@@ -65,11 +65,13 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  */
 public class FireflyEdge extends FireflyElement implements Edge {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyEdge.class);
-    public static final int LABEL_INDEX = 0;
-    public static final int IN_V_INDEX = 1;
-    public static final int OUT_V_INDEX = 2;
-    public static final int PROPERTIES_INDEX = 3;
-    public static final int TYPE_HINTS_INDEX = 4;
+    // Individual edges' data are stored in a List within the phat edge.
+    // These are the indexes in the List for where each value is stored.
+    public static final int LABEL_POSITION = 0;
+    public static final int IN_V_POSITION = 1;
+    public static final int OUT_V_POSITION = 2;
+    public static final int PROPERTIES_POSITION = 3;
+    public static final int TYPE_HINTS_POSITION = 4;
     public static final int EDGE_DATA_SIZE = 5;
 
     protected final AerospikeConnection db;
@@ -146,10 +148,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
 
         // Add label to Edge data.
-        edgeData.add(LABEL_INDEX, Value.get(label));
+        edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_INDEX, Value.get(inVertex.id.getKeyHash()));
-        edgeData.add(OUT_V_INDEX, Value.get(outVertex.id.getKeyHash()));
+        edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getKeyHash()));
+        edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHash()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (!inVertexCacheWrite) {
@@ -189,8 +191,8 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
 
         // Add properties and type hints to Edge data.
-        edgeData.add(PROPERTIES_INDEX, Value.get(propertyMap));
-        edgeData.add(TYPE_HINTS_INDEX, Value.get(typeHints));
+        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
 
         // Create Operation for writing Edge data.
         final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
@@ -294,7 +296,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 // If this Edge was already removed edgeData returns null and this check returns false.
                 if (edgeData instanceof List) {
                     graph.edgeIdManager.recycleId(edgeId);
-                    final String label = (String) ((List<?>) edgeData).get(LABEL_INDEX);
+                    final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
                     graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
                 } else if (edgeData != null) {
                     // This should never happen.
@@ -494,15 +496,15 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         // the property key if a null value is given.
         if (value == null) {
             valueOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_INDEX));
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
             typeHintOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_INDEX));
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_INDEX));
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
             typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
-                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_INDEX));
+                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
         }
 
         final WritePolicy writePolicy = new WritePolicy();
@@ -614,16 +616,16 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             if (!edgeData.containsKey(edgeIdMapKey)) {
                 return null;
             }
-            final String label = (String) edgeData.get(edgeIdMapKey).get(LABEL_INDEX);
+            final String label = (String) edgeData.get(edgeIdMapKey).get(LABEL_POSITION);
 
-            final byte[] outVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(OUT_V_INDEX);
+            final byte[] outVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(OUT_V_POSITION);
             final FireflyId outVertex = FireflyIdPoly.fromHash(outVBytes, db.VERTEX_AERO_SET);
 
-            final byte[] inVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(IN_V_INDEX);
+            final byte[] inVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(IN_V_POSITION);
             final FireflyId inVertex = FireflyIdPoly.fromHash(inVBytes, db.VERTEX_AERO_SET);
 
-            final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(PROPERTIES_INDEX);
-            final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(TYPE_HINTS_INDEX);
+            final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(PROPERTIES_POSITION);
+            final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(TYPE_HINTS_POSITION);
 
             return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }

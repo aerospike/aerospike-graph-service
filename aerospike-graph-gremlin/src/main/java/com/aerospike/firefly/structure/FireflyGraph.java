@@ -112,11 +112,11 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedVa
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
-import static com.aerospike.firefly.structure.FireflyEdge.IN_V_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.LABEL_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_INDEX;
-import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_INDEX;
+import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
@@ -524,10 +524,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
 
         // Add label to Edge data.
-        edgeData.add(LABEL_INDEX, Value.get(label));
+        edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_INDEX, Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
-        edgeData.add(OUT_V_INDEX, Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
+        edgeData.add(IN_V_POSITION, Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
+        edgeData.add(OUT_V_POSITION, Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
@@ -542,8 +542,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         // Add properties and type hints to Edge data.
-        edgeData.add(PROPERTIES_INDEX, Value.get(propertyMap));
-        edgeData.add(TYPE_HINTS_INDEX, Value.get(typeHints));
+        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
 
         // Create Operation for writing Edge data.
         final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,

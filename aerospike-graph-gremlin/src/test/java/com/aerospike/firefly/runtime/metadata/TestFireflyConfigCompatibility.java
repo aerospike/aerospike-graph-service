@@ -13,8 +13,8 @@ import org.junit.Test;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.DEBUG_MODE_FLAG;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.FIREFLY_DATA_MODEL;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.PHAT_EDGE_SIZE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG;
@@ -48,7 +48,7 @@ public class TestFireflyConfigCompatibility {
     @Test
     public void testToggleMutableConfig() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty(ADJACENCY_INDEX_ENABLED_FLAG, "false");
+        config.setProperty(ENABLE_FIREFLY_DROP_STRATEGY, "false");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = graph.traversal();
             Assert.assertEquals(1, (long) g.V().hasLabel("first").out().count().next());

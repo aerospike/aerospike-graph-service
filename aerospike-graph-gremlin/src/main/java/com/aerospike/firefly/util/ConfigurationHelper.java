@@ -61,7 +61,6 @@ public final class ConfigurationHelper {
 
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
-        public static final String ADJACENCY_INDEX_ENABLED_FLAG = "aerospike.graph.index.adjacency.enabled";
         public static final String V_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.vertex.label.enabled";
         public static final String E_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.edge.label.enabled";
         public static final String SUMMARY_ENABLED_FLAG = "aerospike.graph.summary.enabled";
@@ -161,7 +160,8 @@ public final class ConfigurationHelper {
             OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
-            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
+            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
 
             private final Pair value;
 
@@ -279,7 +279,6 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
-        put(Keys.ADJACENCY_INDEX_ENABLED_FLAG, "true");
         put(Keys.PROMETHEUS_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");

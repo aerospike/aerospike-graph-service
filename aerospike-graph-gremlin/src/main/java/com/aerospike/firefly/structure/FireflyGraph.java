@@ -99,6 +99,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -112,6 +113,7 @@ import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedVa
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
@@ -286,10 +288,23 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf))) {
+                // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
+                // works initializing.
+                final Random random = new Random();
+                try {
+                    Thread.sleep(random.nextInt(1000));
+                } catch (final InterruptedException ignored) {
+                    // Propagate the interrupt but ignore it for the context of the sleep.
+                    Thread.currentThread().interrupt();
+                }
+            }
+
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             // Only start healthcheck server if bulk loader is not present in configuration
-            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf)))
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf)))
                 FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {

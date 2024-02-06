@@ -1611,6 +1611,9 @@ public class AerospikeConnection implements AutoCloseable {
             final boolean errorOnDuplicate,
             final CTX... ctx
     ) {
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
+            return;
+
         if (existingIndexes.contains(indexName)) {
             if (errorOnDuplicate) {
                 throw new RuntimeException("Index " + indexName + " already exists");

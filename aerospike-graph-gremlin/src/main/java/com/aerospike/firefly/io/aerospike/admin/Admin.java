@@ -87,7 +87,7 @@ public class Admin {
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
                     formattedIndex + "_" + STRING,
-                    firefly.getBaseGraph().LABEL_BIN,
+                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                     key,
                     STRING,
                     IndexCollectionType.DEFAULT,
@@ -96,7 +96,7 @@ public class Admin {
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
                     formattedIndex + "_" + NUMERIC,
-                    firefly.getBaseGraph().LABEL_BIN,
+                    firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                     key,
                     NUMERIC,
                     IndexCollectionType.DEFAULT,
@@ -117,15 +117,6 @@ public class Admin {
             return AerospikeConnection.InfoOps.
                     listExistingIndexes(firefly.getBaseGraph().getClient(), firefly.getBaseGraph().getNamespace()).
                     stream().map(Map.Entry::getKey).collect(Collectors.toList());
-        }
-
-        private static <A> boolean checkExists(final FireflyGraph firefly, final String indexName, final AdminContext<A> adminContext) {
-            try {
-                getIndexStatus(firefly, indexName, adminContext);
-                return true;
-            } catch (final IllegalStateException ignored) {
-                return false;
-            }
         }
 
         public <A> I createVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {

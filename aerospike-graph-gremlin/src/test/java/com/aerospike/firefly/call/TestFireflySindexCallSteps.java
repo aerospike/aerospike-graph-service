@@ -164,14 +164,13 @@ public class TestFireflySindexCallSteps {
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
             }
-            final Object l = g.call("aerospike.graph.admin.index.list").next();
             try {
-                Thread.sleep(10000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
             final Map<String, Long> cardinality = (Map<String, Long>) g.call("aerospike.graph.admin.index.cardinality").next();
-            // Cant really do anything here. Unfortunately this data lags behind the actual data by quite a while.
+            Assert.assertEquals(Long.valueOf(INSERT_COUNT), cardinality.get("nameA"));
         }
     }
 

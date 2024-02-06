@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static org.junit.Assert.fail;
@@ -90,12 +89,7 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
-            for (final String s : initialSindexes) {
-                g.call("aerospike.graph.admin.index.drop").
-                        with("property_key", s).
-                        with("element_type", "vertex").next();
-            }
+            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
             final List<String> indexesAfterDrop = (List<String>) g.call("aerospike.graph.admin.index.list").next();
             Assert.assertTrue(indexesAfterDrop.isEmpty());
             g.call("aerospike.graph.admin.index.create").
@@ -164,11 +158,6 @@ public class TestFireflySindexCallSteps {
                         with("property_key", "nameB").
                         with("element_type", "vertex").next();
             }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
             final Map<String, Long> cardinality = (Map<String, Long>) g.call("aerospike.graph.admin.index.cardinality").next();
             Assert.assertEquals(Long.valueOf(INSERT_COUNT), cardinality.get("nameA"));
         }
@@ -179,16 +168,24 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
-            for (final String s : initialSindexes) {
-                g.call("aerospike.graph.admin.index.drop").
-                        with("property_key", s).
-                        with("element_type", "vertex").next();
-            }
+            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").
                     with("element_type", "vertex").next();
+            Map<String, Long> nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                    with("property_key", "nameA").
+                    with("element_type", "vertex").next();
+            while (nameAStatus.get("percent_complete") < 100) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                nameAStatus = (Map<String, Long>) g.call("aerospike.graph.admin.index.status").
+                        with("property_key", "nameA").
+                        with("element_type", "vertex").next();
+            }
             Assert.assertEquals(Set.of("nameA"), new HashSet<>(((List<String>) g.call("aerospike.graph.admin.index.list").next())));
             g.call("aerospike.graph.admin.index.drop").
                     with("property_key", "nameA").
@@ -202,12 +199,7 @@ public class TestFireflySindexCallSteps {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
             final GraphTraversalSource g = fireflyGraph.traversal();
-            final List<String> initialSindexes = (List<String>) g.call("aerospike.graph.admin.index.list").next();
-            for (final String s : initialSindexes) {
-                g.call("aerospike.graph.admin.index.drop").
-                        with("property_key", s).
-                        with("element_type", "vertex").next();
-            }
+            fireflyGraph.getBaseGraph().dropGraphIndices(fireflyGraph);
             Assert.assertTrue(((List<String>) g.call("aerospike.graph.admin.index.list").next()).isEmpty());
             g.call("aerospike.graph.admin.index.create").
                     with("property_key", "nameA").

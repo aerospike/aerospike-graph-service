@@ -1,6 +1,8 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
 import com.aerospike.client.Info;
+import com.aerospike.client.Value;
+import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.query.IndexCollectionType;
@@ -10,6 +12,7 @@ import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,33 +22,51 @@ import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
-
     public static final Index index = new Index();
 
     public static class Index<I> {
         public <A> I getIndexList(final FireflyGraph firefly, final AdminContext<A> adminContext) {
             try {
                 // Manually force an update.
+                firefly.fireflyIndexMetadata.updateMetadata();
                 firefly.fireflyCardinalityMetadata.updateMetadata();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return (I) ("Failed to update index information. " + e.getMessage());
             }
 
             final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
+
+            final List<String> validVertexPropertyIndexes = new ArrayList<>();
+            for (final String index : vertexPropertyIndexes) {
+                try {
+                    final Map<String, Long> indexInfo = (Map<String, Long>) getStatusVertexPropertyIndex(firefly, index, adminContext);
+                    if (indexInfo.get("percent_complete") == 100L) {
+                        validVertexPropertyIndexes.add(index);
+                    }
+                } catch (final IllegalStateException ignored) {
+                    // Do nothing.
+                }
+            }
+
             final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
-            if (vertexLabelIndex) {
-                vertexPropertyIndexes.add("vertex.~label");
+            try {
+                if (vertexLabelIndex && getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME, adminContext).get("percent_complete") == 100L) {
+                    validVertexPropertyIndexes.add("vertex.~label");
+                }
+            } catch (final IllegalStateException ignored) {
+                // Do nothing.
             }
 
             // Return as a list so it can be used programatically.
-            return (I) vertexPropertyIndexes;
+            return (I) validVertexPropertyIndexes;
         }
 
         public <A> I getIndexCardinality(final FireflyGraph firefly, final AdminContext<A> adminContext) {
             try {
                 // Manually force an update.
+                firefly.fireflyIndexMetadata.updateMetadata();
                 firefly.fireflyCardinalityMetadata.updateMetadata();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return (I) ("Failed to update index information. " + e.getMessage());
             }
 
@@ -88,19 +109,19 @@ public class Admin {
                     set,
                     formattedIndex + "_" + STRING,
                     firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    key,
                     STRING,
                     IndexCollectionType.DEFAULT,
-                    true);
+                    true,
+                    CTX.mapKey(Value.get(key)));
             formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
             firefly.getBaseGraph().createIndexBackground(existingIndexes,
                     set,
                     formattedIndex + "_" + NUMERIC,
                     firefly.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
-                    key,
                     NUMERIC,
                     IndexCollectionType.DEFAULT,
-                    true);
+                    true,
+                    CTX.mapKey(Value.get(key)));
             return (I) ("Vertex index creation of property key '" + key + "' in progress.");
         }
 
@@ -127,11 +148,10 @@ public class Admin {
                         set,
                         firefly.getBaseGraph().V_LABEL_INDEX_NAME,
                         firefly.getBaseGraph().LABEL_BIN,
-                        null, // keyName is null for label, as this is the key for properties.
                         IndexType.STRING,
                         IndexCollectionType.DEFAULT,
                         true);
-            } catch (RuntimeException e) {
+            } catch (final RuntimeException e) {
                 // Note this is something like: "Index __ already exists".
                 return (I) e.getMessage();
             }

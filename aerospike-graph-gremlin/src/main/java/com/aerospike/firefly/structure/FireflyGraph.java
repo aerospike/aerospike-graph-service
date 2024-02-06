@@ -1150,9 +1150,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", prefix, index);
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, index, STRING, IndexCollectionType.DEFAULT, false);
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
             db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, index, NUMERIC, IndexCollectionType.DEFAULT, false);
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
         }
 
         // Manually force metadata to update.

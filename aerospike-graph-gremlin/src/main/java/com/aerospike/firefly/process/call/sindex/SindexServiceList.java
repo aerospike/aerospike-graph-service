@@ -3,7 +3,7 @@ package com.aerospike.firefly.process.call.sindex;
 import com.aerospike.firefly.io.aerospike.admin.Admin;
 import com.aerospike.firefly.structure.FireflyGraph;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
 // Used as g.call("aerospike.graph.admin.index.list").next();
@@ -21,7 +21,7 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
     @Override
     protected Map<String, String> getParamDescription() {
         // No parameters.
-        return new HashMap<>();
+        return Collections.emptyMap();
     }
 
     @Override

@@ -1007,7 +1007,7 @@ public class AerospikeConnection implements AutoCloseable {
         // Create label index in background.
         if (V_LABEL_INDEX_ENABLED_FLAG) {
             createIndexBackground(existingIndexes, setFromElementType(FireflyVertex.class),
-                    V_LABEL_INDEX_NAME, LABEL_BIN, null, IndexType.STRING, IndexCollectionType.DEFAULT, false);
+                    V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT, false);
         }
         if (E_LABEL_INDEX_ENABLED_FLAG) {
             // TODO GRAPH-438: Edge indexes.
@@ -1020,8 +1020,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropGraphIndices(final FireflyGraph graph) {
         LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), E_IN_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
@@ -1608,10 +1606,10 @@ public class AerospikeConnection implements AutoCloseable {
             final String set,
             final String indexName,
             final String binName,
-            final String keyName,
             final IndexType type,
             final IndexCollectionType indexCollectionType,
-            final boolean errorOnDuplicate
+            final boolean errorOnDuplicate,
+            final CTX... ctx
     ) {
         if (existingIndexes.contains(indexName)) {
             if (errorOnDuplicate) {
@@ -1625,12 +1623,7 @@ public class AerospikeConnection implements AutoCloseable {
 
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
-        if (keyName != null) {
-            final CTX ctx = CTX.mapKey(Value.get(keyName));
-            client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
-        } else {
-            client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType);
-        }
+        client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
     }
 
     public String getVpIndexPrefix() {

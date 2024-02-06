@@ -1536,6 +1536,28 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Drop an Aerospike Index.
+     *
+     * @param set       Set name
+     * @param indexName Index name
+     */
+    public void dropIndexBackground(final String set, final String indexName) {
+        LOG.debug("Dropping index {}:{}.", set, indexName);
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            client.dropIndex(policy, namespace, set, indexName);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
+            if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+    /**
      * Create an Aerospike Index for a specific key and value type in the key-value pair map of properties.
      *
      * @param existingIndexes
@@ -1581,13 +1603,19 @@ public class AerospikeConnection implements AutoCloseable {
             final String binName,
             final String keyName,
             final IndexType type,
-            final IndexCollectionType indexCollectionType
+            final IndexCollectionType indexCollectionType,
+            final boolean errorOnDuplicate
     ) {
         if (existingIndexes.contains(indexName)) {
-            throw new RuntimeException("Index " + indexName + " already exists");
-        } else {
-            LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
+            if (errorOnDuplicate) {
+                throw new RuntimeException("Index " + indexName + " already exists");
+            } else {
+                LOG.debug("Index {} already exists", indexName);
+                return;
+            }
         }
+        LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
+
         final Policy policy = new Policy();
         policy.socketTimeout = 0; // Do not timeout on index create.
         if (keyName != null) {

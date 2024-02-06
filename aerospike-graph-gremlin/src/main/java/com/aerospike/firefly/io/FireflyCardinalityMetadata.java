@@ -226,6 +226,9 @@ public class FireflyCardinalityMetadata implements FireflyMetadata {
                 return null;
             }
             // Entries per bval = total entries / cardinality.
+            if (entriesPerBval == 0) {
+                return 0L;
+            }
             return totalEntries / entriesPerBval;
         }
     }

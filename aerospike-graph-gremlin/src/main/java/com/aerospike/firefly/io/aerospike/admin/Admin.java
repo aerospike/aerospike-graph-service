@@ -1,204 +1,233 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
+import com.aerospike.client.Info;
+import com.aerospike.client.cluster.Node;
+import com.aerospike.client.policy.InfoPolicy;
+import com.aerospike.client.query.IndexCollectionType;
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.admin.services.AdminSindexServicePlugin;
+import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.FireflyVertex;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+import static com.aerospike.client.query.IndexType.NUMERIC;
+import static com.aerospike.client.query.IndexType.STRING;
 
 public class Admin {
 
-    public static void registerAdministrativeServices(final FireflyGraph firefly) {
-        firefly.getServiceRegistry().registerService(new AdminSindexServicePlugin(firefly));
-    }
+    public static final Index index = new Index();
 
-    public static Map<UUID, Operation> operations = new ConcurrentHashMap<>();
-
-    public static class Status {
-        final Object[] results;
-        final Code code;
-        public final Operation op;
-
-        public enum Code {
-            RUNNING,
-            COMPLETE,
-            ERROR
-        }
-
-        public Status(Operation op, final Code code, final Object[] results) {
-            this.results = results;
-            this.code = code;
-            this.op = op;
-        }
-
-        public static Status of(final Operation op, final Code code, final Object... results) {
-            return new Status(op, code, Optional.ofNullable(results).orElse(new Object[]{}));
-        }
-
-        @Override
-        public String toString() {
-            final StringBuilder resultOutput = new StringBuilder();
-            if (results.length != 0) {
-                resultOutput.append("\n");
-                for (final Object result : results) {
-                    resultOutput
-                            .append("\t")
-                            .append(Optional.ofNullable(result).orElse("None"))
-                            .append("\n");
-                }
-            }
-
-            return String.format("AdminOperation:" + "\n" +
-                            "UUID: %s" + "\n" +
-                            "Code: %s" + "\n" +
-                            "Results: %s",
-                    op.uuid,
-                    code,
-                    resultOutput);
-        }
-    }
-
-
-    public static class Operation implements Interface, Iterator<Status> {
-
-        public final UUID uuid;
-        private final FireflyGraph firefly;
-        private final METHOD method;
-        private final Future<Status> exe;
-        private final Object[] args;
-        private final AerospikeConnection db;
-        private Object result;
-
-        public Operation(final FireflyGraph firefly, final METHOD method, final Object[] args) {
-            this.firefly = firefly;
-            this.method = method;
-            this.args = args;
-            this.db = firefly.getBaseGraph();
-            this.uuid = UUID.randomUUID();
-            this.exe = run(firefly, this, method, args);
-        }
-
-        public static Operation create(final FireflyGraph firefly, final Interface.METHOD method, final Object... args) {
-            final Operation op = new Operation(firefly, method, args);
-            operations.put(op.uuid, op);
-            return op;
-        }
-
-        public static CompletableFuture<Status> run(final FireflyGraph firefly, Operation op, final METHOD method, final Object... args) {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    op.invoke();
-                } catch (final Exception e) {
-                    e.printStackTrace();
-                    return Status.of(op, Status.Code.ERROR, e);
-                }
-                return Status.of(op, Status.Code.COMPLETE, op.result);
-            });
-        }
-
-        private void invoke() {
-            final Method invocationMethod;
-            final Object result;
+    public static class Index<I> {
+        public <A> I getIndexList(final FireflyGraph firefly, final AdminContext<A> adminContext) {
             try {
-                invocationMethod = this.getClass().getMethod(this.method.name(), this.method.signature());
-                result = invocationMethod.invoke(this, this.args);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-            this.result = result;
-        }
-
-        public Status status() {
-            if (exe.isCancelled())
-                return Status.of(this, Status.Code.ERROR, new RuntimeException("cancelled"));
-            if (exe.isDone())
-                return Status.of(this, Status.Code.COMPLETE, Optional.ofNullable(result));
-            else
-                return Status.of(this, Status.Code.RUNNING);
-        }
-
-        @Override
-        public void createVertexPropertyIndex(final String key) {
-            firefly.createIndexes(FireflyVertex.class, db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, db.getVpIndexPrefix(), List.of(key));
-        }
-
-        @Override
-        public void createAdjacencyIndex() {
-            final List<String> existingIndexes = AerospikeConnection.getExistingIndexes(db);
-            db.createAdjacencyIndex(existingIndexes);
-        }
-
-        @Override
-        public void createVertexLabelIndex() {
-            final List<String> existingIndexes = AerospikeConnection.getExistingIndexes(db);
-            db.createVertexLabelIndex(existingIndexes);
-        }
-
-        @Override
-        public List<String> listExistingIndexes() {
-            return AerospikeConnection.getExistingIndexes(db);
-        }
-
-        @Override
-        public Object getOperationResult(final String uuid) {
-            return operations.get(UUID.fromString(uuid)).result;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return !exe.isDone();
-        }
-
-        @Override
-        public Status next() {
-            try {
-                return exe.get();
+                // Manually force an update.
+                firefly.fireflyCardinalityMetadata.updateMetadata();
             } catch (Exception e) {
-                return Status.of(this, Status.Code.ERROR, e);
-            }
-        }
-    }
-
-    public static class Pair {
-        public static <K, V> Map.Entry<K, V> of(final K key, final V value) {
-            return new AbstractMap.SimpleImmutableEntry<>(key, value);
-        }
-    }
-
-    public interface Interface {
-        class Keys {
-            public static final String KEY = "key";
-            public static final String UUID = "uuid";
-        }
-
-        enum METHOD {
-            getOperationResult(Pair.of(Keys.UUID, String.class)),
-            createVertexPropertyIndex(Pair.of(Keys.KEY, String.class)),
-            createAdjacencyIndex(),
-            createVertexLabelIndex(),
-            listExistingIndexes();
-            private final Map.Entry<String, Class<?>>[] signature;
-
-            METHOD(final Map.Entry<String, Class<?>>... signature) {
-                this.signature = signature;
+                return (I) ("Failed to update index information. " + e.getMessage());
             }
 
-            public Class<?>[] signature() {
-                return Arrays.stream(this.signature).map(Map.Entry::getValue).toArray(Class[]::new);
+            final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
+            final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
+            if (vertexLabelIndex) {
+                vertexPropertyIndexes.add("vertex.~label");
+            }
+
+            // Return as a list so it can be used programatically.
+            return (I) vertexPropertyIndexes;
+        }
+
+        public <A> I getIndexCardinality(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+            try {
+                // Manually force an update.
+                firefly.fireflyCardinalityMetadata.updateMetadata();
+            } catch (Exception e) {
+                return (I) ("Failed to update index information. " + e.getMessage());
+            }
+
+            final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
+            final boolean vertexLabelIndex = firefly.fireflyCardinalityMetadata.getVertexLabelIndexExists();
+
+            final Map<String, Long> cardinalityMap = new HashMap<>();
+            if (vertexLabelIndex) {
+                firefly.fireflyCardinalityMetadata.getVertexLabelCardinality().ifPresent(cardinality -> {
+                    Long cardinalityValue = cardinality.getCardinality();
+                    if (cardinalityValue != null) {
+                        cardinalityMap.put("~vertex.label", cardinalityValue);
+                    }
+                });
+            }
+            for (final String index : vertexPropertyIndexes) {
+                firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, STRING).ifPresent(cardinality -> {
+                    final Long cardinalityValue = cardinality.getCardinality();
+                    if (cardinalityValue != null) {
+                        cardinalityMap.put(index, cardinalityValue);
+                    }
+                });
+                firefly.fireflyCardinalityMetadata.getVertexPropertyCardinality(index, NUMERIC).ifPresent(cardinality -> {
+                    final Long cardinalityValue = cardinality.getCardinality();
+                    if (cardinalityValue != null) {
+                        if (cardinalityMap.get(index) != null) {
+                            cardinalityMap.put(index, cardinalityMap.get(index) + cardinalityValue);
+                        }
+                    }
+                });
+            }
+            return (I) cardinalityMap;
+        }
+
+        public <A> I createVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
+            final List<String> existingIndexes = getExistingIndexes(firefly);
+            String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
+            firefly.getBaseGraph().createIndexBackground(existingIndexes,
+                    set,
+                    formattedIndex + "_" + STRING,
+                    firefly.getBaseGraph().LABEL_BIN,
+                    key,
+                    STRING,
+                    IndexCollectionType.DEFAULT,
+                    true);
+            formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
+            firefly.getBaseGraph().createIndexBackground(existingIndexes,
+                    set,
+                    formattedIndex + "_" + NUMERIC,
+                    firefly.getBaseGraph().LABEL_BIN,
+                    key,
+                    NUMERIC,
+                    IndexCollectionType.DEFAULT,
+                    true);
+            return (I) ("Vertex index creation of property key '" + key + "' in progress.");
+        }
+
+        public <A> I dropVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
+            firefly.getBaseGraph().dropIndexBackground(set,
+                    String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, STRING));
+            firefly.getBaseGraph().dropIndexBackground(set,
+                    String.format("%s_%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key, NUMERIC));
+            return (I) ("Vertex index of property key '" + key + "' dropped.");
+        }
+
+        private static List<String> getExistingIndexes(final FireflyGraph firefly) {
+            return AerospikeConnection.InfoOps.
+                    listExistingIndexes(firefly.getBaseGraph().getClient(), firefly.getBaseGraph().getNamespace()).
+                    stream().map(Map.Entry::getKey).collect(Collectors.toList());
+        }
+
+        private static <A> boolean checkExists(final FireflyGraph firefly, final String indexName, final AdminContext<A> adminContext) {
+            try {
+                getIndexStatus(firefly, indexName, adminContext);
+                return true;
+            } catch (final IllegalStateException ignored) {
+                return false;
             }
         }
 
-        void createVertexPropertyIndex(final String key);
+        public <A> I createVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
+            final List<String> existingIndexes = getExistingIndexes(firefly);
+            try {
+                firefly.getBaseGraph().createIndexBackground(existingIndexes,
+                        set,
+                        firefly.getBaseGraph().V_LABEL_INDEX_NAME,
+                        firefly.getBaseGraph().LABEL_BIN,
+                        null, // keyName is null for label, as this is the key for properties.
+                        IndexType.STRING,
+                        IndexCollectionType.DEFAULT,
+                        true);
+            } catch (RuntimeException e) {
+                // Note this is something like: "Index __ already exists".
+                return (I) e.getMessage();
+            }
+            return (I) "Vertex label index creation in progress.";
+        }
 
-        void createAdjacencyIndex();
+        public <A> I dropVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+            final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
+            firefly.getBaseGraph().dropIndex(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
+            return (I) "Vertex label index dropped.";
+        }
 
-        void createVertexLabelIndex();
+        public <A> I getStatusVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
+            try {
+                return (I) getIndexStatus(firefly, firefly.getBaseGraph().V_LABEL_INDEX_NAME, adminContext);
+            } catch (final IllegalStateException e) {
+                throw new IllegalStateException("No index found on vertex label.");
+            }
+        }
 
-        List<String> listExistingIndexes();
+        public static <A> Map<String, Long> getIndexStatus(final FireflyGraph firefly, final String indexName, final AdminContext<A> adminContext) {
+            final String infoQueryFormat = "sindex/%s/%s"; // "sindex/<namespace>/<index name>
+            int lowestLoadPct = 100;
+            int totalEntries = 0;
+            int totalUsedBytes = 0;
+            int highestLoadTime = 0;
+            boolean valid = false;
+            for (final Node node : firefly.getBaseGraph().getClient().getNodes()) {
+                final String infoResponse = Info.request(new InfoPolicy(), node,
+                        String.format(infoQueryFormat, firefly.getBaseGraph().getNamespace(), indexName));
+                for (String s : infoResponse.split(";")) {
+                    valid = true;
+                    if (s.startsWith("load_pct=")) {
+                        final int loadPct = Integer.parseInt(s.split("=")[1]);
+                        lowestLoadPct = Math.min(loadPct, lowestLoadPct);
+                    } else if (s.startsWith("entries=")) {
+                        final int entries = Integer.parseInt(s.split("=")[1]);
+                        totalEntries += entries;
+                    } else if (s.startsWith("used_bytes=")) {
+                        final int usedBytes = Integer.parseInt(s.split("=")[1]);
+                        totalUsedBytes += usedBytes;
+                    } else if (s.startsWith("load_time=")) {
+                        final int loadTime = Integer.parseInt(s.split("=")[1]);
+                        highestLoadTime = Math.max(loadTime, highestLoadTime);
+                    }
+                }
+            }
+            if (valid) {
+                // This is the case if the index is dropped.
+                if (totalUsedBytes != 0) {
+                    return Map.of("percent_complete", (long) lowestLoadPct,
+                            "total_entries", (long) totalEntries,
+                            "total_used_bytes", (long) totalUsedBytes,
+                            "load_time", (long) highestLoadTime);
+                }
+            }
+            throw new IllegalStateException("Index not found: " + indexName + ".");
+        }
 
-        Object getOperationResult(String uuid);
+        public <A> I getStatusVertexPropertyIndex(final FireflyGraph firefly, final String key, final AdminContext<A> adminContext) {
+            final String formattedIndex = String.format("%s_%s", firefly.getBaseGraph().getVpIndexPrefix(), key);
+            final String stringIndexName = formattedIndex + "_" + STRING;
+            final String numericIndexName = formattedIndex + "_" + NUMERIC;
+            try {
+                final Map<String, Long> numericIndexStatus = getIndexStatus(firefly, numericIndexName, adminContext);
+                final Map<String, Long> stringIndexStatus = getIndexStatus(firefly, stringIndexName, adminContext);
+                if (numericIndexStatus.get("percent_complete") == 100L && stringIndexStatus.get("percent_complete") == 100L) {
+                    return (I) Map.of("percent_complete", (long) 100,
+                            "total_entries", numericIndexStatus.get("total_entries") + stringIndexStatus.get("total_entries"),
+                            "total_used_bytes", numericIndexStatus.get("total_used_bytes") + stringIndexStatus.get("total_used_bytes"),
+                            "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
+                } else {
+                    if (numericIndexStatus.get("percent_complete") != 100L) {
+                        return (I) Map.of("percent_complete", numericIndexStatus.get("percent_complete"),
+                                "total_entries", stringIndexStatus.get("total_entries") + numericIndexStatus.get("total_entries"),
+                                "total_used_bytes", stringIndexStatus.get("total_used_bytes") + numericIndexStatus.get("total_used_bytes"),
+                                "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
+                    } else {
+                        return (I) Map.of("percent_complete", stringIndexStatus.get("percent_complete"),
+                                "total_entries", stringIndexStatus.get("total_entries") + numericIndexStatus.get("total_entries"),
+                                "total_used_bytes", stringIndexStatus.get("total_used_bytes") + numericIndexStatus.get("total_used_bytes"),
+                                "load_time", Math.max(numericIndexStatus.get("load_time"), stringIndexStatus.get("load_time")));
+                    }
+                }
+            } catch (final IllegalStateException e) {
+                throw new IllegalStateException("No index found for vertex property key '" + key + "'.");
+            }
+        }
     }
 }

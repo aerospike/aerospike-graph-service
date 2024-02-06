@@ -18,7 +18,7 @@ public class TestVertexPropertyCacheIntegration {
 
     @BeforeClass
     public static void beforeAll() {
-        SETUP_GRAPH = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
+        SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
@@ -33,22 +33,15 @@ public class TestVertexPropertyCacheIntegration {
     }
 
     @Test
-    public void testCacheEnabledAdjacencyDisabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
-            assertAddAndDropVertexProperties(graph);
-        }
-    }
-
-    @Test
-    public void testEdgeCacheDisabledAdjacencyEnabled() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
+    public void testEdgeCache() {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheDisabledFirefly()) {
             assertAddAndDropVertexProperties(graph);
         }
     }
 
     @Test
     public void testCacheSizeExceeded() {
-        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(CONFIG, 2)) {
+        try (final FireflyGraph graph = CacheTestsUtils.getCacheWithSizeFirefly(2)) {
             assertAddAndDropVertexProperties(graph);
         }
     }

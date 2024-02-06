@@ -61,7 +61,6 @@ public final class ConfigurationHelper {
 
         public static final String LOG_LEVEL = "aerospike.graph.log.level";
         public static final String FIREFLY_DATA_MODEL = "aerospike.graph.data.model";
-        public static final String ADJACENCY_INDEX_ENABLED_FLAG = "aerospike.graph.index.adjacency.enabled";
         public static final String V_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.vertex.label.enabled";
         public static final String E_LABEL_INDEX_ENABLED_FLAG = "aerospike.graph.index.edge.label.enabled";
         public static final String SUMMARY_ENABLED_FLAG = "aerospike.graph.summary.enabled";
@@ -89,9 +88,11 @@ public final class ConfigurationHelper {
         public static final String ENABLE_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.enabled";
         public static final String ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = "aerospike.graph.strategy.composite.id.embedded.enabled";
         public static final String ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = "aerospike.graph.strategy.composite.id.sampling.enabled";
+        public static final String ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = "aerospike.graph.strategy.composite.id.limit.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.enabled";
         public static final String ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = "aerospike.graph.strategy.batch.edge.read.embedded.enabled";
         public static final String ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = "aerospike.graph.strategy.batch.edge.read.sampling.enabled";
+        public static final String ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = "aerospike.graph.strategy.batch.edge.read.limit.enabled";
         public static final String GLOBAL_EDGE_CACHE_ENABLED = "aerospike.graph.global.edge.cache.enabled";
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
@@ -159,7 +160,8 @@ public final class ConfigurationHelper {
             OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
-            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS"));
+            USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
 
             private final Pair value;
 
@@ -260,8 +262,10 @@ public final class ConfigurationHelper {
         put(Keys.ENABLE_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, "true");
         put(Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, "true");
+        put(Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, "true");
+        put(Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, "true");
@@ -275,7 +279,6 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
-        put(Keys.ADJACENCY_INDEX_ENABLED_FLAG, "true");
         put(Keys.PROMETHEUS_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
         put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");

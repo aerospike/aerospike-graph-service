@@ -171,7 +171,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final int AEROSPIKE_WRITE_MAX_RETRY;
     public final long CARDINALITY_METADATA_UPDATE_FREQUENCY;
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
-    public final boolean ADJACENCY_INDEX_ENABLED_FLAG;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
@@ -188,6 +187,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean TTL_ENABLED_FLAG;
     public final boolean TTL_UPDATE_ANYTIME_FLAG;
     public final String TTL_BIN;
+    public final String EDGE_DATA_BIN;
     public final String TTL_VERTEX_INDEX_NAME;
     public final String TTL_EDGE_INDEX_NAME;
     public final int TTL_PURGE_INTERVAL_SECONDS;
@@ -208,8 +208,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final FireflyIdFactory idFactory;
     public final boolean ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY;
     public final boolean ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY;
+    public final boolean ENABLE_COMPOSITE_ID_LIMIT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY;
     public final boolean ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY;
+    public final boolean ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY;
 
     // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
@@ -335,15 +337,16 @@ public class AerospikeConnection implements AutoCloseable {
 
         V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
         E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
-        ADJACENCY_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ADJACENCY_INDEX_ENABLED_FLAG, conf));
         GLOBAL_EDGE_CACHE_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf));
         SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
         SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
         STORAGE_DEBUGGER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf));
         ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf));
         ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, conf));
+        ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, conf));
         ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
         ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, conf));
+        ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf));
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
@@ -402,6 +405,7 @@ public class AerospikeConnection implements AutoCloseable {
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
         USAGE_STATS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USAGE_STATS_BIN.name(), conf);
+        EDGE_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_DATA_BIN.name(), conf);
 
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -553,7 +557,7 @@ public class AerospikeConnection implements AutoCloseable {
         LOG.trace("Scanning {} ids.", setName);
         if (setName.equals(EDGE_AERO_SET)) {
             final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(readContext, null, new ScanPolicy(),
-                    this.LABEL_BIN);
+                    this.EDGE_DATA_BIN);
             return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
         } else {
             final Iterator<KeyRecord> i = scanAllKeysInSet(readContext, null);
@@ -983,14 +987,12 @@ public class AerospikeConnection implements AutoCloseable {
                         .map(Map.Entry::getKey).collect(Collectors.toList());
 
         // Blocking call for supernode indexes since graph doesn't function without.
-        if (ADJACENCY_INDEX_ENABLED_FLAG) {
-            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
-            createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
-                    E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                    IndexType.BLOB, IndexCollectionType.MAPVALUES);
-        }
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
+                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
+                IndexType.BLOB, IndexCollectionType.MAPVALUES);
 
         // Blocking call for ttl indexes since graph doesn't function without.
         if (TTL_ENABLED_FLAG) {

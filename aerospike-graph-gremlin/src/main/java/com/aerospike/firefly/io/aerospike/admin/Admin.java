@@ -31,7 +31,7 @@ public class Admin {
                 firefly.fireflyIndexMetadata.updateMetadata();
                 firefly.fireflyCardinalityMetadata.updateMetadata();
             } catch (final Exception e) {
-                return (I) ("Failed to update index information. " + e.getMessage());
+                throw new IllegalStateException("Failed to update index information. " + e.getMessage());
             }
 
             final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();
@@ -67,7 +67,7 @@ public class Admin {
                 firefly.fireflyIndexMetadata.updateMetadata();
                 firefly.fireflyCardinalityMetadata.updateMetadata();
             } catch (final Exception e) {
-                return (I) ("Failed to update index information. " + e.getMessage());
+                throw new IllegalStateException("Failed to update index information. " + e.getMessage());
             }
 
             final List<String> vertexPropertyIndexes = firefly.fireflyCardinalityMetadata.getVertexPropertyIndexes();

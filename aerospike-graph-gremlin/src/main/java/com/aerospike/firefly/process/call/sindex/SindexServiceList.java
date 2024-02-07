@@ -30,7 +30,7 @@ public class SindexServiceList<I, R> extends SindexServiceBase<I, R> {
                         "\tExpected no arguments provided.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExample of correct usage: g.call(\"aerospike.graph.admin.index.list\").next();",
-                adminServiceName(), params);
+                getName(), params);
     }
 
     @Override

@@ -38,9 +38,9 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
                         "\tNote, only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.drop\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();",
+                        "\t\tg.call(\"aerospike.graph.admin.index.drop\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
                         "\t\tg.call(\"aerospike.graph.admin.index.drop\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
-                adminServiceName(), params);
+                getName(), params);
     }
 
     @Override

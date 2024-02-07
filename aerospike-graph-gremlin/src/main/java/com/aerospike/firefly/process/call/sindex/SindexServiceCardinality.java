@@ -30,7 +30,7 @@ public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
                         "\tExpected no arguments provided.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExample of correct usage: g.call(\"aerospike.graph.admin.index.cardinality\").next();",
-                adminServiceName(), params);
+                getName(), params);
     }
 
     @Override

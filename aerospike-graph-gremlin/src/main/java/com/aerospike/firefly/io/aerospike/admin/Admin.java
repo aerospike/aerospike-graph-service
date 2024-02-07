@@ -143,18 +143,13 @@ public class Admin {
         public <A> I createVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
             final List<String> existingIndexes = getExistingIndexes(firefly);
-            try {
-                firefly.getBaseGraph().createIndexBackground(existingIndexes,
-                        set,
-                        firefly.getBaseGraph().V_LABEL_INDEX_NAME,
-                        firefly.getBaseGraph().LABEL_BIN,
-                        IndexType.STRING,
-                        IndexCollectionType.DEFAULT,
-                        true);
-            } catch (final RuntimeException e) {
-                // Note this is something like: "Index __ already exists".
-                return (I) e.getMessage();
-            }
+            firefly.getBaseGraph().createIndexBackground(existingIndexes,
+                    set,
+                    firefly.getBaseGraph().V_LABEL_INDEX_NAME,
+                    firefly.getBaseGraph().LABEL_BIN,
+                    IndexType.STRING,
+                    IndexCollectionType.DEFAULT,
+                    true);
             return (I) "Vertex label index creation in progress.";
         }
 

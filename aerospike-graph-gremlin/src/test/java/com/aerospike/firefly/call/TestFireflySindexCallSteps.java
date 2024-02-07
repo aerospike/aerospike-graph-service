@@ -220,4 +220,51 @@ public class TestFireflySindexCallSteps {
             Assert.assertTrue(nameAStatus.get("load_time") > 0);
         }
     }
+
+    @Test
+    public void testInvalid() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            try {
+                g.call("aerospike.graph.admin.index.create").
+                        with("property_key", "nameA").
+                        with("element_type", "vertex").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.drop").
+                        with("property_key", "vertex").
+                        with("element_type1", "name").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.status").
+                        with("property_key1", "vertex").
+                        with("element_type", "name").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.status").
+                        with("element_type", "name").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.cardinality").
+                        with("element_type", "name").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+            try {
+                g.call("aerospike.graph.admin.index.list").
+                        with("element_type", "name").next();
+                fail("Expected invalid parameter to fail");
+            } catch (Exception ignored) {
+            }
+        }
+    }
 }

@@ -82,6 +82,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -938,13 +939,14 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on disk type of scalar values. If the value parameter is an ArrayList, return an
-     * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
+     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
+     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
+     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
      *
      * @param value Object to get type hint ID of
-     * @return Type hint value
+     * @return Type hint value or null
      */
-    public static Object getSupportedType(final Object value) {
+    public static Object getTypeHintOf(final Object value) {
         final Class clazz = value.getClass();
         if (!SupportedValueTypes.containsKey(clazz)) {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
@@ -968,9 +970,9 @@ public class AerospikeConnection implements AutoCloseable {
                     }
                 }
             }
-            return integerIndices;
+            return integerIndices.isEmpty() ? null : integerIndices;
         }
-        return SupportedValueTypes.get(clazz);
+        return Objects.equals(SupportedValueTypes.get(clazz), SupportedValueTypes.get(Integer.class)) ? SupportedValueTypes.get(Integer.class) : null;
     }
 
     /**
@@ -1326,6 +1328,9 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     public Object convertValuetoTypeUsingHint(final Object value, final Object typeHint) {
+        if (typeHint == null) {
+            return value;
+        }
         if (typeHint instanceof ArrayList) {
             final ArrayList<Object> valueList = (ArrayList<Object>) value;
             final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
@@ -1396,18 +1401,23 @@ public class AerospikeConnection implements AutoCloseable {
         // Expected behavior is to remove the existing property key if it exists when null value is written.
         if (value == null) {
             valueOp = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
+            ops.add(valueOp);
             typeHintOp = MapOperation.removeByKey(typeHintBinName, Value.get(mapKey), MapReturnType.NONE);
+            ops.add(typeHintOp);
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, mapName, Value.get(mapKey), Value.get(value));
-            typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
-                    Value.get(getSupportedType(value)));
+            ops.add(valueOp);
+            final Object typeHint = getTypeHintOf(value);
+            if (typeHint != null) {
+                typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
+                        Value.get(typeHint));
+                ops.add(typeHintOp);
+            }
         }
         final Expression idTypeExp = Exp.build(Exp.val(fid.getStorageTypeHint()));
         final Operation idTypeOp = ExpOperation.write(this.ID_TYPE_BIN, idTypeExp,
                 ExpWriteFlags.CREATE_ONLY | ExpWriteFlags.POLICY_NO_FAIL);
-        ops.add(valueOp);
-        ops.add(typeHintOp);
         ops.add(idTypeOp);
         for (final Bin bin : additionalBins) {
             ops.add(Operation.put(bin));

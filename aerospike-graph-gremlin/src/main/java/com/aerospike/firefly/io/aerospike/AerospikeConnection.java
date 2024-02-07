@@ -980,15 +980,21 @@ public class AerospikeConnection implements AutoCloseable {
         final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
+
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
+
+        // Blocking call for supernode indexes since graph doesn't function without.
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
                 IndexType.BLOB, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
                 IndexType.BLOB, IndexCollectionType.MAPVALUES);
 
+        // Blocking call for ttl indexes since graph doesn't function without.
         if (TTL_ENABLED_FLAG) {
             createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
                     TTL_VERTEX_INDEX_NAME, TTL_BIN,
@@ -998,9 +1004,10 @@ public class AerospikeConnection implements AutoCloseable {
                     IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         }
 
+        // Create label index in background.
         if (V_LABEL_INDEX_ENABLED_FLAG) {
-            createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
-                    V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT);
+            createIndexBackground(existingIndexes, setFromElementType(FireflyVertex.class),
+                    V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT, false);
         }
         if (E_LABEL_INDEX_ENABLED_FLAG) {
             // TODO GRAPH-438: Edge indexes.
@@ -1013,8 +1020,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropGraphIndices(final FireflyGraph graph) {
         LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), E_IN_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
@@ -1536,6 +1541,28 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Drop an Aerospike Index.
+     *
+     * @param set       Set name
+     * @param indexName Index name
+     */
+    public void dropIndexBackground(final String set, final String indexName) {
+        LOG.debug("Dropping index {}:{}.", set, indexName);
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            client.dropIndex(policy, namespace, set, indexName);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
+            if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+    /**
      * Create an Aerospike Index for a specific key and value type in the key-value pair map of properties.
      *
      * @param existingIndexes
@@ -1574,54 +1601,40 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public void createIndexBackground(
+            final List<String> existingIndexes,
+            final String set,
+            final String indexName,
+            final String binName,
+            final IndexType type,
+            final IndexCollectionType indexCollectionType,
+            final boolean errorOnDuplicate,
+            final CTX... ctx
+    ) {
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
+            return;
+
+        if (existingIndexes.contains(indexName)) {
+            if (errorOnDuplicate) {
+                throw new RuntimeException("Index " + indexName + " already exists");
+            } else {
+                LOG.debug("Index {} already exists", indexName);
+                return;
+            }
+        }
+        LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
+
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
+    }
+
     public String getVpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, VP_INDEX_PREFIX);
     }
 
     public String getEpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, EP_INDEX_PREFIX);
-    }
-
-    /**
-     * Create an Aerospike Index.
-     *
-     * @param existingIndexes
-     * @param set                 Set name
-     * @param indexName           Index name
-     * @param binName             Bin name to be indexed
-     * @param keyName             Key of map to create sindex on
-     * @param type                Index type
-     * @param indexCollectionType Index Collection Type
-     */
-    public void createKeyValueSindex(
-            final List<String> existingIndexes,
-            final String set,
-            final String indexName,
-            final String binName,
-            final String keyName,
-            final IndexType type,
-            final IndexCollectionType indexCollectionType
-    ) {
-        if (set.contains(WarmupUtil.getWarmupArenaName()))
-            return;
-        if (existingIndexes.contains(indexName)) {
-            LOG.debug("Index {} already exists", indexName);
-            return;
-        } else {
-            LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
-        }
-        final Policy policy = new Policy();
-        policy.socketTimeout = 0; // Do not timeout on index create.
-        try {
-            final CTX ctx = CTX.mapKey(Value.get(keyName));
-            final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
-            task.waitTillComplete(1);
-            LOG.debug("Index {} creation completed.", indexName);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
     }
 
     /**

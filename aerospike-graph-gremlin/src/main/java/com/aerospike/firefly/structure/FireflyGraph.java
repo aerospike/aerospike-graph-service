@@ -34,6 +34,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -244,6 +245,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
+        SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
         }
@@ -1147,10 +1149,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", prefix, index);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, index, STRING, IndexCollectionType.DEFAULT);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, index, NUMERIC, IndexCollectionType.DEFAULT);
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
         }
 
         // Manually force metadata to update.

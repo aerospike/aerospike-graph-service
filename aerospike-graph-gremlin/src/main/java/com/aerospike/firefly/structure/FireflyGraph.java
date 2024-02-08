@@ -110,8 +110,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
@@ -529,8 +528,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value));
                 propertyMap.put(key, value);
+                final Object typeHint = getTypeHintOf(value);
+                if (typeHint != null) {
+                    typeHints.put(key, typeHint);
+                }
             }
         });
 
@@ -692,10 +694,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
                 if (keyValues[i + 1] != null) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], getSupportedType(keyValues[i + 1]));
+                    final Object typeHint = getTypeHintOf(keyValues[i + 1]);
+                    if (typeHint != null) {
+                        typeHints.put((String) keyValues[i], typeHint);
+                    }
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], SupportedValueTypes.get(String.class));
                 }
                 // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
                 // properties to remove, so just ignore.

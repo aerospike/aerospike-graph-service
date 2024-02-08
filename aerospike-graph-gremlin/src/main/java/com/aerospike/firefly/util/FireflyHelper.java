@@ -92,21 +92,21 @@ public final class FireflyHelper {
 
             // Create query policy with expressions.
             final QueryPolicy queryPolicy = new QueryPolicy();
-            queryPolicy.filterExp = graph.hasContainerListToExpression(hasContainers, FireflyVertex.class);
+            queryPolicy.filterExp = graph.query.hasContainerListToExpression(hasContainers, FireflyVertex.class);
             queryPolicy.includeBinData = false;
 
             // Query index.
             final Iterator<KeyRecord> keyRecordIterator = graph.getBaseGraph().queryIndex(
                     info.get().setName,
                     info.get().indexName,
-                    graph.predicateToFilter(topHasContainer.getPredicate(), info.get()),
+                    graph.query.predicateToFilter(topHasContainer.getPredicate(), info.get()),
                     queryPolicy);
 
             // Transform record to correct element.
             return FireflyCloseableIteratorUtils.count(keyRecordIterator);
         } else {
             // Get vertex count.
-            return graph.getVertexCount(graph.hasContainerListToExpression(hasContainers, FireflyVertex.class));
+            return graph.getVertexCount(hasContainers);
         }
     }
 

@@ -28,13 +28,11 @@ import com.aerospike.client.exp.ListExp;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
@@ -312,32 +310,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Update this FireflyVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues,
                 vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
-    }
-
-    /**
-     * Issue a scan query for all the records in the edge set.
-     * Filter by an Exp, provide a ScanPolicy
-     * <p>
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param exp    Expression to apply to Scan
-     * @param policy ScanPolicy to use during Scan
-     * @return Iterator of KeyRecord
-     */
-    protected Iterator<KeyRecord> scanAllRecordsInSet(final String set, final Expression exp, final ScanPolicy policy) {
-        LOG.trace("Issuing scan query of all records in {}:{} with filter {}.",
-                db.getNamespace(), set, exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = true;
-        if (exp != null)
-            policy.filterExp = exp;
-        final AerospikeClient client = db.getClient();
-        final UUID scanId = UUID.randomUUID();
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
-        listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
-        return new FireflyCloseableIterator<>(listener);
     }
 
     /**
@@ -1189,7 +1161,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Batch read vertex records.
         final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
                 db,
-                graph.hasContainerListToExpression(hasContainers, FireflyVertex.class),
+                graph.query.hasContainerListToExpression(hasContainers, FireflyVertex.class),
                 db.VERTEX_AERO_SET,
                 vertexIds);
         if (vertexRecords == null) {

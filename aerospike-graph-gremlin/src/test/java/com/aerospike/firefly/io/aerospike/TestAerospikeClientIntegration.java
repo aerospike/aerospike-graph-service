@@ -16,7 +16,6 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
@@ -29,7 +28,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -421,12 +419,10 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
-            final Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
-                   db.LABEL_BIN);
-            FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
-            assertFalse(vertxKeys.hasNext());
-            assertFalse(edges.hasNext());
+            final Iterator<FireflyId> vertexKeys = graph.query.getPagedScanVertexIds();
+            final Iterator<FireflyId> edgeKeys = graph.query.getPagedScanEdgeIds();
+            assertFalse(vertexKeys.hasNext());
+            assertFalse(edgeKeys.hasNext());
         } finally {
             config.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }

@@ -16,16 +16,10 @@ import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.client.cdt.MapOperation;
 import com.aerospike.client.cdt.MapOrder;
 import com.aerospike.client.cdt.MapPolicy;
-import com.aerospike.client.cdt.MapReturnType;
 import com.aerospike.client.cdt.MapWriteFlags;
-import com.aerospike.client.exp.Exp;
-import com.aerospike.client.exp.Expression;
-import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
@@ -33,7 +27,7 @@ import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.io.aerospike.pagination.GraphQuery;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -66,7 +60,6 @@ import com.aerospike.firefly.util.WarmupUtil;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.process.computer.GraphComputer;
-import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -192,6 +185,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;
+    public final GraphQuery query;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -253,6 +247,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Start metrics.
         FireflyGremlinPlugin.initializeGraphMetrics(db);
+
+        // Create graph query engine.
+        query = new GraphQuery(this);
     }
 
     public static FireflyGraph open(final Configuration conf) {
@@ -362,12 +359,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public String getDataModel() {
         return FireflyGraph.getDataModelName();
-    }
-
-    protected Iterator<FireflyId> scanAllVertices() {
-        FireflyGraph.LOG.trace("Scanning {} ids.", db.VERTEX_AERO_SET);
-        final Iterator<KeyRecord> i = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
-        return FireflyCloseableIteratorUtils.map(i, r -> getIdFactory().createId(r.key.userKey.getObject(), FireflyVertex.class));
     }
 
     protected int getTypeHint() {
@@ -480,6 +471,18 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
      */
     public FireflyVertex vertexFromRecord(final KeyRecord keyRecord) {
         return FireflyVertex.fromRecord(this, keyRecord);
+    }
+
+    public FireflyId vertexIdFromRecord(final KeyRecord keyRecord) {
+        return getIdFactory().createId(keyRecord.key.userKey.getObject(), FireflyVertex.class);
+    }
+
+    public KeyRecord keyRecordFromKeyRecord(final KeyRecord keyRecord) {
+        return keyRecord;
+    }
+
+    public FireflyId edgeIdFromRecord(final KeyRecord keyRecord) {
+        return getIdFactory().createId(keyRecord.key.userKey.getObject(), FireflyVertex.class);
     }
 
     // This function is used via reflection in Upgrade.java. Removing will cause issues.
@@ -710,12 +713,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return fireflyVertexProperty;
     }
 
-    public long getVertexCount(final Expression expression) {
-        return FireflyCloseableIteratorUtils.count(db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), expression, false));
+    public long getVertexCount(final List<HasContainer> hasContainers) {
+        return FireflyCloseableIteratorUtils.count(query.getPagedScanVertexIds(hasContainers));
     }
 
     public long getEdgeCount() {
-        return FireflyCloseableIteratorUtils.count(this.db.readElementIds(FireflyEdge.class));
+        return FireflyCloseableIteratorUtils.count(query.getPagedScanEdgeIds());
     }
 
     @Override
@@ -730,6 +733,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Vertex addVertex(Object... keyValues) {
+        System.out.println("Adding vertex");
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
@@ -842,6 +846,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
+        System.out.println("Getting vertices");
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));
@@ -861,7 +866,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? scanAllVertices() : idList.iterator(), filters, this::readVertices);
+        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? query.getPagedScanVertexIds() : idList.iterator(), filters, this::readVertices);
     }
 
     @Override
@@ -883,7 +888,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (idList.isEmpty()) {
-            return new FireflyBatchElementIterator<>(this, this.db.readElementIds(FireflyEdge.class), filters, this::readEdges);
+            return new FireflyBatchElementIterator<>(this, query.getPagedScanEdgeIds(), filters, this::readEdges);
         } else {
             return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }
@@ -891,131 +896,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveSeconds) {
         this.ttlHandler.scheduleExpiryNow(element, timeToLiveSeconds);
-    }
-
-    /**
-     * Create an Aerospike index Filter using the predicate and index info.
-     *
-     * @param predicate Predicate to use.
-     * @param indexInfo Index info to use.
-     * @return
-     */
-    public Filter predicateToFilter(final P<?> predicate, final FireflyIndexMetadata.IndexInfo indexInfo) {
-        final String name;
-        if (db.LABEL_BIN.equals(indexInfo.key)) {
-            name = db.LABEL_BIN;
-        } else if (indexInfo.setName.equals(getBaseGraph().VERTEX_AERO_SET)) {
-            name = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
-        } else if (indexInfo.setName.equals(getBaseGraph().EDGE_AERO_SET)) {
-            name = db.PROPERTIES_BIN;
-        } else {
-            throw new IllegalArgumentException(
-                    "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
-        }
-
-        final IndexCollectionType type = db.LABEL_BIN.equals(indexInfo.key) ?
-                IndexCollectionType.DEFAULT : IndexCollectionType.MAPVALUES;
-        final Object value = predicate.getValue();
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
-
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Filter.equal(name, casted, CTX.mapKey(Value.get(indexInfo.key)));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Filter.range(name, Long.MIN_VALUE, casted - 1, CTX.mapKey(Value.get(indexInfo.key)));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Filter.range(name, Long.MIN_VALUE, casted, CTX.mapKey(Value.get(indexInfo.key)));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Filter.range(name, casted - 1, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Filter.range(name, casted, Long.MAX_VALUE, CTX.mapKey(Value.get(indexInfo.key)));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            if (db.LABEL_BIN.equals(indexInfo.key)) {
-                return Filter.contains(name, type, (String) value);
-            } else {
-                return Filter.equal(name, (String) value, CTX.mapKey(Value.get(indexInfo.key)));
-            }
-        }
-    }
-
-    /**
-     * Create an Aerospike Expression from the predicate, map key, and bin name.
-     *
-     * @param binName   Bin name to use.
-     * @param mapKey    Map key to use.
-     * @param predicate Predicate to use.
-     * @return Expression.
-     */
-    private Exp predicateToExpression(final String binName,
-                                      final String mapKey,
-                                      final P<?> predicate) {
-        // If the bin is the label bin, we can make a very simple predicate.
-        if (db.LABEL_BIN.equals(binName)) {
-            return Exp.eq(Exp.stringBin(db.LABEL_BIN), Exp.val((String) predicate.getValue()));
-        }
-
-        // Need to build a more complex expression for nested map values.
-        final Object value = predicate.getValue();
-        if (Number.class.isAssignableFrom(value.getClass())) {
-            final Long casted;
-            if (Integer.class.isAssignableFrom(value.getClass())) {
-                casted = Long.valueOf((Integer) value);
-            } else if (Long.class.isAssignableFrom(value.getClass())) {
-                casted = (Long) value;
-            } else {
-                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
-            }
-
-            if (predicate.getBiPredicate().equals(Compare.eq)) {
-                return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
-                return Exp.lt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
-                return Exp.le(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
-                return Exp.gt(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
-                return Exp.ge(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.INT, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val(casted));
-            } else {
-                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
-            }
-        } else {
-            return Exp.eq(MapExp.getByKey(MapReturnType.VALUE, Exp.Type.STRING, Exp.val(mapKey), Exp.mapBin(binName)), Exp.val((String) value));
-        }
-    }
-
-    public Expression hasContainerListToExpression(final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
-        // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
-        if (hasContainers.size() == 0) {
-            return null;
-        }
-        final Exp[] exps = hasContainers.stream().map(h ->
-                predicateToExpression(h.getKey().equals("~label") ?
-                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
-                        h.getKey(),
-                        h.getPredicate())).toArray(Exp[]::new);
-        return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
-    }
-
-    private Exp[] hasContainerListToExpArray(final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
-        // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
-        return hasContainers.stream().map(h ->
-                predicateToExpression(h.getKey().equals("~label") ?
-                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
-                        h.getKey(),
-                        h.getPredicate())).toArray(Exp[]::new);
     }
 
     /**
@@ -1034,10 +914,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                                                       final Class<? extends FireflyElement> clazz) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = hasContainerListToExpression(hasContainers, clazz);
+        queryPolicy.filterExp = query.hasContainerListToExpression(hasContainers, clazz);
 
         // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, predicateToFilter(predicate, indexInfo), queryPolicy);
+        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, query.predicateToFilter(predicate, indexInfo), queryPolicy);
 
         // Transform record to correct element.
         return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
@@ -1058,72 +938,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         return queryIndex(indexInfo, predicate, transform, Collections.emptyList(), null);
     }
 
-    /**
-     * Execute query on scan with predicate, map key, and return on the fly transformed iterator.
-     *
-     * @param mapKey        Map key to use.
-     * @param setName       Set name to use.
-     * @param binName       Bin name to use.
-     * @param predicate     Predicate to use.
-     * @param transform     Transform to use.
-     * @param hasContainers HasContainers to use
-     * @param <E>           Type of element to return.
-     * @return Iterator of transformed elements.
-     */
-    public <E extends Element> Iterator<E> queryScan(final String mapKey,
-                                                     final String setName,
-                                                     final String binName,
-                                                     final P<?> predicate,
-                                                     final TransformKeyRecord<E> transform,
-                                                     final List<HasContainer> hasContainers,
-                                                     final Class<? extends FireflyElement> clazz) {
-        // Build expression using predicate.
-        final Exp exp = predicateToExpression(binName, mapKey, predicate);
-        final Expression expression;
-        if (hasContainers.size() > 0) {
-            final Exp[] exps = hasContainerListToExpArray(hasContainers, clazz);
-            final Exp[] allExps = new Exp[exps.length + 1];
-            allExps[0] = exp;
-            System.arraycopy(exps, 0, allExps, 1, exps.length);
-            expression = Exp.build(Exp.and(allExps));
-        } else {
-            expression = Exp.build(exp);
-        }
-
-        db.getScanHitCounter().increment(mapKey);
-
-        final ScanPolicy policy = new ScanPolicy();
-        final Iterator<KeyRecord> keyRecordIterator = db.scanAllRecordsInSet(ReadContext.create(setName, binName, mapKey), expression, policy);
-
-        // Transform record to correct element.
-        return FireflyCloseableIteratorUtils.map(keyRecordIterator, kr -> transform.transform(kr));
-    }
-
-    /**
-     * Execute query on scan with predicate, map key, and return on the fly transformed iterator.
-     *
-     * @param mapKey    Map key to use.
-     * @param setName   Set name to use.
-     * @param binName   Bin name to use.
-     * @param predicate Predicate to use.
-     * @param transform Transform to use.
-     * @param <E>       Type of element to return.
-     * @return Iterator of transformed elements.
-     */
-    public <E extends Element> Iterator<E> queryScan(final String mapKey,
-                                                     final String setName,
-                                                     final String binName,
-                                                     final P<?> predicate,
-                                                     final TransformKeyRecord<E> transform) {
-        return queryScan(mapKey, setName, binName, predicate, transform, List.of(), FireflyVertex.class);
-    }
-
-    /**
-     * Template to fill out to allow on the fly KeyRecord to Element mapping.
-     *
-     * @param <E> Type of element to return.
-     */
-    public interface TransformKeyRecord<E extends Element> {
+    public interface TransformKeyRecord<E> {
         E transform(final KeyRecord keyRecord);
     }
 

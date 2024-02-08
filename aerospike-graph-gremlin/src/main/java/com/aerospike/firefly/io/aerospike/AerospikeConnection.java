@@ -34,7 +34,6 @@ import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
@@ -217,6 +216,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
     public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
+    public final int PAGINATION_READ_THREAD_COUNT;
+    public final int PAGINATION_PAGE_QUEUE_SIZE;
+    public final int PAGINATION_PAGE_SIZE;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -353,6 +355,9 @@ public class AerospikeConnection implements AutoCloseable {
         ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
+        PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
+        PAGINATION_READ_THREAD_COUNT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_READ_THREAD_COUNT, conf));
+        PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
 
@@ -526,148 +531,8 @@ public class AerospikeConnection implements AutoCloseable {
         return idFactory;
     }
 
-
-    /**
-     * Get a list of currently valid ids
-     *
-     * @param type type of Element
-     * @return Iterator of raw Ids
-     */
-    public Iterator<FireflyId> readElementIds(final Class<? extends FireflyElement> type) {
-        return scanAllIdsInSet(ReadContext.create(setFromElementType(type)));
-    }
-
-    /**
-     * Return an iterator of all the ids in a set represented as FireflyId
-     *
-     * @param readContext read context
-     * @return an Iterator of raw FireflyId
-     */
-    public Iterator<FireflyId> scanAllIdsInSet(final ReadContext readContext) {
-        final String setName = readContext.getSetName();
-        final Class<? extends FireflyElement> type;
-        if (setName.equals(VERTEX_AERO_SET)) {
-            type = FireflyVertex.class;
-        } else if (setName.equals(EDGE_AERO_SET)) {
-            type = FireflyEdge.class;
-        } else {
-            throw new IllegalArgumentException("Invalid set name: " + setName);
-        }
-
-        LOG.trace("Scanning {} ids.", setName);
-        if (setName.equals(EDGE_AERO_SET)) {
-            final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(readContext, null, new ScanPolicy(),
-                    this.EDGE_DATA_BIN);
-            return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
-        } else {
-            final Iterator<KeyRecord> i = scanAllKeysInSet(readContext, null);
-            return FireflyCloseableIteratorUtils.map(i,
-                    keyRecord -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, keyRecord), type));
-        }
-    }
-
-    /**
-     * Issue a scan query for all the keys in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context read context
-     * @param exp     Expression to apply to Scan
-     * @param sendKey Send the original user key
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp, boolean sendKey) {
-        final String setName = context.getSetName();
-        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(context, exp, policy, sendKey);
-    }
-
-    /**
-     * Issue a scan query for all the keys in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context read context
-     * @param exp     Expression to apply to Scan
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp) {
-        final String setName = context.getSetName();
-        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(ReadContext.create(setName), exp, policy);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context  read context
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, String... binNames) {
-        return scanAllRecordsInSet(context, exp, policy, true, binNames);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context  read context
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param sendKey  Send the original user key
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
-        final String setName = context.getSetName();
-        LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = sendKey;
-        if (exp != null) policy.filterExp = exp;
-        final UUID scanId = UUID.randomUUID();
-        final ScanHitCounter shc = this.getScanHitCounter();
-        if (context.getKeyName().isPresent())
-            shc.associateUUID(scanId, context.getKeyName().get());
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(this, scanMonitor, scanId);
-        listener.setStartTime();
-        client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
-
-        return new FireflyCloseableIterator<>(listener);
-    }
-
     public EventLoops getEventLoops() {
         return eventLoops;
-    }
-
-    /**
-     * Given an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
-     *
-     * @param edgeRecords array of Edge Records
-     * @param direction   the other end we should be retrieving
-     * @return an array of Vertex KeyRecord
-     */
-    public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
-        List<Key> vertexKeys = Arrays.stream(edgeRecords)
-                .map(record -> record.getString(direction.name()))
-                .map(hash -> new Key(namespace, FireflyIdPoly.decodeBase64(hash), VERTEX_AERO_SET, Value.NULL))
-                .collect(Collectors.toList());
-        Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
-        List<KeyRecord> krl = new ArrayList<>();
-        IntStream.range(0, vertexKeys.size()).forEach(i -> {
-            krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
-        });
-        return krl;
     }
 
     public GraphMetadata getDataModelMetadata() {

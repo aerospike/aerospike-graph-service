@@ -733,7 +733,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     @Override
     public Vertex addVertex(Object... keyValues) {
-        System.out.println("Adding vertex");
         // Validate key value pairs are valid for TinkerPop.
         ElementHelper.legalPropertyKeyValueArray(keyValues);
 
@@ -846,7 +845,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Vertex> vertices(final List<HasContainer> filters, final Object... vertexIdsOrVertices) {
-        System.out.println("Getting vertices");
         if (vertexIdsOrVertices.length == 1 && vertexIdsOrVertices[0] instanceof String) {
             if (vertexIdsOrVertices[0].equals(FIREFLY_CONFIGURATION_VARIABLE_NAME)) {
                 return FireflyCloseableIteratorUtils.of(new FireflyMetadataVertex(this));

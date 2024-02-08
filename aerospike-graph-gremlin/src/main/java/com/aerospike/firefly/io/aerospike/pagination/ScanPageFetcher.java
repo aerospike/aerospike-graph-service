@@ -13,12 +13,16 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.UUID;
+import java.util.function.BiFunction;
 
 public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
     final String namespace;
     final String set;
     final ScanPolicy policy;
+    final BiFunction<Long, Long, Void> metricsCallback;
+    final long startTime;
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
                            final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
@@ -27,6 +31,11 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;
+        this.metricsCallback = (start, stop) -> {
+            graph.getBaseGraph().getScanHitCounter().setScanTimings(UUID.randomUUID(), start, stop);
+            return null;
+        };
+        this.startTime = System.currentTimeMillis();
     }
 
     @Override
@@ -35,11 +44,16 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
         // Need to lock otherwise we get duplicated data back since it submits multiple scans for same page.
         graph.getBaseGraph().getClient().scanPartitions(policy, filter, namespace, set, callback);
+        metricsCallback.apply(startTime, System.currentTimeMillis());
 
         try {
             pageQueue.put(new Page(callback.keyRecords));
-        } catch (InterruptedException e) {
-            LOG.error("Error adding poison pill.", e);
+        } catch (final InterruptedException e) {
+            try {
+                pageQueue.put(new ErrorPage("Error adding page to queue. " + e.getMessage()));
+            } catch (final InterruptedException e2) {
+                LOG.error("Error adding signalling error to iterator.", e2);
+            }
         }
     }
 

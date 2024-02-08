@@ -4,9 +4,6 @@ import com.aerospike.client.exp.Exp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
-import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -14,11 +11,9 @@ import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +32,6 @@ public class GraphQuery {
         this.db = graph.getBaseGraph();
     }
 
-
-
     public Iterator<FireflyId> getPagedScanVertexIds() {
         return getPagedScanOfElementIds(FireflyVertex.class, List.of());
     }
@@ -54,50 +47,26 @@ public class GraphQuery {
     private Iterator<FireflyId> getPagedScanOfElementIds(final Class<? extends FireflyElement> clazz, final List<HasContainer> hasContainers) {
         final P<?> predicate = (hasContainers == null || hasContainers.isEmpty()) ? null : hasContainers.remove(0).getPredicate();
         if (FireflyVertex.class.isAssignableFrom(clazz)) {
-            return getPagedScan(
-                    null,
-                    db.VERTEX_AERO_SET,
-                    null,
-                    predicate,
-                    graph::vertexIdFromRecord,
-                    hasContainers,
-                    null,
-                    true,
-                    false);
+            return getPagedScan(null, db.VERTEX_AERO_SET, null, predicate, graph::vertexIdFromRecord,
+                    hasContainers, null, true, false);
         } else if (FireflyEdge.class.isAssignableFrom(clazz)) {
             return new FireflyPhatEdgeIdIterator(getPagedScan(
-                    null,
-                    db.VERTEX_AERO_SET,
-                    null,
-                    predicate,
-                    graph::keyRecordFromKeyRecord,
-                    hasContainers,
-                    null,
-                    true,
-                    true), db);
+                    null, db.VERTEX_AERO_SET, null, predicate, graph::keyRecordFromKeyRecord,
+                    hasContainers, null, true, true), db);
         } else {
             throw new IllegalArgumentException("Cannot scan all element ids for unknown class: " + clazz);
         }
     }
 
-    public <E> Iterator<E> getPagedScan(final String mapKey,
-                                        final String setName,
-                                        final String binName,
-                                        final P<?> predicate,
+    public <E> Iterator<E> getPagedScan(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                         final FireflyGraph.TransformKeyRecord<E> transform) {
         return getPagedScan(mapKey, setName, binName, predicate, transform, List.of(), FireflyVertex.class, true, true);
     }
 
-    public <E> Iterator<E> getPagedScan(final String mapKey,
-                                        final String setName,
-                                        final String binName,
-                                        final P<?> predicate,
-                                        final FireflyGraph.TransformKeyRecord<E> transform,
-                                        final List<HasContainer> hasContainers,
-                                        final Class<? extends FireflyElement> clazz,
-                                        final boolean sendKey,
-                                        final boolean includeBinData,
-                                        String... binNames) {
+    public <E> Iterator<E> getPagedScan(final String mapKey, final String setName, final String binName, final P<?> predicate,
+                                        final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,
+                                        final Class<? extends FireflyElement> clazz, final boolean sendKey, final boolean includeBinData,
+                                        final String... binNames) {
         final ScanPolicy policy = new ScanPolicy();
         policy.sendKey = sendKey;
         policy.includeBinData = includeBinData;
@@ -119,9 +88,6 @@ public class GraphQuery {
             db.getScanHitCounter().increment(mapKey);
         }
 
-        // TODO: Need scan info here for uuid thing.
-
-
         LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", db.getNamespace(), setName, Arrays.toString(binNames), policy.filterExp);
         final PageFetcher pageFetcher = new ScanPageFetcher(graph,
                 policy,
@@ -133,22 +99,13 @@ public class GraphQuery {
         return pageFetcher.startQuery();
     }
 
-
-    ///// SINDEX //////
-
-    public <E> Iterator<E> getPagedSindex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                                      final P<?> predicate,
-                                                      final FireflyGraph.TransformKeyRecord<E> transform) {
+    public <E> Iterator<E> getPagedSindex(final FireflyIndexMetadata.IndexInfo indexInfo, final P<?> predicate, final FireflyGraph.TransformKeyRecord<E> transform) {
         return getPagedSindex(indexInfo, predicate, transform, Collections.emptyList(), null);
     }
 
 
-    public <E> Iterator<E> getPagedSindex(
-            final FireflyIndexMetadata.IndexInfo indexInfo,
-            final P<?> predicate,
-            final FireflyGraph.TransformKeyRecord<E> transform,
-            final List<HasContainer> hasContainers,
-            final Class<? extends FireflyElement> clazz) {
+    public <E> Iterator<E> getPagedSindex(final FireflyIndexMetadata.IndexInfo indexInfo, final P<?> predicate,
+            final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // Create query policy with expressions.
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);

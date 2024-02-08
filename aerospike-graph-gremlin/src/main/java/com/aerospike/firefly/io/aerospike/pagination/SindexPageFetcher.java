@@ -7,7 +7,6 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
@@ -15,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
@@ -24,7 +22,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     final String set;
     final QueryPolicy policy;
     final Statement statement;
-    boolean error = false;
+    String error = "";
     final Object lock = new Object();
     final AtomicBoolean done = new AtomicBoolean(false);
 
@@ -51,23 +49,26 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             while (!done.get()) {
                 try {
                     lock.wait();
-                } catch (InterruptedException e) {
-                    LOG.error("Error waiting for page to be ready.", e);
+                } catch (final InterruptedException e) {
+                    try {
+                        pageQueue.put(new ErrorPage("Error waiting for page to be ready. " + e.getMessage()));
+                    } catch (final InterruptedException e2) {
+                        LOG.error("Error adding signalling error to iterator.", e2);
+                    }
                 }
             }
         }
-        if (error) {
-            throw new RuntimeException("Error fetching page.");
+        if (!error.isEmpty()) {
+            try {
+                pageQueue.put(new ErrorPage(error));
+            } catch (final InterruptedException e) {
+                LOG.error("Error adding signalling error to iterator.", e);
+            }
         }
-
     }
 
     class SindexPageFetcherRecordSequenceListener implements RecordSequenceListener {
         final List<KeyRecord> keyRecords = new LinkedList<>();
-
-        SindexPageFetcherRecordSequenceListener() {
-            error = false;
-        }
 
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {
@@ -88,10 +89,8 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
 
         @Override
         public void onFailure(AerospikeException exception) {
-            LOG.error("Error.", exception);
-
-            // TODO something with this.
-            error = true;
+            LOG.error("Sindex fetch failure.", exception);
+            error = exception.getMessage();
             synchronized (lock) {
                 done.set(true);
                 lock.notifyAll();

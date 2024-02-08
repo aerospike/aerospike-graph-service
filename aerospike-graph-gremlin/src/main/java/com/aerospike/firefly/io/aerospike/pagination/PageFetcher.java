@@ -2,7 +2,6 @@ package com.aerospike.firefly.io.aerospike.pagination;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
-import com.aerospike.client.query.RecordSet;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
@@ -65,16 +64,21 @@ public abstract class PageFetcher<E> {
 
     static class PoisonPill extends Page {
         public PoisonPill() {
-            super((RecordSet) null);
+            super(List.of());
+        }
+    }
+
+    static class ErrorPage extends Page {
+        final String errorMessage;
+
+        public ErrorPage(final String errorMessage) {
+            super(List.of());
+            this.errorMessage = errorMessage;
         }
     }
 
     static class Page {
         public List<KeyRecord> keyRecords;
-
-        public Page(final RecordSet recordSet) {
-            keyRecords = null;
-        }
 
         public Page(final List<KeyRecord> keyRecords) {
             this.keyRecords = keyRecords;
@@ -113,6 +117,8 @@ public abstract class PageFetcher<E> {
                 if (page instanceof PoisonPill) {
                     isEmpty = true;
                     return;
+                } else if (page instanceof ErrorPage) {
+                    throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
                 page.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
                 page.close();

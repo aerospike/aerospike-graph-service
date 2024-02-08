@@ -146,7 +146,7 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = graph.queryIndex(propertyIndexInfo.get(),
+                iterator = graph.query.getPagedSindex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,

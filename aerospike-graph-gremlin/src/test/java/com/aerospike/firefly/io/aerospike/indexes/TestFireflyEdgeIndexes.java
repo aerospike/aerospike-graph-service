@@ -67,25 +67,25 @@ public class TestFireflyEdgeIndexes extends TestFireflyIndexes {
             final Optional<FireflyIndexMetadata.IndexInfo> locationIndex = getPropertyIndexInfo(fireflyGraph, "location", "Canada");
             assertFalse(locationIndex.isPresent());
 
-//            final Iterator<Edge> edgeIteratorNameString = fireflyGraph.queryIndex(fromIndex.get(), P.eq("BitQuill"), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorNameString = graph.query.getPagedSindex(fromIndex.get(), P.eq("BitQuill"), fireflyGraph::edgeFromRecord);
 //            Assert.assertTrue(edgeIteratorNameString.hasNext());
 //            Assert.assertEquals("BitQuill", edgeIteratorNameString.next().value("from"));
 //            Assert.assertFalse(edgeIteratorNameString.hasNext());
 //
-//            final Iterator<Edge> edgeIteratorNameInteger = fireflyGraph.queryIndex(fromIndex.get(), P.eq(1), fireflyGraph::edgeFromRecord);
-//            final Iterator<Edge> edgeIteratorNameLong = fireflyGraph.queryIndex(fromIndex.get(), P.eq(1L), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorNameInteger = graph.query.getPagedSindex(fromIndex.get(), P.eq(1), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorNameLong = graph.query.getPagedSindex(fromIndex.get(), P.eq(1L), fireflyGraph::edgeFromRecord);
 //            Assert.assertFalse(edgeIteratorNameInteger.hasNext());
 //            Assert.assertFalse(edgeIteratorNameLong.hasNext());
 //
-//            final Iterator<Edge> edgeIteratorAgeString = fireflyGraph.queryIndex(yearsIndex.get(), P.eq("29"), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorAgeString = graph.query.getPagedSindex(yearsIndex.get(), P.eq("29"), fireflyGraph::edgeFromRecord);
 //            Assert.assertFalse(edgeIteratorAgeString.hasNext());
 //
 //            // Looks like a mistake here.
-//            final Iterator<Edge> edgeIteratorAgeLong = fireflyGraph.queryIndex(yearsIndex.get(), P.eq(3L), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorAgeLong = graph.query.getPagedSindex(yearsIndex.get(), P.eq(3L), fireflyGraph::edgeFromRecord);
 //            Assert.assertTrue(edgeIteratorAgeLong.hasNext());
 //            Assert.assertEquals(Integer.valueOf(3), edgeIteratorAgeLong.next().value("years"));
 //
-//            final Iterator<Edge> edgeIteratorAgeInteger = fireflyGraph.queryIndex(yearsIndex.get(), P.eq(3), fireflyGraph::edgeFromRecord);
+//            final Iterator<Edge> edgeIteratorAgeInteger = graph.query.getPagedSindex(yearsIndex.get(), P.eq(3), fireflyGraph::edgeFromRecord);
 //            Assert.assertTrue(edgeIteratorAgeInteger.hasNext());
 //            Assert.assertEquals(Integer.valueOf(3), edgeIteratorAgeInteger.next().value("years"));
         }

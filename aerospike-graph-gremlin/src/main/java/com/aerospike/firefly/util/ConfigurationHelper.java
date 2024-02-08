@@ -103,7 +103,6 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
-        public static final String PAGINATION_READ_THREAD_COUNT = "aerospike.graph.pagination.read.thread.count";
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
 
@@ -258,7 +257,6 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
-        put(Keys.PAGINATION_READ_THREAD_COUNT, "4");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "1000");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");

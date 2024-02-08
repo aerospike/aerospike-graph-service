@@ -20,15 +20,9 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     final String set;
     final ScanPolicy policy;
 
-    public ScanPageFetcher(final FireflyGraph graph,
-                           final ScanPolicy policy,
-                           final String setName,
-                           final String namespace,
-                           final int readThreadCount,
-                           final int maxQueueSize,
-                           final int maxPageSize,
-                           final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
-        super(graph, readThreadCount, maxQueueSize, transformKeyRecord);
+    public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
+                           final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
+        super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
         policy.maxRecords = maxPageSize;
         this.namespace = namespace;

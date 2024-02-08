@@ -1,11 +1,9 @@
 package com.aerospike.firefly.io.aerospike.pagination;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +14,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -31,17 +28,14 @@ public abstract class PageFetcher<E> {
     final BlockingQueue<Page> pageQueue;
     final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     final PartitionFilter filter;
-    final int readThreadCount;
 
     public PageFetcher(final FireflyGraph graph,
-                       final int readThreadCount,
                        final int maxQueueSize,
                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
         this.graph = graph;
         this.filter = PartitionFilter.all();
         this.readLoopExecutorService = Executors.newSingleThreadExecutor();
         this.pageQueue = new LinkedBlockingQueue<>(maxQueueSize);
-        this.readThreadCount = readThreadCount;
         this.transformKeyRecord = transformKeyRecord;
     }
 
@@ -76,27 +70,23 @@ public abstract class PageFetcher<E> {
     }
 
     static class Page {
-        final RecordSet recordSet;
         public List<KeyRecord> keyRecords;
 
         public Page(final RecordSet recordSet) {
-            this.recordSet = recordSet;
             keyRecords = null;
         }
 
         public Page(final List<KeyRecord> keyRecords) {
             this.keyRecords = keyRecords;
-            recordSet = null;
         }
 
         public void forEach(final Consumer<KeyRecord> consumer) {
-            if (recordSet != null) {
-                recordSet.forEach(consumer);
-            } else {
-                keyRecords.forEach(consumer::accept);
-            }
+            keyRecords.forEach(consumer::accept);
         }
 
+        public void close() {
+            keyRecords.clear();
+        }
     }
 
     public class PageIterator implements CloseableIterator<E> {
@@ -125,6 +115,7 @@ public abstract class PageFetcher<E> {
                     return;
                 }
                 page.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
+                page.close();
             } catch (InterruptedException e) {
                 LOG.error("Error removing page.", e);
             }

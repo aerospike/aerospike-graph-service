@@ -28,6 +28,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.pagination.GraphQuery;
+import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -894,46 +895,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public void scheduleElementForTtlNow(final FireflyElement element, final long timeToLiveSeconds) {
         this.ttlHandler.scheduleExpiryNow(element, timeToLiveSeconds);
-    }
-
-    /**
-     * Execute query on index with predicate and return on the fly transformed iterator.
-     *
-     * @param indexInfo Index info to use.
-     * @param predicate Predicate to use.
-     * @param transform Transform to use.
-     * @param <E>       Type of element to return.
-     * @return Iterator of transformed elements.
-     */
-    public <E extends Element> Iterator<E> queryIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                                      final P<?> predicate,
-                                                      final TransformKeyRecord<E> transform,
-                                                      final List<HasContainer> hasContainers,
-                                                      final Class<? extends FireflyElement> clazz) {
-        // Create query policy with expressions.
-        final QueryPolicy queryPolicy = new QueryPolicy();
-        queryPolicy.filterExp = query.hasContainerListToExpression(hasContainers, clazz);
-
-        // Query index.
-        final Iterator<KeyRecord> keyRecordIterator = db.queryIndex(indexInfo.setName, indexInfo.indexName, query.predicateToFilter(predicate, indexInfo), queryPolicy);
-
-        // Transform record to correct element.
-        return FireflyCloseableIteratorUtils.map(keyRecordIterator, transform::transform);
-    }
-
-    /**
-     * Execute query on index with predicate and return on the fly transformed iterator.
-     *
-     * @param indexInfo Index info to use.
-     * @param predicate Predicate to use.
-     * @param transform Transform to use.
-     * @param <E>       Type of element to return.
-     * @return Iterator of transformed elements.
-     */
-    public <E extends Element> Iterator<E> queryIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
-                                                      final P<?> predicate,
-                                                      final TransformKeyRecord<E> transform) {
-        return queryIndex(indexInfo, predicate, transform, Collections.emptyList(), null);
     }
 
     public interface TransformKeyRecord<E> {

@@ -32,22 +32,16 @@ import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
-import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -55,9 +49,6 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.Tokens;
@@ -67,7 +58,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.server.Settings;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +67,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +77,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.ElementNotFoundException.ELEMENT_NOT_FOUND;
@@ -216,7 +204,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
     public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
-    public final int PAGINATION_READ_THREAD_COUNT;
     public final int PAGINATION_PAGE_QUEUE_SIZE;
     public final int PAGINATION_PAGE_SIZE;
 
@@ -356,7 +343,6 @@ public class AerospikeConnection implements AutoCloseable {
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
         PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
-        PAGINATION_READ_THREAD_COUNT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_READ_THREAD_COUNT, conf));
         PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
@@ -1121,29 +1107,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public boolean isEnterprise() {
         return InfoOps.isEnterprise(client);
-    }
-
-
-    public Iterator<KeyRecord> queryIndex(final String setName, final String indexName, final Filter filter) {
-        return queryIndex(setName, indexName, filter, new QueryPolicy());
-    }
-
-    /**
-     * Issue a query on an index providing a custom filter
-     *
-     * @param setName   Name of Aerospike set
-     * @param indexName Name of Index to query
-     * @param filter    Custom Filter
-     * @return Iterator of KeyRecord pair results
-     */
-    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter, QueryPolicy policy) {
-        final Statement stmt = new Statement();
-        stmt.setNamespace(namespace);
-        stmt.setSetName(setName);
-        stmt.setIndexName(indexName);
-        stmt.setFilter(filter);
-        final RecordSet record = client.query(policy, stmt);
-        return new FireflyCloseableIterator(record);
     }
 
     /**

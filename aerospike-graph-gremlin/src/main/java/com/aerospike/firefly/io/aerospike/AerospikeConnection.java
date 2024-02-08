@@ -1323,7 +1323,10 @@ public class AerospikeConnection implements AutoCloseable {
                 !fireflyRecord.record().getMap(mapName).containsKey(mapKey))
             return null;
         final Object value = fireflyRecord.record().getMap(mapName).get(mapKey);
-        final Object typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        Object typeHint = null;
+        if (fireflyRecord.record().getMap(typeHintBin) != null) {
+            typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        }
         return (V) convertValuetoTypeUsingHint(value, typeHint);
     }
 

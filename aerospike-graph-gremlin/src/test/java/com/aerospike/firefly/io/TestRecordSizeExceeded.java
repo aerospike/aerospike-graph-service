@@ -128,7 +128,7 @@ public class TestRecordSizeExceeded {
     @Test
     public void testExceedViaAddVpProperty() {
         final GraphTraversalSource g = graph.traversal();
-        final String filler = getStringOfSize(682);
+        final String filler = getStringOfSize(681);
         g.V(v1.id()).property(filler, filler).iterate();
         int addedVpProperties = 0;
         final FireflyVertexProperty vp = (FireflyVertexProperty) g.V(v1.id()).properties("base0").next();

@@ -156,12 +156,14 @@ public final class ConfigurationHelper {
             ID_TYPE_BIN(Pair.of((byte) 12, "ID_TYPE")),
             USER_KEY_BIN(Pair.of((byte) 13, "USER_KEY")),
             LABEL_BIN(Pair.of((byte) 14, "LABEL")),
-            IN_EDGE_COUNTER_BIN(Pair.of((byte) 15, "IN_E_C")),
-            OUT_EDGE_COUNTER_BIN(Pair.of((byte) 16, "OUT_E_C")),
+            SUPERNODES_IN(Pair.of((byte) 15, "SUPERNODE_IN")),
+            SUPERNODES_OUT(Pair.of((byte) 16, "SUPERNODE_OUT")),
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
-            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
+            IN_EDGE_COUNTER_BIN(Pair.of((byte) 21, "IN_E_C")),
+            OUT_EDGE_COUNTER_BIN(Pair.of((byte) 22, "OUT_E_C"));
 
             private final Pair value;
 
@@ -185,10 +187,7 @@ public final class ConfigurationHelper {
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
             E_OUT_INDEX_NAME(Pair.of((byte) 7, "E_OUT_IDX")),
             TTL_EDGE_INDEX_NAME(Pair.of((byte) 8, "TTL_V_IDX")),
-            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX")),
-            SUPERNODES_IN(Pair.of((byte) 11, "SUPERNODE_IN")),
-            SUPERNODES_OUT(Pair.of((byte) 12, "SUPERNODE_OUT")),
-            INDEX_METADATA_SET(Pair.of((byte) 13, "INDEX_METADATA"));
+            TTL_VERTEX_INDEX_NAME(Pair.of((byte) 9, "TTL_E_IDX"));
 
             private final Pair value;
 
@@ -217,7 +216,8 @@ public final class ConfigurationHelper {
             TEST_SET(Pair.of((byte) 11, "TEST")),
             GRAPH_METADATA_SET(Pair.of((byte) 12, "METADATA")),
             USAGE_STATS_SET(Pair.of((byte) 13, "USAGE_STATS_SET")),
-            USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE"));
+            USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE")),
+            INDEX_METADATA_SET(Pair.of((byte) 14, "INDEX_METADATA"));
 
             private final Pair value;
 

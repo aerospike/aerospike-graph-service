@@ -7,12 +7,14 @@ import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,9 +23,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     private static final Logger LOG = LoggerFactory.getLogger(SindexPageFetcher.class);
     private final QueryPolicy policy;
     private final Statement statement;
-    private String error = "";
-    private final Object lock = new Object();
-    private final AtomicBoolean done = new AtomicBoolean(false);
 
     public SindexPageFetcher(final FireflyGraph graph, final QueryPolicy policy, final String setName, final String namespace,
                              final Filter filter, final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
@@ -38,65 +37,22 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
 
     @Override
     protected void readPage() {
-        done.set(false);
-        graph.getBaseGraph().getClient().queryPartitions(graph.getBaseGraph().eventLoops.next(),
-                new SindexPageFetcherRecordSequenceListener(), policy, statement, filter);
-        synchronized (lock) {
-            while (!done.get()) {
-                try {
-                    lock.wait();
-                } catch (final InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    try {
-                        pageQueue.put(new ErrorPage("Error waiting for page to be ready. " + e.getMessage()));
-                    } catch (final InterruptedException e2) {
-                        LOG.error("Error adding signalling error to iterator.", e2);
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            }
+        final RecordSet recordSet;
+        try {
+            recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
+        } catch (AerospikeException e) {
+            signalError("Failed to read index: " + e.getMessage());
+            return;
         }
-        if (!error.isEmpty()) {
-            try {
-                pageQueue.put(new ErrorPage(error));
-            } catch (final InterruptedException e) {
-                LOG.error("Error adding signalling error to iterator.", e);
-                Thread.currentThread().interrupt();
-            }
+        final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
+        final List<KeyRecord> kr = new ArrayList<>((int) statement.getMaxRecords());
+        while (recordSetIterator.hasNext()) {
+            kr.add(recordSetIterator.next());
         }
-    }
-
-    class SindexPageFetcherRecordSequenceListener implements RecordSequenceListener {
-        final List<KeyRecord> keyRecords = new ArrayList<>((int) statement.getMaxRecords());
-
-        @Override
-        public void onRecord(final Key key, final Record record) throws AerospikeException {
-            if (readLoopExecutorService.isShutdown()) {
-                throw new AerospikeException.QueryTerminated();
-            }
-            if (done.get()) {
-                System.out.println("ERROR ON RECORD AFTER DONEW!!!!!!!!!!");
-            }
-            keyRecords.add(new KeyRecord(key, record));
-        }
-
-        @Override
-        public void onSuccess() {
-            pageQueue.add(new Page(keyRecords));
-            synchronized (lock) {
-                done.set(true);
-                lock.notifyAll();
-            }
-        }
-
-        @Override
-        public void onFailure(AerospikeException exception) {
-            LOG.error("Sindex fetch failure.", exception);
-            error = exception.getMessage();
-            synchronized (lock) {
-                done.set(true);
-                lock.notifyAll();
-            }
+        try {
+            pageQueue.put(new Page(kr));
+        } catch (final InterruptedException e) {
+            signalError("Failed to add page to queue: " + e.getMessage());
         }
     }
 }

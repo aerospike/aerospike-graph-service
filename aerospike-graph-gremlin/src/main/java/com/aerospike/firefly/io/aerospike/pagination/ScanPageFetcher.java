@@ -51,13 +51,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         try {
             pageQueue.put(new Page(callback.keyRecords));
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            try {
-                pageQueue.put(new ErrorPage("Error adding page to queue. " + e.getMessage()));
-            } catch (final InterruptedException e2) {
-                LOG.error("Error adding signalling error to iterator.", e2);
-                Thread.currentThread().interrupt();
-            }
+            signalError("Failed to add page to queue: " + e.getMessage());
         }
     }
 

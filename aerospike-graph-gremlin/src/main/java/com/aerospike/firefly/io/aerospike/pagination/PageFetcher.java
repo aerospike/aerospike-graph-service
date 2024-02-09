@@ -173,4 +173,14 @@ public abstract class PageFetcher<E> {
         // Signal to readLoopExecutor that it needs to shut down.
         readLoopExecutorService.shutdown();
     }
+
+    protected void signalError(final String error) {
+        try {
+            LOG.error(error);
+            pageQueue.put(new ErrorPage("Error reading index query: " + error));
+        } catch (final InterruptedException e2) {
+            LOG.error("Error adding signalling error to iterator.", e2);
+            Thread.currentThread().interrupt();
+        }
+    }
 }

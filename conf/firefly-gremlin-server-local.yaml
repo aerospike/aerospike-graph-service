@@ -3,7 +3,7 @@ port: 8182
 evaluationTimeout: 10000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
-  graph: /home/lyndon/github/firefly/conf/aerospike-graph-github-actions.properties}
+  graph: /home/runner/work/firefly/firefly/conf/aerospike-graph-github-actions.properties}
 
 scriptEngines: {
   gremlin-groovy: {

@@ -45,14 +45,37 @@ public class GraphQuery {
     }
 
     private Iterator<FireflyId> getPagedScanOfElementIds(final Class<? extends FireflyElement> clazz, final List<HasContainer> hasContainers) {
-        final P<?> predicate = (hasContainers == null || hasContainers.isEmpty()) ? null : hasContainers.remove(0).getPredicate();
+        System.out.println("getPagedScanOfElementIds");
+        final P<?> predicate;
+        final String binName;
+        final String mapKey;
+        if (!hasContainers.isEmpty()) {
+            if (clazz.isAssignableFrom(FireflyEdge.class)) {
+                throw new IllegalArgumentException("Cannot push predicates down to edges.");
+            }
+
+            final HasContainer container = hasContainers.remove(0);
+            predicate = container.getPredicate();
+            if ("~label".equals(container.getKey())) {
+                binName = graph.getBaseGraph().LABEL_BIN;
+                mapKey = null;
+            } else {
+                binName = graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
+                mapKey = container.getKey();
+            }
+        } else {
+            predicate = null;
+            binName = null;
+            mapKey = null;
+        }
+
         if (FireflyVertex.class.isAssignableFrom(clazz)) {
-            return getPagedScan(null, db.VERTEX_AERO_SET, null, predicate, graph::vertexIdFromRecord,
-                    hasContainers, null, true, false);
+            return getPagedScan(mapKey, db.VERTEX_AERO_SET, binName, predicate, graph::vertexIdFromRecord,
+                    hasContainers, clazz, true, true);
         } else if (FireflyEdge.class.isAssignableFrom(clazz)) {
             return new FireflyPhatEdgeIdIterator(getPagedScan(
-                    null, db.EDGE_AERO_SET, null, predicate, graph::keyRecordFromKeyRecord,
-                    hasContainers, null, true, true), db);
+                    mapKey, db.EDGE_AERO_SET, binName, predicate, graph::keyRecordFromKeyRecord,
+                    hasContainers, clazz, true, true), db);
         } else {
             throw new IllegalArgumentException("Cannot scan all element ids for unknown class: " + clazz);
         }

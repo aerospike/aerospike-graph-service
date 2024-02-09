@@ -85,10 +85,6 @@ public abstract class PageFetcher<E> {
             this.keyRecords = keyRecords;
         }
 
-        public void forEach(final Consumer<KeyRecord> consumer) {
-            keyRecords.forEach(consumer::accept);
-        }
-
         public void close() {
             keyRecords.clear();
         }
@@ -121,7 +117,7 @@ public abstract class PageFetcher<E> {
                 } else if (page instanceof ErrorPage) {
                     throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
-                page.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
+                page.keyRecords.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
                 page.close();
             } catch (final InterruptedException e) {
                 LOG.error("Error removing page.", e);

@@ -1,6 +1,7 @@
 package com.aerospike.firefly.process.strategy;
 
 import com.aerospike.firefly.process.traversal.step.FireflyBatchEdgeReadStep;
+import com.aerospike.firefly.process.traversal.step.FireflyCacheGCStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
 import com.aerospike.firefly.util.AbstractFireflySuite;
@@ -11,17 +12,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.TextP;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
 
-// TODO GRAPH-401: While we have hacks to get around the fact that we cannot filter our cache with a hasContainer
-//  this test is not valid. Remove @Ignore when this is fixed.
-@Ignore
 public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
     @Override
@@ -29,9 +27,11 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
         return true;
     }
 
+
     @Test
     public void testCompositeIdVertexStepHasContainerPushdownAerospike() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -48,8 +48,9 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
+                // Expect both b/c cache.
                 Assert.assertEquals(2, compositeIdStep.aerospikeHasContainers.size());
-                Assert.assertEquals(0, compositeIdStep.fireflyHasContainers.size());
+                Assert.assertEquals(2, compositeIdStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all has steps after composite id to be pulled into composite id.
                 Assert.assertFalse(step instanceof HasStep);
@@ -61,6 +62,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testCompositeIdVertexStepHasContainerPushdownFirefly() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -90,6 +92,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testCompositeIdVertexStepHasContainerPushdownMix() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -107,7 +110,8 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 found = true;
                 final FireflyCompositeIdStep compositeIdStep = (FireflyCompositeIdStep) step;
                 Assert.assertEquals(1, compositeIdStep.aerospikeHasContainers.size());
-                Assert.assertEquals(1, compositeIdStep.fireflyHasContainers.size());
+                // Should have both.
+                Assert.assertEquals(2, compositeIdStep.fireflyHasContainers.size());
             } else if (found) {
                 // Expect all has steps after composite id to be pulled into composite id.
                 Assert.assertFalse(step instanceof HasStep);
@@ -119,6 +123,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testCompositeIdVertexStepHasContainerPushdownMixLabelOmit() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -150,6 +155,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testBatchEdgeStepHasContainerPushdownAerospike() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -166,11 +172,11 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyBatchEdgeReadStep batchEdgeReadStep = (FireflyBatchEdgeReadStep) step;
-                Assert.assertEquals(2, batchEdgeReadStep.aerospikeHasContainers.size());
+                Assert.assertEquals(0, batchEdgeReadStep.aerospikeHasContainers.size());
                 Assert.assertEquals(0, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
-                // Expect all has steps after composite id to be pulled into composite id.
-                Assert.assertFalse(step instanceof HasStep);
+                // Expect all Has step to not be pulled into batch edge read.
+                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
             }
         }
         Assert.assertTrue(found);
@@ -179,6 +185,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testBatchEdgeStepHasContainerPushdownFirefly() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -196,18 +203,29 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
                 found = true;
                 final FireflyBatchEdgeReadStep batchEdgeReadStep = (FireflyBatchEdgeReadStep) step;
                 Assert.assertEquals(0, batchEdgeReadStep.aerospikeHasContainers.size());
-                Assert.assertEquals(1, batchEdgeReadStep.fireflyHasContainers.size());
+                Assert.assertEquals(0, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
-                // Expect all has steps after composite id to be pulled into composite id.
-                Assert.assertFalse(step instanceof HasStep);
+                // Expect all Has step to not be pulled into batch edge read.
+                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
             }
         }
         Assert.assertTrue(found);
     }
 
     @Test
+    public void testOutE() {
+        final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
+        GraphHelper.cloneElements(tg, graph);
+
+        final GraphTraversalSource g = graph.traversal();
+        final List<Edge> e = g.V().has("name", "marko").outE().has("foo", 1).toList();
+    }
+
+    @Test
     public void testBatchEdgeStepHasContainerPushdownMix() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();
@@ -224,11 +242,12 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
 
                 found = true;
                 final FireflyBatchEdgeReadStep batchEdgeReadStep = (FireflyBatchEdgeReadStep) step;
-                Assert.assertEquals(1, batchEdgeReadStep.aerospikeHasContainers.size());
-                Assert.assertEquals(1, batchEdgeReadStep.fireflyHasContainers.size());
+                // Cannot pushdown to Aerospike for edges.
+                Assert.assertEquals(0, batchEdgeReadStep.aerospikeHasContainers.size());
+                Assert.assertEquals(0, batchEdgeReadStep.fireflyHasContainers.size());
             } else if (found) {
-                // Expect all has steps after composite id to be pulled into composite id.
-                Assert.assertFalse(step instanceof HasStep);
+                // Expect all Has step to not be pulled into batch edge read.
+                Assert.assertTrue((step instanceof HasStep || step instanceof FireflyCacheGCStep));
             }
         }
         Assert.assertTrue(found);
@@ -237,6 +256,7 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
     @Test
     public void testBatchEdgeStepHasContainerPushdownMixLabelOmit() {
         final Graph tg = TinkerFactory.createModern();
+        graph.traversal().V().drop().iterate();
         GraphHelper.cloneElements(tg, graph);
 
         final GraphTraversalSource g = graph.traversal();

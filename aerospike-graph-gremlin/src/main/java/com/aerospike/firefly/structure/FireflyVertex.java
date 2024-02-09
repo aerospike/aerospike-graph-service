@@ -75,7 +75,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.io.aerospike.OperationReturnHandler.getValueAtIndex;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.getUserIdString;
@@ -210,35 +210,52 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     public void writeVertexProperty(final FireflyVertexProperty vertexProperty) {
         final Key key = getKey(this.db, this.db.VERTEX_AERO_SET, this.id);
+        final List<Operation> operations = new ArrayList<>();
+        boolean wroteTypeHint = false;
 
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation putValue = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                 Value.get(vertexProperty.key()), Value.get(vertexProperty.value()));
-        final Operation putTypeHint = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
-                Value.get(vertexProperty.key()), Value.get(getSupportedType(vertexProperty.value())));
+        operations.add(putValue);
+        final Object typeHint = getTypeHintOf(vertexProperty.value());
+        if (typeHint != null) {
+            final Operation putTypeHint = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
+                    Value.get(vertexProperty.key()), Value.get(typeHint));
+            operations.add(putTypeHint);
+            wroteTypeHint = true;
+        }
         final Operation putId = MapOperation.put(policy, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN,
                 Value.get(vertexProperty.key()), Value.get(vertexProperty.id.getStorageId()));
+        operations.add(putId);
         final Operation getValues = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN);
+        operations.add(getValues);
         final Operation getTypeHints = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
+        operations.add(getTypeHints);
         final Operation getIds = Operation.get(this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN);
+        operations.add(getIds);
 
         // Write key for the vertex property's properties
         final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         final Operation addKeyProperties = MapOperation.put(mapPolicy, this.db.PROPERTIES_BIN,
                 Value.get(vertexProperty.id.getStorageId()), Value.get(vertexProperty.properties));
+        operations.add(addKeyProperties);
         final Operation addKeyPropertiesTypeHints = MapOperation.put(mapPolicy, this.db.TYPE_HINTS_BIN,
                 Value.get(vertexProperty.id.getStorageId()), Value.get(vertexProperty.typeHints));
+        operations.add(addKeyPropertiesTypeHints);
         final Operation getKeyProperties = Operation.get(this.db.PROPERTIES_BIN);
+        operations.add(getKeyProperties);
         final Operation getKeyPropertiesTypeHints = Operation.get(this.db.TYPE_HINTS_BIN);
+        operations.add(getKeyPropertiesTypeHints);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            final Record result = this.db.operate(writePolicy, key, putValue, putId, putTypeHint, addKeyProperties, addKeyPropertiesTypeHints, getValues, getTypeHints,
-                    getIds, getKeyProperties, getKeyPropertiesTypeHints);
+            final Record result = this.db.operate(writePolicy, key, operations.toArray(new Operation[0]));
 
             final Map<String, Object> vertexPropertyValues = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN, 1)).orElse(new TreeMap<>());
-            final Map<String, Object> vertexPropertyTypeHints = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1)).orElse(new TreeMap<>());
+            final Map<String, Object> vertexPropertyTypeHints = wroteTypeHint ?
+                    (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN, 1)).orElse(new TreeMap<>()) :
+                    (Map<String, Object>) result.getMap(this.db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN);
             final Map<String, Object> vertexPropertyIds = (Map<String, Object>) Optional.ofNullable(getValueAtIndex(result, this.db.VERTEX_PROPERTY_NAME_TO_ID_BIN, 1)).orElse(new TreeMap<>());
             final Map<Object, Map<String, Object>> vertexPropertyIdToProperties = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.PROPERTIES_BIN, 1)).orElse(new TreeMap<>());
             final Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints = (Map<Object, Map<String, Object>>) Optional.ofNullable(getValueAtIndex(result, this.db.TYPE_HINTS_BIN, 1)).orElse(new TreeMap<>());
@@ -1074,7 +1091,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final Operation writeVertexPropertyValues = Operation.put(vertexPropertyValuesBin);
             final Map<String, Object> vertexPropertyTypeHintMap = new TreeMap<>();
             for (Map.Entry<String, ?> entry : vertexPropertyValueMap.entrySet()) {
-                vertexPropertyTypeHintMap.put(entry.getKey(), getSupportedType(entry.getValue()));
+                final Object typeHint = getTypeHintOf(entry.getValue());
+                if (typeHint != null) {
+                    vertexPropertyTypeHintMap.put(entry.getKey(), typeHint);
+                }
             }
             final Bin vertexPropertyValuesTypeHintsBin = new Bin(db.VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN,
                     Value.get(vertexPropertyTypeHintMap, MapOrder.KEY_ORDERED));

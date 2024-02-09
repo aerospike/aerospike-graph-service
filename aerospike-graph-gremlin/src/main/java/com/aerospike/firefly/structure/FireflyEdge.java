@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
@@ -136,7 +136,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value));
+                final Object typeHint = getTypeHintOf(value);
+                if (typeHint != null) {
+                    typeHints.put(key, typeHint);
+                }
                 propertyMap.put(key, value);
             }
         });
@@ -427,7 +430,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         FireflyHelper.validatePropertyValue(value);
         final Property<V> property = writeProperty(graph, this, key, value);
         properties.put(key, value);
-        typeHints.put(key, AerospikeConnection.getSupportedType(value));
+        final Object typeHint = getTypeHintOf(value);
+        if (typeHint != null) {
+            typeHints.put(key, typeHint);
+        }
         return property;
     }
 
@@ -489,28 +495,35 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
 
+        final List<Operation> operations = new ArrayList<>();
         final Operation valueOp;
-        final Operation typeHintOp;
 
         // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
         // the property key if a null value is given.
         if (value == null) {
             valueOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
-            typeHintOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
+            operations.add(valueOp);
+            final Operation typeHintOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            operations.add(typeHintOp);
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey), Value.get(value),
                     CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
-            typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
-                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            operations.add(valueOp);
+            final Object typeHint = getTypeHintOf(value);
+            if (typeHint != null) {
+                final Operation typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        Value.get(typeHint), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+                operations.add(typeHintOp);
+            }
         }
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, key, valueOp, typeHintOp);
+            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, edge.id, propertyKey);

@@ -27,6 +27,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.io.aerospike.pagination.GraphQuery;
 import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
@@ -103,8 +105,7 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
 import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
@@ -239,6 +240,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
+        SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
         }
@@ -531,8 +533,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value));
                 propertyMap.put(key, value);
+                final Object typeHint = getTypeHintOf(value);
+                if (typeHint != null) {
+                    typeHints.put(key, typeHint);
+                }
             }
         });
 
@@ -694,10 +699,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
                 if (keyValues[i + 1] != null) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], getSupportedType(keyValues[i + 1]));
+                    final Object typeHint = getTypeHintOf(keyValues[i + 1]);
+                    if (typeHint != null) {
+                        typeHints.put((String) keyValues[i], typeHint);
+                    }
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], SupportedValueTypes.get(String.class));
                 }
                 // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
                 // properties to remove, so just ignore.
@@ -921,10 +928,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", prefix, index);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, index, STRING, IndexCollectionType.DEFAULT);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, index, NUMERIC, IndexCollectionType.DEFAULT);
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
         }
 
         // Manually force metadata to update.

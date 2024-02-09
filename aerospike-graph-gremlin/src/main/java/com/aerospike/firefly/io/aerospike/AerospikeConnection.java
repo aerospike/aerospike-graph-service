@@ -70,6 +70,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -789,13 +790,14 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
-     * Return the numeric id of the on disk type of scalar values. If the value parameter is an ArrayList, return an
-     * ArrayList containing the indices at which the values within the parameter ArrayList is an Integer.
+     * If the value parameter is scalar, return the numeric id of the on disk type if value is an Integer - else null.
+     * If the value parameter is an ArrayList, return an ArrayList containing the indices at which the values within the
+     * parameter ArrayList is an Integer. Returns null if the ArrayList contained no Integer values.
      *
      * @param value Object to get type hint ID of
-     * @return Type hint value
+     * @return Type hint value or null
      */
-    public static Object getSupportedType(final Object value) {
+    public static Object getTypeHintOf(final Object value) {
         final Class clazz = value.getClass();
         if (!SupportedValueTypes.containsKey(clazz)) {
             throw new UnsupportedOperationException(clazz.getName() + " is not a supported value type");
@@ -819,9 +821,9 @@ public class AerospikeConnection implements AutoCloseable {
                     }
                 }
             }
-            return integerIndices;
+            return integerIndices.isEmpty() ? null : integerIndices;
         }
-        return SupportedValueTypes.get(clazz);
+        return Objects.equals(SupportedValueTypes.get(clazz), SupportedValueTypes.get(Integer.class)) ? SupportedValueTypes.get(Integer.class) : null;
     }
 
     /**
@@ -831,15 +833,21 @@ public class AerospikeConnection implements AutoCloseable {
         final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
+
         LOG.info("Creating graph indices.");
         List<String> existingIndexes =
                 InfoOps.listExistingIndexes(getClient(), getNamespace()).stream()
                         .map(Map.Entry::getKey).collect(Collectors.toList());
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
+
+        // Blocking call for supernode indexes since graph doesn't function without.
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
                 IndexType.BLOB, IndexCollectionType.MAPVALUES);
-        createIndex(existingIndexes, setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
+        createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
+                E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
                 IndexType.BLOB, IndexCollectionType.MAPVALUES);
 
+        // Blocking call for ttl indexes since graph doesn't function without.
         if (TTL_ENABLED_FLAG) {
             createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
                     TTL_VERTEX_INDEX_NAME, TTL_BIN,
@@ -849,9 +857,10 @@ public class AerospikeConnection implements AutoCloseable {
                     IndexType.NUMERIC, IndexCollectionType.MAPVALUES);
         }
 
+        // Create label index in background.
         if (V_LABEL_INDEX_ENABLED_FLAG) {
-            createIndex(existingIndexes, setFromElementType(FireflyVertex.class),
-                    V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT);
+            createIndexBackground(existingIndexes, setFromElementType(FireflyVertex.class),
+                    V_LABEL_INDEX_NAME, LABEL_BIN, IndexType.STRING, IndexCollectionType.DEFAULT, false);
         }
         if (E_LABEL_INDEX_ENABLED_FLAG) {
             // TODO GRAPH-438: Edge indexes.
@@ -864,8 +873,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public void dropGraphIndices(final FireflyGraph graph) {
         LOG.debug("Dropping graph indices.");
-        dropIndex(setFromElementType(FireflyVertex.class), E_IN_INDEX_NAME);
-        dropIndex(setFromElementType(FireflyEdge.class), E_OUT_INDEX_NAME);
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
@@ -1149,11 +1156,17 @@ public class AerospikeConnection implements AutoCloseable {
                 !fireflyRecord.record().getMap(mapName).containsKey(mapKey))
             return null;
         final Object value = fireflyRecord.record().getMap(mapName).get(mapKey);
-        final Object typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        Object typeHint = null;
+        if (fireflyRecord.record().getMap(typeHintBin) != null) {
+            typeHint = fireflyRecord.record().getMap(typeHintBin).get(mapKey);
+        }
         return (V) convertValuetoTypeUsingHint(value, typeHint);
     }
 
     public Object convertValuetoTypeUsingHint(final Object value, final Object typeHint) {
+        if (typeHint == null) {
+            return value;
+        }
         if (typeHint instanceof ArrayList) {
             final ArrayList<Object> valueList = (ArrayList<Object>) value;
             final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
@@ -1224,18 +1237,23 @@ public class AerospikeConnection implements AutoCloseable {
         // Expected behavior is to remove the existing property key if it exists when null value is written.
         if (value == null) {
             valueOp = MapOperation.removeByKey(mapName, Value.get(mapKey), MapReturnType.NONE);
+            ops.add(valueOp);
             typeHintOp = MapOperation.removeByKey(typeHintBinName, Value.get(mapKey), MapReturnType.NONE);
+            ops.add(typeHintOp);
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             valueOp = MapOperation.put(policy, mapName, Value.get(mapKey), Value.get(value));
-            typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
-                    Value.get(getSupportedType(value)));
+            ops.add(valueOp);
+            final Object typeHint = getTypeHintOf(value);
+            if (typeHint != null) {
+                typeHintOp = MapOperation.put(policy, typeHintBinName, Value.get(mapKey),
+                        Value.get(typeHint));
+                ops.add(typeHintOp);
+            }
         }
         final Expression idTypeExp = Exp.build(Exp.val(fid.getStorageTypeHint()));
         final Operation idTypeOp = ExpOperation.write(this.ID_TYPE_BIN, idTypeExp,
                 ExpWriteFlags.CREATE_ONLY | ExpWriteFlags.POLICY_NO_FAIL);
-        ops.add(valueOp);
-        ops.add(typeHintOp);
         ops.add(idTypeOp);
         for (final Bin bin : additionalBins) {
             ops.add(Operation.put(bin));
@@ -1364,6 +1382,28 @@ public class AerospikeConnection implements AutoCloseable {
     }
 
     /**
+     * Drop an Aerospike Index.
+     *
+     * @param set       Set name
+     * @param indexName Index name
+     */
+    public void dropIndexBackground(final String set, final String indexName) {
+        LOG.debug("Dropping index {}:{}.", set, indexName);
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        try {
+            client.dropIndex(policy, namespace, set, indexName);
+        } catch (AerospikeException ae) {
+            if (ae.getResultCode() == ResultCode.ROLE_VIOLATION) {
+                LOG.error("Failed to drop index due to role violation. Please check the permissions of the role assigned.");
+            }
+            if (ae.getResultCode() != ResultCode.INDEX_NOTFOUND) {
+                throw new RuntimeException(ae);
+            }
+        }
+    }
+
+    /**
      * Create an Aerospike Index for a specific key and value type in the key-value pair map of properties.
      *
      * @param existingIndexes
@@ -1402,54 +1442,40 @@ public class AerospikeConnection implements AutoCloseable {
         }
     }
 
+    public void createIndexBackground(
+            final List<String> existingIndexes,
+            final String set,
+            final String indexName,
+            final String binName,
+            final IndexType type,
+            final IndexCollectionType indexCollectionType,
+            final boolean errorOnDuplicate,
+            final CTX... ctx
+    ) {
+        if (set.contains(WarmupUtil.getWarmupArenaName()))
+            return;
+
+        if (existingIndexes.contains(indexName)) {
+            if (errorOnDuplicate) {
+                throw new RuntimeException("Index " + indexName + " already exists");
+            } else {
+                LOG.debug("Index {} already exists", indexName);
+                return;
+            }
+        }
+        LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
+
+        final Policy policy = new Policy();
+        policy.socketTimeout = 0; // Do not timeout on index create.
+        client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
+    }
+
     public String getVpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, VP_INDEX_PREFIX);
     }
 
     public String getEpIndexPrefix() {
         return String.format("%s_%s", GRAPH_ID, EP_INDEX_PREFIX);
-    }
-
-    /**
-     * Create an Aerospike Index.
-     *
-     * @param existingIndexes
-     * @param set                 Set name
-     * @param indexName           Index name
-     * @param binName             Bin name to be indexed
-     * @param keyName             Key of map to create sindex on
-     * @param type                Index type
-     * @param indexCollectionType Index Collection Type
-     */
-    public void createKeyValueSindex(
-            final List<String> existingIndexes,
-            final String set,
-            final String indexName,
-            final String binName,
-            final String keyName,
-            final IndexType type,
-            final IndexCollectionType indexCollectionType
-    ) {
-        if (set.contains(WarmupUtil.getWarmupArenaName()))
-            return;
-        if (existingIndexes.contains(indexName)) {
-            LOG.debug("Index {} already exists", indexName);
-            return;
-        } else {
-            LOG.info("Creating index {}:{}:{}.", set, indexName, binName);
-        }
-        final Policy policy = new Policy();
-        policy.socketTimeout = 0; // Do not timeout on index create.
-        try {
-            final CTX ctx = CTX.mapKey(Value.get(keyName));
-            final IndexTask task = client.createIndex(policy, namespace, set, indexName, binName, type, indexCollectionType, ctx);
-            task.waitTillComplete(1);
-            LOG.debug("Index {} creation completed.", indexName);
-        } catch (AerospikeException ae) {
-            if (ae.getResultCode() != ResultCode.INDEX_ALREADY_EXISTS) {
-                throw ae;
-            }
-        }
     }
 
     /**

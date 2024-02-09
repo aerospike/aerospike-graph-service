@@ -85,7 +85,7 @@ public final class FireflyHelper {
     public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers) {
         final AerospikeConnection db = graph.getBaseGraph();
         if (hasContainers.isEmpty()) {
-            return graph.getVertexCount(null);
+            return graph.getVertexCount(new ArrayList<>());
         }
 
         final Optional<FireflyIndexMetadata.IndexInfo> info = graph.fireflyIndexMetadata.getPropertyIndexInfo(

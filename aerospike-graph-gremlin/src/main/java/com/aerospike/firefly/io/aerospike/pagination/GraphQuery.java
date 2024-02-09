@@ -45,7 +45,6 @@ public class GraphQuery {
     }
 
     private Iterator<FireflyId> getPagedScanOfElementIds(final Class<? extends FireflyElement> clazz, final List<HasContainer> hasContainers) {
-        System.out.println("getPagedScanOfElementIds");
         final P<?> predicate;
         final String binName;
         final String mapKey;

@@ -117,16 +117,13 @@ public abstract class PageFetcher<E> {
                 } else if (page instanceof ErrorPage) {
                     throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
-                System.out.println("looping through page.");
                 for (final KeyRecord keyRecord : page.keyRecords) {
-                    System.out.println("Got keyrecord " + keyRecord + " from page.");
                     if (keyRecord == null) {
                         System.out.println("!!!!!!!!!!!!!null keyRecord!!!!!!!!!!!!!!!");
                         continue;
                     }
                     currentList.add(transformKeyRecord.transform(keyRecord));
                 }
-                //page.keyRecords.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
                 page.close();
             } catch (final InterruptedException e) {
                 LOG.error("Error removing page.", e);

@@ -47,7 +47,6 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         metricsCallback.apply(startTime, System.currentTimeMillis());
 
         try {
-            System.out.println("Placing page " + callback.keyRecords.size() + " into queue.");
             pageQueue.put(new Page(callback.keyRecords));
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -69,7 +68,6 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
             if (readLoopExecutorService.isShutdown()) {
                 throw new AerospikeException.ScanTerminated();
             }
-            System.out.println("Adding keyrecord " + key + " to list.");
             keyRecords.add(new KeyRecord(key, record));
         }
     }

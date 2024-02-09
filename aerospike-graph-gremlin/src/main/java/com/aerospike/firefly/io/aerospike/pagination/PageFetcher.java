@@ -117,6 +117,7 @@ public abstract class PageFetcher<E> {
                 } else if (page instanceof ErrorPage) {
                     throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
+
                 for (final KeyRecord keyRecord : page.keyRecords) {
                     if (keyRecord == null) {
                         System.out.println("!!!!!!!!!!!!!null keyRecord!!!!!!!!!!!!!!!");

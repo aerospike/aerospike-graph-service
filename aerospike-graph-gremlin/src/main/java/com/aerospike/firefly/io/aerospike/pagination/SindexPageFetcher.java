@@ -12,6 +12,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,7 +67,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     }
 
     class SindexPageFetcherRecordSequenceListener implements RecordSequenceListener {
-        final List<KeyRecord> keyRecords = new LinkedList<>();
+        final List<KeyRecord> keyRecords = new ArrayList<>((int) policy.maxRecords);
 
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {

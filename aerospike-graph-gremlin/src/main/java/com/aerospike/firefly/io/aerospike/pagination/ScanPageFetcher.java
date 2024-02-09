@@ -11,6 +11,7 @@ import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private final ScanPolicy policy;
     private final BiFunction<Long, Long, Void> metricsCallback;
     private final long startTime;
+
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
                            final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
@@ -60,8 +62,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     }
 
     class ScanPageFetcherScanCallback implements ScanCallback {
-
-        final List<KeyRecord> keyRecords = new LinkedList<>();
+        final List<KeyRecord> keyRecords = new ArrayList<>((int) policy.maxRecords);
 
         @Override
         public void scanCallback(final Key key, final Record record) throws AerospikeException {

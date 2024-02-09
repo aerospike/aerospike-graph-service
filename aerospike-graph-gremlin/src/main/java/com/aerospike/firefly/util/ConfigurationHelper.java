@@ -13,12 +13,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -443,7 +445,18 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
-    public static boolean validateConfig(Configuration config) {
-        // TODO: Implement
+    public static void validateConfig(final Configuration config) {
+        final Field[] fields = Keys.class.getFields();
+        final Iterator<String> configKeys = config.getKeys();
+        final List<String> invalidKeys = new ArrayList<>();
+        while (configKeys.hasNext()) {
+            final String key = configKeys.next();
+            if (!Arrays.stream(fields).map(Field::getName).map(String::toLowerCase).collect(Collectors.toSet()).contains(key)) {
+                invalidKeys.add(key);
+            }
+        }
+        if (!invalidKeys.isEmpty()) {
+            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+        }
     }
 }

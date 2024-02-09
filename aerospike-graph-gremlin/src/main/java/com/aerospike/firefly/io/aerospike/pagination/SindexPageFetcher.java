@@ -67,12 +67,15 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
     }
 
     class SindexPageFetcherRecordSequenceListener implements RecordSequenceListener {
-        final List<KeyRecord> keyRecords = new ArrayList<>((int) policy.maxRecords);
+        final List<KeyRecord> keyRecords = new ArrayList<>((int) statement.getMaxRecords());
 
         @Override
         public void onRecord(final Key key, final Record record) throws AerospikeException {
             if (readLoopExecutorService.isShutdown()) {
                 throw new AerospikeException.QueryTerminated();
+            }
+            if (done.get()) {
+                System.out.println("ERROR ON RECORD AFTER DONEW!!!!!!!!!!");
             }
             keyRecords.add(new KeyRecord(key, record));
         }

@@ -119,8 +119,8 @@ public abstract class PageFetcher<E> {
                 }
 
                 for (final KeyRecord keyRecord : page.keyRecords) {
+                    // Should never happen.
                     if (keyRecord == null) {
-                        System.out.println("!!!!!!!!!!!!!null keyRecord!!!!!!!!!!!!!!!");
                         continue;
                     }
                     currentList.add(transformKeyRecord.transform(keyRecord));

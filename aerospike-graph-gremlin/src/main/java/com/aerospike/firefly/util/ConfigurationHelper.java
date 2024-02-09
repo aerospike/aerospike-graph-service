@@ -97,7 +97,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
-        public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
+        public static final String STORAGE_DEBUGGER_FLAG = "aerospike.graph.storage.debug";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -105,17 +105,15 @@ public final class ConfigurationHelper {
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
 
         // Internal-only configurations
-        public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
-        public static final String WARMUP_MODE = "WARMUP_MODE";
-        public static final String FAULT_TEST = "FAULT_TEST";
-        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
-        public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
-        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
-        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
-        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
-        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
-        public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
-        public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+        public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
+        public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
+        public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
+        public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
+        public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
+        public static final String ASYNC_SUBGRAPH_CACHE = "aerospike.graph.async.subgraph.cache.enabled";
+        public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
+        public static final String DEBUG_MODE_FLAG = "aerospike.graph.debug.mode.enabled";
+        public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
@@ -281,8 +279,6 @@ public final class ConfigurationHelper {
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
         put(Keys.PROMETHEUS_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
-        put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
-        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
@@ -445,5 +441,9 @@ public final class ConfigurationHelper {
             throw new RuntimeException(e);
         }
         return sw.toString();
+    }
+
+    public static boolean validateConfig(Configuration config) {
+        // TODO: Implement
     }
 }

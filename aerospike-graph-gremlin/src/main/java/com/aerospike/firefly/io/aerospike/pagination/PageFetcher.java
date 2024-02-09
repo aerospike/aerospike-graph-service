@@ -20,12 +20,11 @@ import java.util.function.Consumer;
 
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
-
     final FireflyGraph graph;
     final ExecutorService readLoopExecutorService;
 
     final BlockingQueue<Page> pageQueue;
-    final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
+    private final FireflyGraph.TransformKeyRecord<E> transformKeyRecord;
     final PartitionFilter filter;
 
     public PageFetcher(final FireflyGraph graph,
@@ -51,7 +50,9 @@ public abstract class PageFetcher<E> {
                         LOG.error("Error adding poison pill.", e);
                     }
                     return;
-                } else if (filter.isDone()) {
+                }
+
+                if (filter.isDone()) {
                     readLoopExecutorService.shutdown();
                     continue;
                 }
@@ -122,15 +123,16 @@ public abstract class PageFetcher<E> {
                 }
                 page.forEach((keyRecord) -> currentList.add(transformKeyRecord.transform(keyRecord)));
                 page.close();
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 LOG.error("Error removing page.", e);
+                Thread.currentThread().interrupt();
             }
         }
 
         @Override
         public boolean hasNext() {
             if (isClosed) {
-                throw new IllegalStateException("Iterator is closed.");
+                return false;
             }
 
             if (!currentList.isEmpty()) {
@@ -157,8 +159,10 @@ public abstract class PageFetcher<E> {
 
         @Override
         public void close() {
-            isClosed = true;
-            shutdown();
+            if (!isClosed) {
+                isClosed = true;
+                shutdown();
+            }
         }
     }
 

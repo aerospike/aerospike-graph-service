@@ -18,11 +18,11 @@ import java.util.function.BiFunction;
 
 public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
-    final String namespace;
-    final String set;
-    final ScanPolicy policy;
-    final BiFunction<Long, Long, Void> metricsCallback;
-    final long startTime;
+    private final String namespace;
+    private final String set;
+    private final ScanPolicy policy;
+    private final BiFunction<Long, Long, Void> metricsCallback;
+    private final long startTime;
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
                            final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
@@ -49,10 +49,12 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         try {
             pageQueue.put(new Page(callback.keyRecords));
         } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
             try {
                 pageQueue.put(new ErrorPage("Error adding page to queue. " + e.getMessage()));
             } catch (final InterruptedException e2) {
                 LOG.error("Error adding signalling error to iterator.", e2);
+                Thread.currentThread().interrupt();
             }
         }
     }

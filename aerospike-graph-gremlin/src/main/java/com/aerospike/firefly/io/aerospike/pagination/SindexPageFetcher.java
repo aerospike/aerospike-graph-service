@@ -18,13 +18,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private static final Logger LOG = LoggerFactory.getLogger(SindexPageFetcher.class);
-    final String namespace;
-    final String set;
-    final QueryPolicy policy;
-    final Statement statement;
-    String error = "";
-    final Object lock = new Object();
-    final AtomicBoolean done = new AtomicBoolean(false);
+    private final QueryPolicy policy;
+    private final Statement statement;
+    private String error = "";
+    private final Object lock = new Object();
+    private final AtomicBoolean done = new AtomicBoolean(false);
 
     public SindexPageFetcher(final FireflyGraph graph, final QueryPolicy policy, final String setName, final String namespace,
                              final Filter filter, final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
@@ -35,9 +33,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         this.statement.setSetName(setName);
         this.statement.setFilter(filter);
         this.statement.setMaxRecords(maxPageSize);
-        policy.maxRecords = maxPageSize;
-        this.namespace = namespace;
-        this.set = setName;
     }
 
     @Override
@@ -50,10 +45,12 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                 try {
                     lock.wait();
                 } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     try {
                         pageQueue.put(new ErrorPage("Error waiting for page to be ready. " + e.getMessage()));
                     } catch (final InterruptedException e2) {
                         LOG.error("Error adding signalling error to iterator.", e2);
+                        Thread.currentThread().interrupt();
                     }
                 }
             }
@@ -63,6 +60,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                 pageQueue.put(new ErrorPage(error));
             } catch (final InterruptedException e) {
                 LOG.error("Error adding signalling error to iterator.", e);
+                Thread.currentThread().interrupt();
             }
         }
     }

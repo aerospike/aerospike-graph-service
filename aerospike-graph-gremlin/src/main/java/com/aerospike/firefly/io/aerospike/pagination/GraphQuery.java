@@ -51,7 +51,7 @@ public class GraphQuery {
                     hasContainers, null, true, false);
         } else if (FireflyEdge.class.isAssignableFrom(clazz)) {
             return new FireflyPhatEdgeIdIterator(getPagedScan(
-                    null, db.VERTEX_AERO_SET, null, predicate, graph::keyRecordFromKeyRecord,
+                    null, db.EDGE_AERO_SET, null, predicate, graph::keyRecordFromKeyRecord,
                     hasContainers, null, true, true), db);
         } else {
             throw new IllegalArgumentException("Cannot scan all element ids for unknown class: " + clazz);

@@ -12,9 +12,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiFunction;
 
 public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
@@ -49,14 +52,15 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         metricsCallback.apply(startTime, System.currentTimeMillis());
 
         try {
-            pageQueue.put(new Page(callback.keyRecords));
+            final List<KeyRecord> keyRecords = new ArrayList<>(callback.keyRecords);
+            pageQueue.put(new Page(keyRecords));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
         }
     }
 
     class ScanPageFetcherScanCallback implements ScanCallback {
-        final List<KeyRecord> keyRecords = new ArrayList<>((int) policy.maxRecords);
+        final Queue<KeyRecord> keyRecords = new ConcurrentLinkedQueue<>();
 
         @Override
         public void scanCallback(final Key key, final Record record) throws AerospikeException {

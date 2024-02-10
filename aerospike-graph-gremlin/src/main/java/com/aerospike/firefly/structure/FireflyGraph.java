@@ -426,13 +426,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES_BIN : this.db.OUT_EDGES_BIN;
-        final String counterBinName = direction == Direction.IN ? this.db.IN_EDGE_COUNTER_BIN : this.db.OUT_EDGE_COUNTER_BIN;
-
-        // Simple bin to increment the edge cache counter.
-        final Bin incrementEdgeCountBin = new Bin(counterBinName, edgeIds.size());
 
         // Create the operations.
-        final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
         final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendEdgeId = ListOperation.appendItems(
                 preventDuplicates,
@@ -444,7 +439,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
+            this.db.operate(writePolicy, key, appendEdgeId);
         } catch (final ElementNotFoundException enfe) {
             throw new FireflyLoadingException((AerospikeException) enfe.getCause());
         } catch (final VertexRecordSizeExceededException vrsee) {

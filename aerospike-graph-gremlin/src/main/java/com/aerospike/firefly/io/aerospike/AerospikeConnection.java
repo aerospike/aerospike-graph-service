@@ -156,9 +156,6 @@ public class AerospikeConnection implements AutoCloseable {
     public final String VERTEX_PROPERTY_NAME_TO_VALUE_TYPE_HINT_BIN;
     public final String USAGE_STATS_SET;
     public final String USAGE_STATS_BIN;
-
-    public final String IN_EDGE_COUNTER_BIN;
-    public final String OUT_EDGE_COUNTER_BIN;
     public final long ON_RECORD_ID_LIMIT;
     public final String PROPERTIES_BIN;
     public final String TYPE_HINTS_BIN;
@@ -396,8 +393,6 @@ public class AerospikeConnection implements AutoCloseable {
         GRAPH_VARIABLES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.GRAPH_VARIABLES_BIN.name(), conf);
         IN_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.IN_EDGES_BIN.name(), conf);
         OUT_EDGES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGES_BIN.name(), conf);
-        IN_EDGE_COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.IN_EDGE_COUNTER_BIN.name(), conf);
-        OUT_EDGE_COUNTER_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.OUT_EDGE_COUNTER_BIN.name(), conf);
         EDGE_CACHE_DISABLED_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_CACHE_DISABLED_BIN.name(), conf);
         RELATIONAL_VERTEX_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.RELATIONAL_VERTEX_TYPE_HINT_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);

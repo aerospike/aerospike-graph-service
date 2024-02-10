@@ -228,6 +228,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
+        // Create graph query engine.
+        query = new GraphQuery(this);
+
         // Create ttl background task.
         this.ttlHandler = new FireflyTtlHandler(this);
 
@@ -250,9 +253,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Start metrics.
         FireflyGremlinPlugin.initializeGraphMetrics(db);
-
-        // Create graph query engine.
-        query = new GraphQuery(this);
     }
 
     public static FireflyGraph open(final Configuration conf) {

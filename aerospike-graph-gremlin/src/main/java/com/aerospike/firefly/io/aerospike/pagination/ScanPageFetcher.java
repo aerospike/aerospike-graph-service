@@ -12,8 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
@@ -27,6 +25,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private final ScanPolicy policy;
     private final BiFunction<Long, Long, Void> metricsCallback;
     private final long startTime;
+    private final UUID scanId = UUID.randomUUID();
 
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
@@ -37,7 +36,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         this.namespace = namespace;
         this.set = setName;
         this.metricsCallback = (start, stop) -> {
-            graph.getBaseGraph().getScanHitCounter().setScanTimings(UUID.randomUUID(), start, stop);
+            graph.getBaseGraph().getScanHitCounter().setScanTimings(scanId, start, stop);
             return null;
         };
         this.startTime = System.currentTimeMillis();

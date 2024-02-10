@@ -16,7 +16,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 
 public abstract class PageFetcher<E> {
     private static final Logger LOG = LoggerFactory.getLogger(ScanPageFetcher.class);
@@ -43,20 +42,24 @@ public abstract class PageFetcher<E> {
         // Start loop.
         readLoopExecutorService.submit(() -> {
             while (true) {
-                if (readLoopExecutorService.isShutdown()) {
-                    try {
-                        pageQueue.put(new PoisonPill());
-                    } catch (InterruptedException e) {
-                        LOG.error("Error adding poison pill.", e);
+                try {
+                    if (readLoopExecutorService.isShutdown()) {
+                        try {
+                            pageQueue.put(new PoisonPill());
+                        } catch (InterruptedException e) {
+                            LOG.error("Error adding poison pill.", e);
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                if (filter.isDone()) {
-                    readLoopExecutorService.shutdown();
-                    continue;
+                    if (filter.isDone()) {
+                        readLoopExecutorService.shutdown();
+                        continue;
+                    }
+                    readPage();
+                } catch (final Throwable e) {
+                    signalError("Unexpected error while reading " + e.getMessage());
                 }
-                readPage();
             }
         });
         return new PageFetcher.PageIterator();
@@ -134,6 +137,10 @@ public abstract class PageFetcher<E> {
 
         @Override
         public boolean hasNext() {
+            if (isEmpty) {
+                return false;
+            }
+
             if (isClosed) {
                 return false;
             }
@@ -178,6 +185,7 @@ public abstract class PageFetcher<E> {
         try {
             LOG.error(error);
             pageQueue.put(new ErrorPage("Error reading index query: " + error));
+            shutdown();
         } catch (final InterruptedException e2) {
             LOG.error("Error adding signalling error to iterator.", e2);
             Thread.currentThread().interrupt();

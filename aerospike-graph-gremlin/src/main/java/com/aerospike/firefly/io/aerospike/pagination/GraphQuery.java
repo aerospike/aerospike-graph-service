@@ -117,6 +117,7 @@ public class GraphQuery {
                 db.getNamespace(),
                 db.PAGINATION_PAGE_QUEUE_SIZE,
                 db.PAGINATION_PAGE_SIZE,
+                mapKey,
                 transform);
         return pageFetcher.startQuery();
     }

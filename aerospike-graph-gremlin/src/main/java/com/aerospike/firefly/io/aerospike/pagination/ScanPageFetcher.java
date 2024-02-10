@@ -29,12 +29,15 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
-                           final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
+                           final int maxQueueSize, final int maxPageSize, final String mapKey, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
         policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;
+        if (mapKey != null) {
+            this.graph.getBaseGraph().scanHitCounterThreadLocal.get().associateUUID(scanId, mapKey);
+        }
         this.metricsCallback = (start, stop) -> {
             graph.getBaseGraph().getScanHitCounter().setScanTimings(scanId, start, stop);
             return null;

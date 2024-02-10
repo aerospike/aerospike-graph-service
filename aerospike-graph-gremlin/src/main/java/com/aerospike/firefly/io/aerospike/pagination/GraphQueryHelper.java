@@ -34,7 +34,7 @@ public class GraphQueryHelper {
         } else if (indexInfo.setName.equals(db.VERTEX_AERO_SET)) {
             name = db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN;
         } else if (indexInfo.setName.equals(db.EDGE_AERO_SET)) {
-            name = db.PROPERTIES_BIN;
+            throw new IllegalArgumentException("Cannot create filter for index for Edges.");
         } else {
             throw new IllegalArgumentException(
                     "Cannot create filter for index with unknown set name: " + indexInfo.setName + " and key " + indexInfo.key);
@@ -124,25 +124,26 @@ public class GraphQueryHelper {
 
     public static Expression hasContainerListToExpression(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
+        if (!FireflyVertex.class.isAssignableFrom(clazz)) {
+            throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
+        }
         if (hasContainers.size() == 0) {
             return null;
         }
         final Exp[] exps = hasContainers.stream().map(h ->
-                predicateToExpression(db, h.getKey().equals("~label") ?
-                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
-                        h.getKey(),
-                        h.getPredicate())).toArray(Exp[]::new);
+                predicateToExpression(db, h.getKey().equals("~label") ? db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                        h.getKey(), h.getPredicate())).toArray(Exp[]::new);
         return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
     }
 
     static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
+        if (!FireflyVertex.class.isAssignableFrom(clazz)) {
+            throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);
+        }
         return hasContainers.stream().map(h ->
                 predicateToExpression(db, h.getKey().equals("~label") ?
-                                db.LABEL_BIN : FireflyVertex.class.isAssignableFrom(clazz) ?
-                                db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN : db.PROPERTIES_BIN,
-                        h.getKey(),
-                        h.getPredicate())).toArray(Exp[]::new);
+                                db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
+                        h.getKey(), h.getPredicate())).toArray(Exp[]::new);
     }
 }

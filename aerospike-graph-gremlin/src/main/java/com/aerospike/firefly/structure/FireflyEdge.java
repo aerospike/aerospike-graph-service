@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingEdge;
 import static com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException.fromAddingProperty;
@@ -65,6 +65,15 @@ import static org.apache.tinkerpop.gremlin.structure.Graph.Hidden.isHidden;
  */
 public class FireflyEdge extends FireflyElement implements Edge {
     private static final Logger LOG = LoggerFactory.getLogger(FireflyEdge.class);
+    // Individual edges' data are stored in a List within the phat edge.
+    // These are the indexes in the List for where each value is stored.
+    public static final int LABEL_POSITION = 0;
+    public static final int IN_V_POSITION = 1;
+    public static final int OUT_V_POSITION = 2;
+    public static final int PROPERTIES_POSITION = 3;
+    public static final int TYPE_HINTS_POSITION = 4;
+    public static final int EDGE_DATA_SIZE = 5;
+
     protected final AerospikeConnection db;
     public boolean removed;
     protected final FireflyGraph graph;
@@ -116,60 +125,62 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertex.id(), label, inVertex.id(), properties);
 
         final AerospikeConnection db = graph.getBaseGraph();
-        final Map<String, Object> data = new TreeMap<>();
+        final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
-        properties.forEach(prop -> {
-            final String key = prop.getKey();
-            final Object value = prop.getValue();
+        properties.forEach(property -> {
+            final String key = property.getKey();
+            final Object value = property.getValue();
             FireflyHelper.validatePropertyValue(value);
 
             if (value == null) {
-                data.remove(key);
+                propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value));
-                data.put(key, value);
+                final Object typeHint = getTypeHintOf(value);
+                if (typeHint != null) {
+                    typeHints.put(key, typeHint);
+                }
+                propertyMap.put(key, value);
             }
         });
 
+        final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+
         final List<Operation> operations = new ArrayList<>();
         // CREATE_ONLY as writing an edge will always have a newly-generated unique ID.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
-        final Operation writeLabel = MapOperation.put(mapPolicy,db.LABEL_BIN,
-                Value.get(edgeId.getUserId()), Value.get(label));
-        operations.add(writeLabel);
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.CREATE_ONLY);
 
-        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
-                Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
-        operations.add(writeInV);
-        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
-                Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
-        operations.add(writeOutV);
+        // Add label to Edge data.
+        edgeData.add(LABEL_POSITION, Value.get(label));
+        // Add IN and OUT to Edge data.
+        edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getKeyHash()));
+        edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHash()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (!inVertexCacheWrite) {
-            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashBase64()));
+            final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
+                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHash()));
             operations.add(writeInVSupernode);
         }
         if (!outVertexCacheWrite) {
-            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashBase64()));
+            final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
+                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHash()));
             operations.add(writeOutVSupernode);
         }
 
+        // Handle TTL.
         boolean scheduleTtlImmediately = false;
         long ttlValueLong = 0;
-        if (data.containsKey(TTL_PROPERTY_KEY)) {
+        if (propertyMap.containsKey(TTL_PROPERTY_KEY)) {
             if (!db.TTL_ENABLED_FLAG) {
                 throw new TtlNotEnabledException();
             }
-            final Object ttlValue = data.remove(TTL_PROPERTY_KEY);
+            final Object ttlValue = propertyMap.remove(TTL_PROPERTY_KEY);
             typeHints.remove(TTL_PROPERTY_KEY);
             if (Number.class.isAssignableFrom(ttlValue.getClass())) {
                 ttlValueLong = ((Number) ttlValue).longValue();
                 final long expirationTime = System.currentTimeMillis() + (ttlValueLong * 1000);
-                final Operation writeTtl = MapOperation.put(mapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
+                final Operation writeTtl = MapOperation.put(edgeMapPolicy, db.TTL_BIN, Value.get(edgeId.getUserId()),
                         Value.get(expirationTime));
                 operations.add(writeTtl);
                 if (ttlValueLong < db.TTL_PURGE_INTERVAL_SECONDS) {
@@ -182,12 +193,14 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             }
         }
 
-        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES_BIN,
-                Value.get(edgeId.getUserId()), Value.get(data, MapOrder.KEY_ORDERED));
-        operations.add(writeProperties);
-        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS_BIN,
-                Value.get(edgeId.getUserId()), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        operations.add(writeTypeHints);
+        // Add properties and type hints to Edge data.
+        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
+
+        // Create Operation for writing Edge data.
+        final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+                Value.get(edgeId.getUserId()), Value.get(edgeData));
+        operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
@@ -195,7 +208,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         try {
             db.operate(writePolicy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addEdgeWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
-            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, data, typeHints);
+            final FireflyEdge edge = FireflyEdgeFactory.create(edgeId, label, graph, outVertex.id, inVertex.id, propertyMap, typeHints);
             if (scheduleTtlImmediately) {
                 graph.scheduleElementForTtlNow(edge, ttlValueLong);
             }
@@ -249,55 +262,50 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final AerospikeConnection db = graph.getBaseGraph();
         final Key key = getKey(db, db.EDGE_AERO_SET, edgeId);
 
-        final Operation removeLabel = MapOperation.removeByKey(db.LABEL_BIN, Value.get(edgeId.getUserId()), MapReturnType.VALUE);
-        final Operation removeIn = MapOperation.removeByKey(Direction.IN.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
-        final Operation removeOut = MapOperation.removeByKey(Direction.OUT.name(), Value.get(edgeId.getUserId()), MapReturnType.NONE);
-        final Operation removeProperties = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
-        final Operation removeTypeHints = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
+        final Operation removeEdgeData = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(edgeId.getUserId()), MapReturnType.VALUE);
         final Operation removeSupernodesIn = MapOperation.removeByKey(db.SUPERNODES_IN_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeSupernodesOut = MapOperation.removeByKey(db.SUPERNODES_OUT_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
         final Operation removeTtl = MapOperation.removeByKey(db.TTL_BIN, Value.get(edgeId.getUserId()), MapReturnType.NONE);
 
         // Logic for deleting the entire phat edge record if it no longer contains individual edges.
         final Expression removeEmptyPhatEdgeExp = Exp.build(
-                // If the size of the label map, which implicitly is the amount of edges in the phat edge, is 0, write
-                // null. Otherwise, fail.
+                // If the size of the edge data map, which implicitly is the amount of edges in the phat edge, is 0,
+                // write null. Otherwise, fail.
                 Exp.cond(
-                        Exp.eq(MapExp.size(Exp.mapBin(db.LABEL_BIN)), Exp.val(0)),
+                        Exp.eq(MapExp.size(Exp.mapBin(db.EDGE_DATA_BIN)), Exp.val(0)),
                         Exp.nil(),
                         Exp.unknown()
                 )
         );
         // If all bins in a record contain null, the record is implicitly deleted.
         final int deletePhatEdgeWriteFlags = ExpWriteFlags.EVAL_NO_FAIL | ExpWriteFlags.ALLOW_DELETE;
-        final Operation removeInBin = ExpOperation.write(Direction.IN.name(), removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        final Operation removeOutBin = ExpOperation.write(Direction.OUT.name(), removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        final Operation removePropertiesBin = ExpOperation.write(db.PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
-        final Operation removeTypeHintsBin = ExpOperation.write(db.TYPE_HINTS_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
-        // This operation must be last since the expression checks the map in the label bin.
-        final Operation removeLabelBin = ExpOperation.write(db.LABEL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        // This operation must be last since the expression checks the map in the edge data bin.
+        final Operation removeEdgeDataBin = ExpOperation.write(db.EDGE_DATA_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         try {
-            final Record record = db.operate(null, key, removeLabel, removeIn, removeOut, removeProperties, removeTypeHints,
-                    removeSupernodesIn, removeSupernodesOut, removeTtl, removeInBin, removeOutBin, removePropertiesBin,
-                    removeTypeHintsBin, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin, removeLabelBin);
+            final Record record = db.operate(null, key, removeEdgeData, removeSupernodesIn,
+                    removeSupernodesOut, removeTtl, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin,
+                    removeEdgeDataBin);
 
-            // Result returned is always [<label>, null] since we have operations [removeLabel, removeLabelBin]
-            final Command.OpResults results = (Command.OpResults) record.getValue(db.LABEL_BIN);
+            // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
+            final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);
             if (results != null && !results.isEmpty()) {
-                final Object label = results.get(0);
-                // Check label value was returned to protect against concurrent deletes.
-                // If this Edge was already removed label returns null and this check returns false.
-                if (label instanceof String) {
+                final Object edgeData = results.get(0);
+                // Check edgeData value was returned to protect against concurrent deletes.
+                // If this Edge was already removed edgeData returns null and this check returns false.
+                if (edgeData instanceof List) {
                     graph.edgeIdManager.recycleId(edgeId);
-                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue((String) label);
-                } else {
-                    LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
+                    final String label = (String) ((List<?>) edgeData).get(LABEL_POSITION);
+                    graph.fireflySummaryUpdater.addEdgeRemoveToQueue(label);
+                } else if (edgeData != null) {
+                    // This should never happen.
+                    throw new RuntimeException("Individual Edge data in Phat Edge returned as type that is of type: " + edgeData.getClass());
                 }
+                LOG.debug("Ignoring exception when deleting Edge with id " + getUserIdString(edgeId.getUserId()) + " since it was not found.");
             }
         } catch (final ElementNotFoundException e) {
             // This tends to occur when deleting multiple vertices in a single traversal where the Edge lives in between
@@ -352,14 +360,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     @Override
     public Vertex inVertex() {
         return graph.readVertex(this.inVid);
-    }
-
-    public FireflyId outVertexId() {
-        return this.outVid;
-    }
-
-    public FireflyId inVertexId() {
-        return this.inVid;
     }
 
     @Override
@@ -430,7 +430,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         FireflyHelper.validatePropertyValue(value);
         final Property<V> property = writeProperty(graph, this, key, value);
         properties.put(key, value);
-        typeHints.put(key, AerospikeConnection.getSupportedType(value));
+        final Object typeHint = getTypeHintOf(value);
+        if (typeHint != null) {
+            typeHints.put(key, typeHint);
+        }
         return property;
     }
 
@@ -492,34 +495,41 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Key key = getKey(db, db.EDGE_AERO_SET, edge.id);
         final Value edgeIdMapKey = Value.get(edge.id.getUserId());
 
+        final List<Operation> operations = new ArrayList<>();
         final Operation valueOp;
-        final Operation typeHintOp;
 
         // Null value properties are not currently supported by Firefly and thus the correct behaviour is to remove
         // the property key if a null value is given.
         if (value == null) {
-            valueOp = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
-                    CTX.mapKey(edgeIdMapKey));
+            valueOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            operations.add(valueOp);
+            final Operation typeHintOp = MapOperation.removeByKey(db.EDGE_DATA_BIN, Value.get(propertyKey), MapReturnType.NONE,
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+            operations.add(typeHintOp);
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-            valueOp = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(value),
-                    CTX.mapKey(edgeIdMapKey));
-            typeHintOp = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
-                    Value.get(getSupportedType(value)), CTX.mapKey(edgeIdMapKey));
+            valueOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey), Value.get(value),
+                    CTX.mapKey(edgeIdMapKey), CTX.listIndex(PROPERTIES_POSITION));
+            operations.add(valueOp);
+            final Object typeHint = getTypeHintOf(value);
+            if (typeHint != null) {
+                final Operation typeHintOp = MapOperation.put(policy, db.EDGE_DATA_BIN, Value.get(propertyKey),
+                        Value.get(typeHint), CTX.mapKey(edgeIdMapKey), CTX.listIndex(TYPE_HINTS_POSITION));
+                operations.add(typeHintOp);
+            }
         }
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, key, valueOp, typeHintOp);
+            db.operate(writePolicy, key, operations.toArray(new Operation[0]));
         } catch (final RecordTooBigException e) {
             final EdgeRecordSizeExceededException sizeExceededException =
                     fromAddingProperty((AerospikeException) e.getCause(), db, key, edge.id, propertyKey);
             LOG.error(sizeExceededException.getMessage());
             throw sizeExceededException;
-        } catch (AerospikeException ae) {
+        } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when Edge has been removed from the Phat Edge since in this case
                 // the key is the Phat Edge key and thus the key still exists.
@@ -613,42 +623,22 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             }
             final AerospikeConnection db = graph.getBaseGraph();
             final ByteBuffer edgeIdMapKey = (ByteBuffer) edgeId.getUserId();
-            final Map<ByteBuffer, String> labels = (Map<ByteBuffer, String>) record.getMap(db.LABEL_BIN);
+            final Map<ByteBuffer, List> edgeData = (Map<ByteBuffer, List>) record.getMap(db.EDGE_DATA_BIN);
             // Implicitly assume that if the key is found for label, which is required, then the key exists for the
             // other phat edge maps, since they are all written in the same operate.
-            if (!labels.containsKey(edgeIdMapKey)) {
+            if (!edgeData.containsKey(edgeIdMapKey)) {
                 return null;
             }
-            final String label = labels.get(edgeIdMapKey);
+            final String label = (String) edgeData.get(edgeIdMapKey).get(LABEL_POSITION);
 
-            // If adjacency indexes are enabled the OUT and IN Vertex IDs might be stored in the adjacency index bins
-            // instead of the regular ones.
-            Map<?, ?> outVMap = record.getMap(Direction.OUT.name());
-            if ((outVMap == null || !outVMap.containsKey(edgeIdMapKey))) {
-                if (db.ADJACENCY_INDEX_ENABLED_FLAG) {
-                    outVMap = record.getMap(db.SUPERNODES_OUT_BIN);
-                }
-                if ((outVMap == null || !outVMap.containsKey(edgeIdMapKey))) {
-                    LOG.error("Could not find OUT Vertex ID for Edge ID {}.", edgeId.getUserId());
-                    return null;
-                }
-            }
-            final FireflyId outVertex = FireflyIdPoly.fromBase64Hash((String) outVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+            final byte[] outVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(OUT_V_POSITION);
+            final FireflyId outVertex = FireflyIdPoly.fromHash(outVBytes, db.VERTEX_AERO_SET);
 
-            Map<?, ?> inVMap = record.getMap(Direction.IN.name());
-            if ((inVMap == null || !inVMap.containsKey(edgeIdMapKey))) {
-                if (db.ADJACENCY_INDEX_ENABLED_FLAG) {
-                    inVMap = record.getMap(db.SUPERNODES_IN_BIN);
-                }
-                if ((inVMap == null || !inVMap.containsKey(edgeIdMapKey))) {
-                    LOG.error("Could not find IN Vertex ID for Edge ID {}.", edgeId.getUserId());
-                    return null;
-                }
-            }
-            final FireflyId inVertex = FireflyIdPoly.fromBase64Hash((String) inVMap.get(edgeIdMapKey), db.VERTEX_AERO_SET);
+            final byte[] inVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(IN_V_POSITION);
+            final FireflyId inVertex = FireflyIdPoly.fromHash(inVBytes, db.VERTEX_AERO_SET);
 
-            final Map<String, Object> properties = (Map<String, Object>) record.getMap(db.PROPERTIES_BIN).get(edgeIdMapKey);
-            final Map<String, Object> typeHints = (Map<String, Object>) record.getMap(db.TYPE_HINTS_BIN).get(edgeIdMapKey);
+            final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(PROPERTIES_POSITION);
+            final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(TYPE_HINTS_POSITION);
 
             return create(edgeId, label, graph, outVertex, inVertex, properties, typeHints);
         }

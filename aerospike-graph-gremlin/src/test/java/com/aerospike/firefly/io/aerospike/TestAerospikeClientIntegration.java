@@ -25,8 +25,6 @@ import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.FireflyRecord;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.ReadContext;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
@@ -156,7 +154,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testFireflyRecordIntegerId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(config);
         FireflyId intId = FireflyIdPoly.fromObject(1, db.TEST_SET);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);
@@ -167,7 +164,6 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
     @Test
     public void testFireflyRecordLongId() {
-        final String ns = ConfigurationHelper.aerospikeNamespace(config);
         FireflyId fid = FireflyIdPoly.fromObject(1L, db.TEST_SET);
         Bin bin21 = new Bin("name", "Jane Doe");
         Bin bin22 = new Bin("age", 32);

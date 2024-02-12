@@ -44,10 +44,10 @@
     <!-- VERSION DEPENDENCIES (INHERITED BY ALL SUBMODULES) -->
     <properties>
         <firefly.version>2.0.0-SNAPSHOT</firefly.version>
-        <aerospike.version>7.0.0</aerospike.version>
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+        <aerospike-client.version>7.2.1</aerospike-client.version>
         <tinkerpop.version>3.7.1</tinkerpop.version>
         <junit.version>4.13.1</junit.version>
         <awaitly.version>4.2.0</awaitly.version>
@@ -55,7 +55,7 @@
         <slf4j.version>1.7.30</slf4j.version>
         <guava.version>31.1-jre</guava.version>
         <resilience4j.version>1.7.1</resilience4j.version>
-        <vertx.version>4.4.6</vertx.version>
+        <vertx.version>4.4.8</vertx.version>
         <prometheus.version>0.16.0</prometheus.version>
         <awssdk.version>1.12.641</awssdk.version>
         <!-- MAVEN PLUGIN VERSIONS -->
@@ -173,6 +173,7 @@
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>
                         <exclude>**/TestFireflyServer.java</exclude>
+                        <exclude>**/TestAerospikeClientProviderConfiguration.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

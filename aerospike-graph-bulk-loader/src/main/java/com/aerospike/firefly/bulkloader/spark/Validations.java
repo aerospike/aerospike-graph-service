@@ -119,7 +119,7 @@ public class Validations {
 
     public static boolean dryRunVertices(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         final Instant start = Instant.now();
-        final boolean creationSuccess = dryRunVertexCreation(vertices,config);
+        final boolean creationSuccess = dryRunVertexCreation(vertices, config);
         final boolean noDuplicateIdDetected = validateNoDuplicateVertexIds(vertices);
         LOGGER.info("Completed dryRunVertices; time taken (in seconds): {}", Duration.between(start,Instant.now()).getSeconds());
         return creationSuccess && noDuplicateIdDetected;

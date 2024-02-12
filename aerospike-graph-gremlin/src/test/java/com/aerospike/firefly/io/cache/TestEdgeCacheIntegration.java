@@ -27,11 +27,8 @@ import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
-import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheDisabledAdjacencyDisabledFirefly;
-import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheDisabledAdjacencyEnabledFirefly;
-import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheEnabledAdjacencyDisabledFirefly;
+import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheDisabledFirefly;
 import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheWithSizeFirefly;
-import static com.aerospike.firefly.io.cache.CacheTestsUtils.getCacheWithSizeFireflyAdjacencyDisabled;
 
 public class TestEdgeCacheIntegration {
     private static final Configuration CONFIG = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -39,7 +36,7 @@ public class TestEdgeCacheIntegration {
 
     @BeforeClass
     public static void beforeAll() {
-        SETUP_GRAPH = getCacheEnabledAdjacencyDisabledFirefly(CONFIG);
+        SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, false);
     }
 
@@ -49,8 +46,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheEnabledAdjacencyDisabled() {
-        try (final FireflyGraph graph = getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
+    public void testCacheEnabled() {
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -68,8 +65,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheDisabledAdjacencyEnabled() {
-        try (final FireflyGraph graph = getCacheDisabledAdjacencyEnabledFirefly(CONFIG)) {
+    public void testCacheDisabled() {
+        try (final FireflyGraph graph = getCacheDisabledFirefly()) {
             final FireflyTestVertexes vertexes = setupTest(graph);
             assertGremlinTraversalAccuracy(graph);
 
@@ -92,27 +89,8 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testCacheAndAdjacencyIndexDisabled() {
-        try (final FireflyGraph graph = getCacheDisabledAdjacencyDisabledFirefly(CONFIG)) {
-            final FireflyTestVertexes vertexes = setupTest(graph);
-            assertGremlinTraversalAccuracy(graph);
-
-            // Since the cache is disabled, the instantiated vertexes will query Aerospike to return edges,
-            // which will return the correct values even if they do not exist in the instantiated JVM edge caches
-            assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.OUT), 3);
-            assertEdgeCount(vertexes.threeOutTwoIn.edges(Direction.IN), 2);
-            assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.OUT), 1);
-            assertEdgeCount(vertexes.oneOutTwoIn.edges(Direction.IN), 2);
-            assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.OUT), 2);
-            assertEdgeCount(vertexes.twoOutOneIn.edges(Direction.IN), 1);
-            assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.OUT), 0);
-            assertEdgeCount(vertexes.zeroOutOneIn.edges(Direction.IN), 1);
-        }
-    }
-
-    @Test
     public void testCacheLimit() {
-        try (final FireflyGraph graph = getCacheWithSizeFirefly(CONFIG, 3)) {
+        try (final FireflyGraph graph = getCacheWithSizeFirefly(3)) {
             // This time specifically returns referenced instances and not snapshot instantiated ones
             final FireflyTestVertexes vertexes = setupTest(graph, false);
             assertGremlinTraversalAccuracy(graph);
@@ -135,7 +113,7 @@ public class TestEdgeCacheIntegration {
 
     @Test
     public void testEdgeCacheStorageOnRecord() {
-        try (final FireflyGraph graph = getCacheEnabledAdjacencyDisabledFirefly(CONFIG)) {
+        try (final FireflyGraph graph = FireflyGraph.open(CONFIG)) {
             final GraphTraversalSource g = graph.traversal();
             final FireflyIdFactory idFactory = graph.getIdFactory();
             final FireflyVertex v1 = (FireflyVertex) g.addV("v1").next();
@@ -202,56 +180,9 @@ public class TestEdgeCacheIntegration {
     }
 
     @Test
-    public void testAddAndRemoveEdgesAdjacencyIndexEnabled() {
-        try (final FireflyGraph graph = getCacheWithSizeFirefly(CONFIG, 4)) {
+    public void testAddAndRemoveEdges() {
+        try (final FireflyGraph graph = getCacheWithSizeFirefly(4)) {
             testAddAndRemoveEdges(graph);
-        }
-    }
-
-    @Test
-    public void testAddAndRemoveEdgesAdjacencyIndexDisabled() {
-        try (final FireflyGraph graph = getCacheWithSizeFireflyAdjacencyDisabled(CONFIG, 4)) {
-            testAddAndRemoveEdges(graph);
-        }
-    }
-
-    @Test
-    public void testToggleOnAdjacencyIndex() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
-        try (final FireflyGraph offGraph = getCacheWithSizeFireflyAdjacencyDisabled(CONFIG, 2)) {
-            final GraphTraversalSource g = offGraph.traversal();
-            final Vertex v1 = g.addV("v1").next();
-            final Vertex v2 = g.addV("v2").next();
-            g.addE("e1").from(v1).to(v2).iterate();
-            g.addE("e2").from(v1).to(v2).iterate();
-            g.addE("e3").from(v1).to(v2).iterate();
-            g.addE("e4").from(v1).to(v2).iterate();
-            g.addE("e5").from(v1).to(v2).iterate();
-            assertEdgeCount(g.V(v1.id()).outE(), 5);
-        }
-        try (final FireflyGraph onGraph = getCacheWithSizeFirefly(CONFIG, 2)) {
-            final GraphTraversalSource g = onGraph.traversal();
-            assertEdgeCount(g.V().hasLabel("v1").outE(), 5);
-        }
-    }
-
-    @Test
-    public void testToggleOffAdjacencyIndex() {
-        SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);
-        try (final FireflyGraph onGraph = getCacheWithSizeFirefly(CONFIG, 2)) {
-            final GraphTraversalSource g = onGraph.traversal();
-            final Vertex v1 = g.addV("v1").next();
-            final Vertex v2 = g.addV("v2").next();
-            g.addE("e1").from(v1).to(v2).iterate();
-            g.addE("e2").from(v1).to(v2).iterate();
-            g.addE("e3").from(v1).to(v2).iterate();
-            g.addE("e4").from(v1).to(v2).iterate();
-            g.addE("e5").from(v1).to(v2).iterate();
-            assertEdgeCount(g.V(v1.id()).outE(), 5);
-        }
-        try (final FireflyGraph offGraph = getCacheWithSizeFireflyAdjacencyDisabled(CONFIG, 2)) {
-            final GraphTraversalSource g = offGraph.traversal();
-            assertEdgeCount(g.V().hasLabel("v1").outE(), 5);
         }
     }
 
@@ -406,7 +337,7 @@ public class TestEdgeCacheIntegration {
             amount++;
             edges.next();
         }
-        Assert.assertEquals(amount, expected);
+        Assert.assertEquals(expected, amount);
     }
 
     private static class FireflyTestVertexes {

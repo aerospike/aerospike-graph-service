@@ -34,6 +34,7 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.ReadContext;
+import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -99,6 +100,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -108,10 +110,16 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.client.query.IndexType.NUMERIC;
 import static com.aerospike.client.query.IndexType.STRING;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_DATA_SIZE;
+import static com.aerospike.firefly.structure.FireflyEdge.IN_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.LABEL_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.OUT_V_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
+import static com.aerospike.firefly.structure.FireflyEdge.TYPE_HINTS_POSITION;
 import static com.aerospike.firefly.structure.FireflyVertex.SUPERNODE_PROPERTY_KEY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.BULK_LOADER_FLAG;
 import static com.aerospike.firefly.util.Tokens.EDGE_RECYCLED_ID_COUNTER;
 import static com.aerospike.firefly.util.Tokens.EDGE_UNIQUE_ID_COUNTER;
 import static com.aerospike.firefly.structure.FireflyGraphSummaryVertex.GRAPH_SUMMARY_VERTEX;
@@ -180,7 +188,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/firefly-gremlin-server.yaml";
+    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/gremlin-server.yaml";
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;
@@ -236,6 +244,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
+        SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
         }
@@ -286,10 +295,23 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("Aerospike Graph Service configuration: {}.", configurationMap);
             }
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
+
+            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf))) {
+                // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
+                // works initializing.
+                final Random random = new Random();
+                try {
+                    Thread.sleep(random.nextInt(1000));
+                } catch (final InterruptedException ignored) {
+                    // Propagate the interrupt but ignore it for the context of the sleep.
+                    Thread.currentThread().interrupt();
+                }
+            }
+
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             // Only start healthcheck server if bulk loader is not present in configuration
-            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.BULK_LOADER_FLAG, conf)))
+            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf)))
                 FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
@@ -404,13 +426,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Get direction and counter keys. Direction must be IN or OUT.
         final String directionBinName = direction == Direction.IN ? this.db.IN_EDGES_BIN : this.db.OUT_EDGES_BIN;
-        final String counterBinName = direction == Direction.IN ? this.db.IN_EDGE_COUNTER_BIN : this.db.OUT_EDGE_COUNTER_BIN;
-
-        // Simple bin to increment the edge cache counter.
-        final Bin incrementEdgeCountBin = new Bin(counterBinName, edgeIds.size());
 
         // Create the operations.
-        final Operation incrementEdgeCount = Operation.add(incrementEdgeCountBin);
         final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
         final Operation appendEdgeId = ListOperation.appendItems(
                 preventDuplicates,
@@ -422,7 +439,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            this.db.operate(writePolicy, key, incrementEdgeCount, appendEdgeId);
+            this.db.operate(writePolicy, key, appendEdgeId);
         } catch (final ElementNotFoundException enfe) {
             throw new FireflyLoadingException((AerospikeException) enfe.getCause());
         } catch (final VertexRecordSizeExceededException vrsee) {
@@ -495,54 +512,57 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                               final boolean outVSupernode) {
         FireflyGraph.LOG.debug("Writing edge {} [({})-({})->({})] {}.", edgeId, outVertexId, label, inVertexId, properties);
 
-        final Map<String, Object> data = new TreeMap<>();
+        final Map<String, Object> propertyMap = new TreeMap<>();
         final Map<String, Object> typeHints = new TreeMap<>();
-        properties.forEach(prop -> {
-            final String key = prop.getKey();
-            final Object value = prop.getValue();
+        properties.forEach(property -> {
+            final String key = property.getKey();
+            final Object value = property.getValue();
             FireflyHelper.validatePropertyValue(value);
 
             if (value == null) {
-                data.remove(key);
+                propertyMap.remove(key);
                 typeHints.remove(key);
             } else {
-                typeHints.put(key, getSupportedType(value));
-                data.put(key, value);
+                propertyMap.put(key, value);
+                final Object typeHint = getTypeHintOf(value);
+                if (typeHint != null) {
+                    typeHints.put(key, typeHint);
+                }
             }
         });
 
+        final List<Value> edgeData = new ArrayList<>(EDGE_DATA_SIZE);
+
         final List<Operation> operations = new ArrayList<>();
         // CREATE and UPDATE are both okay since this is idempotent.
-        final MapPolicy mapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        final Operation writeLabel = MapOperation.put(mapPolicy,db.LABEL_BIN,
-                Value.get(edgeId), Value.get(label));
-        operations.add(writeLabel);
+        final MapPolicy edgeMapPolicy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
 
-        final Operation writeInV = MapOperation.put(mapPolicy, Direction.IN.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        operations.add(writeInV);
-        final Operation writeOutV = MapOperation.put(mapPolicy, Direction.OUT.name(),
-                Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
-        operations.add(writeOutV);
+        // Add label to Edge data.
+        edgeData.add(LABEL_POSITION, Value.get(label));
+        // Add IN and OUT to Edge data.
+        edgeData.add(IN_V_POSITION, Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
+        edgeData.add(OUT_V_POSITION, Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (inVSupernode) {
-            final Operation writeInVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+            final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
+                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(inVertexId, db.VERTEX_AERO_SET).getKeyHash()));
             operations.add(writeInVSupernode);
         }
         if (outVSupernode) {
-            final Operation writeOutVSupernode = MapOperation.put(mapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHashBase64()));
+            final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
+                    Value.get(edgeId), Value.get(FireflyIdPoly.fromObject(outVertexId, db.VERTEX_AERO_SET).getKeyHash()));
             operations.add(writeOutVSupernode);
         }
 
-        final Operation writeProperties = MapOperation.put(mapPolicy, db.PROPERTIES_BIN,
-                Value.get(edgeId), Value.get(data, MapOrder.KEY_ORDERED));
-        operations.add(writeProperties);
-        final Operation writeTypeHints = MapOperation.put(mapPolicy, db.TYPE_HINTS_BIN,
-                Value.get(edgeId), Value.get(typeHints, MapOrder.KEY_ORDERED));
-        operations.add(writeTypeHints);
+        // Add properties and type hints to Edge data.
+        edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
+        edgeData.add(TYPE_HINTS_POSITION, Value.get(typeHints));
+
+        // Create Operation for writing Edge data.
+        final Operation createIndividualEdgeMap = MapOperation.put(edgeMapPolicy, db.EDGE_DATA_BIN,
+                Value.get(edgeId), Value.get(edgeData));
+        operations.add(createIndividualEdgeMap);
 
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.sendKey = true;
@@ -669,10 +689,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (!keyValues[i].equals(T.id) && !keyValues[i].equals(T.label))
                 if (keyValues[i + 1] != null) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], getSupportedType(keyValues[i + 1]));
+                    final Object typeHint = getTypeHintOf(keyValues[i + 1]);
+                    if (typeHint != null) {
+                        typeHints.put((String) keyValues[i], typeHint);
+                    }
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
-                    typeHints.put((String) keyValues[i], SupportedValueTypes.get(String.class));
                 }
                 // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
                 // properties to remove, so just ignore.
@@ -1126,10 +1148,12 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         for (final String index : vertexPropertyIndexes) {
             // Create both string and numeric indexes for vertex properties.
             final String formattedIndex = String.format("%s_%s", prefix, index);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + STRING, binName, index, STRING, IndexCollectionType.DEFAULT);
-            db.createKeyValueSindex(existingIndexes, db.setFromElementType(elementClass),
-                    formattedIndex + "_" + NUMERIC, binName, index, NUMERIC, IndexCollectionType.DEFAULT);
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + STRING, binName, STRING, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
+            db.createIndexBackground(existingIndexes, db.setFromElementType(elementClass),
+                    formattedIndex + "_" + NUMERIC, binName, NUMERIC, IndexCollectionType.DEFAULT, false,
+                    CTX.mapKey(Value.get(index)));
         }
 
         // Manually force metadata to update.

@@ -471,7 +471,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -495,7 +495,7 @@ jobs:
           bash -x scripts/build-docker.sh aerospike/firefly-bulk-load linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly-bulk-load &
           
@@ -513,7 +513,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -537,7 +537,7 @@ jobs:
           bash -x scripts/build-docker-stripped.sh aerospike/firefly linux/amd64
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/conf/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly &
           
@@ -550,7 +550,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -588,7 +588,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -646,7 +646,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -673,7 +673,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -690,6 +690,7 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -DfailIfNoTests=false --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
   test-firefly-packed:
     name: Test Packed
     timeout-minutes: 120
@@ -699,7 +700,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -731,7 +732,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike_lz4.conf'
@@ -763,7 +764,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -795,7 +796,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -821,7 +822,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -848,7 +849,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.2.0.3
+          server-version: ee-7.0.0.0
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -875,7 +876,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE_WITHOUT_GRAPH_SERVICE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -902,7 +903,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -937,7 +938,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike_lz4.conf'
@@ -972,7 +973,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1030,7 +1031,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1090,7 +1091,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1109,7 +1110,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/conf firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1126,7 +1127,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1145,7 +1146,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/conf firefly &
+          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -1162,7 +1163,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1182,7 +1183,7 @@ jobs:
           
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/conf firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1199,7 +1200,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1218,7 +1219,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -1235,7 +1236,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - uses: cinterloper/github-action-aerospike@v5
         with:
-          server-version: ee-6.4.0.7
+          server-version: ee-7.0.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
@@ -1255,7 +1256,7 @@ jobs:
           bash -x scripts/build-docker.sh firefly linux/amd64
           
           echo "Running docker image with custom properties file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/conf/aerospike-graph.properties firefly &
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
 
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
@@ -1368,7 +1369,7 @@ jobs:
           label: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-aerospike-version-minimum.outputs.ec2-instance-id }}
   stop-runner-invalid-feature-key:
-    name: Stop Aerospike Minimum Version Runner
+    name: Stop Invalid Feature Key Runner
     needs:
       - test-firefly-invalid-feature-key
       - start-runner-invalid-feature-key

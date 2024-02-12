@@ -12,10 +12,10 @@ import org.slf4j.LoggerFactory;
 public class FireflyAerospikeVersionCheck {
     // Note. The AerospikeClient has a Version checker, but it does not check the extension version, and
     // we need to error if the extension version is not high enough so it does not work for us.
-    private static final int MAJOR_MINIMUM = 6;
-    private static final int MINOR_MINIMUM = 2;
+    private static final int MAJOR_MINIMUM = 7;
+    private static final int MINOR_MINIMUM = 0;
     private static final int REVISION_MINIMUM = 0;
-    private static final int EXTENSION_MINIMUM = 7;
+    private static final int EXTENSION_MINIMUM = 3;
 
     private final int major;
     private final int minor;

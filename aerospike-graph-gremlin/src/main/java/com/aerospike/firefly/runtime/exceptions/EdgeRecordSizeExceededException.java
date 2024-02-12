@@ -8,7 +8,11 @@ import com.aerospike.firefly.structure.id.FireflyId;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import static com.aerospike.firefly.structure.FireflyEdge.PROPERTIES_POSITION;
 
 public class EdgeRecordSizeExceededException extends RuntimeException {
     private static final String ADD_EDGE_BASE_MESSAGE = "Record size exceeded for Edge pack when attempting to add Edge with ID %s";
@@ -44,8 +48,13 @@ public class EdgeRecordSizeExceededException extends RuntimeException {
     }
 
     public static Map<?, Map<?, ?>> getPhatEdgeProperties(final AerospikeConnection db, final Key key) {
-        final Operation getProperties = Operation.get(db.PROPERTIES_BIN);
-        return (Map<?, Map<?, ?>>) db.operate(null, key, getProperties).getMap(db.PROPERTIES_BIN);
+        final Operation getEdgeData = Operation.get(db.EDGE_DATA_BIN);
+        final Map<?, List<?>> allEdgeData = (Map<?, List<?>>) db.operate(null, key, getEdgeData).getMap(db.EDGE_DATA_BIN);
+        final Map<Object, Map<?, ?>> edgeIdToProperties = new HashMap<>();
+        for (final Map.Entry<?, List<?>> edgeData : allEdgeData.entrySet()) {
+            edgeIdToProperties.put(edgeData.getKey(), (Map<?, ?>) edgeData.getValue().get(PROPERTIES_POSITION));
+        }
+        return edgeIdToProperties;
     }
 
     private static String buildMessage(final String baseMessage, final Map<?, Map<?, ?>> phatEdgePropertyMap) {

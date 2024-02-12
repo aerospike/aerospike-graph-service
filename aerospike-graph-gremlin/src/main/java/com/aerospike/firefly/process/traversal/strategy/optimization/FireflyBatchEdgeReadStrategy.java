@@ -118,22 +118,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
-                    // Grab has containers and push them down.
-                    final HasStep<?> hasStep = (HasStep<?>) steps.get(index);
-                    hasContainers = hasStep.getHasContainers();
-
-                    // No support for pushdown of primary key check at this time.
-                    // This isn't really a useful pushdown anyway.
-                    if (hasContainers.stream().map(HasContainer::getKey).noneMatch(key -> key.equals(T.id.getAccessor()))) {
-                        labels = hasStep.getLabels();
-                        traversal.removeStep(hasStep);
-
-                        // Cannot use sample strategy after HasStep at this time so break.
-                        break;
-                    } else {
-                        hasContainers = new ArrayList<>();
-                        break;
-                    }
+                    // Cannot pushdown hasContainers to batch edge read step.
+                    break;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {
                         break;

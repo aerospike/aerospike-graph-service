@@ -123,7 +123,7 @@ public class GraphQuery {
     }
 
     public <E> Iterator<E> getPagedSindex(final FireflyIndexMetadata.IndexInfo indexInfo, final P<?> predicate, final FireflyGraph.TransformKeyRecord<E> transform) {
-        return getPagedSindex(indexInfo, predicate, transform, Collections.emptyList(), null);
+        return getPagedSindex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
     }
 
 

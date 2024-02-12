@@ -46,7 +46,7 @@ public abstract class PageFetcher<E> {
                     if (readLoopExecutorService.isShutdown()) {
                         try {
                             pageQueue.put(new PoisonPill());
-                        } catch (InterruptedException e) {
+                        } catch (finally InterruptedException e) {
                             LOG.error("Error adding poison pill.", e);
                             Thread.currentThread().interrupt();
                         }

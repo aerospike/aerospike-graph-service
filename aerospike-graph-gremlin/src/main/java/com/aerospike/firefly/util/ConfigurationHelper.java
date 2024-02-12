@@ -161,9 +161,7 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
-            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
-            IN_EDGE_COUNTER_BIN(Pair.of((byte) 21, "IN_E_C")),
-            OUT_EDGE_COUNTER_BIN(Pair.of((byte) 22, "OUT_E_C"));
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
 
             private final Pair value;
 

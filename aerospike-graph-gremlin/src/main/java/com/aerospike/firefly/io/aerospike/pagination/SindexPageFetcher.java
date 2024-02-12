@@ -53,6 +53,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
             pageQueue.put(new Page(kr));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
     }
 }

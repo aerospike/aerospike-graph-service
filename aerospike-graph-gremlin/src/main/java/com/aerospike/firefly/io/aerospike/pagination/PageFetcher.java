@@ -48,6 +48,7 @@ public abstract class PageFetcher<E> {
                             pageQueue.put(new PoisonPill());
                         } catch (InterruptedException e) {
                             LOG.error("Error adding poison pill.", e);
+                            Thread.currentThread().interrupt();
                         }
                         return;
                     }

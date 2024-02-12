@@ -126,7 +126,6 @@ public class GraphQuery {
         return getPagedSindex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
     }
 
-
     public <E> Iterator<E> getPagedSindex(final FireflyIndexMetadata.IndexInfo indexInfo, final P<?> predicate,
             final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // Create query policy with expressions.

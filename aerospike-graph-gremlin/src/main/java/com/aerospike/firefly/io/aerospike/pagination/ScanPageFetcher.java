@@ -62,6 +62,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
             pageQueue.put(new Page(keyRecords));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
     }
 

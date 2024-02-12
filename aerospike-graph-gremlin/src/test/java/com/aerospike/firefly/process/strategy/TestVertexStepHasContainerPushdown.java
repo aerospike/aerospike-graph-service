@@ -27,7 +27,6 @@ public class TestVertexStepHasContainerPushdown extends AbstractFireflySuite {
         return true;
     }
 
-
     @Test
     public void testCompositeIdVertexStepHasContainerPushdownAerospike() {
         final Graph tg = TinkerFactory.createModern();

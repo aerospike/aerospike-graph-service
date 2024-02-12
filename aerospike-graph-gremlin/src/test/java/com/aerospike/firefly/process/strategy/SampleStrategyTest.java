@@ -472,7 +472,6 @@ public class SampleStrategyTest {
                 Assert.assertTrue(steps.get(2) instanceof RangeGlobalStep);
                 Assert.assertTrue(steps.get(3) instanceof FireflyCacheGCStep);
             }
-            //Assert.assertEquals(4, steps.size());
         } else {
             // Graph step, composite id step, has step, sample step, cache step.
             Assert.assertEquals(5, steps.size());

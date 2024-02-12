@@ -6,6 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.ScanCallback;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     private final BiFunction<Long, Long, Void> metricsCallback;
     private final long startTime;
     private final UUID scanId = UUID.randomUUID();
+    private final ScanHitCounter scanHitCounter;
 
 
     public ScanPageFetcher(final FireflyGraph graph, final ScanPolicy policy, final String setName, final String namespace,
@@ -35,11 +37,13 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;
+        this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
         if (mapKey != null) {
-            this.graph.getBaseGraph().scanHitCounterThreadLocal.get().associateUUID(scanId, mapKey);
+            scanHitCounter.associateUUID(scanId, mapKey);
+            scanHitCounter.increment(mapKey);
         }
         this.metricsCallback = (start, stop) -> {
-            graph.getBaseGraph().getScanHitCounter().setScanTimings(scanId, start, stop);
+            scanHitCounter.setScanTimings(scanId, start, stop);
             return null;
         };
         this.startTime = System.currentTimeMillis();

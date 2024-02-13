@@ -42,6 +42,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -63,6 +64,7 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.stripAllWhiteSpace;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
@@ -611,5 +613,20 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals("localhost,aerospike.com,github.com", stripAllWhiteSpace(multi));
         final String multiPort = " localhost: 30 00,aerospike.com: 8080,github.com:8192";
         assertEquals("localhost:3000,aerospike.com:8080,github.com:8192", stripAllWhiteSpace(multiPort));
+    }
+
+    @Test
+    public void testDynamicEdgeCacheSizing() {
+        // TODO https://aerospike.atlassian.net/browse/GRAPH-982: When dynamic aerospike.conf is fixed for our CI
+        //  workflow, we can make this test better. For now just test it matches max-record-size=0 and
+        //  write-block-size=128k
+        final Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
+            Assert.assertEquals(6553, db.ON_RECORD_ID_LIMIT);
+        }
+        configuration.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), "2000");
+        try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
+            Assert.assertEquals(2000, db.ON_RECORD_ID_LIMIT);
+        }
     }
 }

@@ -66,6 +66,7 @@ import com.aerospike.firefly.util.WarmupUtil;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -348,7 +349,6 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
-        ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
 
@@ -420,6 +420,22 @@ public class AerospikeConnection implements AutoCloseable {
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
+
+        // Set Edge cache size
+        long onRecordIdLimit;
+        try {
+            onRecordIdLimit = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
+        } catch (final ConfigurationRuntimeException ignored) {
+            // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
+            final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
+            final double edgeCacheIdSizeBytes = 36;
+            final double fillPercentage = 0.45;
+            final double numberOfCaches = 2;
+
+            onRecordIdLimit = (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
+        }
+        LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
+        ON_RECORD_ID_LIMIT = onRecordIdLimit;
 
         // Validate two hop steps.
         for (final String step : OPTIMIZED_TWO_HOP_STEPS) {
@@ -778,7 +794,11 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
+            public static final String GET_CONFIG = "get-config:context=namespace;id=";
         }
+
+        private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -801,7 +821,6 @@ public class AerospikeConnection implements AutoCloseable {
             return results;
         }
 
-        //
         public static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
             Map<String, Map<String, String>> results = new TreeMap<>();
             Arrays.stream(infoResponse.split(";"))
@@ -834,6 +853,48 @@ public class AerospikeConnection implements AutoCloseable {
                     .map(m -> (Map.Entry<String, String>)
                             new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
                     .collect(Collectors.toList());
+        }
+
+        /**
+         * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
+         * node with the smallest max-record-size.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return The max-record-size.
+         */
+        public static long getMaxRecordSizeBytes(final AerospikeClient client, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+            final Node[] nodes = client.getNodes();
+            long maxRecordSize = Long.MAX_VALUE;
+
+            for (final Node node : nodes) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                final Map<String, Long> relevantConfigs = new HashMap<>();
+                for (final Map<String, String> config : listOfConfigs) {
+                    if (config.containsKey(MAX_RECORD_SIZE)) {
+                        relevantConfigs.put(MAX_RECORD_SIZE, Long.valueOf(config.get(MAX_RECORD_SIZE)));
+                    }
+                    if (config.containsKey(WRITE_BLOCK_SIZE)) {
+                        relevantConfigs.put(WRITE_BLOCK_SIZE, Long.valueOf(config.get(WRITE_BLOCK_SIZE)));
+                    }
+                }
+
+                if (!relevantConfigs.containsKey(MAX_RECORD_SIZE) || !relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
+                    throw new RuntimeException("Failed to determine " + MAX_RECORD_SIZE + " or " + WRITE_BLOCK_SIZE +
+                            " configuration values from Aerospike cluster.");
+                }
+
+                if (relevantConfigs.get(MAX_RECORD_SIZE) == 0) {
+                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size
+                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(WRITE_BLOCK_SIZE));
+                } else {
+                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(MAX_RECORD_SIZE));
+                }
+            }
+
+            return maxRecordSize;
         }
 
         /**

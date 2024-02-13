@@ -67,16 +67,27 @@ public abstract class PageFetcher<E> {
 
 
     static class PoisonPill extends Page {
+        private static PaginationIterator paginationIterator;
+        static {
+            paginationIterator = new PaginationIterator<>();
+            paginationIterator.close();
+        }
+
         public PoisonPill() {
-            super(new PaginationIterator<>());
+            super(paginationIterator);
         }
     }
 
     static class ErrorPage extends Page {
+        private static PaginationIterator paginationIterator;
+        static {
+            paginationIterator = new PaginationIterator<>();
+            paginationIterator.close();
+        }
         final String errorMessage;
 
         public ErrorPage(final String errorMessage) {
-            super(new PaginationIterator<>());
+            super(paginationIterator);
             this.errorMessage = errorMessage;
         }
     }

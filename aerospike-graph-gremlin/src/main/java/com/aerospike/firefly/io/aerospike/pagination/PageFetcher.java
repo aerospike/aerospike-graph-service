@@ -69,7 +69,7 @@ public abstract class PageFetcher<E> {
 
     static class PoisonPill extends Page {
         public PoisonPill() {
-            super(List.of());
+            super(new PaginationIterator<>());
         }
     }
 
@@ -77,20 +77,16 @@ public abstract class PageFetcher<E> {
         final String errorMessage;
 
         public ErrorPage(final String errorMessage) {
-            super(List.of());
+            super(new PaginationIterator<>());
             this.errorMessage = errorMessage;
         }
     }
 
     static class Page {
-        public List<KeyRecord> keyRecords;
+        public CloseableIterator<KeyRecord> keyRecords;
 
-        public Page(final List<KeyRecord> keyRecords) {
+        public Page(final CloseableIterator<KeyRecord> keyRecords) {
             this.keyRecords = keyRecords;
-        }
-
-        public void close() {
-            keyRecords.clear();
         }
     }
 
@@ -122,14 +118,12 @@ public abstract class PageFetcher<E> {
                     throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
 
-                for (final KeyRecord keyRecord : page.keyRecords) {
-                    // Should never happen.
+                page.keyRecords.forEachRemaining(keyRecord -> {
                     if (keyRecord == null) {
-                        continue;
+                        return;
                     }
                     currentList.add(transformKeyRecord.transform(keyRecord));
-                }
-                page.close();
+                });
             } catch (final InterruptedException e) {
                 LOG.error("Error removing page.", e);
                 Thread.currentThread().interrupt();
@@ -185,8 +179,8 @@ public abstract class PageFetcher<E> {
     protected void signalError(final String error) {
         try {
             LOG.error(error);
-            pageQueue.put(new ErrorPage("Error reading index query: " + error));
             shutdown();
+            pageQueue.put(new ErrorPage("Error reading index query: " + error));
         } catch (final InterruptedException e2) {
             LOG.error("Error adding signalling error to iterator.", e2);
             Thread.currentThread().interrupt();

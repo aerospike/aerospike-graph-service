@@ -59,5 +59,6 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         while (recordSetIterator.hasNext()) {
             pi.add(recordSetIterator.next());
         }
+        pi.close();
     }
 }

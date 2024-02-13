@@ -28,7 +28,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
             try {
                 boolean succeeded = latch.await(5, TimeUnit.SECONDS);
                 if (!succeeded) {
-                    throw new RuntimeException("Unexpected timeout in PaginationIterator.");
+                    throw new RuntimeException("Unexpected timeout in PaginationIterator " + isClosed + " " + queue.isEmpty());
                 }
             } catch (final InterruptedException e) {
                 // Unexpected interrupt, just go back to waiting.
@@ -50,17 +50,17 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     @Override
     public void close() {
         synchronized (lock) {
-            latch.countDown();
             if (!isClosed) {
                 isClosed = true;
             }
+            latch.countDown();
         }
     }
 
     public void add(E e) {
         synchronized (lock) {
-            latch.countDown();
             queue.add(e);
+            latch.countDown();
         }
     }
 }

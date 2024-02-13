@@ -13,7 +13,7 @@ import java.util.stream.IntStream;
 public class ProgressBar extends TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProgressBar.class);
 
-    public FireflyGraph graph = null;
+    private FireflyGraph graph = null;
     private boolean preflightCheckComplete = false;
     private boolean superNodeExtractionComplete = false;
     private boolean vertexLoadComplete = false;

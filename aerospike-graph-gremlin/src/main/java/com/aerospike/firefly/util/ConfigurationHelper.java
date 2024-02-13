@@ -36,7 +36,7 @@ public final class ConfigurationHelper {
     private ConfigurationHelper() {
     }
 
-    private static List PREFIX_MASK = new ArrayList() {{
+    private static final List PREFIX_MASK = new ArrayList() {{
         add(Keys.GRAPH_ID);
         add(Keys.ON_RECORD_ID_LIMIT);
     }};
@@ -103,6 +103,8 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
+        public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
+        public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
@@ -253,6 +255,8 @@ public final class ConfigurationHelper {
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
+        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
+        put(Keys.PAGINATION_PAGE_SIZE, "1000");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -363,7 +367,7 @@ public final class ConfigurationHelper {
         }
     }
 
-    protected static boolean checkInternalKeys(final String key) {
+    private static boolean checkInternalKeys(final String key) {
         return Keys.InternalConfigs.keys().contains(key) ||
                 Keys.Sets.keys().contains(key) ||
                 Keys.Bins.keys().contains(key);

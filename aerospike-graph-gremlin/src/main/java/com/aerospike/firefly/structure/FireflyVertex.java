@@ -28,16 +28,15 @@ import com.aerospike.client.exp.ListExp;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
+import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
@@ -323,32 +322,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Update this FireflyVertex in JVM cache
         updateVertexPropertyJVMCache(vertexPropertyFireflyIds, vertexPropertyValues,
                 vertexPropertyValuesTypeHints, vertexPropertyIdToProperties, vertexPropertyIdToTypeHints);
-    }
-
-    /**
-     * Issue a scan query for all the records in the edge set.
-     * Filter by an Exp, provide a ScanPolicy
-     * <p>
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param exp    Expression to apply to Scan
-     * @param policy ScanPolicy to use during Scan
-     * @return Iterator of KeyRecord
-     */
-    protected Iterator<KeyRecord> scanAllRecordsInSet(final String set, final Expression exp, final ScanPolicy policy) {
-        LOG.trace("Issuing scan query of all records in {}:{} with filter {}.",
-                db.getNamespace(), set, exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = true;
-        if (exp != null)
-            policy.filterExp = exp;
-        final AerospikeClient client = db.getClient();
-        final UUID scanId = UUID.randomUUID();
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
-        listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
-        return new FireflyCloseableIterator<>(listener);
     }
 
     /**
@@ -856,16 +829,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         queryPolicy.includeBinData = true;
         final Iterator<KeyRecord> keyRecordIterator;
         if (direction == Direction.OUT) {
-            keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
                     IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else if (direction == Direction.IN) {
-            keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                     IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else {
             return FireflyCloseableIteratorUtils.concat(
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
                             IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                             IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
         return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
@@ -1172,7 +1145,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Batch read vertex records.
         final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
                 db,
-                graph.hasContainerListToExpression(hasContainers, FireflyVertex.class),
+                GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class),
                 db.VERTEX_AERO_SET,
                 vertexIds);
         if (vertexRecords == null) {

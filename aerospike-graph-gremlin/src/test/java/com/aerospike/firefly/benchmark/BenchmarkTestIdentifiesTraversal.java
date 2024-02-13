@@ -2,6 +2,7 @@ package com.aerospike.firefly.benchmark;
 
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -36,6 +37,8 @@ import java.io.FileWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -256,37 +259,37 @@ public class BenchmarkTestIdentifiesTraversal {
         blackhole.consume(vertexList);
     }
 
-    final String script = "g.V(" + id1 + ").\n" +
+    final String script = "g.V('" + id1 + "').\n" +
             "                        fold().coalesce(\n" +
             "                                __.unfold(),\n" +
             "                                __.addV(\"entity_link\").\n" +
-            "                                        property(T.id, " + id1 + ").\n" +
+            "                                        property(T.id, '" + id1 + "').\n" +
             "                                        property(\"type\", \"id\").\n" +
             "                                        property(\"opt_ind\", \"0\").\n" +
             "                                        property(\"first_seen\", 0L).\n" +
             "                                        property(\"last_seen\", 0L)).\n" +
             "                        sideEffect(\n" +
-            "                                __.V(" + id1 + ").coalesce(\n" +
+            "                                __.V('" + id1 + "').coalesce(\n" +
             "                                        __.properties(\"internal dataset\").drop(),\n" +
             "                                        __.property(\"last_seen\", 0L))).\n" +
             "                        sideEffect(\n" +
-            "                                __.V(" + entity2 + ").fold().\n" +
+            "                                __.V('" + entity2 + "').fold().\n" +
             "                                        coalesce(\n" +
             "                                                __.unfold(),\n" +
-            "                                                __.addV(\"address\").property(T.id, " + entity2 + ").\n" +
+            "                                                __.addV(\"address\").property(T.id, '" + entity2 + "').\n" +
             "                                                        property(\"type\", \"entity\").\n" +
             "                                                        property(\"first_seen\", 0L)).\n" +
             "                                        sideEffect(__.properties(\"internal dataset\").drop()).\n" +
             "                                        sideEffect(\n" +
-            "                                                __.in(\"identifies\").hasId(" + id1 + ").\n" +
+            "                                                __.in(\"identifies\").hasId('" + id1 + "').\n" +
             "                                                        fold().coalesce(\n" +
             "                                                                __.unfold(),\n" +
             "                                                                __.addE(\"identifies\").property(\"first_seen\", 0L).\n" +
-            "                                                                        from(__.V(" + id1 + ")).\n" +
-            "                                                                        to(__.V(" + entity2 + ")))).\n" +
+            "                                                                        from(__.V('" + id1 + "')).\n" +
+            "                                                                        to(__.V('" + entity2 + "')))).\n" +
             "                                        sideEffect(\n" +
             "                                                __.inE(\"identifies\").\n" +
-            "                                                        where(__.outV().hasId(" + id1 + ")).\n" +
+            "                                                        where(__.outV().hasId('" + id1 + "')).\n" +
             "                                                        properties(\"internal dataset\").\n" +
             "                                                        drop()))";
 

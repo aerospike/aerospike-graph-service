@@ -1,5 +1,6 @@
 package com.aerospike.firefly.benchmark;
 
+import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
@@ -37,6 +38,7 @@ import java.io.FileWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -56,10 +58,12 @@ public class BenchmarkTestFlightsData {
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
+    private Client client = null;
     private static final Map<String, String> testToTraversal = Map.ofEntries(
             Map.entry("benchmark_g_V_hasxairport_code_DFWx", "g.V().has(\"airport\", \"code\", \"DFW\")"),
             Map.entry("benchmark_g_V_hasxcode_DFWx", "g.V().has(\"code\", \"DFW\")"),
             Map.entry("benchmark_g_V_hasxcode_DFWx_outE_count", "g.V().has(\"code\", \"DFW\").outE().count()"),
+            Map.entry("benchmark_g_V_hasxcode_DFWx_outE_count_script", "g.V().has(\"code\", \"DFW\").outE().count() script"),
             Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_out_hasxcode_YVRx", "g.V().has(\"code\", \"SFO\").out().out().out().has(\"code\", \"YVR\")"),
             Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count", "g.V()." +
                     "has(\"code\", \"SFO\")." +
@@ -68,6 +72,13 @@ public class BenchmarkTestFlightsData {
                     "project(\"totalAirportCountFromSFO\", \"USAirportCountFromSFO\")." +
                     "by(__.unfold().count())." +
                     "by(__.unfold().has(\"country\", \"US\").count())"),
+            Map.entry("benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count_script", "g.V()." +
+                    "has(\"code\", \"SFO\")." +
+                    "out().out()." +
+                    "dedup().fold()." +
+                    "project(\"totalAirportCountFromSFO\", \"USAirportCountFromSFO\")." +
+                    "by(__.unfold().count())." +
+                    "by(__.unfold().has(\"country\", \"US\").count()) script"),
             Map.entry("benchmark_g_e_hasxdist_gtx4000x_inV_values_dedup", "g.E().has(\"dist\", P.gt(4000L)).inV().values(\"city\").dedup()"),
             Map.entry("benchmark_g_V_hasxcode_LHRx_outxroutex_hasxcountry_USx_valuesxcodex", "g.V().has(\"code\", \"LHR\").out(\"route\").has(\"country\", \"US\").values(\"code\")"),
             Map.entry("benchmark_g_V_hasLabelxairportx_count", "g.V().hasLabel(\"airport\").count()"),
@@ -108,6 +119,7 @@ public class BenchmarkTestFlightsData {
     public void setup(final BenchmarkParams benchmarkParams) {
         LOG.info("Creating the Cluster (setup).");
         cluster = BUILDER.create();
+        client = cluster.connect();
 
         LOG.info("Creating the GraphTraversalSource (setup).");
         g = traversal().withRemote(DriverRemoteConnection.using(cluster));
@@ -204,6 +216,14 @@ public class BenchmarkTestFlightsData {
     }
 
     @Benchmark
+    public void benchmark_g_V_hasxcode_DFWx_outE_count_script(final Blackhole blackhole) throws ExecutionException, InterruptedException {
+        final String script = "g.V().has('code', 'DFW').outE().count()";
+        client.submitAsync(script).get().forEach(result -> {
+            blackhole.consume(result.getObject());
+        });
+    }
+
+    @Benchmark
     public void benchmark_g_V_hasxcode_SFOx_out_out_out_hasxcode_YVRx(final Blackhole blackhole) {
         final List<Vertex> vertices = g.V().has("code", "SFO").out().out().out().has("code", "YVR").toList();
         blackhole.consume(vertices);
@@ -219,6 +239,20 @@ public class BenchmarkTestFlightsData {
                 by(__.unfold().count()).
                 by(__.unfold().has("country", "US").count()).limit(1).next();
         blackhole.consume(projectionMap);
+    }
+
+    @Benchmark
+    public void benchmark_g_V_hasxcode_SFOx_out_out_project_byxunfold_countx_byxunfold_hasxcountry_USx_count_script(final Blackhole blackhole) throws ExecutionException, InterruptedException {
+        final String script = "g.V().\n" +
+                "                has(\"code\", \"SFO\").\n" +
+                "                out().out().\n" +
+                "                dedup().fold().\n" +
+                "                project(\"totalAirportCountFromSFO\", \"USAirportCountFromSFO\").\n" +
+                "                by(__.unfold().count()).\n" +
+                "                by(__.unfold().has(\"country\", \"US\").count()).limit(1)";
+        client.submitAsync(script).get().forEach(result -> {
+            blackhole.consume(result.getObject());
+        });
     }
 
     @Benchmark

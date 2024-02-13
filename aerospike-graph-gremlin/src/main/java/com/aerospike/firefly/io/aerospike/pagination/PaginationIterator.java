@@ -31,8 +31,8 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                     throw new RuntimeException("Unexpected timeout in PaginationIterator.");
                 }
             } catch (final InterruptedException e) {
+                // Unexpected interrupt, just go back to waiting.
                 Thread.currentThread().interrupt();
-                return false;
             }
         }
         return true;

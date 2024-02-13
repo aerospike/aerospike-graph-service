@@ -6,6 +6,7 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class PaginationIterator<E> implements CloseableIterator<E> {
     boolean isClosed = false;
@@ -20,10 +21,15 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 latch = new CountDownLatch(1);
                 if (isClosed && queue.isEmpty()) {
                     return false;
+                } else if (!queue.isEmpty()) {
+                    return true;
                 }
             }
             try {
-                latch.await();
+                boolean succeeded = latch.await(5, TimeUnit.SECONDS);
+                if (!succeeded) {
+                    throw new RuntimeException("Unexpected timeout in PaginationIterator.");
+                }
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return false;

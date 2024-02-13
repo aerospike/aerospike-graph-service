@@ -65,10 +65,12 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         metricsCallback.apply(startTime, System.currentTimeMillis());
         try {
             pageQueue.put(new Page(listener.paginationIterator));
-            latch.await();//policy.totalTimeout + 100, TimeUnit.MILLISECONDS);
-            //if (failed) {
-            //    signalError("Failed to scan page: Timed out waiting for scan to complete.");
-            //}
+            while (!done.get()) {
+                boolean succeeded = latch.await(5, TimeUnit.SECONDS);//policy.totalTimeout + 100, TimeUnit.MILLISECONDS);
+                if (!succeeded) {
+                    signalError("Failed to scan page: Timed out waiting for scan to complete.");
+                }
+            }
         } catch (final InterruptedException e) {
             signalError("Error waiting for scan to complete: " + e.getMessage());
             Thread.currentThread().interrupt();
@@ -86,7 +88,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         }
 
         @Override
-        public void onRecord(Key key, Record record) {
+        public void onRecord(final Key key, final Record record) {
             paginationIterator.add(new KeyRecord(key, record));
         }
 

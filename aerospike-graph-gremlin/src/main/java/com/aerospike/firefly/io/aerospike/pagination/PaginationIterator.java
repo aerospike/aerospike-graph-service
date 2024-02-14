@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.aerospike.pagination;
 
+import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.NoSuchElementException;
@@ -13,6 +14,11 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     final Queue<E> queue = new ConcurrentLinkedQueue<>();
     CountDownLatch latch = new CountDownLatch(1);
     final Object lock = new Object();
+    final FireflyGraph graph;
+
+    public PaginationIterator(final FireflyGraph graph) {
+        this.graph = graph;
+    }
 
     @Override
     public boolean hasNext() {
@@ -26,9 +32,10 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             }
             try {
-                boolean succeeded = latch.await(5, TimeUnit.SECONDS);
+                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_READ_MAX_WAIT, TimeUnit.MILLISECONDS);
                 if (!succeeded) {
-                    throw new RuntimeException("Unexpected timeout in PaginationIterator " + isClosed + " " + queue.isEmpty());
+                    throw new RuntimeException("Timeout waiting for more records in PaginationIterator. " +
+                            "State: " + isClosed + " " + queue.isEmpty() + ".");
                 }
             } catch (final InterruptedException e) {
                 // Unexpected interrupt, just go back to waiting.

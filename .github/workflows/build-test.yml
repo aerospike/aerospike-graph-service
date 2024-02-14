@@ -576,6 +576,7 @@ jobs:
           alert-threshold: '105%'
           comment-on-alert: true
           fail-on-alert: false
+          maxItemsInChart: 250
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
@@ -634,6 +635,7 @@ jobs:
           alert-threshold: '105%'
           comment-on-alert: true
           fail-on-alert: false
+          maxItemsInChart: 250
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
@@ -1019,6 +1021,7 @@ jobs:
           alert-threshold: '105%'
           comment-on-alert: true
           fail-on-alert: false
+          maxItemsInChart: 250
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
@@ -1077,6 +1080,7 @@ jobs:
           alert-threshold: '105%'
           comment-on-alert: true
           fail-on-alert: false
+          maxItemsInChart: 250
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/

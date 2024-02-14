@@ -3,14 +3,13 @@ package com.aerospike.firefly.io.aerospike.pagination;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.structure.FireflyGraph;
+import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,13 +100,9 @@ public abstract class PageFetcher<E> {
     }
 
     public class PageIterator implements CloseableIterator<E> {
-        final Queue<E> currentList;
+        CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
         boolean isEmpty = false;
         boolean isClosed = false;
-
-        PageIterator() {
-            this.currentList = new LinkedList<>();
-        }
 
         private void removePage() {
             // Check if possible.
@@ -128,12 +123,7 @@ public abstract class PageFetcher<E> {
                     throw new RuntimeException(((ErrorPage) page).errorMessage);
                 }
 
-                page.keyRecords.forEachRemaining(keyRecord -> {
-                    if (keyRecord == null) {
-                        return;
-                    }
-                    currentList.add(transformKeyRecord.transform(keyRecord));
-                });
+                currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
                 LOG.error("Error removing page.", e);
                 Thread.currentThread().interrupt();
@@ -150,11 +140,11 @@ public abstract class PageFetcher<E> {
                 return false;
             }
 
-            if (!currentList.isEmpty()) {
+            if (currentIterator.hasNext()) {
                 return true;
             }
 
-            while (currentList.isEmpty()) {
+            while (!currentIterator.hasNext()) {
                 removePage();
                 if (isEmpty) {
                     return false;
@@ -168,7 +158,7 @@ public abstract class PageFetcher<E> {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
-                return currentList.remove();
+                return transformKeyRecord.transform(currentIterator.next());
             }
         }
 

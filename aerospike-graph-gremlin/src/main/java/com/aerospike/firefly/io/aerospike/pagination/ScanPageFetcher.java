@@ -71,7 +71,6 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                 signalError("Failed to add page to queue: Timed out waiting for write to queue.");
                 return;
             }
-            done.set(true);
             while (!done.get()) {
                 // Monitor max wait to write to pagination queue.
                 boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_WRITE_MAX_WAIT, TimeUnit.MILLISECONDS);

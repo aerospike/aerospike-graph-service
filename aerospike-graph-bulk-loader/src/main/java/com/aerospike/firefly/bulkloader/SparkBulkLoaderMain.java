@@ -116,7 +116,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            initializeProgressBar(fileConfig);
+            final FireflyGraph baseGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
+            initializeProgressBar(baseGraph);
 
             // Preflight check
             try {
@@ -153,7 +154,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setEdgeIdWriteComplete();
 
             // Supernode processing
-            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset);
+            // Get the supernode threshold from Firefly config.
+            final long onRecordIdLimit = baseGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
+            LOGGER.info("Supernode threshold: " + onRecordIdLimit);
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
@@ -195,11 +199,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
         }
     }
 
-    private static void initializeProgressBar(Map<String, Object> config) {
+    private static void initializeProgressBar(final FireflyGraph graph) {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
-            // If graph fails to open for some reason, it will be null internally and progress bar will not report.
-            PROGRESS_BAR.setGraph(FireflyGraph.open(new MapConfiguration(config)));
+            PROGRESS_BAR.setGraph(graph);
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, 10000);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);

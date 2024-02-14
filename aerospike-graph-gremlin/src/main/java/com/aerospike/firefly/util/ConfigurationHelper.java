@@ -248,7 +248,6 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_USER, "");
         put(Keys.AEROSPIKE_PASSWORD, "");
         put(Keys.GRAPH_ID, "0");
-        put(Keys.ON_RECORD_ID_LIMIT, "8000");
         put(Keys.STORAGE_DEBUGGER_FLAG, "false");
         put(Keys.FIREFLY_DATA_MODEL, "packed");
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");

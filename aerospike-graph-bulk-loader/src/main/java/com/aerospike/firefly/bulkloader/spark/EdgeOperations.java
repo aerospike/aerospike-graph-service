@@ -79,7 +79,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 
 public class EdgeOperations implements Serializable {
@@ -298,7 +297,7 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
-    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset) {
+    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
@@ -324,18 +323,14 @@ public class EdgeOperations implements Serializable {
             final JavaPairRDD<Object, Long> toCountPairRDD =
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
-            // Get the supernode threshold from Firefly config.
-            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefaultString(ON_RECORD_ID_LIMIT, fireflyConfig));
-            LOGGER.info("Supernode threshold: " + supernodeThreshold);
-
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
                     (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
 
             final JavaPairRDD<Object, Long> filteredToCountPairRDD = toCountPairRDD.filter(
                     (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
 
             final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
             final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();

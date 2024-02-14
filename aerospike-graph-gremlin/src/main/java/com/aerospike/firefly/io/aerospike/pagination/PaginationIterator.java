@@ -10,11 +10,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class PaginationIterator<E> implements CloseableIterator<E> {
-    boolean isClosed = false;
-    final Queue<E> queue = new ConcurrentLinkedQueue<>();
-    CountDownLatch latch = new CountDownLatch(1);
-    final Object lock = new Object();
-    final FireflyGraph graph;
+    private boolean isClosed = false;
+    private final Queue<E> queue = new ConcurrentLinkedQueue<>();
+    private CountDownLatch latch = new CountDownLatch(1);
+    private final Object lock = new Object();
+    private final FireflyGraph graph;
 
     public PaginationIterator(final FireflyGraph graph) {
         this.graph = graph;
@@ -64,7 +64,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
         }
     }
 
-    public void add(E e) {
+    public void add(final E e) {
         synchronized (lock) {
             queue.add(e);
             latch.countDown();

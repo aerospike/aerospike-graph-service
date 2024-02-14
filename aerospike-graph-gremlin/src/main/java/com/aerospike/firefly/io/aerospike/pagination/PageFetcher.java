@@ -66,27 +66,17 @@ public abstract class PageFetcher<E> {
 
 
     static class PoisonPill extends Page {
-        private static PaginationIterator paginationIterator;
-        static {
-            paginationIterator = new PaginationIterator<>(null);
-            paginationIterator.close();
-        }
 
         public PoisonPill() {
-            super(paginationIterator);
+            super(CloseableIterator.EmptyCloseableIterator.instance());
         }
     }
 
     static class ErrorPage extends Page {
-        private static PaginationIterator paginationIterator;
-        static {
-            paginationIterator = new PaginationIterator<>(null);
-            paginationIterator.close();
-        }
         final String errorMessage;
 
         public ErrorPage(final String errorMessage) {
-            super(paginationIterator);
+            super(CloseableIterator.EmptyCloseableIterator.instance());
             this.errorMessage = errorMessage;
         }
     }
@@ -140,16 +130,13 @@ public abstract class PageFetcher<E> {
                 return false;
             }
 
-            if (currentIterator.hasNext()) {
-                return true;
-            }
-
             while (!currentIterator.hasNext()) {
                 removePage();
                 if (isEmpty) {
                     return false;
                 }
             }
+
             return true;
         }
 

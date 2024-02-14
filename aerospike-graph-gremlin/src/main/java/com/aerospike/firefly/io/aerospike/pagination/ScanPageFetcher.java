@@ -64,12 +64,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         graph.getBaseGraph().getClient().scanPartitions(graph.getBaseGraph().eventLoops.next(), listener, policy, filter, namespace, set);
         metricsCallback.apply(startTime, System.currentTimeMillis());
         try {
-            final boolean inserted = pageQueue.offer(new Page(listener.paginationIterator),
-                    graph.getBaseGraph().PAGINATION_PAGE_WRITE_MAX_WAIT, TimeUnit.MILLISECONDS);
-            if (!inserted) {
-                signalError("Failed to add page to queue: Timed out waiting for write to queue.");
-                return;
-            }
+            pageQueue.put(new Page(listener.paginationIterator));
             while (!done.get()) {
                 // Monitor max wait to write to pagination queue.
                 boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_WRITE_MAX_WAIT, TimeUnit.MILLISECONDS);

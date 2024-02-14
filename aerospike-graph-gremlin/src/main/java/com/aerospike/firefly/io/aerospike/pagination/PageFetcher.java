@@ -69,7 +69,7 @@ public abstract class PageFetcher<E> {
     static class PoisonPill extends Page {
         private static PaginationIterator paginationIterator;
         static {
-            paginationIterator = new PaginationIterator<>();
+            paginationIterator = new PaginationIterator<>(null);
             paginationIterator.close();
         }
 
@@ -81,7 +81,7 @@ public abstract class PageFetcher<E> {
     static class ErrorPage extends Page {
         private static PaginationIterator paginationIterator;
         static {
-            paginationIterator = new PaginationIterator<>();
+            paginationIterator = new PaginationIterator<>(null);
             paginationIterator.close();
         }
         final String errorMessage;

@@ -48,7 +48,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>();
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph);
 
         try {
             pageQueue.put(new Page(pi));

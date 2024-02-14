@@ -86,7 +86,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
     }
 
     class ScanPageFetcherRecordSequenceListener implements RecordSequenceListener {
-        final PaginationIterator<KeyRecord> paginationIterator = new PaginationIterator<>();
+        final PaginationIterator<KeyRecord> paginationIterator = new PaginationIterator<>(graph);
         final AtomicBoolean done;
         final CountDownLatch latch;
 

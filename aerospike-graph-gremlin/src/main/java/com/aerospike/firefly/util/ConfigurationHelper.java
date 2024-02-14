@@ -258,7 +258,7 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
-        put(Keys.PAGINATION_PAGE_SIZE, "1000");
+        put(Keys.PAGINATION_PAGE_SIZE, "10000");
         put(Keys.PAGINATION_PAGE_READ_MAX_WAIT, "3000");
         put(Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, "3000");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");

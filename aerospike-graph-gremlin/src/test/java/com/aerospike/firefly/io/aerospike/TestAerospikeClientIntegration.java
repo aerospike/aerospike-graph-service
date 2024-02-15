@@ -16,7 +16,6 @@ import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.QueryPolicy;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
@@ -29,7 +28,6 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.AbstractFireflySuite;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.PerfUtil;
@@ -42,6 +40,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -63,6 +62,7 @@ import java.util.stream.IntStream;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.stripAllWhiteSpace;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
+import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.Sets.TEST_SET;
 import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
@@ -421,12 +421,10 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
 
             graph.traversal().V().drop().iterate();
             sleep(2000);
-            final Iterator<KeyRecord> vertxKeys = db.scanAllKeysInSet(ReadContext.create(db.VERTEX_AERO_SET), null);
-            final Iterator<KeyRecord> edgeKeys = db.scanAllRecordsInSet(ReadContext.create(db.EDGE_AERO_SET), null, new ScanPolicy(),
-                   db.LABEL_BIN);
-            FireflyPhatEdgeIdIterator edges = new FireflyPhatEdgeIdIterator(edgeKeys, db);
-            assertFalse(vertxKeys.hasNext());
-            assertFalse(edges.hasNext());
+            final Iterator<FireflyId> vertexKeys = graph.query.getPagedScanVertexIds();
+            final Iterator<FireflyId> edgeKeys = graph.query.getPagedScanEdgeIds();
+            assertFalse(vertexKeys.hasNext());
+            assertFalse(edgeKeys.hasNext());
         } finally {
             config.clearProperty(ENABLE_FIREFLY_DROP_STRATEGY.toLowerCase());
         }
@@ -611,5 +609,20 @@ public class TestAerospikeClientIntegration extends AbstractFireflySuite {
         assertEquals("localhost,aerospike.com,github.com", stripAllWhiteSpace(multi));
         final String multiPort = " localhost: 30 00,aerospike.com: 8080,github.com:8192";
         assertEquals("localhost:3000,aerospike.com:8080,github.com:8192", stripAllWhiteSpace(multiPort));
+    }
+
+    @Test
+    public void testDynamicEdgeCacheSizing() {
+        // TODO https://aerospike.atlassian.net/browse/GRAPH-982: When dynamic aerospike.conf is fixed for our CI
+        //  workflow, we can make this test better. For now just test it matches max-record-size=0 and
+        //  write-block-size=128k
+        final Configuration configuration = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
+            Assert.assertEquals(6553, db.ON_RECORD_ID_LIMIT);
+        }
+        configuration.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), "2000");
+        try (final AerospikeConnection db = AerospikeConnection.connect(configuration)) {
+            Assert.assertEquals(2000, db.ON_RECORD_ID_LIMIT);
+        }
     }
 }

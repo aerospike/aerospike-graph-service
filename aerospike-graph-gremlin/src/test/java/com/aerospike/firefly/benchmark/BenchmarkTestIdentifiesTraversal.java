@@ -1,6 +1,8 @@
 package com.aerospike.firefly.benchmark;
 
+import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
@@ -35,6 +37,8 @@ import java.io.FileWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
@@ -49,6 +53,8 @@ public class BenchmarkTestIdentifiesTraversal {
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
     private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
+    private DriverRemoteConnection drc = null;
+    private Client.ClusteredClient client = null;
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
     private static final Cluster.Builder BUILDER = Cluster.build().addContactPoint(HOST).port(PORT).enableSsl(false);
@@ -56,6 +62,7 @@ public class BenchmarkTestIdentifiesTraversal {
             Map.entry("benchmark_g_V_traversal_extra_optimized_0", "Identifies traversal (1) extra optimized"),
             Map.entry("benchmark_g_V_traversal_optimized_0", "Identifies traversal (1) optimized"),
             Map.entry("benchmark_g_V_traversal_unoptimized_0", "Identifies traversal (1) unoptimized"),
+            Map.entry("benchmark_g_V_traversal_optimized_0_script", "Identifies traversal (1) optimized script"),
             Map.entry("benchmark_g_V_traversal_optimized_1", "Identifies traversal (2) optimized"),
             Map.entry("benchmark_g_V_traversal_unoptimized_1", "Identifies traversal (2) unoptimized"),
             Map.entry("benchmark_g_V_traversal_unoptimized_2", "Identifies traversal (3) unoptimized"),
@@ -77,7 +84,9 @@ public class BenchmarkTestIdentifiesTraversal {
         cluster = BUILDER.create();
 
         LOG.info("Creating the GraphTraversalSource (setup).");
-        g = traversal().withRemote(DriverRemoteConnection.using(cluster));
+        drc = DriverRemoteConnection.using(cluster);
+        client = cluster.connect();
+        g = traversal().withRemote(drc);
     }
 
     // Teardown for benchmark.
@@ -248,6 +257,45 @@ public class BenchmarkTestIdentifiesTraversal {
                                                         properties("internal dataset").
                                                         drop())).toList();
         blackhole.consume(vertexList);
+    }
+
+    final String script = "g.V('" + id1 + "').\n" +
+            "                        fold().coalesce(\n" +
+            "                                __.unfold(),\n" +
+            "                                __.addV(\"entity_link\").\n" +
+            "                                        property(T.id, '" + id1 + "').\n" +
+            "                                        property(\"type\", \"id\").\n" +
+            "                                        property(\"opt_ind\", \"0\").\n" +
+            "                                        property(\"first_seen\", 0L).\n" +
+            "                                        property(\"last_seen\", 0L)).\n" +
+            "                        sideEffect(\n" +
+            "                                __.V('" + id1 + "').coalesce(\n" +
+            "                                        __.properties(\"internal dataset\").drop(),\n" +
+            "                                        __.property(\"last_seen\", 0L))).\n" +
+            "                        sideEffect(\n" +
+            "                                __.V('" + entity2 + "').fold().\n" +
+            "                                        coalesce(\n" +
+            "                                                __.unfold(),\n" +
+            "                                                __.addV(\"address\").property(T.id, '" + entity2 + "').\n" +
+            "                                                        property(\"type\", \"entity\").\n" +
+            "                                                        property(\"first_seen\", 0L)).\n" +
+            "                                        sideEffect(__.properties(\"internal dataset\").drop()).\n" +
+            "                                        sideEffect(\n" +
+            "                                                __.in(\"identifies\").hasId('" + id1 + "').\n" +
+            "                                                        fold().coalesce(\n" +
+            "                                                                __.unfold(),\n" +
+            "                                                                __.addE(\"identifies\").property(\"first_seen\", 0L).\n" +
+            "                                                                        from(__.V('" + id1 + "')).\n" +
+            "                                                                        to(__.V('" + entity2 + "')))).\n" +
+            "                                        sideEffect(\n" +
+            "                                                __.inE(\"identifies\").\n" +
+            "                                                        where(__.outV().hasId('" + id1 + "')).\n" +
+            "                                                        properties(\"internal dataset\").\n" +
+            "                                                        drop()))";
+
+    @Benchmark
+    public void benchmark_g_V_traversal_optimized_0_script(final Blackhole blackhole) {
+        blackhole.consume(client.submit(script).all().join());
     }
 
     @Benchmark

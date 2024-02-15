@@ -38,7 +38,7 @@ public final class ConfigurationHelper {
     private ConfigurationHelper() {
     }
 
-    private static List PREFIX_MASK = new ArrayList() {{
+    private static final List PREFIX_MASK = new ArrayList() {{
         add(Keys.GRAPH_ID);
         add(Keys.ON_RECORD_ID_LIMIT);
     }};
@@ -105,6 +105,10 @@ public final class ConfigurationHelper {
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
         public static final String ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = "aerospike.graph.strategy.local.fast.count.embedded.enabled";
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
+        public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
+        public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
+        public static final String PAGINATION_PAGE_READ_MAX_WAIT = "aerospike.graph.pagination.page.read.max.wait";
+        public static final String PAGINATION_PAGE_WRITE_MAX_WAIT = "aerospike.graph.pagination.page.write.max.wait";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
@@ -161,9 +165,7 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
-            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
-            IN_EDGE_COUNTER_BIN(Pair.of((byte) 21, "IN_E_C")),
-            OUT_EDGE_COUNTER_BIN(Pair.of((byte) 22, "OUT_E_C"));
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
 
             private final Pair value;
 
@@ -248,13 +250,16 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_USER, "");
         put(Keys.AEROSPIKE_PASSWORD, "");
         put(Keys.GRAPH_ID, "0");
-        put(Keys.ON_RECORD_ID_LIMIT, "8000");
         put(Keys.STORAGE_DEBUGGER_FLAG, "false");
         put(Keys.FIREFLY_DATA_MODEL, "packed");
         put(Keys.V_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.E_LABEL_INDEX_ENABLED_FLAG, "false");
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
+        put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
+        put(Keys.PAGINATION_PAGE_SIZE, "10000");
+        put(Keys.PAGINATION_PAGE_READ_MAX_WAIT, "3000");
+        put(Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, "3000");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -363,7 +368,7 @@ public final class ConfigurationHelper {
         }
     }
 
-    protected static boolean checkInternalKeys(final String key) {
+    private static boolean checkInternalKeys(final String key) {
         return Keys.InternalConfigs.keys().contains(key) ||
                 Keys.Sets.keys().contains(key) ||
                 Keys.Bins.keys().contains(key);

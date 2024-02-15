@@ -319,6 +319,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
      */
     public void removeEdge() {
         FireflyEdge.removeEdgeById(this.graph, this.id);
+        this.removed = true;
     }
 
     @Override
@@ -445,18 +446,34 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         // But doing this, should one of the subsequent deletes fail, we will not have an
         // orphaned edge on one vertex but not the other.
         removeEdge();
+        removeFromOut();
+        removeFromIn();
+    }
 
-        final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
+    public void removeSelfAndFromOut() {
+        removeEdge();
+        removeFromOut();
+    }
+
+    private void removeFromOut() {
         final FireflyVertex outVertex = this.graph.readVertex(this.outVid);
-        final FireflyIdFactory idFactory = this.graph.getIdFactory();
-        if (inVertex != null) {
-            inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
-        }
         if (outVertex != null) {
+            final FireflyIdFactory idFactory = this.graph.getIdFactory();
             outVertex.removeEdge(Direction.OUT, idFactory.createCompositeEdgeId(this.id, this.inVid), this.label);
         }
+    }
 
-        this.removed = true;
+    public void removeSelfAndFromIn() {
+        removeEdge();
+        removeFromIn();
+    }
+
+    private void removeFromIn() {
+        final FireflyVertex inVertex = this.graph.readVertex(this.inVid);
+        if (inVertex != null) {
+            final FireflyIdFactory idFactory = this.graph.getIdFactory();
+            inVertex.removeEdge(Direction.IN, idFactory.createCompositeEdgeId(this.id, this.outVid), this.label);
+        }
     }
 
     @Override

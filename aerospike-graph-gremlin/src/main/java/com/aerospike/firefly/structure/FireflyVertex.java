@@ -1,6 +1,5 @@
 package com.aerospike.firefly.structure;
 
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
@@ -8,7 +7,6 @@ import com.aerospike.client.Operation;
 import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
-import com.aerospike.client.async.Monitor;
 import com.aerospike.client.cdt.CTX;
 import com.aerospike.client.cdt.ListOperation;
 import com.aerospike.client.cdt.ListOrder;
@@ -28,23 +26,21 @@ import com.aerospike.client.exp.ListExp;
 import com.aerospike.client.exp.MapExp;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.ConcurrentScanRecordSequenceListener;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
+import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdComposite;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromIndexedVertex;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIteratorFromVertex;
@@ -73,7 +69,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
@@ -104,8 +99,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     protected Map<String, Object> vertexPropertyValuesTypeHints;
     protected Map<Object, Map<String, Object>> vertexPropertyIdToProperties;
     protected Map<Object, Map<String, Object>> vertexPropertyIdToTypeHints;
-    protected long inEdgeCount;
-    protected long outEdgeCount;
     protected boolean isEdgeCacheOverflowed;
 
     public FireflyVertex(final FireflyId fid,
@@ -113,8 +106,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                          final FireflyGraph graph,
                          final Map<String, List<FireflyId>> inEdgeIds,
                          final Map<String, List<FireflyId>> outEdgeIds,
-                         final long inEdgeCount,
-                         final long outEdgeCount,
                          final Map<String, FireflyId> vertexPropertyIds,
                          final Map<String, Object> vertexPropertyValues,
                          final Map<String, Object> vertexPropertyValuesTypeHints,
@@ -131,8 +122,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.vertexPropertyValuesTypeHints = vertexPropertyValuesTypeHints == null ? new TreeMap<>() : vertexPropertyValuesTypeHints;
         this.vertexPropertyIdToProperties = vertexPropertyIdToProperties == null ? new TreeMap<>() : vertexPropertyIdToProperties;
         this.vertexPropertyIdToTypeHints = vertexPropertyIdToTypeHints == null ? new TreeMap<>() : vertexPropertyIdToTypeHints;
-        this.inEdgeCount = inEdgeCount;
-        this.outEdgeCount = outEdgeCount;
         this.isEdgeCacheOverflowed = isEdgeCacheOverflowed;
         this.db = db;
     }
@@ -332,32 +321,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     }
 
     /**
-     * Issue a scan query for all the records in the edge set.
-     * Filter by an Exp, provide a ScanPolicy
-     * <p>
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param exp    Expression to apply to Scan
-     * @param policy ScanPolicy to use during Scan
-     * @return Iterator of KeyRecord
-     */
-    protected Iterator<KeyRecord> scanAllRecordsInSet(final String set, final Expression exp, final ScanPolicy policy) {
-        LOG.trace("Issuing scan query of all records in {}:{} with filter {}.",
-                db.getNamespace(), set, exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = true;
-        if (exp != null)
-            policy.filterExp = exp;
-        final AerospikeClient client = db.getClient();
-        final UUID scanId = UUID.randomUUID();
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(db, scanMonitor, scanId);
-        listener.setStartTime();
-        client.scanAll(db.getEventLoops().next(), listener, policy, db.getNamespace(), set);
-        return new FireflyCloseableIterator<>(listener);
-    }
-
-    /**
      * Remove edge from vertex.
      *
      * @param direction Direction of edge.
@@ -365,8 +328,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @param edgeLabel Label of edge.
      */
     protected void removeEdge(final Direction direction, final FireflyId edgeId, final String edgeLabel) {
-        // Get bin names for edge direction.
-        final String counterBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER_BIN : db.OUT_EDGE_COUNTER_BIN;
+        // Get bin name for edge direction.
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
         // Update the JVM cache of this.
@@ -401,22 +363,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Get key for this vertex in database.
         final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
-        // Create operation for decrementing the counter.
-        final Expression decrementCounterExp = Exp.build(
-                Exp.cond(
-                        Exp.gt(
-                                ListExp.getByValue(
-                                        ListReturnType.COUNT,
-                                        Exp.val((byte[]) edgeId.getCachedId()),
-                                        Exp.mapBin(cacheBinName),
-                                        CTX.mapKeyCreate(Value.get(edgeLabel), MapOrder.KEY_ORDERED)),
-                                Exp.val(0)
-                        ),
-                        Exp.sub(Exp.intBin(counterBinName), Exp.val(1)),
-                        Exp.intBin(counterBinName)
-                )
-        );
-        final Operation decrementEdgeCounter = ExpOperation.write(counterBinName, decrementCounterExp, ExpWriteFlags.UPDATE_ONLY);
         // Create operations for removing from edge cache.
         final Operation removeEdgeId = ListOperation.removeByValue(
                 cacheBinName,
@@ -432,7 +378,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 )
         );
         final Operation removeEmptyEdgeCacheKeys = ExpOperation.write(cacheBinName, removeEmptyKey, ExpWriteFlags.EVAL_NO_FAIL);
-        final Operation getEdgeCounter = Operation.get(counterBinName);
 
         // Removing an edge can never change the state of the edge cache so only need to read in case of cache disabling
         // due to concurrent traversals.
@@ -440,31 +385,21 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Operate on database.
         try {
-            final Record results = this.db.operate(null, key, decrementEdgeCounter, removeEdgeId,
-                    removeEmptyEdgeCacheKeys, getEdgeCounter, getCacheDisabled);
+            final Record results =
+                    this.db.operate(null, key, removeEdgeId, removeEmptyEdgeCacheKeys, getCacheDisabled);
 
             this.isEdgeCacheOverflowed = results.getBoolean(this.db.EDGE_CACHE_DISABLED_BIN);
-
-            // Update count.
-            final long edgeCount = (long) getValueAtIndex(results, counterBinName, 1);
-            if (direction == Direction.IN) {
-                this.inEdgeCount = edgeCount;
-            } else {
-                this.outEdgeCount = edgeCount;
-            }
-        } catch (AerospikeException ae) {
+        } catch (final ElementNotFoundException enfe) {
+            // This Vertex's record was deleted concurrently and thus the record does not exist.
+            LOG.debug("Error removing edge id {} from edge cache of vertex {}; the vertex was deleted.",
+                    getUserIdString(edgeId.getUserId()), this.id.getUserId());
+        } catch (final AerospikeException ae) {
             if (ae.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
                 // Special logic to handle when concurrent traversals remove the same Edge ID from the ECACHE and the 
                 // Edge is the last of its Label category, meaning the later traversal will fail due to an operation
                 // working under the assumption that the Label exists.
                 LOG.warn("Error removing edge id {} from edge cache of vertex {}; this is likely from a concurrent removal.",
                         getUserIdString(edgeId.getUserId()), this.id.getUserId());
-                // Do our best to accurately reflect the state of this Vertex in JVM without doing a read.
-                if (direction == Direction.IN) {
-                    this.inEdgeCount--;
-                } else {
-                    this.outEdgeCount--;
-                }
             } else {
                 throw ae;
             }
@@ -485,16 +420,25 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return false;
         }
 
-        // Get bin names for edge direction.
-        final String counterBinName = direction == Direction.IN ? db.IN_EDGE_COUNTER_BIN : db.OUT_EDGE_COUNTER_BIN;
+        // Update this object's cache in JVM.
+        if (direction == Direction.IN) {
+            if (!this.inEdgeIds.containsKey(edgeLabel)) {
+                this.inEdgeIds.put(edgeLabel, new ArrayList<>());
+            }
+            this.inEdgeIds.get(edgeLabel).add(edgeId);
+        } else {
+            if (!this.outEdgeIds.containsKey(edgeLabel)) {
+                this.outEdgeIds.put(edgeLabel, new ArrayList<>());
+            }
+            this.outEdgeIds.get(edgeLabel).add(edgeId);
+        }
+
+        // Get bin name for edge direction.
         final String cacheBinName = direction == Direction.IN ? db.IN_EDGES_BIN : db.OUT_EDGES_BIN;
 
         // Get key for this vertex in database.
         final Key key = getKey(db, this.db.VERTEX_AERO_SET, this.id);
 
-        // Create operations for writing to edge cache.
-        final Bin edgeCounter = new Bin(counterBinName, 1);
-        final Operation incrementEdgeCounter = Operation.add(edgeCounter);
         // Create operations for writing to edge cache.
         final ListPolicy preventDuplicates = new ListPolicy(ListOrder.UNORDERED,
                 ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL | ListWriteFlags.PARTIAL);
@@ -511,7 +455,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                         // traversals removed edges and reduced the edge counter.
                         Exp.or(
                                 Exp.boolBin(this.db.EDGE_CACHE_DISABLED_BIN),
-                                Exp.ge(Exp.intBin(counterBinName), Exp.val(this.db.ON_RECORD_ID_LIMIT))
+                                Exp.ge(Exp.val(getEdgeCount(direction)), Exp.val(this.db.ON_RECORD_ID_LIMIT))
                         ),
                         Exp.val(true),
                         Exp.val(false)
@@ -519,31 +463,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         );
         final Operation updateCacheState = ExpOperation.write(this.db.EDGE_CACHE_DISABLED_BIN, cacheState, ExpWriteFlags.DEFAULT);
         final Operation getCacheDisabled = Operation.get(this.db.EDGE_CACHE_DISABLED_BIN);
-        final Operation getEdgeCount = Operation.get(counterBinName);
 
         // Operate on database.
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            final Record results = this.db.operate(writePolicy, key, incrementEdgeCounter, appendToEdgeCache, updateCacheState,
-                    getCacheDisabled, getEdgeCount);
+            final Record results = this.db.operate(writePolicy, key, appendToEdgeCache, updateCacheState, getCacheDisabled);
 
             this.isEdgeCacheOverflowed = (boolean) OperationReturnHandler.getValueAtIndex(results, this.db.EDGE_CACHE_DISABLED_BIN, 1);
-            final long edgeCount = (long) OperationReturnHandler.getValueAtIndex(results, counterBinName, 1);
-            // Update this object's cache in JVM.
-            if (direction == Direction.IN) {
-                if (!this.inEdgeIds.containsKey(edgeLabel)) {
-                    this.inEdgeIds.put(edgeLabel, new ArrayList<>());
-                }
-                this.inEdgeIds.get(edgeLabel).add(edgeId);
-                this.inEdgeCount = edgeCount;
-            } else {
-                if (!this.outEdgeIds.containsKey(edgeLabel)) {
-                    this.outEdgeIds.put(edgeLabel, new ArrayList<>());
-                }
-                this.outEdgeIds.get(edgeLabel).add(edgeId);
-                this.outEdgeCount = edgeCount;
-            }
             return true;
         } catch (final RecordTooBigException e) {
             final VertexRecordSizeExceededException sizeExceededException =
@@ -567,16 +494,11 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     @Override
     public void remove() {
         // Collect edges in both directions and remove them all.
-        final Set<FireflyId> edgeIds = new HashSet<>(getEdgeIdsFromVertex(Direction.BOTH, Set.of()));
-        edgeIds.forEach(edgeId -> {
-            // If edge id is composite remove composition and get edge id directly.
-            if (edgeId instanceof FireflyIdComposite) {
-                edgeId = ((FireflyIdComposite) edgeId).getEdgeId();
-            }
-
-            // Remove edge via id without materializing the edge into memory.
-            graph.removeEdgeById(edgeId);
-        });
+        final List<FireflyEdge> inEdges = FireflyEdge.readEdges(graph, getEdgeIdsFromVertex(Direction.IN, Set.of()));
+        final List<FireflyEdge> outEdges = FireflyEdge.readEdges(graph, getEdgeIdsFromVertex(Direction.OUT, Set.of()));
+        // Remove the edges themselves and from the adjacent vertices' edge caches.
+        inEdges.forEach(FireflyEdge::removeSelfAndFromOut);
+        outEdges.forEach(FireflyEdge::removeSelfAndFromIn);
 
         removeVertexProperties();
 
@@ -902,16 +824,16 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         queryPolicy.includeBinData = true;
         final Iterator<KeyRecord> keyRecordIterator;
         if (direction == Direction.OUT) {
-            keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
                     IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else if (direction == Direction.IN) {
-            keyRecordIterator = db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                     IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
         } else {
             return FireflyCloseableIteratorUtils.concat(
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
                             IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(db.queryIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                             IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
         return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
@@ -924,10 +846,19 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return getEdgeCount(Direction.IN) + getEdgeCount(Direction.OUT);
         }
 
-        final long baseCount = direction == Direction.IN ? this.inEdgeCount : this.outEdgeCount;
+        final long baseCount = getCachedEdgeCount(direction);
         return this.isEdgeCacheOverflowed ?
                 baseCount + FireflyCloseableIteratorUtils.count(getSupernodeEdgeIds(direction, Set.of())) :
                 baseCount;
+    }
+
+    private long getCachedEdgeCount(final Direction direction) {
+        final Map<String, List<FireflyId>> edgeCache = direction == Direction.IN ? this.inEdgeIds : this.outEdgeIds;
+        long size = 0;
+        for (final List<FireflyId> ids : edgeCache.values()) {
+            size += ids.size();
+        }
+        return size;
     }
 
     @Override
@@ -1176,8 +1107,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             db.operate(policy, key, operations.toArray(new Operation[0]));
             graph.fireflySummaryUpdater.addVertexWriteToQueue(label, properties.stream().map(Map.Entry::getKey).collect(Collectors.toSet()));
             final FireflyVertex vertex = FireflyVertexFactory.create(vertexId, label, graph, new TreeMap<>(),
-                    new TreeMap<>(), 0, 0, (Map<String, FireflyId>) vertexPropertyIds,
-                    vertexPropertyValueMap, vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
+                    new TreeMap<>(), (Map<String, FireflyId>) vertexPropertyIds, vertexPropertyValueMap,
+                    vertexPropertyTypeHintMap, vpProperties, vpPropertiesTypeHints,
                     isEdgeCacheOverflowed, db);
             if (scheduleTtlImmediately) {
                 graph.scheduleElementForTtlNow(vertex, ttlValueLong);
@@ -1209,7 +1140,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Batch read vertex records.
         final List<FireflyRecord> vertexRecords = FireflyRecord.batchRead(
                 db,
-                graph.hasContainerListToExpression(hasContainers, FireflyVertex.class),
+                GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class),
                 db.VERTEX_AERO_SET,
                 vertexIds);
         if (vertexRecords == null) {
@@ -1250,10 +1181,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         // Get cache state.
         final boolean edgeCacheOverflowed = record.getBoolean(db.EDGE_CACHE_DISABLED_BIN);
 
-        // Get count of IN and OUT edges.
-        final long inEdgeCount = record.getLong(db.IN_EDGE_COUNTER_BIN);
-        final long outEdgeCount = record.getLong(db.OUT_EDGE_COUNTER_BIN);
-
         // Get inEdgeIds and outEdgeIds.
         final Map<String, List<Object>> inEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.IN_EDGES_BIN));
         final Map<String, List<Object>> outEdgeIds = new HashMap<>((Map<String, List<Object>>) record.getMap(db.OUT_EDGES_BIN));
@@ -1278,8 +1205,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             final Map<String, FireflyId> fireflyVertexPropertyIds =
                     graph.getIdFactory().convertMapObjectToFireflyIdMap(vertexPropertyIds, FireflyVertexProperty.class);
             return FireflyVertexFactory.create(id, label, graph, fireflyInEdgeIds, fireflyOutEdgeIds,
-                    inEdgeCount, outEdgeCount, fireflyVertexPropertyIds, vertexPropertyValues,
-                    vertexPropertyTypeHints, vertexPropertyProperties, vertexPropertyPropertiesTypeHints,
+                    fireflyVertexPropertyIds, vertexPropertyValues, vertexPropertyTypeHints, vertexPropertyProperties,
+                    vertexPropertyPropertiesTypeHints,
                     edgeCacheOverflowed, db);
         } else {
             // Should never happen.
@@ -1313,8 +1240,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                                            final FireflyGraph graph,
                                            final Map<String, List<FireflyId>> inEdgeIds,
                                            final Map<String, List<FireflyId>> outEdgeIds,
-                                           final long inEdgeCount,
-                                           final long outEdgeCount,
                                            final Map<String, FireflyId> vertexPropertyIds,
                                            final Map<String, Object> vertexPropertyValues,
                                            final Map<String, Object> vertexPropertyValuesTypeHints,
@@ -1329,8 +1254,6 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     graph,
                     inEdgeIds,
                     outEdgeIds,
-                    inEdgeCount,
-                    outEdgeCount,
                     vertexPropertyIds,
                     vertexPropertyValues,
                     vertexPropertyValuesTypeHints,

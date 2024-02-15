@@ -43,14 +43,14 @@ public class ReadThroughRecordCache extends FireflyCache {
             int size = 5;
 
             // Simple weight function.
-            if (record.bins.containsKey(db.OUT_EDGE_COUNTER_BIN)) {
+            if (record.bins.containsKey(db.OUT_EDGES_BIN)) {
                 // Add 1 to weight for every out edge.
-                size += (int) record.getLong(db.OUT_EDGE_COUNTER_BIN);
+                size += getEdgeCountOnVertexRecord((Map<String, List>) record.getMap(db.OUT_EDGES_BIN));
             }
 
-            if (record.bins.containsKey(db.IN_EDGE_COUNTER_BIN)) {
+            if (record.bins.containsKey(db.IN_EDGES_BIN)) {
                 // Add 1 to weight for every in edge.
-                size += (int) record.getLong(db.IN_EDGE_COUNTER_BIN);
+                size += getEdgeCountOnVertexRecord((Map<String, List>) record.getMap(db.IN_EDGES_BIN));
             }
 
             if (record.bins.containsKey(db.PROPERTIES_BIN)) {
@@ -63,6 +63,14 @@ public class ReadThroughRecordCache extends FireflyCache {
                 size += 3 * record.getMap(db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN).size();
             }
 
+            return size;
+        }
+
+        private int getEdgeCountOnVertexRecord(final Map<String, List> edgeCacheMap) {
+            int size = 0;
+            for (final List edges : edgeCacheMap.values()) {
+                size += edges.size();
+            }
             return size;
         }
     }

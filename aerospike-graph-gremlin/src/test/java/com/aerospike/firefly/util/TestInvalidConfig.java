@@ -17,4 +17,10 @@ public class TestInvalidConfig {
         } catch (Exception e) {
         }
     }
+    @Test
+    public void testValidConfig() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+        }
+    }
 }

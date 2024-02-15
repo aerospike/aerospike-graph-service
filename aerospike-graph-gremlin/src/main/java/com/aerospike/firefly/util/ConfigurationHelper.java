@@ -452,11 +452,19 @@ public final class ConfigurationHelper {
 
     public static void validateConfig(final Configuration config) {
         final Field[] fields = Keys.class.getFields();
+        final Keys keys = new Keys();
         final Iterator<String> configKeys = config.getKeys();
         final List<String> invalidKeys = new ArrayList<>();
+        final Set<String> validKeys = Arrays.stream(fields).map(f -> {
+            try {
+                return (String) f.get(keys);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }).collect(Collectors.toSet());
         while (configKeys.hasNext()) {
             final String key = configKeys.next();
-            if (!Arrays.stream(fields).map(Field::getName).map(String::toLowerCase).collect(Collectors.toSet()).contains(key)) {
+            if (!validKeys.contains(key)) {
                 invalidKeys.add(key);
             }
         }

@@ -51,9 +51,9 @@ public class TestWaitsForSindexComplete {
             }
 
             executorService.shutdown();
-            boolean completed = executorService.awaitTermination(10, TimeUnit.MINUTES);
+            boolean completed = executorService.awaitTermination(2, TimeUnit.MINUTES);
             if (!completed) {
-                throw new RuntimeException("Failed to complete within 60 seconds");
+                throw new RuntimeException("Failed to complete within 2 minutes");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

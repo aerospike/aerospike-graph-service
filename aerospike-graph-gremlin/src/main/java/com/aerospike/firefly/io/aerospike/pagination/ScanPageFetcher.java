@@ -4,8 +4,11 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
 import com.aerospike.client.ScanCallback;
+import com.aerospike.client.async.EventLoop;
+import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.client.query.PartitionFilter;
 import com.aerospike.firefly.io.aerospike.ScanHitCounter;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -17,6 +20,9 @@ import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
 public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
@@ -51,30 +57,55 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
     @Override
     protected void readPage() {
-        final ScanPageFetcherScanCallback callback = new ScanPageFetcherScanCallback();
+        final AtomicBoolean done = new AtomicBoolean(false);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final ScanPageFetcherRecordSequenceListener listener = new ScanPageFetcherRecordSequenceListener(done, latch);
 
-        // Need to lock otherwise we get duplicated data back since it submits multiple scans for same page.
-        graph.getBaseGraph().getClient().scanPartitions(policy, filter, namespace, set, callback);
+        graph.getBaseGraph().getClient().scanPartitions(graph.getBaseGraph().eventLoops.next(), listener, policy, filter, namespace, set);
         metricsCallback.apply(startTime, System.currentTimeMillis());
-
         try {
-            final List<KeyRecord> keyRecords = new ArrayList<>(callback.keyRecords);
-            pageQueue.put(new Page(keyRecords));
+            pageQueue.put(new Page(listener.paginationIterator));
+            while (!done.get()) {
+                // Monitor max wait to write to pagination queue.
+                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_WRITE_MAX_WAIT, TimeUnit.MILLISECONDS);
+                if (!succeeded) {
+                    signalError("Failed to scan page: Timed out waiting for scan to complete.");
+                }
+            }
         } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue: " + e.getMessage());
+            signalError("Error waiting for scan to complete: " + e.getMessage());
             Thread.currentThread().interrupt();
         }
     }
 
-    class ScanPageFetcherScanCallback implements ScanCallback {
-        final Queue<KeyRecord> keyRecords = new ConcurrentLinkedQueue<>();
+    class ScanPageFetcherRecordSequenceListener implements RecordSequenceListener {
+        final PaginationIterator<KeyRecord> paginationIterator = new PaginationIterator<>(graph);
+        final AtomicBoolean done;
+        final CountDownLatch latch;
+
+        ScanPageFetcherRecordSequenceListener(final AtomicBoolean done, final CountDownLatch latch) {
+            this.done = done;
+            this.latch = latch;
+        }
 
         @Override
-        public void scanCallback(final Key key, final Record record) throws AerospikeException {
-            if (readLoopExecutorService.isShutdown()) {
-                throw new AerospikeException.ScanTerminated();
-            }
-            keyRecords.add(new KeyRecord(key, record));
+        public void onRecord(final Key key, final Record record) {
+            paginationIterator.add(new KeyRecord(key, record));
+        }
+
+        @Override
+        public void onSuccess() {
+            done.set(true);
+            latch.countDown();
+            paginationIterator.close();
+        }
+
+        @Override
+        public void onFailure(final AerospikeException exception) {
+            signalError("Failed to scan page: " + exception.getMessage());
+            done.set(true);
+            latch.countDown();
+            paginationIterator.close();
         }
     }
 }

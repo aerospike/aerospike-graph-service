@@ -205,6 +205,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
     public final int PAGINATION_PAGE_QUEUE_SIZE;
     public final int PAGINATION_PAGE_SIZE;
+    public final int PAGINATION_PAGE_READ_MAX_WAIT;
+    public final int PAGINATION_PAGE_WRITE_MAX_WAIT;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -341,6 +343,8 @@ public class AerospikeConnection implements AutoCloseable {
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
         PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
+        PAGINATION_PAGE_READ_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_READ_MAX_WAIT, conf));
+        PAGINATION_PAGE_WRITE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, conf));
         PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);

@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
@@ -40,20 +42,23 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         final RecordSet recordSet;
         try {
             recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
-        } catch (AerospikeException e) {
+        } catch (final AerospikeException e) {
             signalError("Failed to read index: " + e.getMessage());
             return;
         }
+
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final List<KeyRecord> kr = new ArrayList<>((int) statement.getMaxRecords());
-        while (recordSetIterator.hasNext()) {
-            kr.add(recordSetIterator.next());
-        }
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph);
+
         try {
-            pageQueue.put(new Page(kr));
+            pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
             Thread.currentThread().interrupt();
         }
+        while (recordSetIterator.hasNext()) {
+            pi.add(recordSetIterator.next());
+        }
+        pi.close();
     }
 }

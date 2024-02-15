@@ -711,6 +711,26 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         /**
+         * Return list of usable indices in a list of map entries.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return List of existing indices in a list of map entries.
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
+         */
+        public static List<Map.Entry<String, String>> listUsableIndexes(final AerospikeClient client, final String namespace) {
+            // Using client.getNodes()[0] is okay here since indexes exist across all nodes.
+            final String infoResponse = Info.request(new InfoPolicy(), client.getNodes()[0], Keys.SINDEX);
+            return parseRaw(infoResponse).stream()
+                    .filter(m -> m.get(Keys.NS).equals(namespace))
+                    .filter(m -> m.get("state").equals("RW"))
+                    .map(m -> (Map.Entry<String, String>)
+                            new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                    .collect(Collectors.toList());
+        }
+
+        /**
          * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
          * node with the smallest max-record-size.
          *

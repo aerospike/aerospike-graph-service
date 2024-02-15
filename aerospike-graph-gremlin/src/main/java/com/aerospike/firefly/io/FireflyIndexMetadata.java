@@ -41,7 +41,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     public void updateMetadata() {
         // Read the index metadata.
         final List<String> indexes =
-                AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
+                AerospikeConnection.InfoOps.listUsableIndexes(db.getClient(), db.getNamespace()).stream()
                         .map(Map.Entry::getKey).filter(s ->
                                 s.startsWith(db.getVpIndexPrefix()) ||
                                         s.startsWith(db.getEpIndexPrefix()) ||

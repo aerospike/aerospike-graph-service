@@ -116,8 +116,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            final FireflyGraph baseGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
-            initializeProgressBar(baseGraph);
+            final FireflyGraph initializerGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
+            initializeProgressBar(initializerGraph);
 
             // Preflight check
             try {
@@ -155,7 +155,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
 
             // Supernode processing
             // Get the supernode threshold from Firefly config.
-            final long onRecordIdLimit = baseGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
+            final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
             LOGGER.info("Supernode threshold: " + onRecordIdLimit);
             final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
             PROGRESS_BAR.setSuperNodeExtractionComplete();

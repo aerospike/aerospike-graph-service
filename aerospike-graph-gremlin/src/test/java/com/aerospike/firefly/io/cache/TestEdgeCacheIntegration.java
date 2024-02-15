@@ -21,6 +21,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -183,6 +184,86 @@ public class TestEdgeCacheIntegration {
     public void testAddAndRemoveEdges() {
         try (final FireflyGraph graph = getCacheWithSizeFirefly(4)) {
             testAddAndRemoveEdges(graph);
+        }
+    }
+
+    @Test
+    public void testRemoveVertexRemovesEdgeFromAdjacentVertices() {
+        try (final FireflyGraph graph = getCacheWithSizeFirefly(3)) {
+            graph.getBaseGraph().dropDatabase(graph, false);
+            final GraphTraversalSource g = graph.traversal();
+
+            // No supernodes
+            Vertex v1 = g.addV("v1").next();
+            Vertex v2 = g.addV("v2").next();
+            Vertex v3 = g.addV("v3").next();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.V(v2.id()).drop().iterate();
+            Assert.assertFalse(g.V(v2.id()).hasNext());
+            FireflyVertex fv1 = (FireflyVertex) g.V(v1.id()).next();
+            FireflyVertex fv3 = (FireflyVertex) g.V(v3.id()).next();
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(g.E().hasNext());
+            g.V().drop().iterate();
+
+            // Remove supernode (v2)
+            v1 = g.addV("v1").next();
+            v2 = g.addV("v2").next();
+            v3 = g.addV("v3").next();
+            Vertex v4 = g.addV("v4").next();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.addE("4to2").from(v4).to(v2).iterate();
+            g.addE("4to2").from(v4).to(v2).iterate();
+            FireflyVertex fv2 = (FireflyVertex) g.V(v2.id()).next();
+            Assert.assertTrue(fv2.isEdgeCacheOverflowed());
+            g.V(v2.id()).drop().iterate();
+            fv1 = (FireflyVertex) g.V(v1.id()).next();
+            fv3 = (FireflyVertex) g.V(v3.id()).next();
+            FireflyVertex fv4 = (FireflyVertex) g.V(v4.id()).next();
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(g.E().hasNext());
+            g.V().drop().iterate();
+
+            // Remove attached to a supernode (v3)
+            v1 = g.addV("v1").next();
+            v2 = g.addV("v2").next();
+            v3 = g.addV("v3").next();
+            v4 = g.addV("v4").next();
+            Vertex v5 = g.addV("v5").next();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("1to2").from(v1).to(v2).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.addE("2to3").from(v2).to(v3).iterate();
+            g.addE("3to4").from(v3).to(v4).iterate();
+            g.addE("3to5").from(v3).to(v5).iterate();
+            g.addE("3to4").from(v3).to(v4).iterate();
+            g.addE("3to5").from(v3).to(v5).iterate();
+            fv2 = (FireflyVertex) g.V(v2.id()).next();
+            Assert.assertFalse(fv2.isEdgeCacheOverflowed());
+            fv3 = (FireflyVertex) g.V(v3.id()).next();
+            Assert.assertTrue(fv3.isEdgeCacheOverflowed());
+            g.V(v2.id()).drop().iterate();
+            fv1 = (FireflyVertex) g.V(v1.id()).next();
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            fv3 = (FireflyVertex) g.V(v3.id()).next();
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET).isEmpty());
+            Assert.assertEquals(4, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            g.V(v4.id()).drop().iterate();
+            fv3 = (FireflyVertex) g.V(v3.id()).next();
+            Assert.assertEquals(2, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            g.V(v5.id()).drop().iterate();
+            fv3 = (FireflyVertex) g.V(v3.id()).next();
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).isEmpty());
+            Assert.assertFalse(g.E().hasNext());
         }
     }
 

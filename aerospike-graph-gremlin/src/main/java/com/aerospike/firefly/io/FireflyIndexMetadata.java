@@ -96,6 +96,22 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     }
 
     /**
+     * Get the index metadata.
+     *
+     * @return A copy of the index metadata.
+     */
+    public List<String> getIndexesInProgress() {
+        // Return copy.
+        return AerospikeConnection.InfoOps.listExistingIndexes(db.client, db.namespace).stream().
+                map(Map.Entry::getKey).filter(s ->
+                        s.startsWith(db.getVpIndexPrefix()) ||
+                                s.startsWith(db.getEpIndexPrefix()) ||
+                                db.V_LABEL_INDEX_NAME.equals(s) ||
+                                db.E_LABEL_INDEX_NAME.equals(s)).
+                collect(Collectors.toList());
+    }
+
+    /**
      * This function finds the PropertyIndexInfo if it exists for the given key and value.
      *
      * @param key   Key of the property.

@@ -974,7 +974,13 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
-            graph.fireflyIndexMetadata.getPropertyIndexInfos().forEach(index -> dropIndex(index.setName, index.indexName));
+            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
+                if (index.startsWith(getVpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyVertex.class), index);
+                } else if (index.startsWith(getEpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyEdge.class), index);
+                }
+            });
         }
     }
 

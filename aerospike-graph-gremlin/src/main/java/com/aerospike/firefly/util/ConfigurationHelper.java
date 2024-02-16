@@ -462,7 +462,7 @@ public final class ConfigurationHelper {
         final Set<String> validKeys = Arrays.stream(keyFields).map(f -> {
             try {
                 return (String) f.get(keys);
-            } catch (IllegalAccessException e) {
+            } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
         }).collect(Collectors.toSet());
@@ -475,7 +475,7 @@ public final class ConfigurationHelper {
                 if (f.get(bulkLoaderConfigHelper) instanceof String) {
                     validKeys.add((String) f.get(bulkLoaderConfigHelper));
                 }
-            } catch (IllegalAccessException e) {
+            } catch (final IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
         });

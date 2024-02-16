@@ -462,6 +462,7 @@ public final class ConfigurationHelper {
                 throw new RuntimeException(e);
             }
         }).collect(Collectors.toSet());
+        validKeys.add("gremlin.graph");
         while (configKeys.hasNext()) {
             final String key = configKeys.next();
             if (!validKeys.contains(key)) {

@@ -369,11 +369,12 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @Test
-    public void testDatabaseNotEmpty() {
+    public void testDatabaseNotEmpty() throws InterruptedException {
         final GraphTraversalSource g = graph.traversal();
         final Vertex v1 = g.addV("v1").next();
         final Vertex v2 = g.addV("v2").next();
         final Edge edge = g.addE("edge").from(v1).to(v2).next();
+        Thread.sleep(5000);
 
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
@@ -401,7 +402,7 @@ public abstract class TestSparkBulkLoaderBase {
     public void testConcurrentBulkLoad() throws InterruptedException {
         final Thread existingLoad = new Thread(() -> SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS)));
         existingLoad.start();
-        Thread.sleep(1000);
+        Thread.sleep(500);
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
             Assert.fail("Starting a bulk load when one was already running did not fail when it should have.");

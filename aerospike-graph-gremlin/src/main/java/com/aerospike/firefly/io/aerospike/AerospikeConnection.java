@@ -12,7 +12,6 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.EventPolicy;
-import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.cdt.CTX;
@@ -750,35 +749,6 @@ public class AerospikeConnection implements AutoCloseable {
             }
 
             return maxRecordSize;
-        }
-
-        /**
-         * Returns true if Aerospike used for the graph does not contain any Vertices or Edges.
-         *
-         * @param db Aerospike graph connection instance
-         * @return If the graph does not contain any Vertices or Edges
-         */
-        public static boolean getIsDatabaseEmpty(final AerospikeConnection db) {
-            final String eRequestKey = "sets/" + db.namespace + "/" + db.EDGE_AERO_SET;
-            final String vRequestKey = "sets/" + db.namespace + "/" + db.VERTEX_AERO_SET;
-            final Node[] nodes = db.getClient().getNodes();
-            for (final Node node : nodes) {
-                final String eInfoResponse = Info.request(new InfoPolicy(), node, eRequestKey);
-                final List<Map<String, String>> eInfoList = parseRaw(eInfoResponse);
-                for (final Map<String, String> eInfoMap : eInfoList) {
-                    if (eInfoMap.containsKey("objects") && Long.valueOf(eInfoMap.get("objects")) != 0) {
-                        return false;
-                    }
-                }
-                final String vInfoResponse = Info.request(new InfoPolicy(), node, "sets/" + vRequestKey);
-                final List<Map<String, String>> vInfoList = parseRaw(vInfoResponse);
-                for (final Map<String, String> vInfoMap : vInfoList) {
-                    if (vInfoMap.containsKey("objects") && Long.valueOf(vInfoMap.get("objects")) != 0) {
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
 
         /**

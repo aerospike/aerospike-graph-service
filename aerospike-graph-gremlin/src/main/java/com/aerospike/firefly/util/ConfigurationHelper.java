@@ -472,5 +472,4 @@ public final class ConfigurationHelper {
             throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
         }
     }
-
 }

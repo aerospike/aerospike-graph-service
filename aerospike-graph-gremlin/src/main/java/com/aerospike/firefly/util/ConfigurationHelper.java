@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -451,11 +452,9 @@ public final class ConfigurationHelper {
     }
 
     public static void validateConfig(final Configuration config) {
-        final Field[] fields = Keys.class.getFields();
+        final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
-        final Iterator<String> configKeys = config.getKeys();
-        final List<String> invalidKeys = new ArrayList<>();
-        final Set<String> validKeys = Arrays.stream(fields).map(f -> {
+        final Set<String> validKeys = Arrays.stream(keyFields).map(f -> {
             try {
                 return (String) f.get(keys);
             } catch (IllegalAccessException e) {
@@ -463,6 +462,19 @@ public final class ConfigurationHelper {
             }
         }).collect(Collectors.toSet());
         validKeys.add("gremlin.graph");
+
+        final Field[] bulkLoaderFields = BulkLoaderConfigHelper.class.getFields();
+        final BulkLoaderConfigHelper bulkLoaderConfigHelper = new BulkLoaderConfigHelper(new HashMap<>(), null);
+        Arrays.stream(bulkLoaderFields).forEach(f -> {
+            try {
+                validKeys.add((String) f.get(bulkLoaderConfigHelper));
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        final Iterator<String> configKeys = config.getKeys();
+        final List<String> invalidKeys = new ArrayList<>();
         while (configKeys.hasNext()) {
             final String key = configKeys.next();
             if (!validKeys.contains(key)) {

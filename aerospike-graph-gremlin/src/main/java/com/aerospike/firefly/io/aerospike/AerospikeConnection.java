@@ -711,6 +711,44 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         /**
+         * Return list of usable indices in a list of map entries.
+         *
+         * @param db    AerospikeConnnection.
+         * @param namespace Namespace.
+         * @return List of existing indices in a list of map entries.
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
+         */
+        public static List<String> listUsableIndexes(final AerospikeConnection db, final String namespace) {
+            final List<Set<String>> indexSets = new ArrayList<>();
+            for (final Node node : db.getClient().getNodes()) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SINDEX);
+                final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
+                        .filter(m -> m.get(Keys.NS).equals(namespace))
+                        .filter(m -> m.get("state").equals("RW"))
+                        .map(m -> (Map.Entry<String, String>)
+                                new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                        .collect(Collectors.toList());
+                indexSets.add(raw.stream().map(Map.Entry::getKey).filter(s ->
+                                        s.startsWith(db.getVpIndexPrefix()) ||
+                                                s.startsWith(db.getEpIndexPrefix()) ||
+                                                db.V_LABEL_INDEX_NAME.equals(s) ||
+                                                db.E_LABEL_INDEX_NAME.equals(s)).
+                                collect(Collectors.toSet()));
+            }
+
+            final List<String> indexList = new ArrayList<>();
+            for (final Set<String> set : indexSets) {
+                if (indexList.isEmpty()) {
+                    indexList.addAll(set);
+                } else {
+                    indexList.retainAll(set);
+                }
+            }
+            return indexList;
+        }
+
+        /**
          * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
          * node with the smallest max-record-size.
          *
@@ -936,7 +974,13 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
-            graph.fireflyIndexMetadata.getPropertyIndexInfos().forEach(index -> dropIndex(index.setName, index.indexName));
+            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
+                if (index.startsWith(getVpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyVertex.class), index);
+                } else if (index.startsWith(getEpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyEdge.class), index);
+                }
+            });
         }
     }
 

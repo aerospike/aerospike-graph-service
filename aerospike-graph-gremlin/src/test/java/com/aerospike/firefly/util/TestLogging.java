@@ -103,7 +103,7 @@ public class TestLogging {
         LOG.info("This should not be logged");
         assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
         graph.close();
-        conf.setProperty("log.level", "INFO");
+        conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL, "INFO");
         graph = FireflyGraph.open(conf);
         LoggerUtil.setLogLevel(Level.INFO);
         LOG.debug("This should not be logged");

@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
 
 public abstract class TestSparkBulkLoaderBase {
@@ -364,6 +366,59 @@ public abstract class TestSparkBulkLoaderBase {
             final AerospikeException cause = (AerospikeException) e.getCause();
             Assert.assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, cause.getResultCode());
         }
+    }
+
+    @Test
+    public void testDatabaseNotEmpty() {
+        final GraphTraversalSource g = graph.traversal();
+        final Vertex v1 = g.addV("v1").next();
+        final Vertex v2 = g.addV("v2").next();
+        final Edge edge = g.addE("edge").from(v1).to(v2).next();
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            Assert.fail("Writing to a database with edges did not fail when it should have.");
+        } catch (final RuntimeException e) {
+            Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        }
+
+        g.E(edge.id()).drop();
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            Assert.fail("Writing to a database with vertices did not fail when it should have.");
+        } catch (final RuntimeException e) {
+            Assert.assertEquals(DATABASE_NOT_EMPTY, e.getMessage());
+        }
+
+        g.V(v1.id()).drop().iterate();
+        g.V(v2.id()).drop().iterate();
+
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+    }
+
+    @Test
+    public void testConcurrentBulkLoad() throws InterruptedException {
+        final Thread existingLoad = new Thread(() -> SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS)));
+        existingLoad.start();
+        Thread.sleep(1000);
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+            Assert.fail("Starting a bulk load when one was already running did not fail when it should have.");
+        } catch (final RuntimeException e) {
+            Assert.assertEquals(JOB_ALREADY_RUNNING, e.getMessage());
+        }
+        existingLoad.join();
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+        graph.getBaseGraph().dropDatabase(graph, false);
+
+        // Run it again to ensure the flag reset
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
     }
 
     private void testSupernodes() {

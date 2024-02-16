@@ -34,8 +34,11 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Timer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
@@ -58,6 +61,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
+    private static final AtomicBoolean IN_PROGRESS = new AtomicBoolean(false);
 
     public static void main(final String[] args) {
         // Create new Object so we can invoke non-static method load()
@@ -70,6 +74,11 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
         try {
+            if (IN_PROGRESS.getAndSet(true)) {
+                LOGGER.error(JOB_ALREADY_RUNNING);
+                throw new RuntimeException(JOB_ALREADY_RUNNING);
+            }
+
             final CommandLine cmd = CommandLineParser.parseCmdArgs(args);
             final List<String> printableArgs = new ArrayList();
             String previous = "";
@@ -103,6 +112,12 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
             spark.sparkContext().setLogLevel(logLevel);
 
+            final FireflyGraph initializerGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
+            if (!initializerGraph.isEmpty()) {
+                LOGGER.error(DATABASE_NOT_EMPTY);
+                throw new RuntimeException(DATABASE_NOT_EMPTY);
+            }
+
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
             // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
@@ -116,7 +131,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            final FireflyGraph initializerGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
             initializeProgressBar(initializerGraph);
 
             // Preflight check
@@ -189,6 +203,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Stop spark session
             spark.stop();
         } finally {
+            IN_PROGRESS.set(false);
             if (PROGRESS_BAR_TIMER != null) {
                 PROGRESS_BAR_TIMER.cancel();
             }

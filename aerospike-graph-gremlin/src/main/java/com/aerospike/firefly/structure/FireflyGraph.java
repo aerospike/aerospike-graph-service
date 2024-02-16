@@ -935,6 +935,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         fireflyIndexMetadata.updateMetadata();
     }
 
+    public boolean isEmpty() {
+        return AerospikeConnection.InfoOps.getIsDatabaseEmpty(this.getBaseGraph());
+    }
+
     @Override
     public Transaction tx() {
         throw new UnsupportedOperationException(UNIMPLEMENTED);

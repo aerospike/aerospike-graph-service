@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.aerospike.indexes;
 
+import com.aerospike.client.query.IndexType;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.structure.FireflyEdge;
@@ -33,7 +34,19 @@ public class TestFireflyVertexIndexes extends TestFireflyIndexes {
 
     @Override
     protected Optional<FireflyIndexMetadata.IndexInfo> getPropertyIndexInfo(final FireflyGraph fireflyGraph, final String key, final Object value) {
-        return fireflyGraph.fireflyIndexMetadata.getPropertyIndexInfo(FireflyVertex.class, key, value);
+        final List<String> indexes = fireflyGraph.fireflyIndexMetadata.getIndexesInProgress();
+        for (final String index : indexes) {
+            if (index.startsWith(fireflyGraph.getBaseGraph().getVpIndexPrefix())) {
+                if (index.contains(key)) {
+                    if (value instanceof String && index.contains(IndexType.STRING.toString())) {
+                        return Optional.of(new FireflyIndexMetadata.IndexInfo(index, key, IndexType.STRING, fireflyGraph.getBaseGraph().VERTEX_AERO_SET));
+                    } else if (value instanceof Number && index.contains(IndexType.NUMERIC.toString())) {
+                        return Optional.of(new FireflyIndexMetadata.IndexInfo(index, key, IndexType.NUMERIC, fireflyGraph.getBaseGraph().VERTEX_AERO_SET));
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     @Test

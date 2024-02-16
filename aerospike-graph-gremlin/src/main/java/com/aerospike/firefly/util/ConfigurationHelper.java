@@ -467,7 +467,9 @@ public final class ConfigurationHelper {
         final BulkLoaderConfigHelper bulkLoaderConfigHelper = new BulkLoaderConfigHelper(new HashMap<>(), null);
         Arrays.stream(bulkLoaderFields).forEach(f -> {
             try {
-                validKeys.add((String) f.get(bulkLoaderConfigHelper));
+                if (f.get(bulkLoaderConfigHelper) instanceof String) {
+                    validKeys.add((String) f.get(bulkLoaderConfigHelper));
+                }
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }

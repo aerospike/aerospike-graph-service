@@ -376,9 +376,15 @@ public final class ConfigurationHelper {
     }
 
     public static Object getOrDefault(final String key, final Configuration config) {
+        // Debug mode is a special case.
+        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
+            return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
+                    config.getString(Keys.DEBUG_MODE_FLAG) : defaultValues.get(Keys.DEBUG_MODE_FLAG);
+        }
+
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
-        final boolean debugMode = config.containsKey(Keys.DEBUG_MODE_FLAG) && config.getBoolean(Keys.DEBUG_MODE_FLAG);
+        final boolean debugMode = Boolean.parseBoolean((String) getOrDefault(Keys.DEBUG_MODE_FLAG, config));
 
         if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
             String envConfig = System.getenv(upperKey);

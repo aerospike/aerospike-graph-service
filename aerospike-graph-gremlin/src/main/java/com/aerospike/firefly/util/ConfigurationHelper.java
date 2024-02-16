@@ -241,8 +241,7 @@ public final class ConfigurationHelper {
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.FIREFLY_DATA_MODEL,
-            Keys.DEBUG_MODE_FLAG
+            Keys.FIREFLY_DATA_MODEL
     );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{

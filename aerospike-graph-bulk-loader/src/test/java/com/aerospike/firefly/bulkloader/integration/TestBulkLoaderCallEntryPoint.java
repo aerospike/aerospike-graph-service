@@ -10,6 +10,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 
 public class TestBulkLoaderCallEntryPoint {
     @Test
@@ -370,6 +371,29 @@ public class TestBulkLoaderCallEntryPoint {
             Assert.assertEquals(0, g.V().count().next().longValue());
             Assert.assertEquals(0, g.E().count().next().longValue());
             g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("aerospike.graphloader.keep-provided-edge-id-as-property", "true").iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+    }
+
+    @Test
+    public void concurrentBulkLoad() throws InterruptedException {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            final Thread existingLoad = new Thread(() -> g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate());
+            existingLoad.start();
+            Thread.sleep(500);
+            try {
+                g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+                Assert.fail("Starting a bulk load when one was already running did not fail when it should have.");
+            } catch (final RuntimeException e) {
+                Assert.assertEquals(JOB_ALREADY_RUNNING, e.getMessage());
+            }
+            existingLoad.join();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
         }

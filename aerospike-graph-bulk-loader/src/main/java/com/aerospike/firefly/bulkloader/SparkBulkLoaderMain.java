@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
@@ -113,7 +115,8 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             spark.sparkContext().setLogLevel(logLevel);
 
             final FireflyGraph initializerGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
-            if (!initializerGraph.isEmpty()) {
+            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) && !config.hasAction(DISABLE_VERTEX_WRITE)) {
+                // If we're doing partial writing checking the emptiness of the database isn't valid.
                 LOGGER.error(DATABASE_NOT_EMPTY);
                 throw new RuntimeException(DATABASE_NOT_EMPTY);
             }

@@ -12,7 +12,6 @@ import com.aerospike.client.ResultCode;
 import com.aerospike.client.Value;
 import com.aerospike.client.async.EventLoops;
 import com.aerospike.client.async.EventPolicy;
-import com.aerospike.client.async.Monitor;
 import com.aerospike.client.async.NettyEventLoops;
 import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.cdt.CTX;

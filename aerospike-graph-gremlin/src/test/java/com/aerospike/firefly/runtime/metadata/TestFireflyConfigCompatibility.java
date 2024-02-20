@@ -84,14 +84,4 @@ public class TestFireflyConfigCompatibility {
             Assert.fail("Graph should not start with immutable config change on key: " + FIREFLY_DATA_MODEL);
         }
     }
-
-    @Test
-    public void testImmutableDebugMode() {
-        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        exit.expectSystemExitWithStatus(1);
-        config.setProperty(DEBUG_MODE_FLAG.toLowerCase(), "true");
-        try (final FireflyGraph graph = FireflyGraph.open(config)) {
-            Assert.fail("Graph should not start with immutable config change on key: " + DEBUG_MODE_FLAG);
-        }
-    }
 }

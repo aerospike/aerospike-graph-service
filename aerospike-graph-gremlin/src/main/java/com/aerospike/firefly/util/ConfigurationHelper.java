@@ -1,6 +1,7 @@
 package com.aerospike.firefly.util;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
@@ -13,12 +14,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -97,7 +100,7 @@ public final class ConfigurationHelper {
         public static final String VERTEX_ID_BUFFER_SIZE = "aerospike.graph.vertex.id.buffer.size";
         public static final String EDGE_ID_BUFFER_SIZE = "aerospike.graph.edge.id.buffer.size";
         public static final String PROPERTY_ID_BUFFER_SIZE = "aerospike.graph.property.id.buffer.size";
-        public static final String STORAGE_DEBUGGER_FLAG = "storage.debug";
+        public static final String STORAGE_DEBUGGER_FLAG = "aerospike.graph.storage.debug";
 
         // TODO: Once we are 100% sure these are stable, we can remove the enable flags.
         public static final String ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.embedded.enabled";
@@ -109,17 +112,15 @@ public final class ConfigurationHelper {
         public static final String PAGINATION_PAGE_WRITE_MAX_WAIT = "aerospike.graph.pagination.page.write.max.wait";
 
         // Internal-only configurations
-        public static final String AUTO_PRE_HEAT = "AUTO_PRE_HEAT";
-        public static final String WARMUP_MODE = "WARMUP_MODE";
-        public static final String FAULT_TEST = "FAULT_TEST";
-        public static final String ENABLE_CUSTOM_PROFILE = "ENABLE_CUSTOM_PROFILE";
-        public static final String ASCLIENT_LOG_ENABLED = "ASCLIENT_LOG_ENABLED";
-        public static final String ASYNC_SUBGRAPH_CACHE = "ASYNC_SUBGRAPH_CACHE";
-        public static final String OPTIMIZED_TWO_HOP_STEPS = "OPTIMIZED_TWO_HOP_STEPS";
-        public static final String OPTIMIZED_HOP_CONSTRAINT_STEPS = "OPTIMIZED_HOP_CONSTRAINT_STEPS";
-        public static final String ON_RECORD_ID_LIMIT = "ON_RECORD_ID_LIMIT";
-        public static final String DEBUG_MODE_FLAG = "DEBUG_MODE_FLAG";
-        public static final String BULK_LOADER_FLAG = "BULK_LOADER_FLAG";
+        public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
+        public static final String WARMUP_MODE = "aerospike.graph.warmup.mode.enabled";
+        public static final String FAULT_TEST = "aerospike.graph.warmup.mode.fault.test.enabled";
+        public static final String ENABLE_CUSTOM_PROFILE = "aerospike.graph.strategy.profile.custom.enabled";
+        public static final String ASCLIENT_LOG_ENABLED = "aerospike.client.logging.enabled";
+        public static final String ASYNC_SUBGRAPH_CACHE = "aerospike.graph.async.subgraph.cache.enabled";
+        public static final String ON_RECORD_ID_LIMIT = "aerospike.graph.vertex.edge.cache.size";
+        public static final String DEBUG_MODE_FLAG = "aerospike.graph.debug.mode.enabled";
+        public static final String BULK_LOADER_FLAG = "aerospike.graph.bulk.loading.enabled";
         public static final String USAGE_STATS_UPDATE_INTERVAL = "aerospike.graph.usage.update.interval";
 
         public static final String CLIENT_FAILURE_TEST = "aerospike.graph.failure.client.enabled";
@@ -240,8 +241,7 @@ public final class ConfigurationHelper {
     public static final Set<String> IMMUTABLE_CONFIG_KEYS = Set.of(
             Keys.PHAT_EDGE_SIZE, // Calculating the PK wouldn't work
             Keys.SUMMARY_ENABLED_FLAG, // Inaccurate and therefore useless if toggled
-            Keys.FIREFLY_DATA_MODEL,
-            Keys.DEBUG_MODE_FLAG
+            Keys.FIREFLY_DATA_MODEL
     );
 
     private static final Map<Object, String> defaultValues = new HashMap<>() {{
@@ -286,8 +286,6 @@ public final class ConfigurationHelper {
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
         put(Keys.PROMETHEUS_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
-        put(Keys.OPTIMIZED_TWO_HOP_STEPS, "");
-        put(Keys.OPTIMIZED_HOP_CONSTRAINT_STEPS, "");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
@@ -377,9 +375,15 @@ public final class ConfigurationHelper {
     }
 
     public static Object getOrDefault(final String key, final Configuration config) {
+        // Debug mode is a special case.
+        if (key.equalsIgnoreCase(Keys.DEBUG_MODE_FLAG)) {
+            return (config.containsKey(Keys.DEBUG_MODE_FLAG)) ?
+                    config.getString(Keys.DEBUG_MODE_FLAG) : defaultValues.get(Keys.DEBUG_MODE_FLAG);
+        }
+
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
-        final boolean debugMode = config.containsKey(Keys.DEBUG_MODE_FLAG) && config.getBoolean(Keys.DEBUG_MODE_FLAG);
+        final boolean debugMode = Boolean.parseBoolean((String) getOrDefault(Keys.DEBUG_MODE_FLAG, config));
 
         if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
             String envConfig = System.getenv(upperKey);
@@ -450,5 +454,42 @@ public final class ConfigurationHelper {
             throw new RuntimeException(e);
         }
         return sw.toString();
+    }
+
+    public static void validateConfig(final Configuration config) {
+        final Field[] keyFields = Keys.class.getFields();
+        final Keys keys = new Keys();
+        final Set<String> validKeys = Arrays.stream(keyFields).map(f -> {
+            try {
+                return (String) f.get(keys);
+            } catch (final IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }).collect(Collectors.toSet());
+        validKeys.add("gremlin.graph");
+
+        final Field[] bulkLoaderFields = BulkLoaderConfigHelper.class.getFields();
+        final BulkLoaderConfigHelper bulkLoaderConfigHelper = new BulkLoaderConfigHelper(new HashMap<>(), null);
+        Arrays.stream(bulkLoaderFields).forEach(f -> {
+            try {
+                if (f.get(bulkLoaderConfigHelper) instanceof String) {
+                    validKeys.add((String) f.get(bulkLoaderConfigHelper));
+                }
+            } catch (final IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        final Iterator<String> configKeys = config.getKeys();
+        final List<String> invalidKeys = new ArrayList<>();
+        while (configKeys.hasNext()) {
+            final String key = configKeys.next();
+            if (!validKeys.contains(key)) {
+                invalidKeys.add(key);
+            }
+        }
+        if (!invalidKeys.isEmpty()) {
+            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+        }
     }
 }

@@ -396,6 +396,14 @@ public class TestBulkLoaderCallEntryPoint {
             existingLoad.join();
             Assert.assertNotEquals(0, g.V().count().next().longValue());
             Assert.assertNotEquals(0, g.E().count().next().longValue());
+
+            g.V().drop().iterate();
+            Thread.sleep(5000);
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            g.call("bulk-load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").iterate();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
         }
     }
 

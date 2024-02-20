@@ -394,6 +394,7 @@ public abstract class TestSparkBulkLoaderBase {
 
         g.V(v1.id()).drop().iterate();
         g.V(v2.id()).drop().iterate();
+        Thread.sleep(5000);
 
         SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDefaultConfig()}, DEFAULT_PARAMS));
     }

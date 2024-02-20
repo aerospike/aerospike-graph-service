@@ -146,21 +146,23 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = graph.queryIndex(propertyIndexInfo.get(),
+                iterator = graph.query.getPagedSindex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,
                         elementClass);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
-                iterator = graph.queryScan(
+                iterator = graph.query.getPagedScan(
                         topContainer.getKey(),
                         setName,
                         topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : binName,
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,
-                        elementClass);
+                        elementClass,
+                        true,
+                        true);
             }
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);

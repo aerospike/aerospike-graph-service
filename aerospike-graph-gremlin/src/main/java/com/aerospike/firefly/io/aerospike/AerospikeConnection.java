@@ -32,23 +32,16 @@ import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.GenerationPolicy;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.policy.RecordExistsAction;
-import com.aerospike.client.policy.ScanPolicy;
 import com.aerospike.client.policy.TlsPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.IndexType;
-import com.aerospike.client.query.KeyRecord;
-import com.aerospike.client.query.RecordSet;
-import com.aerospike.client.query.Statement;
 import com.aerospike.client.task.IndexTask;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIterator;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -56,9 +49,6 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.id.FireflyIdFactory;
-import com.aerospike.firefly.structure.id.FireflyIdPoly;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import com.aerospike.firefly.util.DiagnosticUtil;
 import com.aerospike.firefly.util.Tokens;
@@ -66,9 +56,9 @@ import com.aerospike.firefly.util.WarmupUtil;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.tinkerpop.gremlin.server.Settings;
-import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +68,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,7 +79,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.ElementNotFoundException.ELEMENT_NOT_FOUND;
@@ -215,6 +203,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY;
     public final boolean ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY;
     public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
+    public final int PAGINATION_PAGE_QUEUE_SIZE;
+    public final int PAGINATION_PAGE_SIZE;
+    public final int PAGINATION_PAGE_READ_MAX_WAIT;
+    public final int PAGINATION_PAGE_WRITE_MAX_WAIT;
 
     public Policy getPolicy() {
         final Policy policy = new Policy();
@@ -348,9 +340,12 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
         ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
-        ON_RECORD_ID_LIMIT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
+        PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
+        PAGINATION_PAGE_READ_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_READ_MAX_WAIT, conf));
+        PAGINATION_PAGE_WRITE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, conf));
+        PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
 
@@ -420,6 +415,22 @@ public class AerospikeConnection implements AutoCloseable {
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
+
+        // Set Edge cache size
+        long onRecordIdLimit;
+        try {
+            onRecordIdLimit = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
+        } catch (final ConfigurationRuntimeException ignored) {
+            // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
+            final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
+            final double edgeCacheIdSizeBytes = 36;
+            final double fillPercentage = 0.45;
+            final double numberOfCaches = 2;
+
+            onRecordIdLimit = (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
+        }
+        LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
+        ON_RECORD_ID_LIMIT = onRecordIdLimit;
 
         // Validate two hop steps.
         for (final String step : OPTIMIZED_TWO_HOP_STEPS) {
@@ -522,148 +533,8 @@ public class AerospikeConnection implements AutoCloseable {
         return idFactory;
     }
 
-
-    /**
-     * Get a list of currently valid ids
-     *
-     * @param type type of Element
-     * @return Iterator of raw Ids
-     */
-    public Iterator<FireflyId> readElementIds(final Class<? extends FireflyElement> type) {
-        return scanAllIdsInSet(ReadContext.create(setFromElementType(type)));
-    }
-
-    /**
-     * Return an iterator of all the ids in a set represented as FireflyId
-     *
-     * @param readContext read context
-     * @return an Iterator of raw FireflyId
-     */
-    public Iterator<FireflyId> scanAllIdsInSet(final ReadContext readContext) {
-        final String setName = readContext.getSetName();
-        final Class<? extends FireflyElement> type;
-        if (setName.equals(VERTEX_AERO_SET)) {
-            type = FireflyVertex.class;
-        } else if (setName.equals(EDGE_AERO_SET)) {
-            type = FireflyEdge.class;
-        } else {
-            throw new IllegalArgumentException("Invalid set name: " + setName);
-        }
-
-        LOG.trace("Scanning {} ids.", setName);
-        if (setName.equals(EDGE_AERO_SET)) {
-            final Iterator<KeyRecord> keyRecordIter = scanAllRecordsInSet(readContext, null, new ScanPolicy(),
-                    this.EDGE_DATA_BIN);
-            return new FireflyPhatEdgeIdIterator(keyRecordIter, this);
-        } else {
-            final Iterator<KeyRecord> i = scanAllKeysInSet(readContext, null);
-            return FireflyCloseableIteratorUtils.map(i,
-                    keyRecord -> idFactory.createFromRecord(this, FireflyRecord.fromRecord(this, keyRecord), type));
-        }
-    }
-
-    /**
-     * Issue a scan query for all the keys in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context read context
-     * @param exp     Expression to apply to Scan
-     * @param sendKey Send the original user key
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp, boolean sendKey) {
-        final String setName = context.getSetName();
-        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(context, exp, policy, sendKey);
-    }
-
-    /**
-     * Issue a scan query for all the keys in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context read context
-     * @param exp     Expression to apply to Scan
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllKeysInSet(final ReadContext context, final Expression exp) {
-        final String setName = context.getSetName();
-        LOG.trace("Scanning all ids in {} with filter {}.", setName, exp);
-        ScanPolicy policy = new ScanPolicy();
-        policy.includeBinData = false;
-        return scanAllRecordsInSet(ReadContext.create(setName), exp, policy);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context  read context
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, String... binNames) {
-        return scanAllRecordsInSet(context, exp, policy, true, binNames);
-    }
-
-    /**
-     * Issue a scan query for all the records in a set.
-     * Filter by an Exp, provide a ScanPolicy, optionally provide binNames to return
-     * Note - if the client or the event loop was closed prior to this, this function will hang indefinitely.
-     *
-     * @param context  read context
-     * @param exp      Expression to apply to Scan
-     * @param policy   ScanPolicy to use during Scan
-     * @param sendKey  Send the original user key
-     * @param binNames Bin names to read into Records returned
-     * @return Iterator of KeyRecord
-     */
-    public Iterator<KeyRecord> scanAllRecordsInSet(final ReadContext context, final Expression exp, final ScanPolicy policy, final boolean sendKey, String... binNames) {
-        final String setName = context.getSetName();
-        LOG.debug("Issuing scan query of all records in {}:{}:{} with filter {}.", getNamespace(), setName, Arrays.toString(binNames), exp);
-        final Monitor scanMonitor = new Monitor();
-        policy.sendKey = sendKey;
-        if (exp != null) policy.filterExp = exp;
-        final UUID scanId = UUID.randomUUID();
-        final ScanHitCounter shc = this.getScanHitCounter();
-        if (context.getKeyName().isPresent())
-            shc.associateUUID(scanId, context.getKeyName().get());
-        final ConcurrentScanRecordSequenceListener listener =
-                ConcurrentScanRecordSequenceListener.create(this, scanMonitor, scanId);
-        listener.setStartTime();
-        client.scanAll(getEventLoops().next(), listener, policy, getNamespace(), setName, binNames);
-
-        return new FireflyCloseableIterator<>(listener);
-    }
-
     public EventLoops getEventLoops() {
         return eventLoops;
-    }
-
-    /**
-     * Given an array of edge Records, and a direction, return an array of the Vertex Records they are linking to
-     *
-     * @param edgeRecords array of Edge Records
-     * @param direction   the other end we should be retrieving
-     * @return an array of Vertex KeyRecord
-     */
-    public List<KeyRecord> vertexRecordsFromEdgeRecords(Record[] edgeRecords, Direction direction) {
-        List<Key> vertexKeys = Arrays.stream(edgeRecords)
-                .map(record -> record.getString(direction.name()))
-                .map(hash -> new Key(namespace, FireflyIdPoly.decodeBase64(hash), VERTEX_AERO_SET, Value.NULL))
-                .collect(Collectors.toList());
-        Record[] vertexRecords = read(vertexKeys.toArray(new Key[]{}));
-        List<KeyRecord> krl = new ArrayList<>();
-        IntStream.range(0, vertexKeys.size()).forEach(i -> {
-            krl.add(new KeyRecord(vertexKeys.get(i), vertexRecords[i]));
-        });
-        return krl;
     }
 
     public GraphMetadata getDataModelMetadata() {
@@ -778,7 +649,11 @@ public class AerospikeConnection implements AutoCloseable {
             public static final String FEATURE_KEY = "feature-key";
             public static final String INDEXNAME = "indexname";
             public static final String RESULT = "result";
+            public static final String GET_CONFIG = "get-config:context=namespace;id=";
         }
+
+        private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -801,7 +676,6 @@ public class AerospikeConnection implements AutoCloseable {
             return results;
         }
 
-        //
         public static Map<String, Map<String, String>> parseBySet(String infoResponse, String namespace) {
             Map<String, Map<String, String>> results = new TreeMap<>();
             Arrays.stream(infoResponse.split(";"))
@@ -834,6 +708,86 @@ public class AerospikeConnection implements AutoCloseable {
                     .map(m -> (Map.Entry<String, String>)
                             new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
                     .collect(Collectors.toList());
+        }
+
+        /**
+         * Return list of usable indices in a list of map entries.
+         *
+         * @param db    AerospikeConnnection.
+         * @param namespace Namespace.
+         * @return List of existing indices in a list of map entries.
+         * First item of map entry is index
+         * Second item of map entry is set the index belongs to
+         */
+        public static List<String> listUsableIndexes(final AerospikeConnection db, final String namespace) {
+            final List<Set<String>> indexSets = new ArrayList<>();
+            for (final Node node : db.getClient().getNodes()) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, Keys.SINDEX);
+                final List<Map.Entry<String, String>> raw = parseRaw(infoResponse).stream()
+                        .filter(m -> m.get(Keys.NS).equals(namespace))
+                        .filter(m -> m.get("state").equals("RW"))
+                        .map(m -> (Map.Entry<String, String>)
+                                new AbstractMap.SimpleEntry(m.get(Keys.INDEXNAME), m.get(Keys.SET)))
+                        .collect(Collectors.toList());
+                indexSets.add(raw.stream().map(Map.Entry::getKey).filter(s ->
+                                        s.startsWith(db.getVpIndexPrefix()) ||
+                                                s.startsWith(db.getEpIndexPrefix()) ||
+                                                db.V_LABEL_INDEX_NAME.equals(s) ||
+                                                db.E_LABEL_INDEX_NAME.equals(s)).
+                                collect(Collectors.toSet()));
+            }
+
+            final List<String> indexList = new ArrayList<>();
+            for (final Set<String> set : indexSets) {
+                if (indexList.isEmpty()) {
+                    indexList.addAll(set);
+                } else {
+                    indexList.retainAll(set);
+                }
+            }
+            return indexList;
+        }
+
+        /**
+         * Return the max-record-size configured on Aerospike. If Aerospike is in a cluster, returns the value for the
+         * node with the smallest max-record-size.
+         *
+         * @param client    client.
+         * @param namespace Namespace.
+         * @return The max-record-size.
+         */
+        public static long getMaxRecordSizeBytes(final AerospikeClient client, final String namespace) {
+            final String requestKey = Keys.GET_CONFIG + namespace;
+            final Node[] nodes = client.getNodes();
+            long maxRecordSize = Long.MAX_VALUE;
+
+            for (final Node node : nodes) {
+                final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
+                final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
+                final Map<String, Long> relevantConfigs = new HashMap<>();
+                for (final Map<String, String> config : listOfConfigs) {
+                    if (config.containsKey(MAX_RECORD_SIZE)) {
+                        relevantConfigs.put(MAX_RECORD_SIZE, Long.valueOf(config.get(MAX_RECORD_SIZE)));
+                    }
+                    if (config.containsKey(WRITE_BLOCK_SIZE)) {
+                        relevantConfigs.put(WRITE_BLOCK_SIZE, Long.valueOf(config.get(WRITE_BLOCK_SIZE)));
+                    }
+                }
+
+                if (!relevantConfigs.containsKey(MAX_RECORD_SIZE) || !relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
+                    throw new RuntimeException("Failed to determine " + MAX_RECORD_SIZE + " or " + WRITE_BLOCK_SIZE +
+                            " configuration values from Aerospike cluster.");
+                }
+
+                if (relevantConfigs.get(MAX_RECORD_SIZE) == 0) {
+                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size
+                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(WRITE_BLOCK_SIZE));
+                } else {
+                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(MAX_RECORD_SIZE));
+                }
+            }
+
+            return maxRecordSize;
         }
 
         /**
@@ -1020,7 +974,13 @@ public class AerospikeConnection implements AutoCloseable {
         dropIndex(setFromElementType(FireflyVertex.class), V_LABEL_INDEX_NAME);
         dropIndex(setFromElementType(FireflyEdge.class), E_LABEL_INDEX_NAME);
         if (graph != null) {
-            graph.fireflyIndexMetadata.getPropertyIndexInfos().forEach(index -> dropIndex(index.setName, index.indexName));
+            graph.fireflyIndexMetadata.getIndexesInProgress().forEach(index -> {
+                if (index.startsWith(getVpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyVertex.class), index);
+                } else if (index.startsWith(getEpIndexPrefix())) {
+                    dropIndex(setFromElementType(FireflyEdge.class), index);
+                }
+            });
         }
     }
 
@@ -1258,29 +1218,6 @@ public class AerospikeConnection implements AutoCloseable {
      */
     public boolean isEnterprise() {
         return InfoOps.isEnterprise(client);
-    }
-
-
-    public Iterator<KeyRecord> queryIndex(final String setName, final String indexName, final Filter filter) {
-        return queryIndex(setName, indexName, filter, new QueryPolicy());
-    }
-
-    /**
-     * Issue a query on an index providing a custom filter
-     *
-     * @param setName   Name of Aerospike set
-     * @param indexName Name of Index to query
-     * @param filter    Custom Filter
-     * @return Iterator of KeyRecord pair results
-     */
-    public Iterator<KeyRecord> queryIndex(String setName, String indexName, Filter filter, QueryPolicy policy) {
-        final Statement stmt = new Statement();
-        stmt.setNamespace(namespace);
-        stmt.setSetName(setName);
-        stmt.setIndexName(indexName);
-        stmt.setFilter(filter);
-        final RecordSet record = client.query(policy, stmt);
-        return new FireflyCloseableIterator(record);
     }
 
     /**

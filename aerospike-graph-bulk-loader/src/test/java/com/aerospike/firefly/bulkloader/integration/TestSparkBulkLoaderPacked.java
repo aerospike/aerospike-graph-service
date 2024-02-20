@@ -19,7 +19,6 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String NO_ID_EDGES_KEEP_AS_PROPERTY_OFF = "src/test/resources/conf/packed/no-id-edges-keep-as-property-off.properties";
     static private final String DUPLICATE_VERTEX_ID = "src/test/resources/conf/packed/duplicate-vertex-id.properties";
     static private final String DUPLICATE_EDGE_ID = "src/test/resources/conf/packed/duplicate-edge-id.properties";
-    static private final String NONEXISTENT_VERTEX_ID = "src/test/resources/conf/packed/nonexistent-vertex-id.properties";
     static private final String S3_FILESYSTEM = "src/test/resources/conf/packed/filesystem-s3.properties";
     static private final String GCS_FILESYSTEM = "src/test/resources/conf/packed/filesystem-gcs.properties";
     static private final String FAILING_CLIENT = "src/test/resources/conf/packed/failing-client.properties";

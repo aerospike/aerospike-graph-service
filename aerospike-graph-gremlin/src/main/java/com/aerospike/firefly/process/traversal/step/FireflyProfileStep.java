@@ -57,7 +57,7 @@ public class FireflyProfileStep<S> extends AbstractStep<S, S> implements Profili
         boolean res = super.hasNext();
         if (res)
             return true;
-        ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
+        final ScanHitCounter shc = ((FireflyGraph) this.traversal.getGraph().get()).getBaseGraph().getScanHitCounter();
         shc.stats().forEach((key, value) -> {
             this.metrics.setAnnotation(String.format(" [key: %s], scan count", key), value.get());
         });

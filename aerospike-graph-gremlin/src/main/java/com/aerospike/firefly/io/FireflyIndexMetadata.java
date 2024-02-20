@@ -40,14 +40,7 @@ public class FireflyIndexMetadata implements FireflyMetadata {
     @Override
     public void updateMetadata() {
         // Read the index metadata.
-        final List<String> indexes =
-                AerospikeConnection.InfoOps.listExistingIndexes(db.getClient(), db.getNamespace()).stream()
-                        .map(Map.Entry::getKey).filter(s ->
-                                s.startsWith(db.getVpIndexPrefix()) ||
-                                        s.startsWith(db.getEpIndexPrefix()) ||
-                                        db.V_LABEL_INDEX_NAME.equals(s) ||
-                                        db.E_LABEL_INDEX_NAME.equals(s)).
-                        collect(Collectors.toList());
+        final List<String> indexes = AerospikeConnection.InfoOps.listUsableIndexes(db, db.getNamespace());
 
         // Update the index metadata.
         synchronized (FireflyIndexMetadata.class) {
@@ -100,6 +93,22 @@ public class FireflyIndexMetadata implements FireflyMetadata {
         synchronized (FireflyIndexMetadata.class) {
             return new ArrayList<>(indexInfos);
         }
+    }
+
+    /**
+     * Get the index metadata.
+     *
+     * @return A copy of the index metadata.
+     */
+    public List<String> getIndexesInProgress() {
+        // Return copy.
+        return AerospikeConnection.InfoOps.listExistingIndexes(db.client, db.namespace).stream().
+                map(Map.Entry::getKey).filter(s ->
+                        s.startsWith(db.getVpIndexPrefix()) ||
+                                s.startsWith(db.getEpIndexPrefix()) ||
+                                db.V_LABEL_INDEX_NAME.equals(s) ||
+                                db.E_LABEL_INDEX_NAME.equals(s)).
+                collect(Collectors.toList());
     }
 
     /**

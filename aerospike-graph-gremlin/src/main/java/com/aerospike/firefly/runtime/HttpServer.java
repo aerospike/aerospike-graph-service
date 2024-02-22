@@ -22,6 +22,7 @@ import java.io.Writer;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -30,23 +31,29 @@ import java.util.stream.Collectors;
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class PrometheusMetricsServer {
-    private final Logger LOG = LoggerFactory.getLogger(PrometheusMetricsServer.class);
+public class HttpServer {
+    private final Logger LOG = LoggerFactory.getLogger(HttpServer.class);
     private final int port;
-    private final String path;
-    public static final int DEFAULT_PROMETHEUS_PORT = 9090;
+    private final String prometheusPath;
+    private final String healthcheckPath;
+    public static final int DEFAULT_HTTP_PORT = 9090;
     public static final String DEFAULT_PROMETHEUS_PATH = "/metrics";
+    public static final String DEFAULT_HEALTHCHECK_PATH = "/healthcheck";
+    private static final int HEALTHCHECK_SUCCESS_CODE = 200;
+    private static final int HEALTHCHECK_ERROR_CODE = 501;
     public static boolean PROMETHEUS_RENAME_ENABLED = true;
+    private static AerospikeConnection db;
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
 
-    private PrometheusMetricsServer(final int port, final String path) {
+    private HttpServer(final int port, final String prometheusPath, final String healthcheckpath) {
         this.port = port;
-        this.path = path;
+        this.prometheusPath = prometheusPath;
+        this.healthcheckPath = healthcheckpath;
     }
 
-    public static PrometheusMetricsServer create(final int port, final String path) {
-        return new PrometheusMetricsServer(port, path);
+    public static HttpServer create(final int port, final String prometheusPath, final String healthcheckpath) {
+        return new HttpServer(port, prometheusPath, healthcheckpath);
     }
 
     public static void registerGraphMetrics(final AerospikeConnection db) {
@@ -60,6 +67,10 @@ public class PrometheusMetricsServer {
                 throw e;
             }
         }
+    }
+
+    public static void registerHealthcheck(final AerospikeConnection db) {
+        HttpServer.db = db;
     }
 
     // Not required except for bulk loader which hangs if it does not close this.
@@ -86,7 +97,16 @@ public class PrometheusMetricsServer {
         final Router router = Router.router(vertx);
 
         // Add a handler for the metrics endpoint - this picks up the default registry.
-        router.get(path).handler(new FireflyMetricRewiter());
+        router.get(prometheusPath).handler(new FireflyMetricRewiter());
+        router.get(healthcheckPath).handler(routingContext -> {
+            if (db != null && db.getClient().isConnected()) {
+                routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
+                        end(String.valueOf(List.of(Map.of("status", "true"))));
+            } else {
+                routingContext.response().setStatusCode(HEALTHCHECK_ERROR_CODE).putHeader("content-type", "text/html").
+                        end(String.valueOf(List.of(Map.of("status", "false"))));
+            }
+        });
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()
@@ -94,9 +114,9 @@ public class PrometheusMetricsServer {
                 .listen(port)
                 .onComplete(res -> {
                     if (res.succeeded()) {
-                        LOG.info("PrometheusMetricsServer is now listening on port {}.", port);
+                        LOG.info("HttpServer is now listening on port {}.", port);
                     } else {
-                        LOG.error("PrometheusMetricsServer failed to bind with error {}.", res.cause().getMessage());
+                        LOG.error("HttpServer failed to bind with error {}.", res.cause().getMessage());
                     }
                 });
     }

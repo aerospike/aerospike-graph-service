@@ -11,7 +11,7 @@ The prometheus exporter runs on port `9090` by default a default path of `/metri
 These can be overridden by setting the following environment variables or config options in the properties file:
 
 ```
-aerospike.graph.prometheus.port=1234
+aerospike.graph.http.port=1234
 aerospike.graph.prometheus.path=/custom_path
 ```
 

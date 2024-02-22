@@ -52,7 +52,6 @@ import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.runtime.HealthcheckServer;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -304,9 +303,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
-            // Only start healthcheck server if bulk loader is not present in configuration
-            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf)))
-                FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");

@@ -40,7 +40,7 @@ public class HttpServer {
     public static final String DEFAULT_PROMETHEUS_PATH = "/metrics";
     public static final String DEFAULT_HEALTHCHECK_PATH = "/healthcheck";
     private static final int HEALTHCHECK_SUCCESS_CODE = 200;
-    private static final int HEALTHCHECK_ERROR_CODE = 501;
+    private static final int HEALTHCHECK_ERROR_CODE = 503;
     public static boolean PROMETHEUS_RENAME_ENABLED = true;
     private static AerospikeConnection db;
     private static final AtomicBoolean started = new AtomicBoolean(false);

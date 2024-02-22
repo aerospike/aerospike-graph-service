@@ -82,9 +82,9 @@ public class HttpServer {
 
     public void start() {
         // If this is started, do not start twice. This shouldn't happen.
-        LOG.info("Starting PrometheusMetricsServer on port {}.", port);
+        LOG.info("Starting HttpServer on port {}.", port);
         if (started.getAndSet(true)) {
-            LOG.warn("PrometheusMetricsServer already started.");
+            LOG.warn("HttpServer already started.");
             return;
         }
 

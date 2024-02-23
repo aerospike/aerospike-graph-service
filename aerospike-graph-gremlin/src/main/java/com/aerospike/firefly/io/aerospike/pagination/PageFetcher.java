@@ -167,7 +167,7 @@ public abstract class PageFetcher<E> {
         try {
             LOG.error(error);
             shutdown();
-            pageQueue.put(new ErrorPage("Error reading index query: " + error));
+            pageQueue.put(new ErrorPage("Error reading query: " + error));
         } catch (final InterruptedException e2) {
             LOG.error("Error adding signalling error to iterator.", e2);
             Thread.currentThread().interrupt();

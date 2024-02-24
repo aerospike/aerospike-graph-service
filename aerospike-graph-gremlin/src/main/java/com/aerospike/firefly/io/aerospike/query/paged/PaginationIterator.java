@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;

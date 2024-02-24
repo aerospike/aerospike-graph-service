@@ -13,6 +13,7 @@ import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.IndexCollectionType;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
@@ -152,7 +153,7 @@ public class FireflyTtlHandler implements Closeable {
         }
 
         private void scheduleVertexDeletes() {
-            final Iterator<KeyRecord> vertexRecordsToDelete = graph.query.getPagedSindex(this.db.VERTEX_AERO_SET,
+            final Iterator<KeyRecord> vertexRecordsToDelete = GraphQuery.create(graph).querySindex(this.db.VERTEX_AERO_SET,
                     this.db.TTL_VERTEX_INDEX_NAME, Filter.range(this.db.TTL_BIN, 0,
                             System.currentTimeMillis() + (this.db.TTL_PURGE_INTERVAL_SECONDS * 1000L)), INDEX_POLICY);
             int expiriesScheduled = 0;
@@ -195,7 +196,7 @@ public class FireflyTtlHandler implements Closeable {
 
         private void scheduleEdgeDeletes() {
             final long timeRangeMaximum = System.currentTimeMillis() + (this.db.TTL_PURGE_INTERVAL_SECONDS * 1000L);
-            final Iterator<KeyRecord> edgesToDelete = graph.query.getPagedSindex(this.db.EDGE_AERO_SET,
+            final Iterator<KeyRecord> edgesToDelete = GraphQuery.create(graph).querySindex(this.db.EDGE_AERO_SET,
                     this.db.TTL_EDGE_INDEX_NAME, Filter.range(this.db.TTL_BIN, IndexCollectionType.MAPVALUES, 0,
                             timeRangeMaximum), INDEX_POLICY);
             int expiriesScheduled = 0;

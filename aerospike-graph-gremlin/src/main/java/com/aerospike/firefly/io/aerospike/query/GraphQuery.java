@@ -25,13 +25,12 @@ public interface GraphQuery {
     FireflyGraph getGraph();
 
     public static GraphQuery create(FireflyGraph fireflyGraph) {
-//        if (!fireflyGraph.configuration().containsKey(configKey))
-//            return new PagedGraphQuery(fireflyGraph);
-//        else if (fireflyGraph.configuration().getString(configKey).equals("legacy")) {
-//            return new LegacyGraphQuery(fireflyGraph);
-//        } else
-//            throw new RuntimeException("unknown query impl: " + fireflyGraph.configuration().getString(configKey).equals("legacy"));
-        return new PagedGraphQuery(fireflyGraph);
+        if (!fireflyGraph.configuration().containsKey(configKey))
+            return new PagedGraphQuery(fireflyGraph);
+        else if (fireflyGraph.configuration().getString(configKey).equals("legacy")) {
+            return new LegacyGraphQuery(fireflyGraph);
+        } else
+            throw new RuntimeException("unknown query impl: " + fireflyGraph.configuration().getString(configKey).equals("legacy"));
     }
 
     default Iterator<FireflyId> scanVertexIds() {

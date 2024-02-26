@@ -14,7 +14,6 @@ public class FireflyLoadingException extends RuntimeException {
             ResultCode.ASYNC_QUEUE_FULL,
             ResultCode.CLIENT_ERROR,
             ResultCode.CLUSTER_KEY_MISMATCH,
-            ResultCode.DEVICE_OVERLOAD,
             ResultCode.LOST_CONFLICT,
             ResultCode.NO_RESPONSE,
             ResultCode.OK,

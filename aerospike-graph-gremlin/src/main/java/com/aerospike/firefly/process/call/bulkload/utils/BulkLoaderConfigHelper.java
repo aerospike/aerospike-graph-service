@@ -50,6 +50,9 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String ENABLE_DATAFRAME_CACHING = "aerospike.graphloader.dataframe-caching";
     // Storage type for Dataframe persist operation
     public static final String DATAFRAME_STORAGE_TYPE = "aerospike.graphloader.dataframe-storage-type";
+    public static final String ALLOWED_DUPLICATE_VERTEX_ID_COUNT = "aerospike.graphloader.allowed-duplicate-vertex-id-count";
+    public static final String ALLOWED_BAD_EDGES_COUNT = "aerospike.graphloader.allowed-bad-edges-count";
+    public static final String ALLOWED_BAD_ENTRY_COUNT = "aerospike.graphloader.allowed-bad-entry-count";
 
     // ==Internal-only use configurations==
     public static final String S3_ENDPOINT = "aerospike.graphloader.s3-endpoint";
@@ -60,7 +63,6 @@ public class BulkLoaderConfigHelper implements Serializable {
     public static final String DISABLE_EDGE_WRITE = "disable_edges";
     public static final String DISABLE_VERTEX_WRITE = "disable_vertices";
     public static final String READ_ONLY = "read_only";
-    public static final String ALLOW_DETACHED_EDGES = "allow_detached_edges";
 
 
     public static final Map<String, String> KEY_TO_CMD = Map.ofEntries(
@@ -84,6 +86,10 @@ public class BulkLoaderConfigHelper implements Serializable {
             Map.entry(ENABLE_DATAFRAME_CACHING, "dc"),
             Map.entry(DATAFRAME_STORAGE_TYPE, "dt"),
 
+            Map.entry(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, "adv"),
+            Map.entry(ALLOWED_BAD_EDGES_COUNT, "ade"),
+            Map.entry(ALLOWED_BAD_ENTRY_COUNT, "abe"),
+
             Map.entry(S3_ENDPOINT, "s3e")
     );
 
@@ -100,6 +106,9 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(NULL_VALUE, "null");
         put(VERTEX_WRITE_BUFFER, "10000");
         put(EDGE_WRITE_BUFFER, "10000");
+        put(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, String.valueOf(Long.MAX_VALUE));
+        put(ALLOWED_BAD_EDGES_COUNT, String.valueOf(Long.MAX_VALUE));
+        put(ALLOWED_BAD_ENTRY_COUNT, String.valueOf(Long.MAX_VALUE));
     }};
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {

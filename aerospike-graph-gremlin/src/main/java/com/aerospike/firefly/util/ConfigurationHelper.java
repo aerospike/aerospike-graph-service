@@ -170,7 +170,10 @@ public final class ConfigurationHelper {
             VERTEX_PROPERTY_NAME_TO_ID_BIN(Pair.of((byte) 17, "VP_NAME_ID")),
             TTL_BIN(Pair.of((byte) 18, "TTL")),
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
-            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA"));
+            EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
+            BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
+            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE"));
+
 
             private final Pair value;
 
@@ -189,6 +192,9 @@ public final class ConfigurationHelper {
 
         public enum InternalConfigs {
             GRAPH_VARIABLES_REC_KEY(Pair.of((byte) 0, "GRAPH_VARS_REC")),
+            BL_DUPLICATE_VERTEX_COUNT_KEY(Pair.of((byte) 1, "BL_VID_COUNT")),
+            BL_BAD_EDGES_COUNT_KEY(Pair.of((byte) 2, "BL_E_COUNT")),
+            BL_BAD_ENTRY_COUNT_KEY(Pair.of((byte) 3, "BL_ENTRY_COUNT")),
             V_LABEL_INDEX_NAME(Pair.of((byte) 4, "V_LABEL_IDX")),
             E_LABEL_INDEX_NAME(Pair.of((byte) 5, "E_LABEL_IDX")),
             E_IN_INDEX_NAME(Pair.of((byte) 6, "E_IN_IDX")),
@@ -224,7 +230,11 @@ public final class ConfigurationHelper {
             GRAPH_METADATA_SET(Pair.of((byte) 12, "METADATA")),
             USAGE_STATS_SET(Pair.of((byte) 13, "USAGE_STATS_SET")),
             USER_SUPPLIED_ID_CACHE_SET(Pair.of((byte) 30, "ID_CACHE")),
-            INDEX_METADATA_SET(Pair.of((byte) 14, "INDEX_METADATA"));
+            INDEX_METADATA_SET(Pair.of((byte) 14, "INDEX_METADATA")),
+            BULK_LOAD_METADATA_SET(Pair.of((byte) 15, "BL_METADATA")),
+            BULK_LOAD_DUPLICATE_VID_SET(Pair.of((byte) 16, "BL_DUPE_VID")),
+            BULK_LOAD_BAD_EDGE_SET(Pair.of((byte) 17, "BL_BAD_EDGE")),
+            BULK_LOAD_BAD_ENTRY_SET(Pair.of((byte) 18, "BL_BAD_ENTRY"));
 
             private final Pair value;
 

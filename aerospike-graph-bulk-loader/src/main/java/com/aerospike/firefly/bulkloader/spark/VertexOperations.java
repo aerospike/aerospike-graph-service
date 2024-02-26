@@ -5,6 +5,7 @@ import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyVertex;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.spark.TaskContext;
@@ -40,6 +41,8 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.COLUMNS_T
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIMIT;
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyElement.ID_HEADER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 
@@ -61,6 +64,7 @@ public class VertexOperations implements Serializable {
 
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
+                final long allowBadEntryCount = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ partitionId);
                 final int bufferSize = getVertexWriteBufferSize();
@@ -85,8 +89,14 @@ public class VertexOperations implements Serializable {
                     }
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, COLUMNS_TO_REMOVE);
-                    final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes);
-                    futures.add(vwt.write(executor));
+                    try {
+                        final VertexWriteTask vwt = new VertexWriteTask(retry, nullValue, graph, fireflyRow, metadataRow, supernodes);
+                        futures.add(vwt.write(executor));
+                    } catch (final FireflyBulkLoaderException e) {
+                        if (allowBadEntryCount == 0) {
+                            throw e;
+                        }
+                    }
                 }
 
                 LOGGER.info(String.format("Done submitting vertex write task; waiting for their completion in partitionId %d", partitionId));
@@ -209,6 +219,16 @@ public class VertexOperations implements Serializable {
 
     public void verifySampleVerticesAfterWrite(final Dataset<Row> sampledVertexDataset) {
         if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_VERTEX_WRITE)) {
+            final long allowDuplicateVertexIds = Long.parseLong(this.config.getOrDefault(ALLOWED_DUPLICATE_VERTEX_ID_COUNT));
+            if (allowDuplicateVertexIds > 0) {
+                LOGGER.warn(ALLOWED_DUPLICATE_VERTEX_ID_COUNT + " is set to a value greater than 0. Vertex verification cannot be performed and will be skipped.");
+                return;
+            }
+            final long allowBadEntries = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+            if (allowBadEntries > 0) {
+                LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Vertex verification cannot be performed and will be skipped.");
+                return;
+            }
             String taskName = "Verify Vertex";
             sampledVertexDataset.sparkSession().sparkContext().setJobGroup(taskName, "Verify Vertex task", true);
             verifyVertices(sampledVertexDataset);

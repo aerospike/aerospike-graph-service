@@ -2,6 +2,7 @@ package com.aerospike.firefly.structure;
 
 import ch.qos.logback.classic.Level;
 import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.Log;
 import com.aerospike.client.Operation;
@@ -26,6 +27,8 @@ import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderErrorCountServiceFactory;
+import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderErrorProviderServiceFactory;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
@@ -93,6 +96,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -232,6 +236,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
         serviceRegistry.registerService(new FireflyMetadataServiceFactory(this));
         serviceRegistry.registerService(new FireflyBulkLoaderServiceFactory());
+        serviceRegistry.registerService(new FireflyBulkLoaderErrorCountServiceFactory());
+        serviceRegistry.registerService(new FireflyBulkLoaderErrorProviderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
         SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
@@ -305,7 +311,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
             LOG.error("========== Aerospike Graph Service failing to start is usually a result of an incorrect configuration.");
             LOG.error("========== Verify that the Aerospike IP and port are correct.");
@@ -403,6 +409,81 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         } catch (final AerospikeException ae) {
             throw new FireflyLoadingException(ae);
         }
+    }
+
+    public void writeDuplicateVertexId(final Object vertexId, final long count) {
+        final FireflyId id = getIdFactory().createFromUser(FireflyVertex.class, vertexId);
+        final Key key = new Key(db.namespace, db.BULK_LOAD_DUPLICATE_VID_SET, Value.get(id.getStorageId()));
+        final Bin addBin = new Bin(db.COUNTER_BIN, count);
+        final WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.UPDATE;
+        policy.sendKey = true;
+        try {
+            this.db.operate(policy, key, Operation.add(addBin));
+        } catch (final AerospikeException e) {
+            // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
+            // bulk load speed
+            LOG.warn("Error recording duplicate Vertex ID details ID: " + vertexId);
+        }
+    }
+
+    public Iterator<Map<String, Object>> readDuplicateVertexIdErrors() {
+        return query.getPagedScan(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
+            final Map<String, Object> errorInfo = new HashMap<>();
+            errorInfo.put("id", keyRecord.key.userKey.getObject());
+            errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
+            return errorInfo;
+        });
+    }
+
+    public void writeBadEntry(final String row, final String fileName) {
+        final Key key = new Key(db.namespace, db.BULK_LOAD_BAD_ENTRY_SET, Value.get(UUID.randomUUID().toString()));
+        final Bin rowBin = new Bin(db.BL_ROW_BIN, row);
+        final Bin fileBin = new Bin(db.BL_FILE_BIN, fileName);
+        final WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.UPDATE;
+        policy.sendKey = false;
+        try {
+            this.db.operate(policy, key, Operation.put(rowBin), Operation.put(fileBin));
+        } catch (final AerospikeException e) {
+            // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
+            // bulk load speed
+            LOG.warn("Error recording bad entry row \"" + row + "\" in file \"" + fileName + "\"");
+        }
+    }
+
+    public Iterator<Map<String, String>> readBadEntryErrors() {
+        return query.getPagedScan(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
+            final Map<String, String> errorInfo = new HashMap<>();
+            errorInfo.put("row", keyRecord.record.getString(db.BL_ROW_BIN));
+            errorInfo.put("file", keyRecord.record.getString(db.BL_FILE_BIN));
+            return errorInfo;
+        });
+    }
+
+    public void writeBadEdge(final Object badVertexId, final long count) {
+        final FireflyId id = getIdFactory().createFromUser(FireflyVertex.class, badVertexId);
+        final Key key = new Key(db.namespace, db.BULK_LOAD_BAD_EDGE_SET, Value.get(id.getStorageId()));
+        final Bin addBin = new Bin(db.COUNTER_BIN, count);
+        final WritePolicy policy = new WritePolicy();
+        policy.recordExistsAction = RecordExistsAction.UPDATE;
+        policy.sendKey = true;
+        try {
+            this.db.operate(policy, key, Operation.add(addBin));
+        } catch (final AerospikeException e) {
+            // Do not retry this or fail because this list being slightly incorrect is inconsequential and will reduce
+            // bulk load speed
+            LOG.warn("Error recording bad Edge data with failed Vertex ID: " + badVertexId);
+        }
+    }
+
+    public Iterator<Map<String, Object>> readBadEdgeErrors() {
+        return query.getPagedScan(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
+            final Map<String, Object> errorInfo = new HashMap<>();
+            errorInfo.put("bad-vertex-id", keyRecord.key.userKey.getObject());
+            errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
+            return errorInfo;
+        });
     }
 
     /**

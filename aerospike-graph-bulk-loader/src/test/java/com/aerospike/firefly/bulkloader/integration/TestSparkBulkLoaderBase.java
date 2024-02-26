@@ -1,7 +1,5 @@
 package com.aerospike.firefly.bulkloader.integration;
 
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.ResultCode;
 import com.aerospike.firefly.bulkloader.SparkBulkLoader;
 import com.aerospike.firefly.bulkloader.spark.DatasetOperations;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
@@ -31,9 +29,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_EDGE_COUNT_EXCEEDED;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.BAD_ENTRY_COUNT_EXCEEDED;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DUPLICATE_VERTEX_ID_COUNT_EXCEEDED;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
 
 public abstract class TestSparkBulkLoaderBase {
     // Directories are relative to firefly/firefly-spark-bulk-loader
@@ -89,6 +89,8 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getPreflightCheckEdge();
 
+    protected abstract String getBadEntries();
+
     protected abstract String getNoIdEdges();
 
     protected abstract String getNoIdEdgesKeepIdAsPropertyOff();
@@ -101,7 +103,7 @@ public abstract class TestSparkBulkLoaderBase {
 
     protected abstract String getGcsFileSystem();
     protected abstract String getFailingClient();
-    protected abstract String getDetachedEdges();
+    protected abstract String getHasBadEdges();
 
     @Test
     public void testDataAccuracy() {
@@ -183,31 +185,62 @@ public abstract class TestSparkBulkLoaderBase {
     }
 
     @Test
-    public void testPreflightCheckVertex() {
-        boolean success = true;
+    public void testPreflightCheckVertexNotAllowed() {
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
-        } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
-            success = false;
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckVertex()}, DEFAULT_PARAMS));
+            Assert.fail("Bad Vertex entries were not allowed but did not fail.");
+        } catch (final FireflyBulkLoaderPreflightException e) {
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
-        Assert.assertFalse(success);
         final GraphTraversalSource g = graph.traversal();
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
     }
 
     @Test
-    public void testPreflightCheckEdge() {
-        boolean success = true;
+    public void testPreflightCheckEdgeNotAllowed() {
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
-        } catch (final FireflyBulkLoaderPreflightException preflightFailed) {
-            success = false;
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "0", "-c", getPreflightCheckEdge()}, DEFAULT_PARAMS));
+            Assert.fail("Bad Edge entries were not allowed but did not fail.");
+        } catch (final FireflyBulkLoaderPreflightException e) {
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
         }
-        Assert.assertFalse(success);
         final GraphTraversalSource g = graph.traversal();
         Assert.assertFalse(g.V().hasNext());
         Assert.assertFalse(g.E().hasNext());
+    }
+
+    @Test
+    public void testAllowedBadEntryCount() {
+        // This data set has 2 bad Vertices, and 1 bad Edge.
+        try {
+            // Test failing on Vertex
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
+            Assert.fail("Bad Edge entries were not allowed but did not fail.");
+        } catch (final FireflyBulkLoaderPreflightException e) {
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        }
+        final GraphTraversalSource g = graph.traversal();
+        Assert.assertFalse(g.V().hasNext());
+        Assert.assertFalse(g.E().hasNext());
+        try {
+            // Test failing on Edge
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "2", "-c", getBadEntries()}, DEFAULT_PARAMS));
+            Assert.fail("Bad Edge entries were not allowed but did not fail.");
+        } catch (final FireflyBulkLoaderPreflightException e) {
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());
+        }
+        Assert.assertFalse(g.V().hasNext());
+        Assert.assertFalse(g.E().hasNext());
+        // Test success
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "3", "-c", getBadEntries()}, DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
     }
 
     @Test
@@ -229,15 +262,30 @@ public abstract class TestSparkBulkLoaderBase {
 
     @Test
     public void testDuplicateVertexId() {
-        boolean success = true;
+        SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
+        testEdges();
+        testVertices();
+        testVertexEdgeConnections();
+    }
+
+    @Test
+    public void testDuplicateVertexIdNotAllowed() {
         try {
-            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "0", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
+            Assert.fail("Duplicate Vertex ID did not fail when it should have.");
         } catch (final Exception e) {
-            success = false;
             Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
-            Assert.assertEquals("Pre-flight checks failed. Check logs for details on which line number and files caused the failure.", e.getMessage());
+            Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
         }
-        Assert.assertFalse(success);
+        graph.getBaseGraph().dropDatabase(graph, false);
+
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-adv", "2", "-c", getDuplicateVertexId()}, DEFAULT_PARAMS));
+            Assert.fail("Duplicate Vertex ID did not fail when it should have.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
+            Assert.assertEquals(DUPLICATE_VERTEX_ID_COUNT_EXCEEDED, e.getMessage());
+        }
     }
 
     @Test
@@ -349,7 +397,7 @@ public abstract class TestSparkBulkLoaderBase {
     @Test
     public void testAllowDetachedEdges() {
         SparkBulkLoader.main(ArrayUtils.addAll(
-                new String[]{"-local", "-c", getDetachedEdges(), "-" + ALLOW_DETACHED_EDGES}, DEFAULT_PARAMS));
+                new String[]{"-local", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
         testEdges();
         testVertices();
         testVertexEdgeConnections();
@@ -359,12 +407,20 @@ public abstract class TestSparkBulkLoaderBase {
     public void testNotAllowDetachedEdges() {
         try {
             SparkBulkLoader.main(ArrayUtils.addAll(
-                    new String[]{"-local", "-c", getDetachedEdges()}, DEFAULT_PARAMS));
+                    new String[]{"-local", "-ade", "0", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
             Assert.fail("Detached Edge did not fail bulk load when it should have.");
         } catch (final Exception e) {
-            Assert.assertTrue(e.getCause() instanceof AerospikeException);
-            final AerospikeException cause = (AerospikeException) e.getCause();
-            Assert.assertEquals(ResultCode.KEY_NOT_FOUND_ERROR, cause.getResultCode());
+            Assert.assertTrue(e.getCause() instanceof RuntimeException);
+            Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
+        }
+        graph.getBaseGraph().dropDatabase(graph, false);
+        try {
+            SparkBulkLoader.main(ArrayUtils.addAll(
+                    new String[]{"-local", "-ade", "2", "-c", getHasBadEdges()}, DEFAULT_PARAMS));
+            Assert.fail("Detached Edge did not fail bulk load when it should have.");
+        } catch (final Exception e) {
+            Assert.assertTrue(e.getCause() instanceof RuntimeException);
+            Assert.assertEquals(BAD_EDGE_COUNT_EXCEEDED, e.getCause().getMessage());
         }
     }
 

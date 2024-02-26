@@ -9,7 +9,9 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DATAFRAME_STORAGE_TYPE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
@@ -83,6 +85,12 @@ public class CommandLineParser {
         options.addOption(dataframeCacheOption);
         final Option dataframeStorageOption = new Option(KEY_TO_CMD.get(DATAFRAME_STORAGE_TYPE), DATAFRAME_STORAGE_TYPE, true, "Dataframe storage type. Optional argument - Default: 'disk_only'.");
         options.addOption(dataframeStorageOption);
+        final Option duplicateVertexIdCountOption = new Option(KEY_TO_CMD.get(ALLOWED_DUPLICATE_VERTEX_ID_COUNT), ALLOWED_DUPLICATE_VERTEX_ID_COUNT, true, "Amount of duplicate Vertex IDs allowed in CSV data set. Optional argument - Default: 'No limit'.");
+        options.addOption(duplicateVertexIdCountOption);
+        final Option badEdgeCountOption = new Option(KEY_TO_CMD.get(ALLOWED_BAD_EDGES_COUNT), ALLOWED_BAD_EDGES_COUNT, true, "Amount of Edges with invalid IN or OUT Vertex ID allowed in CSV data set. Optional argument - Default: 'No limit'.");
+        options.addOption(badEdgeCountOption);
+        final Option badEntryCountOption = new Option(KEY_TO_CMD.get(ALLOWED_BAD_ENTRY_COUNT), ALLOWED_BAD_ENTRY_COUNT, true, "Amount of entries with values that cannot be parsed according to type specified by the header allowed in CSV data set. Optional argument - Default: 'No limit'.");
+        options.addOption(badEntryCountOption);
 
         // Internal use configurations
         final Option s3EndPointOption = new Option(KEY_TO_CMD.get(S3_ENDPOINT), S3_ENDPOINT, true, "Custom S3 endpoint.");
@@ -94,7 +102,6 @@ public class CommandLineParser {
         options.addOption(new Option(READ_ONLY, "Disables intermediate writing to a temporary file to prevent potential duplicate edges."));
         options.addOption(new Option(DISABLE_EDGE_WRITE, "Disable Edge writing."));
         options.addOption(new Option(DISABLE_VERTEX_WRITE, "Disable Vertex writing."));
-        options.addOption(new Option(ALLOW_DETACHED_EDGES, "Allow and handle Edge datasets with invalid Vertex IDs."));
 
         final org.apache.commons.cli.CommandLineParser parser = new DefaultParser();
         try {

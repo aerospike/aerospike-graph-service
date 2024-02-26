@@ -15,6 +15,7 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     static private final String KEEP_ID_AS_PROPERTY_CONFIG_ARTIFICIAL_SUPERNODE = "src/test/resources/conf/packed/keep-provided-id-as-property-artificial-supernode.properties";
     static private final String PREFLIGHT_CHECK_EDGE = "src/test/resources/conf/packed/preflight-check-edge.properties";
     static private final String PREFLIGHT_CHECK_VERTEX = "src/test/resources/conf/packed/preflight-check-vertex.properties";
+    static private final String BAD_ENTRIES = "src/test/resources/conf/packed/bad-entries.properties";
     static private final String NO_ID_EDGES = "src/test/resources/conf/packed/no-id-edges.properties";
     static private final String NO_ID_EDGES_KEEP_AS_PROPERTY_OFF = "src/test/resources/conf/packed/no-id-edges-keep-as-property-off.properties";
     static private final String DUPLICATE_VERTEX_ID = "src/test/resources/conf/packed/duplicate-vertex-id.properties";
@@ -61,6 +62,11 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
+    protected String getBadEntries() {
+        return BAD_ENTRIES;
+    }
+
+    @Override
     protected String getPreflightCheckVertex() {
         return PREFLIGHT_CHECK_VERTEX;
     }
@@ -101,7 +107,7 @@ public class TestSparkBulkLoaderPacked extends TestSparkBulkLoaderBase {
     }
 
     @Override
-    protected String getDetachedEdges() {
+    protected String getHasBadEdges() {
         return DETACHED_EDGES;
     }
 }

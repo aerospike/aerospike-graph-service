@@ -156,20 +156,8 @@ public class DatasetOperations implements Serializable {
             final Instant start = Instant.now();
             LOGGER.info("Starting preflightCheck, partition-id:{}", TaskContext.getPartitionId());
             LOGGER.info("Number of partitions in vertexDataset: {}, number of partitions in edgeDataset {}", Arrays.stream(vertexDataset.rdd().getPartitions()).count(), Arrays.stream(edgeDataset.rdd().getPartitions()).count());
-            final boolean preflightVertexSuccess = Validations.dryRunVertices(vertexDataset, config);
-            final boolean preflightEdgeSuccess = Validations.dryRunEdgeRows(edgeDataset, config);
-            final String preflightEdgeFailed = "Detected invalid CSV data in Edge pre-flight check.";
-            final String preflightVertexFailed = "Detected invalid CSV data in Vertex pre-flight check.";
-
-            if (!preflightVertexSuccess) {
-                LOGGER.error(preflightVertexFailed);
-            }
-            if (!preflightEdgeSuccess) {
-                LOGGER.error(preflightEdgeFailed);
-            }
-            if (!preflightEdgeSuccess || !preflightVertexSuccess) {
-                throw new FireflyBulkLoaderPreflightException("Pre-flight checks failed. Check logs for details on which line number and files caused the failure.");
-            }
+            Validations.dryRunVertices(vertexDataset, config);
+            Validations.dryRunEdgeRows(edgeDataset, config);
 
             edgeDataset.sparkSession().sparkContext().cancelJobGroup(taskName);
             final Instant end = Instant.now();

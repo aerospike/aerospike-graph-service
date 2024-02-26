@@ -1,6 +1,5 @@
 package com.aerospike.firefly.runtime;
 
-import com.aerospike.firefly.runtime.PrometheusMetricsServer;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -64,7 +63,7 @@ public class PrometheusExporterTest {
     public void testSimplePrometheusExporter() throws Exception {
         // Basic unit test to check that the prometheus server spins up and we can GET data from it. Prometheus is
         // not simple to parse ,so we are only checking existence.
-        PrometheusMetricsServer.create(9090, "/metrics").start();
+        HttpServer.create(9090, "/metrics", "/healthcheck").start();
         Assert.assertTrue(queryPrometheus().contains("aerospike_graph_service_jvm_memory_pool_bytes_used"));
     }
 }

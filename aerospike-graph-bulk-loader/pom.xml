@@ -78,6 +78,12 @@
             <artifactId>zookeeper</artifactId>
             <version>3.7.2</version>
         </dependency>
+        <!-- Fixes ttps://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.26.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>

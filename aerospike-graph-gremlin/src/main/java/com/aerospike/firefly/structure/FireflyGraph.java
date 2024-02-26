@@ -338,14 +338,14 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.");
                 try {
                     GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_CUSTOM);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.", e);
                 }
             } else if (new File(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT).exists()) {
                 LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.");
                 try {
                     GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.", e);
                 }
             } else {

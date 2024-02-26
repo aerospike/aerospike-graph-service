@@ -50,6 +50,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_HOST = "aerospike.client.host";
         public static final String AEROSPIKE_PORT = "aerospike.client.port";
         public static final String AEROSPIKE_TIMEOUT = "aerospike.client.timeout";
+        public static final String AEROSPIKE_SOCKET_TIMEOUT = "aerospike.client.socketTimeout";
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";
@@ -278,6 +279,7 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
+        put(Keys.AEROSPIKE_SOCKET_TIMEOUT, "10000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");

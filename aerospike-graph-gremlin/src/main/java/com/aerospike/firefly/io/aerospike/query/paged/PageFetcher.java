@@ -115,8 +115,7 @@ public abstract class PageFetcher<E> {
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                LOG.error("Error removing page.", e);
-                Thread.currentThread().interrupt();
+                throw new RuntimeException(e.getMessage());
             }
         }
 

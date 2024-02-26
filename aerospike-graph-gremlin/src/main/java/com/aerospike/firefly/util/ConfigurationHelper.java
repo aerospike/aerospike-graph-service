@@ -257,7 +257,7 @@ public final class ConfigurationHelper {
         put(Keys.SCAN_MAX_WAIT, "2000");
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
-        put(Keys.PAGINATION_PAGE_SIZE, "10000");
+        put(Keys.PAGINATION_PAGE_SIZE, "2048");
         put(Keys.PAGINATION_PAGE_READ_MAX_WAIT, "3000");
         put(Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, "3000");
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
@@ -488,8 +488,8 @@ public final class ConfigurationHelper {
                 invalidKeys.add(key);
             }
         }
-        if (!invalidKeys.isEmpty()) {
-            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
-        }
+//        if (!invalidKeys.isEmpty()) {
+//            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+//        }
     }
 }

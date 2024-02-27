@@ -15,9 +15,11 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     private CountDownLatch latch = new CountDownLatch(1);
     private final Object lock = new Object();
     private final FireflyGraph graph;
+    final Runnable closeCallback;
 
-    public PaginationIterator(final FireflyGraph graph) {
+    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback) {
         this.graph = graph;
+        this.closeCallback = closeCallback;
     }
 
     @Override
@@ -39,7 +41,6 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             } catch (final InterruptedException e) {
                 // Unexpected interrupt, just go back to waiting.
-                Thread.currentThread().interrupt();
             }
         }
         return true;
@@ -62,6 +63,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
             }
             latch.countDown();
         }
+        closeCallback.run();
     }
 
     public void add(final E e) {

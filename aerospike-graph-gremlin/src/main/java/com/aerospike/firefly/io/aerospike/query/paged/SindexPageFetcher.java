@@ -41,13 +41,12 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph);
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
 
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
-            Thread.currentThread().interrupt();
         }
         while (recordSetIterator.hasNext()) {
             pi.add(recordSetIterator.next());

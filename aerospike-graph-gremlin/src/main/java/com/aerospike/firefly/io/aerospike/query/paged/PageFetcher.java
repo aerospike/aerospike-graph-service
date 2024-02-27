@@ -93,6 +93,7 @@ public abstract class PageFetcher<E> {
         CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
         boolean isEmpty = false;
         boolean isClosed = false;
+        String error = "";
 
         private void removePage() {
             // Check if possible.
@@ -110,12 +111,18 @@ public abstract class PageFetcher<E> {
                     isEmpty = true;
                     return;
                 } else if (page instanceof ErrorPage) {
-                    throw new RuntimeException(((ErrorPage) page).errorMessage);
+                    error = ((ErrorPage) page).errorMessage;
+                    return;
                 }
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                throw new RuntimeException(e.getMessage());
+                final StringBuilder err = new StringBuilder("Error thread interrupted while removing page:\n");
+                final StackTraceElement[] stackTraceElements = e.getStackTrace();
+                for (final StackTraceElement stackTraceElement : stackTraceElements) {
+                    err.append("\t").append(stackTraceElement.toString()).append("\n");
+                }
+                error = err.toString();
             }
         }
 
@@ -131,6 +138,9 @@ public abstract class PageFetcher<E> {
 
             while (!currentIterator.hasNext()) {
                 removePage();
+                if (!"".equals(error)) {
+                    return true;
+                }
                 if (isEmpty) {
                     return false;
                 }
@@ -144,6 +154,9 @@ public abstract class PageFetcher<E> {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
+                if (!"".equals(error)) {
+                    throw new RuntimeException(error);
+                }
                 return transformKeyRecord.transform(currentIterator.next());
             }
         }
@@ -169,7 +182,6 @@ public abstract class PageFetcher<E> {
             pageQueue.put(new ErrorPage("Error reading query: " + error));
         } catch (final InterruptedException e2) {
             LOG.error("Error adding signalling error to iterator.", e2);
-            Thread.currentThread().interrupt();
         }
     }
 }

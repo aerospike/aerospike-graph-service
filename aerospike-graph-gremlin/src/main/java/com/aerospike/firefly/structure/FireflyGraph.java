@@ -953,7 +953,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         this.fireflyIndexMetadataTask.cancel();
         this.fireflySummaryUpdater.close();
         this.ttlHandler.close();
-//        this.db.close();
+        this.db.close();
     }
 
     @Override

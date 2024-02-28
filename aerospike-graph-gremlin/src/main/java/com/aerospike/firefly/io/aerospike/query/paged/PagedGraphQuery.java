@@ -32,7 +32,6 @@ public class PagedGraphQuery implements GraphQuery {
         return graph;
     }
 
-
     @Override
     public <E> Iterator<E> scanSet(final String mapKey, final String setName, final String binName, final P<?> predicate,
                                    final FireflyGraph.TransformKeyRecord<E> transform, final List<HasContainer> hasContainers,

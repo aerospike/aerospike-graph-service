@@ -240,7 +240,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
-            for (String plugin : plugins) {
+            for (final String plugin : plugins) {
                 PluginUtil.loadPlugin(plugin, conf, this);
             }
         }

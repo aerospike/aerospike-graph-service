@@ -34,7 +34,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
         this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
-        policy.maxRecords = maxPageSize;
+        this.policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;
         this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();

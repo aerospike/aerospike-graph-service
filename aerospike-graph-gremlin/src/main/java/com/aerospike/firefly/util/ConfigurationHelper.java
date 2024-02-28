@@ -50,7 +50,7 @@ public final class ConfigurationHelper {
         public static final String AEROSPIKE_HOST = "aerospike.client.host";
         public static final String AEROSPIKE_PORT = "aerospike.client.port";
         public static final String AEROSPIKE_TIMEOUT = "aerospike.client.timeout";
-        public static final String AEROSPIKE_SOCKET_TIMEOUT = "aerospike.client.socketTimeout";
+        public static final String AEROSPIKE_SOCKET_TIMEOUT = "aerospike.client.socket.timeout";
         public static final String AEROSPIKE_USER = "aerospike.client.user";
         public static final String AEROSPIKE_PASSWORD = "aerospike.client.password";
         public static final String AEROSPIKE_NAMESPACE = "aerospike.client.namespace";

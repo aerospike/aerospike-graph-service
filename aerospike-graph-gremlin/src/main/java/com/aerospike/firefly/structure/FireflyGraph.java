@@ -52,7 +52,6 @@ import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.runtime.tasks.FireflyMetadataTask;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.runtime.HealthcheckServer;
 import com.aerospike.firefly.util.LoggerUtil;
 import com.aerospike.firefly.util.PluginUtil;
 import com.aerospike.firefly.util.WarmupUtil;
@@ -177,7 +176,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public final FireflyIndexMetadata fireflyIndexMetadata;
     public final FireflyGraphSummaryUpdater fireflySummaryUpdater;
     private final ServiceRegistry serviceRegistry = new ServiceRegistry();
-    public static final String DOCKER_SETTINGS_FILE_LOCATION = "/opt/aerospike-graph/conf/gremlin-server.yaml";
+    public static final String DOCKER_SETTINGS_FILE_LOCATION_CUSTOM = "/opt/conf/aerospike-graph-service.yaml";
+    public static final String DOCKER_SETTINGS_FILE_LOCATION_DEFAULT = "/opt/aerospike-graph/custom/aerospike-graph-service.yaml";
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;
@@ -312,9 +312,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
             if (preheat)
                 WarmupUtil.create(conf).preheat(WarmupUtil.passes);
-            // Only start healthcheck server if bulk loader is not present in configuration
-            if (!Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf)))
-                FireflyGremlinPlugin.startHealthcheckServer(conf, HealthcheckServer.DEFAULT_HEALTHCHECK_PORT);
             return GraphFactory.createGraph(AerospikeConnection.connect(conf), conf);
         } catch (Exception e) {
             LOG.error("=================== FAILED TO START AEROSPIKE GRAPH SERVICE ===================");
@@ -342,15 +339,23 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static synchronized Settings getGremlinServerSettings() {
         if (GREMLIN_SERVER_SETTINGS == null) {
             // We want to load the docker file if it exists, however in our testing it won't, so we can just default the values.
-            if (new File(DOCKER_SETTINGS_FILE_LOCATION).exists()) {
-                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.");
+            if (new File(DOCKER_SETTINGS_FILE_LOCATION_CUSTOM).exists()) {
+                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.");
                 try {
-                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION);
-                } catch (Exception e) {
-                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION + "'.", e);
+                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_CUSTOM);
+                } catch (final Exception e) {
+                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_CUSTOM + "'.", e);
                 }
+            } else if (new File(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT).exists()) {
+                LOG.info("Loading configuration from docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.");
+                try {
+                    GREMLIN_SERVER_SETTINGS = Settings.read(DOCKER_SETTINGS_FILE_LOCATION_DEFAULT);
+                } catch (final Exception e) {
+                    LOG.error("Failed to load docker settings file '" + DOCKER_SETTINGS_FILE_LOCATION_DEFAULT + "'.", e);
+                }
+            } else {
+                GREMLIN_SERVER_SETTINGS = new Settings();
             }
-            GREMLIN_SERVER_SETTINGS = new Settings();
         }
         return GREMLIN_SERVER_SETTINGS;
     }

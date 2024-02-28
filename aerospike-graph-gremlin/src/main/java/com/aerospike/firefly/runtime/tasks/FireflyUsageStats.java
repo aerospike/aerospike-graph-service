@@ -51,6 +51,9 @@ public class FireflyUsageStats {
             // Only create once.
             if (instance == null) {
                 instance = new FireflyUsageStats(connection);
+            } else {
+                // Update connection. Multiple open and closes can invalidate previous connection.
+                instance.task.connection = connection;
             }
         }
     }
@@ -77,7 +80,7 @@ public class FireflyUsageStats {
     }
 
     protected class FireflyUsageStatsTask extends TimerTask {
-        final AerospikeConnection connection;
+        AerospikeConnection connection;
         final UUID uuid = UUID.randomUUID();
         final Key key;
         final Map<String, Object> map = new HashMap<>();

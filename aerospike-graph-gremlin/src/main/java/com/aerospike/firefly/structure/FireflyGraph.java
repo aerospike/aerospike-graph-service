@@ -696,8 +696,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
                 } else if (allowNullProperties) {
                     properties.put((String) keyValues[i], keyValues[i + 1]);
                 }
-            // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
-            // properties to remove, so just ignore.
+                // Since this the first insertion, a null value with allowNullProperties is irrelevant, because there is no
+                // properties to remove, so just ignore.
         }
 
         // Write vertex property to Aerospike.

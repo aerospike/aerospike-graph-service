@@ -38,7 +38,7 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySindex(final String setName,
+    public <E> Iterator<E> querySIndex(final String setName,
                                        final String indexName,
                                        final Filter filter,
                                        final QueryPolicy policy,
@@ -112,7 +112,7 @@ public class LegacyGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySindex(final FireflyIndexMetadata.IndexInfo indexInfo,
+    public <E> Iterator<E> querySIndex(final FireflyIndexMetadata.IndexInfo indexInfo,
                                        final P<?> predicate,
                                        final FireflyGraph.TransformKeyRecord<E> transform,
                                        final List<HasContainer> hasContainers,
@@ -121,7 +121,7 @@ public class LegacyGraphQuery implements GraphQuery {
         final QueryPolicy queryPolicy = new QueryPolicy();
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
 
-        return querySindex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
+        return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
 
     }
 }

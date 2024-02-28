@@ -73,7 +73,7 @@ public class PagedGraphQuery implements GraphQuery {
 
 
     @Override
-    public <E> Iterator<E> querySindex(final String setName,
+    public <E> Iterator<E> querySIndex(final String setName,
                                        final String indexName,
                                        final Filter filter,
                                        final QueryPolicy policy,

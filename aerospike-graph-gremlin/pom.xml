@@ -187,7 +187,6 @@
             <version>2.6</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
     <build>
         <directory>${basedir}/target</directory>

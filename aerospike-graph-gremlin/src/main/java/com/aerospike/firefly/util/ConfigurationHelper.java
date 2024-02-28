@@ -459,6 +459,7 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
+    public static final String UNKNOWN_KEY_MESSAGE = "The following configuration keys are unknown to Firefly: ";
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
@@ -492,7 +493,7 @@ public final class ConfigurationHelper {
             }
         }
         if (!invalidKeys.isEmpty()) {
-            LOG.info("The following configuration keys are unknown to Firefly: " + invalidKeys);
+            LOG.info(UNKNOWN_KEY_MESSAGE + invalidKeys);
         }
     }
 }

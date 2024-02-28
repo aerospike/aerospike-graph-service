@@ -80,5 +80,4 @@ public class PagedGraphQuery implements GraphQuery {
         final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord);
         return pageFetcher.startQuery();
     }
-
 }

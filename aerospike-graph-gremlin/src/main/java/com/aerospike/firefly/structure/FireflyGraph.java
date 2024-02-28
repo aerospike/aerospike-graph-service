@@ -221,9 +221,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
-        // Create graph query engine.
-
-
         // Create ttl background task.
         this.ttlHandler = new FireflyTtlHandler(this);
 

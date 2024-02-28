@@ -121,6 +121,5 @@ public class LegacyGraphQuery implements GraphQuery {
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, clazz);
 
         return querySindex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(db, predicate, indexInfo), queryPolicy, transform);
-
     }
 }

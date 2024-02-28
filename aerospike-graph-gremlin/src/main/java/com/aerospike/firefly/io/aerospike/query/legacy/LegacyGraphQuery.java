@@ -33,7 +33,6 @@ public class LegacyGraphQuery implements GraphQuery {
     public LegacyGraphQuery(FireflyGraph fireflyGraph) {
         this.fireflyGraph = fireflyGraph;
         this.db = fireflyGraph.getBaseGraph();
-
     }
 
 

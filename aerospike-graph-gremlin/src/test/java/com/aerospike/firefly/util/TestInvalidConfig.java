@@ -16,6 +16,7 @@ import static org.junit.Assert.fail;
 public class TestInvalidConfig {
 
     TestLogging.MemoryAppender memoryAppender;
+
     @Before
     public void setup() {
         Logger logger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
@@ -28,9 +29,13 @@ public class TestInvalidConfig {
     @Test
     public void testInvalidConfig() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-        config.setProperty("aerospike.invalid", "invalid");
+        final String INVALID_KEY_1 = "aerospike.invalid";
+        final String INVALID_KEY_2 = "invalid";
+        config.setProperty(INVALID_KEY_1, INVALID_KEY_2);
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             Assert.assertTrue(memoryAppender.contains(ConfigurationHelper.UNKNOWN_KEY_MESSAGE, Level.INFO));
+            Assert.assertTrue(memoryAppender.contains(INVALID_KEY_1, Level.INFO));
+            Assert.assertTrue(memoryAppender.contains(INVALID_KEY_2, Level.INFO));
         }
     }
 }

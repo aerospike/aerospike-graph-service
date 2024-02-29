@@ -50,7 +50,10 @@ public class LegacyGraphQuery implements GraphQuery {
         statement.setIndexName(indexName);
         statement.setFilter(filter);
 
-        return (Iterator<E>) IteratorUtils.map(fireflyGraph.getBaseGraph().client.query(policy, statement), item -> transformKeyRecord.transform(item));
+        return IteratorUtils.
+                stream(fireflyGraph.getBaseGraph().client.query(policy, statement))
+                .map( item -> transformKeyRecord.transform(item))
+                .iterator();
     }
 
     @Override

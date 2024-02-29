@@ -134,7 +134,9 @@ public final class ConfigurationHelper {
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
         public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
-
+        public static final String QUERY_IMPL = "aerospike.graph.query.impl";
+        public static final String QUERY_PAGED = "paged";
+        public static final String QUERY_LEGACY = "legacy";
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -322,6 +324,7 @@ public final class ConfigurationHelper {
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
+        put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
     }};
 
 

@@ -166,6 +166,32 @@ public abstract class PageFetcher<E> {
             if (!isClosed) {
                 isClosed = true;
                 shutdown();
+
+                // Clean up any remaining pages.
+                if (currentIterator != null) {
+                    currentIterator.close();
+                }
+
+                // Technically there's a race condition that we signal for read loop to shutdown above,
+                // the read loop hasn't gotten this yet and goes to start a new page, we dump our queue here
+                // and the read loop adds a new page after we exit.
+                // The effect of this is a single page in the queue that will never be read and will garbage collect
+                // later and a single page of reading happening in the background.
+                // The logic to fix that is quite a bit extra so this is an okay compromise to keep things simpler.
+                while (!pageQueue.isEmpty()) {
+                    try {
+                        final Page page = pageQueue.remove();
+                        if (!(page instanceof ErrorPage || page instanceof PoisonPill)) {
+                            if (page.keyRecords != null) {
+                                page.keyRecords.close();
+                            }
+                        }
+                    } catch (final NoSuchElementException e) {
+                        // Should never happen since we check isEmpty() first. Don't want to propagate this exception.
+                        // Log warning in case it does happen we can investigate.
+                        LOG.warn("Successfully recovered from NoSuchElementException while closing page iterator.", e);
+                    }
+                }
             }
         }
     }

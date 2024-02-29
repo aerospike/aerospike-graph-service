@@ -109,8 +109,7 @@ public final class ConfigurationHelper {
         public static final String ENABLE_BATCHED_REPEAT_STEP_STRATEGY = "aerospike.graph.strategy.batched.repeat.step.enabled";
         public static final String PAGINATION_PAGE_QUEUE_SIZE = "aerospike.graph.pagination.page.queue.size";
         public static final String PAGINATION_PAGE_SIZE = "aerospike.graph.pagination.page.size";
-        public static final String PAGINATION_PAGE_READ_MAX_WAIT = "aerospike.graph.pagination.page.read.max.wait";
-        public static final String PAGINATION_PAGE_WRITE_MAX_WAIT = "aerospike.graph.pagination.page.write.max.wait";
+        public static final String PAGINATION_PAGE_MAX_WAIT = "aerospike.graph.pagination.max.wait";
 
         // Internal-only configurations
         public static final String AUTO_PRE_HEAT = "aerospike.graph.auto.preheat.enabled";
@@ -259,8 +258,7 @@ public final class ConfigurationHelper {
         put(Keys.AEROSPIKE_WRITE_MAX_RETRY, "100");
         put(Keys.PAGINATION_PAGE_QUEUE_SIZE, "10");
         put(Keys.PAGINATION_PAGE_SIZE, "2048");
-        put(Keys.PAGINATION_PAGE_READ_MAX_WAIT, "3000");
-        put(Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, "3000");
+        put(Keys.PAGINATION_PAGE_MAX_WAIT, "1200000"); // 20 minutes.
         put(Keys.ENABLE_FAST_COUNT_STRATEGY, "true");
         put(Keys.ENABLE_READ_THROUGH_CACHE, "true");
         put(Keys.ENABLE_PREFETCH_STRATEGY, "true");
@@ -279,7 +277,7 @@ public final class ConfigurationHelper {
         put(Keys.ASYNC_SUBGRAPH_CACHE, "false");
         put(Keys.AEROSPIKE_PORT, "3000");
         put(Keys.AEROSPIKE_TIMEOUT, "2000");
-        put(Keys.AEROSPIKE_SOCKET_TIMEOUT, "10000");
+        put(Keys.AEROSPIKE_SOCKET_TIMEOUT, "1200000");
         put(Keys.VERTEX_ID_BUFFER_SIZE, "1000");
         put(Keys.EDGE_ID_BUFFER_SIZE, "10000");
         put(Keys.PROPERTY_ID_BUFFER_SIZE, "10000");

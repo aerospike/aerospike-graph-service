@@ -203,6 +203,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_READ_MAX_WAIT;
     public final int PAGINATION_PAGE_WRITE_MAX_WAIT;
 
+    public final String QUERY_IMPL;
     public Policy getPolicy() {
         final Policy policy = new Policy();
         policy.connectTimeout = this.CONNECT_TIMEOUT;
@@ -404,6 +405,8 @@ public class AerospikeConnection implements AutoCloseable {
         USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
         WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
         PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
+
+        QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);

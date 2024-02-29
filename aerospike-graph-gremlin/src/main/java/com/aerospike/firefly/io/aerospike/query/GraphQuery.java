@@ -13,24 +13,32 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import com.aerospike.firefly.structure.iterator.FireflyPhatEdgeIdIterator;
+import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 public interface GraphQuery {
-    final String configKey = "firefly.GraphQuery.create(graph).impl";
     FireflyGraph getGraph();
 
-    public static GraphQuery create(FireflyGraph fireflyGraph) {
-        if (!fireflyGraph.configuration().containsKey(configKey))
+    public static final Logger LOG = LoggerFactory.getLogger(GraphQuery.class);
+    public static final String PAGED_MESSAGE = "using paged query implementation";
+    public static final String LEGACY_MESSAGE = "using legacy query implementation";
+
+    static GraphQuery create(FireflyGraph fireflyGraph) {
+        if (fireflyGraph.getBaseGraph().QUERY_IMPL.equals(ConfigurationHelper.Keys.QUERY_PAGED)) {
+            LOG.debug(PAGED_MESSAGE);
             return new PagedGraphQuery(fireflyGraph);
-        else if (fireflyGraph.configuration().getString(configKey).equals("legacy")) {
+        } else if (fireflyGraph.getBaseGraph().QUERY_IMPL.equals(ConfigurationHelper.Keys.QUERY_LEGACY)) {
+            LOG.debug(LEGACY_MESSAGE);
             return new LegacyGraphQuery(fireflyGraph);
         } else
-            throw new RuntimeException("unknown query impl: " + fireflyGraph.configuration().getString(configKey).equals("legacy"));
+            throw new RuntimeException("unknown query impl: " + fireflyGraph.getBaseGraph().QUERY_IMPL);
     }
 
     default Iterator<FireflyId> scanVertexIds() {
@@ -117,7 +125,7 @@ public interface GraphQuery {
                                         String indexName,
                                         Filter filter,
                                         QueryPolicy policy) {
-        return (Iterator<E>) querySIndex(setName, indexName, filter, policy, (it)->it);
+        return (Iterator<E>) querySIndex(setName, indexName, filter, policy, (it) -> it);
     }
 
     <E> Iterator<E> querySIndex(String setName, String indexName, Filter filter, QueryPolicy policy, FireflyGraph.TransformKeyRecord<E> transformKeyRecord);

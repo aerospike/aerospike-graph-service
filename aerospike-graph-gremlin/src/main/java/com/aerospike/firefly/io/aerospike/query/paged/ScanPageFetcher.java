@@ -82,7 +82,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
             this.latch = latch;
             this.paginationIterator = new PaginationIterator<>(graph, () -> {
                 if (!done.get()) {
-                    error("PaginationIterator closed before scan completed.");
+                    closeCallback();
                 }
             });
         }
@@ -106,10 +106,24 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                     return;
                 }
             }
-            signalError("Failed to scan page: " + exception.getMessage());
+            if (exception instanceof AerospikeException.ScanTerminated) {
+                LOG.debug("Scan terminated.");
+            } else {
+                signalError("Failed to scan page: " + exception.getMessage());
+            }
             done.set(true);
             latch.countDown();
             paginationIterator.close();
+        }
+
+        public void closeCallback() {
+            synchronized (done) {
+                shutdown();
+                done.set(true);
+                latch.countDown();
+                paginationIterator.close();
+                onFailure(new AerospikeException.ScanTerminated());
+            }
         }
 
         public void error(final String message) {

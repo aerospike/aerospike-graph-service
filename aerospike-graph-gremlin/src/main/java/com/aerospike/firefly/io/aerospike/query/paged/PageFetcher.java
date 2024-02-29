@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;

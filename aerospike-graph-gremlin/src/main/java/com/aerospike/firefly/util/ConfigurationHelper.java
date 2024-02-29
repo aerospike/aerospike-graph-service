@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.LOG;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
@@ -133,7 +134,9 @@ public final class ConfigurationHelper {
         public static final String TIMEOUT_DELAY = "aerospike.client.timeoutDelay";
         public static final String PROMETHEUS_RENAME = "aerospike.graph.prometheus.rename.enabled";
         public static final String VALIDATE_CLUSTER_NAME = "aerospike.client.validate.cluster.name";
-
+        public static final String QUERY_IMPL = "aerospike.graph.query.impl";
+        public static final String QUERY_PAGED = "paged";
+        public static final String QUERY_LEGACY = "legacy";
         public static class Pair {
             public final int numeric;
             public final String english;
@@ -321,6 +324,7 @@ public final class ConfigurationHelper {
         put(Keys.CLIENT_SERVICES_ALTERNATE, "false");
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
+        put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
     }};
 
 
@@ -458,6 +462,7 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
+    public static final String UNKNOWN_KEY_MESSAGE = "The following configuration keys are unknown to Firefly: ";
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
@@ -491,7 +496,7 @@ public final class ConfigurationHelper {
             }
         }
         if (!invalidKeys.isEmpty()) {
-            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+            LOG.info(UNKNOWN_KEY_MESSAGE + invalidKeys);
         }
     }
 }

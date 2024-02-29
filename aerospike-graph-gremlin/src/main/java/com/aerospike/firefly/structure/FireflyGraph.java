@@ -25,8 +25,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
-import com.aerospike.firefly.io.aerospike.pagination.GraphQuery;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -181,7 +181,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     // Note, this should be overwritten by the settings file contents, but for testing we need a default.
     private final Settings gremlinServerSettings;
-    public final GraphQuery query;
 
     static {
         synchronized (TraversalStrategies.GlobalCache.class) {
@@ -222,9 +221,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
         createIndexes(FireflyEdge.class, db.PROPERTIES_BIN, db.getEpIndexPrefix(), edgePropertyIndexes);
 
-        // Create graph query engine.
-        query = new GraphQuery(this);
-
         // Create ttl background task.
         this.ttlHandler = new FireflyTtlHandler(this);
 
@@ -239,7 +235,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
         SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
-            PluginUtil.loadPlugin(conf.getString(ConfigurationHelper.Keys.PLUGIN), conf, this);
+            final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
+           final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
+            for (final String plugin : plugins) {
+                PluginUtil.loadPlugin(plugin, conf, this);
+            }
         }
 
         // Create usage statistics background task.
@@ -325,6 +325,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     public static ComparableVersion dataModelVersion() {
         return new ComparableVersion(FIREFLY_VERSION);
     }
+
     private static Settings GREMLIN_SERVER_SETTINGS = null;
 
     public static synchronized Settings getGremlinServerSettings() {
@@ -390,9 +391,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public void bulkWriteVertex(final FireflyId idValue,
-                                   final String label,
-                                   final List<Map.Entry<String, Object>> properties,
-                                   final boolean supernode) {
+                                final String label,
+                                final List<Map.Entry<String, Object>> properties,
+                                final boolean supernode) {
         try {
             // We do not use ~supernode flag to allow forcing a vertex to a supernode when bulk loading since it impacts our
             // bulk loader flow and also we already have to check for this regardless inside the bulk loader.
@@ -473,10 +474,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public FireflyId vertexIdFromRecord(final KeyRecord keyRecord) {
         return getIdFactory().createId(keyRecord.key.userKey.getObject(), FireflyVertex.class);
-    }
-
-    public KeyRecord keyRecordFromKeyRecord(final KeyRecord keyRecord) {
-        return keyRecord;
     }
 
     public FireflyId edgeIdFromRecord(final KeyRecord keyRecord) {
@@ -717,11 +714,11 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public long getVertexCount(final List<HasContainer> hasContainers) {
-        return FireflyCloseableIteratorUtils.count(query.getPagedScanVertexIds(hasContainers));
+        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanVertexIds(hasContainers));
     }
 
     public long getEdgeCount() {
-        return FireflyCloseableIteratorUtils.count(query.getPagedScanEdgeIds());
+        return FireflyCloseableIteratorUtils.count(GraphQuery.create(this).scanEdgeIds());
     }
 
     @Override
@@ -867,7 +864,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Create vertex iterator with graph and vertex id iterator.
         // If there are vertexIds present use them, otherwise read from database.
-        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? query.getPagedScanVertexIds() : idList.iterator(), filters, this::readVertices);
+        return new FireflyBatchElementIterator<>(this, idList.isEmpty() ? GraphQuery.create(this).scanVertexIds() : idList.iterator(), filters, this::readVertices);
     }
 
     @Override
@@ -889,7 +886,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         }
 
         if (idList.isEmpty()) {
-            return new FireflyBatchElementIterator<>(this, query.getPagedScanEdgeIds(), filters, this::readEdges);
+            return new FireflyBatchElementIterator<>(this, GraphQuery.create(this).scanEdgeIds(), filters, this::readEdges);
         } else {
             return FireflyEdge.readEdges(this, idList).stream().map(fireflyEdge -> (Edge) fireflyEdge).iterator();
         }

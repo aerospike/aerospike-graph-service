@@ -4,7 +4,8 @@ import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -99,7 +100,7 @@ public final class FireflyHelper {
             queryPolicy.includeBinData = false;
 
             // Query index.
-            final Iterator<KeyRecord> keyRecordIterator = graph.query.getPagedSindex(
+            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
                     info.get().setName,
                     info.get().indexName,
                     GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),

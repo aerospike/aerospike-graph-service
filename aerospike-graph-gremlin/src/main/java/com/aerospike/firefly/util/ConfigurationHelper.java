@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.LOG;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
@@ -74,8 +75,9 @@ public final class ConfigurationHelper {
         public static final String VERTEX_PROPERTY_INDEXES = "aerospike.graph.index.vertex.properties";
         public static final String EDGE_PROPERTY_INDEXES = "aerospike.graph.index.edge.properties";
         public static final String GRAPH_ID = "aerospike.graph.id";
-        public static final String PROMETHEUS_PORT = "aerospike.graph.prometheus.port";
+        public static final String HTTP_PORT = "aerospike.graph.http.port";
         public static final String PROMETHEUS_PATH = "aerospike.graph.prometheus.path";
+        public static final String HEALTHCHECK_PATH = "aerospike.graph.healthcheck.path";
         public static final String PLUGIN = "aerospike.graph.plugin";
         public static final String TTL_ENABLED_FLAG = "aerospike.graph.ttl.enabled";
         public static final String TTL_PURGE_INTERVAL_SECONDS = "aerospike.graph.ttl.purge.interval";
@@ -284,8 +286,9 @@ public final class ConfigurationHelper {
         put(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, "3600000"); // 1 hour default
         put(Keys.INDEX_METADATA_UPDATE_FREQUENCY, "30000"); // 30 second default
         put(Keys.GLOBAL_EDGE_CACHE_ENABLED, "true");
-        put(Keys.PROMETHEUS_PORT, "9090");
+        put(Keys.HTTP_PORT, "9090");
         put(Keys.PROMETHEUS_PATH, "/metrics");
+        put(Keys.HEALTHCHECK_PATH, "/healthcheck");
         put(Keys.AEROSPIKE_BATCH_READ_SIZE, "5000");
         put(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, "1000000");
         put(Keys.VERTEX_PROPERTY_INDEXES, "");
@@ -456,6 +459,7 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
+    public static final String UNKNOWN_KEY_MESSAGE = "The following configuration keys are unknown: ";
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
@@ -488,8 +492,8 @@ public final class ConfigurationHelper {
                 invalidKeys.add(key);
             }
         }
-//        if (!invalidKeys.isEmpty()) {
-//            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
-//        }
+        if (!invalidKeys.isEmpty()) {
+            LOG.info(UNKNOWN_KEY_MESSAGE + invalidKeys);
+        }
     }
 }

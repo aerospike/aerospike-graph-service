@@ -100,7 +100,7 @@ public final class FireflyHelper {
             queryPolicy.includeBinData = false;
 
             // Query index.
-            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySindex(
+            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
                     info.get().setName,
                     info.get().indexName,
                     GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),

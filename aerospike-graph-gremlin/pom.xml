@@ -95,6 +95,13 @@
             <version>1.19.0</version>
             <scope>test</scope>
         </dependency>
+        <!-- Fixes https://security.snyk.io/vuln/SNYK-JAVA-COMNIMBUSDS-6247633 in gremlin-test@3.7.1 -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.3</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-test</artifactId>
@@ -187,7 +194,6 @@
             <version>2.6</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
     <build>
         <directory>${basedir}/target</directory>

@@ -94,13 +94,13 @@ public interface GraphQuery {
                             Class<? extends FireflyElement> clazz, boolean sendKey, boolean includeBinData,
                             String... binNames);
 
-    default <E> Iterator<E> querySindex(FireflyIndexMetadata.IndexInfo indexInfo,
+    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                         P<?> predicate,
                                         FireflyGraph.TransformKeyRecord<E> transform) {
-        return querySindex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
+        return querySIndex(indexInfo, predicate, transform, Collections.emptyList(), FireflyVertex.class);
     }
 
-    default <E> Iterator<E> querySindex(FireflyIndexMetadata.IndexInfo indexInfo,
+    default <E> Iterator<E> querySIndex(FireflyIndexMetadata.IndexInfo indexInfo,
                                         P<?> predicate,
                                         FireflyGraph.TransformKeyRecord<E> transform,
                                         List<HasContainer> hasContainers,
@@ -110,15 +110,15 @@ public interface GraphQuery {
         queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(getGraph().getBaseGraph(), hasContainers, clazz);
 
         // Query index.
-        return querySindex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(getGraph().getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
+        return querySIndex(indexInfo.setName, indexInfo.indexName, GraphQueryHelper.predicateToFilter(getGraph().getBaseGraph(), predicate, indexInfo), queryPolicy, transform);
     }
 
-    default <E> Iterator<E> querySindex(String setName,
+    default <E> Iterator<E> querySIndex(String setName,
                                         String indexName,
                                         Filter filter,
                                         QueryPolicy policy) {
-        return (Iterator<E>) querySindex(setName, indexName, filter, policy, (it)->it);
+        return (Iterator<E>) querySIndex(setName, indexName, filter, policy, (it)->it);
     }
 
-    <E> Iterator<E> querySindex(String setName, String indexName, Filter filter, QueryPolicy policy, FireflyGraph.TransformKeyRecord<E> transformKeyRecord);
+    <E> Iterator<E> querySIndex(String setName, String indexName, Filter filter, QueryPolicy policy, FireflyGraph.TransformKeyRecord<E> transformKeyRecord);
 }

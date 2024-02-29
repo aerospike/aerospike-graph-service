@@ -218,7 +218,7 @@ public abstract class TestSparkBulkLoaderBase {
         try {
             // Test failing on Vertex
             SparkBulkLoader.main(ArrayUtils.addAll(new String[]{"-local", "-abe", "1", "-c", getBadEntries()}, DEFAULT_PARAMS));
-            Assert.fail("Bad Edge entries were not allowed but did not fail.");
+            Assert.fail("Bad Edge Vertex were not allowed but did not fail.");
         } catch (final FireflyBulkLoaderPreflightException e) {
             Assert.assertTrue(e instanceof FireflyBulkLoaderPreflightException);
             Assert.assertEquals(BAD_ENTRY_COUNT_EXCEEDED, e.getMessage());

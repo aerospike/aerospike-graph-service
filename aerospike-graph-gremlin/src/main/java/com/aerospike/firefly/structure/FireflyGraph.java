@@ -428,7 +428,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, Object>> readDuplicateVertexIdErrors() {
-        return query.getPagedScan(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
+        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_DUPLICATE_VID_SET, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));
@@ -453,7 +453,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, String>> readBadEntryErrors() {
-        return query.getPagedScan(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
+        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_BAD_ENTRY_SET, null, null, keyRecord -> {
             final Map<String, String> errorInfo = new HashMap<>();
             errorInfo.put("row", keyRecord.record.getString(db.BL_ROW_BIN));
             errorInfo.put("file", keyRecord.record.getString(db.BL_FILE_BIN));
@@ -478,7 +478,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
     }
 
     public Iterator<Map<String, Object>> readBadEdgeErrors() {
-        return query.getPagedScan(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
+        return GraphQuery.create(this).scanSet(null, db.BULK_LOAD_BAD_EDGE_SET, null, null, keyRecord -> {
             final Map<String, Object> errorInfo = new HashMap<>();
             errorInfo.put("bad-vertex-id", keyRecord.key.userKey.getObject());
             errorInfo.put("count", keyRecord.record.getLong(db.COUNTER_BIN));

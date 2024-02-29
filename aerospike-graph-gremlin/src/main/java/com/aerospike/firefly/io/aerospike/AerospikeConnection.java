@@ -1633,9 +1633,15 @@ public class AerospikeConnection implements AutoCloseable {
         this.operate(null, duplicateVertexIdCountKey, zeroCounter);
         this.operate(null, badEdgeCountKey, zeroCounter);
         this.operate(null, badEntryCountKey, zeroCounter);
-        client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
-        client.truncate(null, namespace, BULK_LOAD_BAD_EDGE_SET, null);
-        client.truncate(null, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+
+        try {
+            client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            Thread.sleep(1);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public long incrementAndGetBadEdgeCount(final long amount) {

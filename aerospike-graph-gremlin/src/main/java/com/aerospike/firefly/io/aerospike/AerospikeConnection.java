@@ -917,10 +917,10 @@ public class AerospikeConnection implements AutoCloseable {
         // Blocking call for supernode indexes since graph doesn't function without.
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+                IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+                IndexType.STRING, IndexCollectionType.MAPVALUES);
 
         // Blocking call for ttl indexes since graph doesn't function without.
         if (TTL_ENABLED_FLAG) {

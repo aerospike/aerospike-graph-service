@@ -14,7 +14,7 @@ def main(input_properties_file, default_yaml_file, output_yaml_file, output_prop
             print("Reading properties file: " + input_properties_file)
             lines = [line.rstrip() for line in c]
             for line in lines:
-                if c == "":
+                if line == "":
                     continue
 
                 if not "=" in line:

@@ -650,7 +650,10 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String STORAGE_ENGINE = "storage-engine";
         private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
+        private static final String STORAGE_ENGINE_PMEM = "pmem";
+        private static final String STORAGE_ENGINE_MEMORY = "memory";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -761,26 +764,33 @@ public class AerospikeConnection implements AutoCloseable {
             for (final Node node : nodes) {
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                final Map<String, Long> relevantConfigs = new HashMap<>();
+                final Map<String, String> relevantConfigs = new HashMap<>();
                 for (final Map<String, String> config : listOfConfigs) {
                     if (config.containsKey(MAX_RECORD_SIZE)) {
-                        relevantConfigs.put(MAX_RECORD_SIZE, Long.valueOf(config.get(MAX_RECORD_SIZE)));
+                        relevantConfigs.put(MAX_RECORD_SIZE, config.get(MAX_RECORD_SIZE));
                     }
                     if (config.containsKey(WRITE_BLOCK_SIZE)) {
-                        relevantConfigs.put(WRITE_BLOCK_SIZE, Long.valueOf(config.get(WRITE_BLOCK_SIZE)));
+                        relevantConfigs.put(WRITE_BLOCK_SIZE, config.get(WRITE_BLOCK_SIZE));
                     }
+                    if (config.containsKey(STORAGE_ENGINE)) {
+                        relevantConfigs.put(STORAGE_ENGINE, config.get(STORAGE_ENGINE));
+                    }
+
                 }
 
-                if (!relevantConfigs.containsKey(MAX_RECORD_SIZE) || !relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
-                    throw new RuntimeException("Failed to determine " + MAX_RECORD_SIZE + " or " + WRITE_BLOCK_SIZE +
-                            " configuration values from Aerospike cluster.");
-                }
-
-                if (relevantConfigs.get(MAX_RECORD_SIZE) == 0) {
-                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size
-                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(WRITE_BLOCK_SIZE));
+                if (relevantConfigs.containsKey(MAX_RECORD_SIZE) && Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)) != 0) {
+                    maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)));
+                } else if (relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
+                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size instead
+                    maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(WRITE_BLOCK_SIZE)));
+                } else if (STORAGE_ENGINE_PMEM.equals(relevantConfigs.get(STORAGE_ENGINE)) ||
+                        STORAGE_ENGINE_MEMORY.equals(relevantConfigs.get(STORAGE_ENGINE))) {
+                    // These storage types are hard-coded to 8MiB
+                    LOG.info("Storage type \"" + relevantConfigs.get(STORAGE_ENGINE) + "\" detected. Using maximum record size of 8MiB.");
+                    maxRecordSize = Long.min(maxRecordSize, 8388608);
                 } else {
-                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(MAX_RECORD_SIZE));
+                    LOG.warn("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
+                    maxRecordSize = Long.min(maxRecordSize, 1048576);
                 }
             }
 

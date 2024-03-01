@@ -90,10 +90,11 @@ public abstract class PageFetcher<E> {
     }
 
     public class PageIterator implements CloseableIterator<E> {
-        CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
-        boolean isEmpty = false;
-        boolean isClosed = false;
-        String error = "";
+        private static final String NO_ERROR = "";
+        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
+        private boolean isEmpty = false;
+        private boolean isClosed = false;
+        private String error = NO_ERROR;
 
         private void removePage() {
             // Check if possible.
@@ -154,7 +155,7 @@ public abstract class PageFetcher<E> {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
-                if (!"".equals(error)) {
+                if (!NO_ERROR.equals(error)) {
                     throw new RuntimeException(error);
                 }
                 return transformKeyRecord.transform(currentIterator.next());

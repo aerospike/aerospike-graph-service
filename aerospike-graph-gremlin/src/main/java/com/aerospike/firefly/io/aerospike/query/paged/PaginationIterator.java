@@ -15,7 +15,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     private CountDownLatch latch = new CountDownLatch(1);
     private final Object lock = new Object();
     private final FireflyGraph graph;
-    final Runnable closeCallback;
+    private final Runnable closeCallback;
 
     public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback) {
         this.graph = graph;

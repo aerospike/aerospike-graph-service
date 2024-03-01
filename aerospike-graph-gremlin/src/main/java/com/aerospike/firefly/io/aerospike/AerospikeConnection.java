@@ -1249,7 +1249,7 @@ public class AerospikeConnection implements AutoCloseable {
             return value;
         }
         if (typeHint instanceof ArrayList) {
-            final ArrayList<Object> valueList = (ArrayList<Object>) value;
+            final ArrayList<Object> valueList = new ArrayList<>((ArrayList<Object>) value);
             final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
             for (final Long index : integerIndices) {
                 valueList.set(index.intValue(), ((Long) valueList.get(index.intValue())).intValue());

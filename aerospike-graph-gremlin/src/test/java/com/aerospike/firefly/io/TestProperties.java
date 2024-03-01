@@ -485,6 +485,11 @@ public class TestProperties {
         returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
         assertListPropertyValue(listValue, returnedListValue);
 
+        // Check Int Casting in a List when accessed more than once
+        final Vertex v = g.V().hasLabel("person").next();
+        v.properties();
+        v.properties();
+
         // Vertex Property Property
         g.V().hasLabel("person").property("vpp", "vpp").iterate();
         g.V().hasLabel("person").properties("vpp").property("listProperty", listValue).iterate();

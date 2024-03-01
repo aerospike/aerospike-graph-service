@@ -4,10 +4,12 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
+import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -70,7 +72,8 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
-import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOW_DETACHED_EDGES;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
@@ -111,6 +114,7 @@ public class EdgeOperations implements Serializable {
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final long allowBadEntryCount = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
 
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
@@ -139,9 +143,16 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
-                    final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
-                            fireflyRow, metadataRow, usePersistedEdgeId);
-                    futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
+                    try {
+                        final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                                providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
+                                metadataRow, usePersistedEdgeId);
+                        futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
+                    } catch (final FireflyBulkLoaderException e) {
+                        if (allowBadEntryCount == 0) {
+                            throw e;
+                        }
+                    }
                 }
 
                 LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
@@ -170,14 +181,14 @@ public class EdgeOperations implements Serializable {
     private void writeEdgeCacheToDB(final FireflyGraph graph,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
-        final boolean allowDetachedEdges = this.config.hasAction(ALLOW_DETACHED_EDGES);
+        final long allowedDetachedEdges = Long.valueOf(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
         final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, allowDetachedEdges, invalidEdgeIds);
-        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, allowDetachedEdges, invalidEdgeIds);
+        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, allowedDetachedEdges, invalidEdgeIds);
+        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, allowedDetachedEdges, invalidEdgeIds);
 
-        if (allowDetachedEdges && !invalidEdgeIds.isEmpty()) {
-            GraphOperations.dropDetachedEdges(graph, invalidEdgeIds);
+        if (!invalidEdgeIds.isEmpty()) {
+            GraphOperations.dropDetachedEdges(graph, invalidEdgeIds, allowedDetachedEdges);
         }
     }
 
@@ -343,8 +354,17 @@ public class EdgeOperations implements Serializable {
 
     public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
         if (this.config.hasAction(VERIFY_OUTPUT_DATA) &&
-                !this.config.hasAction(DISABLE_EDGE_WRITE) &&
-                !this.config.hasAction(ALLOW_DETACHED_EDGES)) {
+                !this.config.hasAction(DISABLE_EDGE_WRITE)) {
+            final long allowedDetachedEdges = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
+            if (allowedDetachedEdges > 0) {
+                LOGGER.warn(ALLOWED_BAD_EDGES_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
+                return;
+            }
+            final long allowBadEntries = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+            if (allowBadEntries > 0) {
+                LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
+                return;
+            }
             final String taskName = "Verify Edges";
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
             LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");

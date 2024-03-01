@@ -139,7 +139,7 @@ public abstract class PageFetcher<E> {
 
             while (!currentIterator.hasNext()) {
                 removePage();
-                if (!"".equals(error)) {
+                if (!NO_ERROR.equals(error)) {
                     return true;
                 }
                 if (isEmpty) {

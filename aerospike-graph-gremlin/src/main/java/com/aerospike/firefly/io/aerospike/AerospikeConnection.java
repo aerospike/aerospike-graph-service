@@ -769,7 +769,7 @@ public class AerospikeConnection implements AutoCloseable {
                     LOG.info("Storage type \"" + relevantConfigs.get(STORAGE_ENGINE) + "\" detected. Using maximum record size of 8MiB.");
                     maxRecordSize = Long.min(maxRecordSize, 8388608);
                 } else {
-                    LOG.error("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
+                    LOG.warn("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
                     maxRecordSize = Long.min(maxRecordSize, 1048576);
                 }
             }

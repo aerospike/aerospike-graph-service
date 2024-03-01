@@ -22,6 +22,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final Filter filter, final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
+        this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
         this.statement.setSetName(setName);
@@ -40,13 +41,12 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph);
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
 
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
-            Thread.currentThread().interrupt();
         }
         while (recordSetIterator.hasNext()) {
             pi.add(recordSetIterator.next());

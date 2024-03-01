@@ -33,7 +33,8 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                            final int maxQueueSize, final int maxPageSize, final String mapKey, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
-        policy.maxRecords = maxPageSize;
+        this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
+        this.policy.maxRecords = maxPageSize;
         this.namespace = namespace;
         this.set = setName;
         this.scanHitCounter = graph.getBaseGraph().getScanHitCounter();
@@ -60,25 +61,30 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
             pageQueue.put(new Page(listener.paginationIterator));
             while (!done.get()) {
                 // Monitor max wait to write to pagination queue.
-                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_WRITE_MAX_WAIT, TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT, TimeUnit.MILLISECONDS);
                 if (!succeeded) {
-                    signalError("Failed to scan page: Timed out waiting for scan to complete.");
+                    listener.error("Failed to scan page: Timed out waiting for scan to complete.");
+                    break;
                 }
             }
         } catch (final InterruptedException e) {
             signalError("Error waiting for scan to complete: " + e.getMessage());
-            Thread.currentThread().interrupt();
         }
     }
 
     class ScanPageFetcherRecordSequenceListener implements RecordSequenceListener {
-        final PaginationIterator<KeyRecord> paginationIterator = new PaginationIterator<>(graph);
+        final PaginationIterator<KeyRecord> paginationIterator;
         final AtomicBoolean done;
         final CountDownLatch latch;
 
         ScanPageFetcherRecordSequenceListener(final AtomicBoolean done, final CountDownLatch latch) {
             this.done = done;
             this.latch = latch;
+            this.paginationIterator = new PaginationIterator<>(graph, () -> {
+                if (!done.get()) {
+                    closeCallback();
+                }
+            });
         }
 
         @Override
@@ -95,10 +101,39 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
 
         @Override
         public void onFailure(final AerospikeException exception) {
-            signalError("Failed to scan page: " + exception.getMessage());
+            synchronized (done) {
+                if (done.get()) {
+                    return;
+                }
+            }
+            if (exception instanceof AerospikeException.ScanTerminated) {
+                LOG.debug("Scan terminated.");
+            } else {
+                signalError("Failed to scan page: " + exception.getMessage());
+            }
             done.set(true);
             latch.countDown();
             paginationIterator.close();
+        }
+
+        public void closeCallback() {
+            synchronized (done) {
+                shutdown();
+                done.set(true);
+                latch.countDown();
+                paginationIterator.close();
+                onFailure(new AerospikeException.ScanTerminated());
+            }
+        }
+
+        public void error(final String message) {
+            synchronized (done) {
+                signalError(message);
+                done.set(true);
+                latch.countDown();
+                paginationIterator.close();
+                onFailure(new AerospikeException.ScanTerminated());
+            }
         }
     }
 }

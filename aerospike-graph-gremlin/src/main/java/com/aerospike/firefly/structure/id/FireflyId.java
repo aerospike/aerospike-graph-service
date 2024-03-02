@@ -24,6 +24,8 @@ public abstract class FireflyId implements Comparable {
 
     public abstract String getKeyHashBase64();
 
+    public abstract String getKeyHashString();
+
 
     @Override
     public int hashCode() {

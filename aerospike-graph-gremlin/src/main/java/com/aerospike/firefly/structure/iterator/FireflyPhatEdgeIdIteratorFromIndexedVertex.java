@@ -7,7 +7,6 @@ import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -46,11 +45,11 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
             directionKey = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
         }
 
-        final Map<ByteBuffer, byte[]> edgeIdToVertexIdMap = (Map<ByteBuffer, byte[]>) record.getMap(directionKey);
+        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
 
         final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
-        for (final Map.Entry<ByteBuffer, byte[]> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
-            if (Arrays.equals(edgeIdToVertexId.getValue(), this.vertexId.getKeyHash())) {
+        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
+            if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashString())) {
                 attachedEdgeIds.add(edgeIdToVertexId.getKey());
             }
         }

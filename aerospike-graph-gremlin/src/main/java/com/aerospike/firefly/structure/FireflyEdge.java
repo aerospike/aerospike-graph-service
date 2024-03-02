@@ -153,18 +153,18 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         // Add label to Edge data.
         edgeData.add(LABEL_POSITION, Value.get(label));
         // Add IN and OUT to Edge data.
-        edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getKeyHash()));
-        edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHash()));
+        edgeData.add(IN_V_POSITION, Value.get(inVertex.id.getKeyHashString()));
+        edgeData.add(OUT_V_POSITION, Value.get(outVertex.id.getKeyHashString()));
 
         // Write to supernodes bin if vertex cache overflowed.
         if (!inVertexCacheWrite) {
             final Operation writeInVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_IN_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHash()));
+                    Value.get(edgeId.getUserId()), Value.get(inVertex.id.getKeyHashString()));
             operations.add(writeInVSupernode);
         }
         if (!outVertexCacheWrite) {
             final Operation writeOutVSupernode = MapOperation.put(edgeMapPolicy, db.SUPERNODES_OUT_BIN,
-                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHash()));
+                    Value.get(edgeId.getUserId()), Value.get(outVertex.id.getKeyHashString()));
             operations.add(writeOutVSupernode);
         }
 
@@ -648,11 +648,11 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
             }
             final String label = (String) edgeData.get(edgeIdMapKey).get(LABEL_POSITION);
 
-            final byte[] outVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(OUT_V_POSITION);
-            final FireflyId outVertex = FireflyIdPoly.fromHash(outVBytes, db.VERTEX_AERO_SET);
+            final String outV = (String) edgeData.get(edgeIdMapKey).get(OUT_V_POSITION);
+            final FireflyId outVertex = FireflyIdPoly.fromHashString(outV, db.VERTEX_AERO_SET);
 
-            final byte[] inVBytes = (byte[]) edgeData.get(edgeIdMapKey).get(IN_V_POSITION);
-            final FireflyId inVertex = FireflyIdPoly.fromHash(inVBytes, db.VERTEX_AERO_SET);
+            final String inV = (String) edgeData.get(edgeIdMapKey).get(IN_V_POSITION);
+            final FireflyId inVertex = FireflyIdPoly.fromHashString(inV, db.VERTEX_AERO_SET);
 
             final Map<String, Object> properties = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(PROPERTIES_POSITION);
             final Map<String, Object> typeHints = (Map<String, Object>) edgeData.get(edgeIdMapKey).get(TYPE_HINTS_POSITION);

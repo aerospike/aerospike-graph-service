@@ -36,23 +36,23 @@ public class FireflyAerospikeVersionCheckTest {
 
     @Test
     public void testVersion() {
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 3, ""))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 0, 8, ""))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 1, 0, ""))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 3, 0, 0, ""))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(8, 0, 0, 0, ""))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 3, "-RC1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 0, 8, "-RC1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 1, 0, "-RC1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 3, 0, 0, "-RC1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(8, 0, 0, 0, "-RC1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 3, "_1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 0, 8, "_1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 2, 1, 0, "_1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 3, 0, 0, "_1"))));
-        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(8, 0, 0, 0, "_1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 7, ""))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 8, ""))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 1, 0, ""))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 3, 0, 0, ""))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 0, ""))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 7, "-RC1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 8, "-RC1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 1, 0, "-RC1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 3, 0, 0, "-RC1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 0, "-RC1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 7, "_1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 0, 8, "_1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 2, 1, 0, "_1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6, 3, 0, 0, "_1"))));
+        Assert.assertTrue(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7, 0, 0, 0, "_1"))));
 
-        Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(7,0,0,2,""))));
+        Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6,2,0,6,""))));
         Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6,1,0,7,""))));
         Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(5,1,0,7,""))));
         Assert.assertFalse(FireflyAerospikeVersionCheck.validateVersion(new FireflyAerospikeVersionCheck(getVersionString(6,2,0,6,"-RC1"))));

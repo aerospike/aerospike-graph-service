@@ -1,9 +1,7 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
+
 
 import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.client.query.KeyRecord;
@@ -13,13 +11,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
     private static final Logger LOG = LoggerFactory.getLogger(SindexPageFetcher.class);
@@ -30,6 +22,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
                              final Filter filter, final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
         super(graph, maxQueueSize, transformKeyRecord);
         this.policy = policy;
+        this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
         this.statement = new Statement();
         this.statement.setNamespace(namespace);
         this.statement.setSetName(setName);
@@ -48,13 +41,12 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         }
 
         final Iterator<KeyRecord> recordSetIterator = recordSet.iterator();
-        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph);
+        final PaginationIterator<KeyRecord> pi = new PaginationIterator<>(graph, recordSet::close);
 
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
             signalError("Failed to add page to queue: " + e.getMessage());
-            Thread.currentThread().interrupt();
         }
         while (recordSetIterator.hasNext()) {
             pi.add(recordSetIterator.next());

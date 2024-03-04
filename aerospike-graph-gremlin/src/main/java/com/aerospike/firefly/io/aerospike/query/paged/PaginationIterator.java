@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.firefly.structure.FireflyGraph;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
@@ -15,9 +15,11 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
     private CountDownLatch latch = new CountDownLatch(1);
     private final Object lock = new Object();
     private final FireflyGraph graph;
+    private final Runnable closeCallback;
 
-    public PaginationIterator(final FireflyGraph graph) {
+    public PaginationIterator(final FireflyGraph graph, final Runnable closeCallback) {
         this.graph = graph;
+        this.closeCallback = closeCallback;
     }
 
     @Override
@@ -32,14 +34,13 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
                 }
             }
             try {
-                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_READ_MAX_WAIT, TimeUnit.MILLISECONDS);
+                boolean succeeded = latch.await(graph.getBaseGraph().PAGINATION_PAGE_MAX_WAIT, TimeUnit.MILLISECONDS);
                 if (!succeeded) {
                     throw new RuntimeException("Timeout waiting for more records in PaginationIterator. " +
                             "State: " + isClosed + " " + queue.isEmpty() + ".");
                 }
             } catch (final InterruptedException e) {
                 // Unexpected interrupt, just go back to waiting.
-                Thread.currentThread().interrupt();
             }
         }
         return true;
@@ -62,6 +63,7 @@ public class PaginationIterator<E> implements CloseableIterator<E> {
             }
             latch.countDown();
         }
+        closeCallback.run();
     }
 
     public void add(final E e) {

@@ -8,7 +8,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.runtime.PrometheusMetricsServer;
+import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
 
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
 import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.BULK_LOAD_SUCCESS;
+import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.formatErrorCount;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
@@ -114,12 +116,13 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
             spark.sparkContext().setLogLevel(logLevel);
 
-            final FireflyGraph initializerGraph = FireflyGraph.open(new MapConfiguration(fileConfig));
+            final FireflyGraph initializerGraph = FireflyGraph.open(config.getFireflyConfig());
             if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) && !config.hasAction(DISABLE_VERTEX_WRITE)) {
                 // If we're doing partial writing checking the emptiness of the database isn't valid.
                 LOGGER.error(DATABASE_NOT_EMPTY);
                 throw new RuntimeException(DATABASE_NOT_EMPTY);
             }
+            initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
 
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
@@ -203,6 +206,11 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setEdgeValidationComplete();
             edgeDataset.unpersist();
 
+            final String output = formatErrorCount(initializerGraph);
+            if (!output.equals(BULK_LOAD_SUCCESS)) {
+                LOGGER.warn(output);
+            }
+
             // Stop spark session
             spark.stop();
         } finally {
@@ -213,7 +221,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             if (PROGRESS_BAR != null) {
                 PROGRESS_BAR.close();
             }
-            PrometheusMetricsServer.close();
+            HttpServer.close();
         }
     }
 

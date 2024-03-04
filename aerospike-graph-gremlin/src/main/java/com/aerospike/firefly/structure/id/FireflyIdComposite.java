@@ -4,6 +4,7 @@ import com.aerospike.client.util.Crypto;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -102,6 +103,11 @@ public class FireflyIdComposite extends FireflyId {
     @Override
     public byte[] getKeyHash() {
         return getEdgeId().getKeyHash();
+    }
+
+    @Override
+    public String getKeyHashString() {
+        return new String(getKeyHash(), StandardCharsets.ISO_8859_1);
     }
 
     @Override

@@ -75,7 +75,7 @@ namespace test {
 	replication-factor 2
 	default-ttl 0
 	nsup-period 120
-
+	memory-size 3G
 	storage-engine device {
 		file /opt/aerospike/data/test.dat
 		filesize 128G

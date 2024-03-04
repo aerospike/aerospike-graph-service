@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step;
 
 import com.aerospike.client.Key;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
@@ -189,10 +190,10 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final P<?> predicate = P.eq(value);
                         if (propertyIndexInfo.isPresent()) {
-                            results.add(graph.query.getPagedSindex(propertyIndexInfo.get(), predicate, graph::vertexFromRecord));
+                            results.add(GraphQuery.create(graph).querySIndex(propertyIndexInfo.get(), predicate, graph::vertexFromRecord));
                         } else {
                             LOG.debug("No index found for vertex label, running scan");
-                            results.add(graph.query.getPagedScan(null, graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate, graph::vertexFromRecord));
+                            results.add(GraphQuery.create(graph).scanSet(null, graph.getBaseGraph().VERTEX_AERO_SET,graph.getBaseGraph().LABEL_BIN, predicate, graph::vertexFromRecord));
                         }
                     } else {
                         results.add(graph.vertices());
@@ -206,10 +207,10 @@ public class FireflyMergeVertexStep<S> extends FlatMapStep<S, Vertex> implements
                         // If we have index, query it, otherwise we need to scan (or error out).
                         final Iterator<? extends Vertex> iterator;
                         if (propertyIndexInfo.isPresent()) {
-                            iterator = graph.query.getPagedSindex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
+                            iterator = GraphQuery.create(graph).querySIndex(propertyIndexInfo.get(), P.eq(value), graph::vertexFromRecord);
                         } else {
                             LOG.debug("No index found for key {} and value {}, running scan", key.toString(), value);
-                            iterator = graph.query.getPagedScan(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value), graph::vertexFromRecord);
+                            iterator = GraphQuery.create(graph).scanSet(key.toString(), graph.getBaseGraph().VERTEX_AERO_SET, graph.getBaseGraph().VERTEX_PROPERTY_NAME_TO_VALUE_BIN, P.eq(value), graph::vertexFromRecord);
                         }
                         results.add(iterator);
                     } else {

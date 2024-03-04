@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.client.Value;
 import com.aerospike.client.cdt.CTX;
@@ -136,7 +136,7 @@ public class GraphQueryHelper {
         return exps.length == 1 ? Exp.build(exps[0]) : Exp.build(Exp.and(exps));
     }
 
-    static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
+    public static Exp[] hasContainerListToExpArray(final AerospikeConnection db, final List<HasContainer> hasContainers, final Class<? extends FireflyElement> clazz) {
         // If the key is ~label, then bin name is label, else it depends on whether this is vertex or edge.
         if (!FireflyVertex.class.isAssignableFrom(clazz)) {
             throw new IllegalArgumentException("Cannot push predicates down to: " + clazz);

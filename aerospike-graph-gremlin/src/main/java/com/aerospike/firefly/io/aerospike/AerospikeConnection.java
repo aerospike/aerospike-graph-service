@@ -129,6 +129,10 @@ public class AerospikeConnection implements AutoCloseable {
     public final String INDEX_METADATA_SET;
 
     public final String GRAPH_METADATA_SET;
+    public final String BULK_LOAD_METADATA_SET;
+    public final String BULK_LOAD_DUPLICATE_VID_SET;
+    public final String BULK_LOAD_BAD_EDGE_SET;
+    public final String BULK_LOAD_BAD_ENTRY_SET;
     public final String GRAPH_VARIABLES_SET;
     public final Object GRAPH_VARIABLES_REC_KEY;
     public final String GRAPH_VARIABLES_BIN;
@@ -158,6 +162,8 @@ public class AerospikeConnection implements AutoCloseable {
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
+    public final String BL_ROW_BIN;
+    public final String BL_FILE_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
     public final ThreadLocal<FireflyCache> transactionCache = new ThreadLocal<>();
     public final ThreadLocal<ScanHitCounter> scanHitCounterThreadLocal = new ThreadLocal<>();
@@ -179,10 +185,16 @@ public class AerospikeConnection implements AutoCloseable {
     public final long VERTEX_ID_BUFFER_SIZE;
     public final long EDGE_ID_BUFFER_SIZE;
     public final int CONNECT_TIMEOUT;
+    public final int AEROSPIKE_SOCKET_TIMEOUT;
     public final int TIMEOUT_DELAY;
     public final long USAGE_STATS_UPDATE_INTERVAL;
     public final boolean WARMUP_MODE;
     public final boolean PROMETHEUS_RENAME_ENABLED;
+
+    // Bulk Loader fields
+    public final Object BL_DUPLICATE_VERTEX_COUNT_KEY;
+    public final Object BL_BAD_EDGES_COUNT_KEY;
+    public final Object BL_BAD_ENTRY_COUNT_KEY;
 
     public static final AtomicLong instanceCounter = new AtomicLong(0);
 
@@ -200,9 +212,9 @@ public class AerospikeConnection implements AutoCloseable {
     public final boolean ENABLE_BATCHED_REPEAT_STEP_STRATEGY;
     public final int PAGINATION_PAGE_QUEUE_SIZE;
     public final int PAGINATION_PAGE_SIZE;
-    public final int PAGINATION_PAGE_READ_MAX_WAIT;
-    public final int PAGINATION_PAGE_WRITE_MAX_WAIT;
+    public final int PAGINATION_PAGE_MAX_WAIT;
 
+    public final String QUERY_IMPL;
     public Policy getPolicy() {
         final Policy policy = new Policy();
         policy.connectTimeout = this.CONNECT_TIMEOUT;
@@ -338,11 +350,13 @@ public class AerospikeConnection implements AutoCloseable {
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
         PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
-        PAGINATION_PAGE_READ_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_READ_MAX_WAIT, conf));
-        PAGINATION_PAGE_WRITE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_WRITE_MAX_WAIT, conf));
+        PAGINATION_PAGE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf));
         PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
+        BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);
+        BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
+        BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
         AEROSPIKE_WRITE_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf));
 
@@ -363,6 +377,10 @@ public class AerospikeConnection implements AutoCloseable {
         USAGE_STATS_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.USAGE_STATS_SET.name(), conf);
         INDEX_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.INDEX_METADATA_SET.name(), conf);
         USER_SUPPLIED_ID_CACHE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.USER_SUPPLIED_ID_CACHE_SET.name(), conf);
+        BULK_LOAD_METADATA_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_METADATA_SET.name(), conf);
+        BULK_LOAD_DUPLICATE_VID_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_DUPLICATE_VID_SET.name(), conf);
+        BULK_LOAD_BAD_EDGE_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_EDGE_SET.name(), conf);
+        BULK_LOAD_BAD_ENTRY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.BULK_LOAD_BAD_ENTRY_SET.name(), conf);
 
         E_IN_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_IN_INDEX_NAME.name(), conf));
         E_OUT_INDEX_NAME = String.format("%s_%s", GRAPH_ID, ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.E_OUT_INDEX_NAME.name(), conf));
@@ -389,6 +407,8 @@ public class AerospikeConnection implements AutoCloseable {
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);
         USAGE_STATS_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USAGE_STATS_BIN.name(), conf);
         EDGE_DATA_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.EDGE_DATA_BIN.name(), conf);
+        BL_ROW_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_ROW_BIN.name(), conf);
+        BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
 
         AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
         FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
@@ -399,11 +419,14 @@ public class AerospikeConnection implements AutoCloseable {
         VERTEX_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf));
         EDGE_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf));
 
+        AEROSPIKE_SOCKET_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf));
         CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
         TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
         USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
         WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
         PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
+
+        QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
         cacheTasks = new ArrayList<>();
         idFactory = FireflyIdFactory.create(this);
@@ -627,7 +650,10 @@ public class AerospikeConnection implements AutoCloseable {
         }
 
         private static final String MAX_RECORD_SIZE = "max-record-size";
+        private static final String STORAGE_ENGINE = "storage-engine";
         private static final String WRITE_BLOCK_SIZE = "storage-engine.write-block-size";
+        private static final String STORAGE_ENGINE_PMEM = "pmem";
+        private static final String STORAGE_ENGINE_MEMORY = "memory";
 
         //Parse the whole infoResponse and return it as a List of Maps
         public static List<Map<String, String>> parseRaw(String infoResponse) {
@@ -738,26 +764,33 @@ public class AerospikeConnection implements AutoCloseable {
             for (final Node node : nodes) {
                 final String infoResponse = Info.request(new InfoPolicy(), node, requestKey);
                 final List<Map<String, String>> listOfConfigs = parseRaw(infoResponse);
-                final Map<String, Long> relevantConfigs = new HashMap<>();
+                final Map<String, String> relevantConfigs = new HashMap<>();
                 for (final Map<String, String> config : listOfConfigs) {
                     if (config.containsKey(MAX_RECORD_SIZE)) {
-                        relevantConfigs.put(MAX_RECORD_SIZE, Long.valueOf(config.get(MAX_RECORD_SIZE)));
+                        relevantConfigs.put(MAX_RECORD_SIZE, config.get(MAX_RECORD_SIZE));
                     }
                     if (config.containsKey(WRITE_BLOCK_SIZE)) {
-                        relevantConfigs.put(WRITE_BLOCK_SIZE, Long.valueOf(config.get(WRITE_BLOCK_SIZE)));
+                        relevantConfigs.put(WRITE_BLOCK_SIZE, config.get(WRITE_BLOCK_SIZE));
                     }
+                    if (config.containsKey(STORAGE_ENGINE)) {
+                        relevantConfigs.put(STORAGE_ENGINE, config.get(STORAGE_ENGINE));
+                    }
+
                 }
 
-                if (!relevantConfigs.containsKey(MAX_RECORD_SIZE) || !relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
-                    throw new RuntimeException("Failed to determine " + MAX_RECORD_SIZE + " or " + WRITE_BLOCK_SIZE +
-                            " configuration values from Aerospike cluster.");
-                }
-
-                if (relevantConfigs.get(MAX_RECORD_SIZE) == 0) {
-                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size
-                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(WRITE_BLOCK_SIZE));
+                if (relevantConfigs.containsKey(MAX_RECORD_SIZE) && Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)) != 0) {
+                    maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(MAX_RECORD_SIZE)));
+                } else if (relevantConfigs.containsKey(WRITE_BLOCK_SIZE)) {
+                    // When max-record-size is 0, it means that it was not set and will use the value of write-block-size instead
+                    maxRecordSize = Long.min(maxRecordSize, Long.parseLong(relevantConfigs.get(WRITE_BLOCK_SIZE)));
+                } else if (STORAGE_ENGINE_PMEM.equals(relevantConfigs.get(STORAGE_ENGINE)) ||
+                        STORAGE_ENGINE_MEMORY.equals(relevantConfigs.get(STORAGE_ENGINE))) {
+                    // These storage types are hard-coded to 8MiB
+                    LOG.info("Storage type \"" + relevantConfigs.get(STORAGE_ENGINE) + "\" detected. Using maximum record size of 8MiB.");
+                    maxRecordSize = Long.min(maxRecordSize, 8388608);
                 } else {
-                    maxRecordSize = Long.min(maxRecordSize, relevantConfigs.get(MAX_RECORD_SIZE));
+                    LOG.warn("Unexpected failure to determine maximum record size based on Aerospike configuration. Falling back to maximum record size of 1MiB.");
+                    maxRecordSize = Long.min(maxRecordSize, 1048576);
                 }
             }
 
@@ -914,10 +947,10 @@ public class AerospikeConnection implements AutoCloseable {
         // Blocking call for supernode indexes since graph doesn't function without.
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 E_IN_INDEX_NAME, SUPERNODES_IN_BIN,
-                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+                IndexType.STRING, IndexCollectionType.MAPVALUES);
         createIndex(existingIndexes, setFromElementType(FireflyEdge.class),
                 E_OUT_INDEX_NAME, SUPERNODES_OUT_BIN,
-                IndexType.BLOB, IndexCollectionType.MAPVALUES);
+                IndexType.STRING, IndexCollectionType.MAPVALUES);
 
         // Blocking call for ttl indexes since graph doesn't function without.
         if (TTL_ENABLED_FLAG) {
@@ -1246,7 +1279,7 @@ public class AerospikeConnection implements AutoCloseable {
             return value;
         }
         if (typeHint instanceof ArrayList) {
-            final ArrayList<Object> valueList = (ArrayList<Object>) value;
+            final ArrayList<Object> valueList = new ArrayList<>((ArrayList<Object>) value);
             final ArrayList<Long> integerIndices = (ArrayList<Long>) typeHint;
             for (final Long index : integerIndices) {
                 valueList.set(index.intValue(), ((Long) valueList.get(index.intValue())).intValue());
@@ -1402,6 +1435,7 @@ public class AerospikeConnection implements AutoCloseable {
             client.truncate(null, namespace, OUT_VP_SET, null);
             client.truncate(null, namespace, IN_VP_SET, null);
             client.truncate(null, namespace, SUMMARY_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_METADATA_SET, null);
 
             // Note - we do not delete the id manager set here. This is because Firefly instances hold a reference to the
             // id manager set and if we delete it here, they will likely insert a record with the same id as the one
@@ -1594,6 +1628,51 @@ public class AerospikeConnection implements AutoCloseable {
                     throw ae;
             }
         }
+    }
+
+    /**
+     * Initialize the metadata set for bulk loading
+     */
+    public void initialzeBulkLoadMetadata() {
+        final Key duplicateVertexIdCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_DUPLICATE_VERTEX_COUNT_KEY));
+        final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
+        final Key badEntryCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_ENTRY_COUNT_KEY));
+
+        final Bin zeroValue = new Bin(COUNTER_BIN, 0L);
+        final Operation zeroCounter = Operation.put(zeroValue);
+        this.operate(null, duplicateVertexIdCountKey, zeroCounter);
+        this.operate(null, badEdgeCountKey, zeroCounter);
+        this.operate(null, badEntryCountKey, zeroCounter);
+
+        try {
+            client.truncate(null, namespace, BULK_LOAD_DUPLICATE_VID_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_BAD_EDGE_SET, null);
+            client.truncate(null, namespace, BULK_LOAD_BAD_ENTRY_SET, null);
+            Thread.sleep(1);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public long incrementAndGetBadEdgeCount(final long amount) {
+        final Key badEdgeCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_EDGES_COUNT_KEY));
+        final Bin addBin = new Bin(COUNTER_BIN, amount);
+        final Record record = this.operate(null, badEdgeCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        return record.getLong(COUNTER_BIN);
+    }
+
+    public long incrementAndGetDuplicateVertexIdCount(final long amount) {
+        final Key badVertexIdCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_DUPLICATE_VERTEX_COUNT_KEY));
+        final Bin addBin = new Bin(COUNTER_BIN, amount);
+        final Record record = this.operate(null, badVertexIdCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        return record.getLong(COUNTER_BIN);
+    }
+
+    public long incrementAndGetBadEntryCount(final long amount) {
+        final Key badEntryCountKey = new Key(namespace, BULK_LOAD_METADATA_SET, Value.get(BL_BAD_ENTRY_COUNT_KEY));
+        final Bin addBin = new Bin(COUNTER_BIN, amount);
+        final Record record = this.operate(null, badEntryCountKey, Operation.add(addBin), Operation.get(COUNTER_BIN));
+        return record.getLong(COUNTER_BIN);
     }
 
     @Override

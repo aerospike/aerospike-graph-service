@@ -34,7 +34,8 @@ import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.OperationReturnHandler;
-import com.aerospike.firefly.io.aerospike.pagination.GraphQueryHelper;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.TtlNotEnabledException;
@@ -824,17 +825,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         queryPolicy.includeBinData = true;
         final Iterator<KeyRecord> keyRecordIterator;
         if (direction == Direction.OUT) {
-            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
-                    IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
+            keyRecordIterator = GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+                    IndexCollectionType.MAPVALUES, id.getKeyHashString()), queryPolicy);
         } else if (direction == Direction.IN) {
-            keyRecordIterator = graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
-                    IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy);
+            keyRecordIterator = GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+                    IndexCollectionType.MAPVALUES, id.getKeyHashString()), queryPolicy);
         } else {
             return FireflyCloseableIteratorUtils.concat(
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(graph.query.getPagedSindex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
-                            IndexCollectionType.MAPVALUES, id.getKeyHash()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_OUT_INDEX_NAME, Filter.contains(db.SUPERNODES_OUT_BIN,
+                            IndexCollectionType.MAPVALUES, id.getKeyHashString()), queryPolicy), this.db, Direction.OUT, this.id, labels, outputType),
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
+                            IndexCollectionType.MAPVALUES, id.getKeyHashString()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
         return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
     }

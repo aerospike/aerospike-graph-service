@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike.pagination;
+package com.aerospike.firefly.io.aerospike.query.paged;
 
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.PartitionFilter;
@@ -90,9 +90,11 @@ public abstract class PageFetcher<E> {
     }
 
     public class PageIterator implements CloseableIterator<E> {
-        CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
-        boolean isEmpty = false;
-        boolean isClosed = false;
+        private static final String NO_ERROR = "";
+        private CloseableIterator<KeyRecord> currentIterator = FireflyCloseableIterator.EmptyCloseableIterator.instance();;
+        private boolean isEmpty = false;
+        private boolean isClosed = false;
+        private String error = NO_ERROR;
 
         private void removePage() {
             // Check if possible.
@@ -110,13 +112,18 @@ public abstract class PageFetcher<E> {
                     isEmpty = true;
                     return;
                 } else if (page instanceof ErrorPage) {
-                    throw new RuntimeException(((ErrorPage) page).errorMessage);
+                    error = ((ErrorPage) page).errorMessage;
+                    return;
                 }
 
                 currentIterator = page.keyRecords;
             } catch (final InterruptedException e) {
-                LOG.error("Error removing page.", e);
-                Thread.currentThread().interrupt();
+                final StringBuilder err = new StringBuilder("Error thread interrupted while removing page:\n");
+                final StackTraceElement[] stackTraceElements = e.getStackTrace();
+                for (final StackTraceElement stackTraceElement : stackTraceElements) {
+                    err.append("\t").append(stackTraceElement.toString()).append("\n");
+                }
+                error = err.toString();
             }
         }
 
@@ -132,6 +139,9 @@ public abstract class PageFetcher<E> {
 
             while (!currentIterator.hasNext()) {
                 removePage();
+                if (!NO_ERROR.equals(error)) {
+                    return true;
+                }
                 if (isEmpty) {
                     return false;
                 }
@@ -145,6 +155,9 @@ public abstract class PageFetcher<E> {
             if (!hasNext()) {
                 throw new NoSuchElementException();
             } else {
+                if (!NO_ERROR.equals(error)) {
+                    throw new RuntimeException(error);
+                }
                 return transformKeyRecord.transform(currentIterator.next());
             }
         }
@@ -154,6 +167,32 @@ public abstract class PageFetcher<E> {
             if (!isClosed) {
                 isClosed = true;
                 shutdown();
+
+                // Clean up any remaining pages.
+                if (currentIterator != null) {
+                    currentIterator.close();
+                }
+
+                // Technically there's a race condition that we signal for read loop to shutdown above,
+                // the read loop hasn't gotten this yet and goes to start a new page, we dump our queue here
+                // and the read loop adds a new page after we exit.
+                // The effect of this is a single page in the queue that will never be read and will garbage collect
+                // later and a single page of reading happening in the background.
+                // The logic to fix that is quite a bit extra so this is an okay compromise to keep things simpler.
+                while (!pageQueue.isEmpty()) {
+                    try {
+                        final Page page = pageQueue.remove();
+                        if (!(page instanceof ErrorPage || page instanceof PoisonPill)) {
+                            if (page.keyRecords != null) {
+                                page.keyRecords.close();
+                            }
+                        }
+                    } catch (final NoSuchElementException e) {
+                        // Should never happen since we check isEmpty() first. Don't want to propagate this exception.
+                        // Log warning in case it does happen we can investigate.
+                        LOG.warn("Successfully recovered from NoSuchElementException while closing page iterator.", e);
+                    }
+                }
             }
         }
     }
@@ -167,10 +206,9 @@ public abstract class PageFetcher<E> {
         try {
             LOG.error(error);
             shutdown();
-            pageQueue.put(new ErrorPage("Error reading index query: " + error));
+            pageQueue.put(new ErrorPage("Error reading query: " + error));
         } catch (final InterruptedException e2) {
             LOG.error("Error adding signalling error to iterator.", e2);
-            Thread.currentThread().interrupt();
         }
     }
 }

@@ -506,7 +506,7 @@ public final class ConfigurationHelper {
             }
         }
         if (!invalidKeys.isEmpty()) {
-            LOG.info(UNKNOWN_KEY_MESSAGE + invalidKeys);
+            throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
         }
     }
 }

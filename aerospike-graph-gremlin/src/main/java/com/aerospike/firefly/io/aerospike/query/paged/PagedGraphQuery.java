@@ -77,7 +77,8 @@ public class PagedGraphQuery implements GraphQuery {
                                        final Filter filter,
                                        final QueryPolicy policy,
                                        final FireflyGraph.TransformKeyRecord<E> transformKeyRecord) {
-        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter, db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord);
+        final PageFetcher<E> pageFetcher = new SindexPageFetcher<>(graph, policy, setName, db.getNamespace(), filter,
+                db.PAGINATION_PAGE_QUEUE_SIZE, db.PAGINATION_PAGE_SIZE, transformKeyRecord, indexName);
         return pageFetcher.startQuery();
     }
 }

@@ -2,6 +2,8 @@ package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.Admin;
 import com.aerospike.firefly.structure.FireflyGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +14,7 @@ import java.util.Map;
       with("property_key", "<property_key>"); -> drop
  */
 public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
+    private static final Logger LOG = LoggerFactory.getLogger(SindexServiceDrop.class);
 
     public SindexServiceDrop(final FireflyGraph firefly) {
         super(firefly);
@@ -59,10 +62,18 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
     @Override
     protected R execute(final Map params) {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
-            if (params.get(PROPERTY_KEY).equals("~label")) {
-                return (R) Admin.index.dropVertexLabelIndex(firefly, new EmptyAdminContext());
-            } else {
-                return (R) Admin.index.dropVertexPropertyIndex(firefly, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+            try {
+                if (params.get(PROPERTY_KEY).equals("~label")) {
+                    return (R) Admin.index.dropVertexLabelIndex(firefly, new EmptyAdminContext());
+                } else {
+                    return (R) Admin.index.dropVertexPropertyIndex(firefly, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+                }
+            } finally {
+                try {
+                    firefly.fireflyIndexMetadata.updateMetadata();
+                } catch (final Exception e) {
+                    LOG.warn("Updating Index metadata forcibly due to dropping an index failed.", e);
+                }
             }
         } else {
             // Should be caught by sanitize().

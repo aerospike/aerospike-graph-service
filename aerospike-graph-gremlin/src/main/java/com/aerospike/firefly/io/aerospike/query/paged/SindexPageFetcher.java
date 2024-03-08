@@ -8,19 +8,17 @@ import com.aerospike.client.query.KeyRecord;
 import com.aerospike.client.query.RecordSet;
 import com.aerospike.client.query.Statement;
 import com.aerospike.firefly.structure.FireflyGraph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 
 public class SindexPageFetcher<R> extends PageFetcher<R> {
-    private static final Logger LOG = LoggerFactory.getLogger(SindexPageFetcher.class);
     private final QueryPolicy policy;
     private final Statement statement;
 
-    public SindexPageFetcher(final FireflyGraph graph, final QueryPolicy policy, final String setName, final String namespace,
-                             final Filter filter, final int maxQueueSize, final int maxPageSize, final FireflyGraph.TransformKeyRecord<R> transformKeyRecord) {
-        super(graph, maxQueueSize, transformKeyRecord);
+    public SindexPageFetcher(final FireflyGraph graph, final QueryPolicy policy, final String setName,
+                             final String namespace, final Filter filter, final int maxQueueSize, final int maxPageSize,
+                             final FireflyGraph.TransformKeyRecord<R> transformKeyRecord, final String indexName) {
+        super(graph, maxQueueSize, transformKeyRecord, indexName);
         this.policy = policy;
         this.policy.socketTimeout = graph.getBaseGraph().AEROSPIKE_SOCKET_TIMEOUT;
         this.statement = new Statement();
@@ -36,7 +34,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         try {
             recordSet = graph.getBaseGraph().getClient().queryPartitions(policy, statement, filter);
         } catch (final AerospikeException e) {
-            signalError("Failed to read index: " + e.getMessage());
+            signalError("Failed to read index: " + e.getMessage(), e);
             return;
         }
 
@@ -46,7 +44,7 @@ public class SindexPageFetcher<R> extends PageFetcher<R> {
         try {
             pageQueue.put(new Page(pi));
         } catch (final InterruptedException e) {
-            signalError("Failed to add page to queue: " + e.getMessage());
+            signalError("Failed to add page to queue: " + e.getMessage(), e);
         }
         while (recordSetIterator.hasNext()) {
             pi.add(recordSetIterator.next());

@@ -155,7 +155,7 @@ public class Admin {
 
         public <A> I dropVertexLabelIndex(final FireflyGraph firefly, final AdminContext<A> adminContext) {
             final String set = firefly.getBaseGraph().setFromElementType(FireflyVertex.class);
-            firefly.getBaseGraph().dropIndex(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
+            firefly.getBaseGraph().dropIndexBackground(set, firefly.getBaseGraph().V_LABEL_INDEX_NAME);
             return (I) "Vertex label index dropped.";
         }
 

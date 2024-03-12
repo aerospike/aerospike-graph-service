@@ -68,7 +68,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
                 }
             }
         } catch (final InterruptedException e) {
-            signalError("Error waiting for scan to complete: " + e.getMessage());
+            signalError("Error waiting for scan to complete: " + e.getMessage(), e);
         }
     }
 
@@ -109,7 +109,7 @@ public class ScanPageFetcher<R extends Element> extends PageFetcher<R> {
             if (exception instanceof AerospikeException.ScanTerminated) {
                 LOG.debug("Scan terminated.");
             } else {
-                signalError("Failed to scan page: " + exception.getMessage());
+                signalError("Failed to scan page: " + exception.getMessage(), exception);
             }
             done.set(true);
             latch.countDown();

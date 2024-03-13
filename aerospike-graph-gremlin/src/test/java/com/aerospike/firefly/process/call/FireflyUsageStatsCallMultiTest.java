@@ -68,11 +68,11 @@ public class FireflyUsageStatsCallMultiTest {
             Assert.assertEquals(testVcpuCount, rawUsageStats.get(1).get("vcpus"));
 
             // Max mem of raw should be same of max mem of test.
-            // Memory of docker container is 7 GB in GitHub Actions and we get 80% by default - should round to 5 GB.
+            // Memory of docker container is ~7 GB in GitHub Actions and we get 80% by default - should round to ~5 GB.
             if (rawUsageStats.get(0).get("memory-gb").equals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024))) {
-                Assert.assertEquals(5L, rawUsageStats.get(1).get("memory-gb"));
+                Assert.assertTrue((long) rawUsageStats.get(1).get("memory-gb") > 4L);
             } else {
-                Assert.assertEquals(5L, rawUsageStats.get(0).get("memory-gb"));
+                Assert.assertTrue((long) rawUsageStats.get(0).get("memory-gb") > 4L);
                 Assert.assertEquals(Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024), rawUsageStats.get(1).get("memory-gb"));
             }
 

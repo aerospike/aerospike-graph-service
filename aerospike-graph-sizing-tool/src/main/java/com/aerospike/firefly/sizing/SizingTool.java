@@ -19,12 +19,12 @@ public class SizingTool {
     private final GraphSchema graphSchema;
 
     // Need to check all these.
-    private final static Long EDGE_CACHE_ENTRY_SIZE = 36L;
+    private final static Long EDGE_CACHE_ENTRY_SIZE = 30L;
     private final static Long EDGE_CACHE_ENTRY_OVERHEAD = 4L;
     private final static Long EDGE_RECORD_OVERHEAD = 20L;
     private final static Long EDGE_PROPERTY_OVERHEAD = 20L;
     private final static Long LABEL_OVERHEAD = 4L;
-    private final static Long EDGE_RECORD_VALUE_SIZE = 43L;
+    private final static Long EDGE_RECORD_VALUE_SIZE = 32L;
     private final static Long EDGE_RECORD_ENTRY_OVERHEAD = 20L; // 16 bytes for the key which is the edge id.
                                                                 // 4  bytes for the overhead of the map entry.
 
@@ -44,13 +44,15 @@ public class SizingTool {
         //                  1 map entry of empty map for properties of vertex property values.
         //                  1 map entry of empty map for properties of vertex properties type hints
         long size = 0L;
-        size += propertySchema.key.length() * 3L; // vp name -> {type hint, value, id}
+        size += propertySchema.key.length() * 2L; // vp name -> {value, id}
+        if (propertySchema.type.equals("integer")) {
+            size += propertySchema.key.length(); // integer requires typehint.
+            size += 8L; // typehint entry.
+        }
         size += propertyTypeToSize(propertySchema);
-        size += 6; // 1 map entry of empty map for properties of vertex property.
-        size += 6; // Empty map.
-        size += 6; // 1 map entry of empty map
-        size += 6; // Empty map.
-        size += 10; // vp id.
+        size += 11; // Empty map.
+        size += 11; // Empty map.
+        size += 12; // vp id.
         return size;
     }
 
@@ -60,8 +62,10 @@ public class SizingTool {
         //                  actual Value
         //                  These are both stored in a map with edge id as key (adds 20 bytes overhead * 2)
         long size = 0L;
-        size += 2 * EDGE_RECORD_ENTRY_OVERHEAD;
-        size += 8;
+        size += EDGE_RECORD_ENTRY_OVERHEAD;
+        if (propertySchema.type.equals("integer")) {
+            size += 8;
+        }
         size += propertySchema.key.length();
         size += propertyTypeToSize(propertySchema);
         return size;
@@ -182,13 +186,9 @@ public class SizingTool {
                 for (final PropertySchema propertySchema : edgeSchema.properties) {
                     edgeRecordSize += (propertySchema.likelihood.doubleValue()) * (edgePropertyToSize(propertySchema)); // Properties.
                 }
-                edgeRecordSize += 2 * 10L; // properties and type hitns overhead.
 
-                // label is repeated for: properties, type hints, in, out.
-                edgeRecordSize += 4 * edgeSchema.label.length();
-                edgeRecordSize += LABEL_OVERHEAD; // Label.
+                edgeRecordSize += edgeSchema.label.length();
                 edgeRecordSize += 2 * (EDGE_RECORD_VALUE_SIZE); // IN and OUT.
-                edgeRecordSize += 10; // empirical adjustment.
             }
         }
         edgeRecordSize /= graphSchema.edgeSchema.size();

@@ -3,6 +3,9 @@ package com.aerospike.firefly.util;
 import com.aerospike.client.policy.QueryPolicy;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
+import com.aerospike.firefly.io.aerospike.query.paged.GraphQueryHelper;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
@@ -81,8 +84,9 @@ public final class FireflyHelper {
     }
 
     public static long countVertices(final FireflyGraph graph, final List<HasContainer> hasContainers) {
+        final AerospikeConnection db = graph.getBaseGraph();
         if (hasContainers.isEmpty()) {
-            return graph.getVertexCount(null);
+            return graph.getVertexCount(new ArrayList<>());
         }
 
         final Optional<FireflyIndexMetadata.IndexInfo> info = graph.fireflyIndexMetadata.getPropertyIndexInfo(
@@ -92,21 +96,21 @@ public final class FireflyHelper {
 
             // Create query policy with expressions.
             final QueryPolicy queryPolicy = new QueryPolicy();
-            queryPolicy.filterExp = graph.hasContainerListToExpression(hasContainers, FireflyVertex.class);
+            queryPolicy.filterExp = GraphQueryHelper.hasContainerListToExpression(db, hasContainers, FireflyVertex.class);
             queryPolicy.includeBinData = false;
 
             // Query index.
-            final Iterator<KeyRecord> keyRecordIterator = graph.getBaseGraph().queryIndex(
+            final Iterator<KeyRecord> keyRecordIterator = GraphQuery.create(graph).querySIndex(
                     info.get().setName,
                     info.get().indexName,
-                    graph.predicateToFilter(topHasContainer.getPredicate(), info.get()),
+                    GraphQueryHelper.predicateToFilter(db, topHasContainer.getPredicate(), info.get()),
                     queryPolicy);
 
             // Transform record to correct element.
             return FireflyCloseableIteratorUtils.count(keyRecordIterator);
         } else {
             // Get vertex count.
-            return graph.getVertexCount(graph.hasContainerListToExpression(hasContainers, FireflyVertex.class));
+            return graph.getVertexCount(hasContainers);
         }
     }
 

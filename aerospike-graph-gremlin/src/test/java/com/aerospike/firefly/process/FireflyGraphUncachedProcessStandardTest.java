@@ -1,7 +1,6 @@
 package com.aerospike.firefly.process;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.FireflyGraphProvider;
 import com.aerospike.firefly.structure.FireflyGraphProviderUncached;
 import org.apache.tinkerpop.gremlin.GraphProviderClass;
 import org.apache.tinkerpop.gremlin.process.ProcessStandardSuite;

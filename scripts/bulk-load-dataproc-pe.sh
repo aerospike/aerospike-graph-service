@@ -9,7 +9,7 @@ Help() {
    echo "
    Syntax: ${0##*/} -j <bulk loader jar> -c <firefly config> [-n <job name>] [-w <number of workers>]
 
-   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-1.2.0.jar
+   Example: ${0##*/} -j gs://jarbucket/jar/aerospike-graph-bulk-loader-2.0.0.jar
    -c gs://configbucket/fireflyconfig/bulk.properties -n check1 -w 10
 
    Note: This script expects the bulk loader jar and the properties file to be on gs upload these first via something like:
@@ -78,7 +78,7 @@ echo "###################################"
 
 #TODO GRAPH-897: Replace with commented line for JDK 17 bulk loading if GCP images still don't support JDK 17 natively
 #gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --initialization-actions=gs://gha-ci-firefly-bulkloader/scripts/install-jdk-17.sh --properties 'spark-env:JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64,spark:spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
-gcloud dataproc clusters create ${name} --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
+gcloud dataproc clusters create ${name} --tags=aerolab-client --enable-component-gateway --region us-central1 --zone us-central1-a --master-machine-type n2d-standard-4 --master-boot-disk-type pd-ssd --master-boot-disk-size 500 --num-workers ${workers} --worker-machine-type n2-standard-4 --worker-boot-disk-type pd-ssd --worker-boot-disk-size 500 --image-version 2.1-debian11 --properties spark:spark.history.fs.gs.outputstream.type=FLUSHABLE_COMPOSITE --project firefly-aerospike
 
 echo "###################################"
 echo "running job ${name}"

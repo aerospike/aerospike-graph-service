@@ -1,11 +1,11 @@
 package com.aerospike.firefly.process.traversal.strategy.optimization;
 
+import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdLimitSampleStep;
 import com.aerospike.firefly.process.traversal.step.FireflyCompositeIdStep;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.SampleGlobalStep;
@@ -13,7 +13,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.GroupStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.NoOpBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -22,7 +21,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
@@ -108,6 +106,7 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
             int sampleSize = -1;
+            long limitSize = -1;
 
             while (labels.isEmpty()) {
                 if (index >= steps.size()) {
@@ -175,19 +174,49 @@ public class FireflyCompositeEdgeIdStrategy extends FireflyStrategyBase {
                     } catch (NoSuchFieldException | IllegalAccessException ignored) {
                         // Failed to get sample size, just ignore it.
                     }
+                } else if (steps.get(index) instanceof RangeGlobalStep) {
+                    if (sampleSize != -1 || limitSize != -1) {
+                        // Already grabbed this, still looping to see if a HasStep is present, but we found this instead.
+                        break;
+                    }
+                    if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY) {
+                        break;
+                    }
+                    final long low = ((RangeGlobalStep<?>) steps.get(index)).getLowRange();
+                    final long high = ((RangeGlobalStep<?>) steps.get(index)).getHighRange();
+
+                    if (low != 0) {
+                        break;
+                    }
+
+                    // Get the limit size.
+                    limitSize = high;
+
+                    // No need to add limit set since it's already there.
                 } else {
                     // Unknown step, break.
                     break;
                 }
             }
-            traversal.addStep(index, new FireflyCompositeIdStep(
-                    traversal,
-                    vertexStep.getDirection(),
-                    vertexStep.getEdgeLabels(),
-                    labels,
-                    hasContainers,
-                    sampleSize,
-                    graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            if (sampleSize != -1 || limitSize != -1) {
+                traversal.addStep(index, new FireflyCompositeIdLimitSampleStep(
+                        traversal,
+                        vertexStep.getDirection(),
+                        vertexStep.getEdgeLabels(),
+                        labels,
+                        hasContainers,
+                        sampleSize,
+                        limitSize,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            } else {
+                traversal.addStep(index, new FireflyCompositeIdStep(
+                        traversal,
+                        vertexStep.getDirection(),
+                        vertexStep.getEdgeLabels(),
+                        labels,
+                        hasContainers,
+                        graph.getBaseGraph().MOVEMENT_BARRIER_SIZE));
+            }
         }
     }
 }

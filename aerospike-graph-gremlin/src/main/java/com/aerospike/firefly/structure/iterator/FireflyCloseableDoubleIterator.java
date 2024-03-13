@@ -4,7 +4,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementExce
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 public class FireflyCloseableDoubleIterator<T> implements CloseableIterator<T>, Serializable {
 

@@ -5,7 +5,6 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Key;
@@ -104,7 +103,7 @@ public class TestLogging {
         LOG.info("This should not be logged");
         assertEquals(0, memoryAppender.countEventsForLogger(LOG.getName()));
         graph.close();
-        conf.setProperty("log.level", "INFO");
+        conf.setProperty(ConfigurationHelper.Keys.LOG_LEVEL, "INFO");
         graph = FireflyGraph.open(conf);
         LoggerUtil.setLogLevel(Level.INFO);
         LOG.debug("This should not be logged");

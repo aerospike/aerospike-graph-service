@@ -4,10 +4,12 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Value;
 import com.aerospike.firefly.bulkloader.graph.GraphOperations;
 import com.aerospike.firefly.bulkloader.spark.executorservice.EdgeWriteTask;
+import com.aerospike.firefly.bulkloader.spark.executorservice.VertexWriteTask;
 import com.aerospike.firefly.bulkloader.spark.resilience.ExponentialBackoffRetry;
 import com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge;
 import com.aerospike.firefly.bulkloader.util.PropertyValueParser;
 import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
+import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
@@ -48,6 +50,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -69,6 +72,8 @@ import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.RETRY_LIM
 import static com.aerospike.firefly.bulkloader.spark.DatasetOperations.processBatch;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.FROM_VERTEX_HEADER;
 import static com.aerospike.firefly.bulkloader.spark.structure.SparkFireflyEdge.TO_VERTEX_HEADER;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_WRITE_BUFFER;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.KEEP_PROVIDED_EDGE_ID_AS_PROPERTY;
@@ -77,7 +82,6 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT;
 
 
 public class EdgeOperations implements Serializable {
@@ -103,33 +107,35 @@ public class EdgeOperations implements Serializable {
 
     public void writeEdges(final Dataset<Row> persistedEdgeDS) {
         persistedEdgeDS.foreachPartition(rowIterator -> {
-            LOGGER.info("Starting to write EdgeDataset in PartitionId: " + TaskContext.getPartitionId());
+            final int partitionId = TaskContext.getPartitionId();
+            LOGGER.info("Starting to write EdgeDataset in PartitionId: " + partitionId);
 
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
+                final long allowBadEntryCount = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
 
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
-                ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + TaskContext.getPartitionId());
-                int bufferSize = getEdgeWriteBufferSize();
+                final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
+                final int bufferSize = getEdgeWriteBufferSize();
                 LOGGER.info(String.format("Edge write buffer size %d", bufferSize));
 
+                final Instant totalStart = Instant.now();
                 Instant start = Instant.now();
                 int batch = 1;
-                int partitionId = TaskContext.getPartitionId();
                 final List<CompletionStage<Void>> futures = new ArrayList<>();
                 while (rowIterator.hasNext()) {
                     if (futures.size() >= bufferSize) {
-                        CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                        final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                         megaTask.join();
                         writeEdgeCacheToDB(graph, vertexOutEdgeMap, vertexInEdgeMap);
-                        LOGGER.info(String.format("Edge write, partitionId=%d, batch= %d, time taken(in milli-seconds)= %d, super node size: %d, cleaning all cached vertex maps", partitionId,
+                        LOGGER.info(String.format("Edge write, partitionId: %d, batch: %d, time taken(in milli-seconds): %d, super node size: %d, cleaning all cached vertex maps", partitionId,
                                 batch, Duration.between(start, Instant.now()).toMillis(), supernodes.size()));
                         start = Instant.now();
                         batch = batch + 1;
                         if (megaTask.isCompletedExceptionally()) {
-                            throw new RuntimeException("Error occurred while writing vertices, see logs for more details");
+                            throw new RuntimeException("Error occurred while writing edges - see logs for more details");
                         }
                         futures.clear();
                     }
@@ -137,18 +143,25 @@ public class EdgeOperations implements Serializable {
                     final GenericRowWithSchema metadataRow = (GenericRowWithSchema) rowIterator.next().copy();
                     final GenericRowWithSchema fireflyRow = DatasetOperations.removeColumns(metadataRow, DatasetOperations.COLUMNS_TO_REMOVE);
 
-                    final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId, providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap,
-                            fireflyRow, metadataRow, usePersistedEdgeId);
-                    futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(),executor));
+                    try {
+                        final EdgeWriteTask ewt = new EdgeWriteTask(retry, supernodes, keepProvidedId,
+                                providedIdPropertyName, nullValue, graph, vertexOutEdgeMap, vertexInEdgeMap, fireflyRow,
+                                metadataRow, usePersistedEdgeId);
+                        futures.add(ewt.write(executor).thenRunAsync(() -> ewt.updateCacheMap(), executor));
+                    } catch (final FireflyBulkLoaderException e) {
+                        if (allowBadEntryCount == 0) {
+                            throw e;
+                        }
+                    }
                 }
 
-                LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", TaskContext.getPartitionId()));
-                CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+                LOGGER.info(String.format("Done submitting edge write task; waiting for their completion in partitionId %d", partitionId));
+                final CompletableFuture megaTask = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
                 megaTask.join();
-                LOGGER.info(String.format("Completed edge write task in partitionId %d", TaskContext.getPartitionId()));
+                LOGGER.info(String.format("Completed edge write task in partitionId %d", partitionId));
                 futures.clear();
                 if (megaTask.isCompletedExceptionally()) {
-                    throw new RuntimeException("Error occurred while writing edges; see logs for more details");
+                    throw new RuntimeException("Error occurred while writing edges - see logs for more details");
                 } else {
                     // Flush Vertex Edge cache maps when all Edge writes are done.
                     try {
@@ -158,14 +171,25 @@ public class EdgeOperations implements Serializable {
                         throw e;
                     }
                 }
+                final String taskName = String.format("Edge write in partition:{}", partitionId);
+                LOGGER.info("Task:{}; Total time taken(in milliseconds):{}", taskName, Duration.between(totalStart, Instant.now()).toMillis());
             }
         });
     }
 
 
-    private static void writeEdgeCacheToDB(FireflyGraph graph, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap, ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
-        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap);
-        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap);
+    private void writeEdgeCacheToDB(final FireflyGraph graph,
+                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
+                                    final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
+        final long allowedDetachedEdges = Long.valueOf(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
+        final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+        GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, allowedDetachedEdges, invalidEdgeIds);
+        GraphOperations.flushEdgeMap(graph, Direction.IN, vertexInEdgeMap, allowedDetachedEdges, invalidEdgeIds);
+
+        if (!invalidEdgeIds.isEmpty()) {
+            GraphOperations.dropDetachedEdges(graph, invalidEdgeIds, allowedDetachedEdges);
+        }
     }
 
     public void verifySampleEdgesAfterWrite(final Dataset<Row> edgeDatasetsSample) {
@@ -284,7 +308,7 @@ public class EdgeOperations implements Serializable {
         return usePersistedEdgeId ? EdgeOperations.decodeEdgeIDFromString(metadataRow.getAs(EDGE_ID_COLUMN)) : null;
     }
 
-    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset) {
+    public Set<Object> extractSupernodes(final Dataset<Row> edgeDataset, final long onRecordIdLimit) {
         final Configuration fireflyConfig = this.config.getFireflyConfig();
         // If the global edge cache flag is off, then all vertices written have their edge caches disabled upon
         // creation. No need to find and disable them.
@@ -310,18 +334,14 @@ public class EdgeOperations implements Serializable {
             final JavaPairRDD<Object, Long> toCountPairRDD =
                     toPairRDD.reduceByKey((Function2<Long, Long, Long>) Long::sum);
 
-            // Get the supernode threshold from Firefly config.
-            final Long supernodeThreshold = Long.parseLong(ConfigurationHelper.getOrDefaultString(ON_RECORD_ID_LIMIT, fireflyConfig));
-            LOGGER.info("Supernode threshold: " + supernodeThreshold);
-
             // Filter out the vertex IDs that appeared more than the supernode threshold amount of times.
             final JavaPairRDD<Object, Long> filteredFromCountPairRDD = fromCountPairRDD.filter(
                     (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
 
             final JavaPairRDD<Object, Long> filteredToCountPairRDD = toCountPairRDD.filter(
                     (Function<Tuple2<Object, Long>, Boolean>)
-                            longLongTuple2 -> longLongTuple2._2 > supernodeThreshold);
+                            longLongTuple2 -> longLongTuple2._2 >= onRecordIdLimit);
 
             final JavaRDD<Object> fromSupernodes = filteredFromCountPairRDD.keys();
             final JavaRDD<Object> toSupernodes = filteredToCountPairRDD.keys();
@@ -333,7 +353,18 @@ public class EdgeOperations implements Serializable {
     }
 
     public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
-        if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_EDGE_WRITE)) {
+        if (this.config.hasAction(VERIFY_OUTPUT_DATA) &&
+                !this.config.hasAction(DISABLE_EDGE_WRITE)) {
+            final long allowedDetachedEdges = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
+            if (allowedDetachedEdges > 0) {
+                LOGGER.warn(ALLOWED_BAD_EDGES_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
+                return;
+            }
+            final long allowBadEntries = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+            if (allowBadEntries > 0) {
+                LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
+                return;
+            }
             final String taskName = "Verify Edges";
             sampledEdgeDataset.sparkSession().sparkContext().setJobGroup(taskName,"Verify Edges task", true);
             LOGGER.info("verify_output_data is enabled, starting the Edge write verification.");
@@ -342,8 +373,8 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    private class EdgeIDAdditionFunction implements MapPartitionsFunction, Serializable {
-        final Map<String, Object> fileConfig ;
+    static private class EdgeIDAdditionFunction implements MapPartitionsFunction, Serializable {
+        final Map<String, Object> fileConfig;
         final StructType schema;
 
         public EdgeIDAdditionFunction(final Map<String, Object> fileConfig, final StructType writeSchema) {
@@ -356,7 +387,7 @@ public class EdgeOperations implements Serializable {
         }
     }
 
-    private class EdgeIDOutputIterator implements Iterator<Row>, Serializable {
+    static private class EdgeIDOutputIterator implements Iterator<Row>, Serializable {
         private long counter = 0L;
         private final Logger ITER_LOGGER = LoggerFactory.getLogger(EdgeIDOutputIterator.class);
         final Map<String, Object> config;

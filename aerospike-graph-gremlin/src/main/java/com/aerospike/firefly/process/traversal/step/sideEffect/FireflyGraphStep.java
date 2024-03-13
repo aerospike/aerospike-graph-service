@@ -2,6 +2,7 @@ package com.aerospike.firefly.process.traversal.step.sideEffect;
 
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
+import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.traversal.step.util.FireflyBatchReadHelper;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -146,21 +147,23 @@ public class FireflyGraphStep<S, E extends Element> extends GraphStep<S, E> impl
 
             // If we have index, query it, otherwise we need to scan (or error out).
             if (propertyIndexInfo.isPresent()) {
-                iterator = graph.queryIndex(propertyIndexInfo.get(),
+                iterator = GraphQuery.create(graph).querySIndex(propertyIndexInfo.get(),
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,
                         elementClass);
             } else {
                 LOG.debug("No index found for key {} and value {}, running scan", topContainer.getKey(), topContainer.getValue());
-                iterator = graph.queryScan(
+                iterator = GraphQuery.create(graph).scanSet(
                         topContainer.getKey(),
                         setName,
                         topContainer.getKey().equals("~label") ? graph.getBaseGraph().LABEL_BIN : binName,
                         topContainer.getPredicate(),
                         transformKeyRecord,
                         aerospikeSideHasContainers,
-                        elementClass);
+                        elementClass,
+                        true,
+                        true);
             }
             // Need to wrap iterator in hasContainerCheckedIterator() to apply hasContainers that could not be pushed down to Aerospike.
             iterator = this.hasContainerCheckedIterator(iterator, fireflySideHasContainers);

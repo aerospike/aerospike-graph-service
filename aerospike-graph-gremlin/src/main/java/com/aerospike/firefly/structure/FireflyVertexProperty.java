@@ -14,7 +14,6 @@ import com.aerospike.client.cdt.MapWriteFlags;
 import com.aerospike.client.policy.RecordExistsAction;
 import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
-import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
@@ -29,14 +28,15 @@ import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.SupportedValueTypes;
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getSupportedType;
+import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getTypeHintOf;
 import static com.aerospike.firefly.io.FireflyRecord.getKey;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.fromAddingVpProperty;
 import static com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException.getRelevantVertexBins;
@@ -128,32 +128,34 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
     public <F> Property<F> writeProperty(final String propertyKey, final F propertyValue) {
         final AerospikeConnection db = graph.getBaseGraph();
         final Key opKey = getKey(db, db.VERTEX_AERO_SET, vertexId);
+        final List<Operation> operations = new ArrayList<>();
 
         final Operation writeValue;
-        final Operation writeTypeHint;
-
         if (propertyValue == null) {
             writeValue = MapOperation.removeByKey(db.PROPERTIES_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(Value.get(id.getStorageId())));
-            writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
+            operations.add(writeValue);
+            final Operation writeTypeHint = MapOperation.removeByKey(db.TYPE_HINTS_BIN, Value.get(propertyKey), MapReturnType.NONE,
                     CTX.mapKey(Value.get(id.getStorageId())));
+            operations.add(writeTypeHint);
         } else {
             final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
             writeValue = MapOperation.put(policy, db.PROPERTIES_BIN, Value.get(propertyKey), Value.get(propertyValue),
                     CTX.mapKey(Value.get(id.getStorageId())));
-            writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
-                    Value.get(getSupportedType(propertyValue)),
-                    CTX.mapKey(Value.get(id.getStorageId())));
+            operations.add(writeValue);
+            final Object typeHint = Value.get(getTypeHintOf(propertyValue));
+            if (typeHint != null) {
+                final Operation writeTypeHint = MapOperation.put(policy, db.TYPE_HINTS_BIN, Value.get(propertyKey),
+                        Value.get(typeHint),
+                        CTX.mapKey(Value.get(id.getStorageId())));
+                operations.add(writeTypeHint);
+            }
         }
 
-        final FireflyCache cache = graph.getBaseGraph().transactionCache.get();
-        if (cache != null) {
-            cache.invalidate(opKey);
-        }
         final WritePolicy writePolicy = new WritePolicy();
         writePolicy.recordExistsAction = RecordExistsAction.UPDATE_ONLY;
         try {
-            db.operate(writePolicy, opKey, writeValue, writeTypeHint);
+            db.operate(writePolicy, opKey, operations.toArray(new Operation[0]));
         } catch (final RecordTooBigException rtbe) {
             final VertexRecordSizeExceededException sizeExceededException =
                     fromAddingVpProperty((AerospikeException) rtbe.getCause(), db, getRelevantVertexBins(db, opKey),
@@ -170,7 +172,11 @@ public class FireflyVertexProperty<V> extends FireflyElement implements VertexPr
             }
         }
         this.properties.put(propertyKey, propertyValue);
-        this.typeHints.put(propertyKey, propertyValue != null ? getSupportedType(propertyValue) : SupportedValueTypes.get(String.class));
+        if (propertyValue == null || getTypeHintOf(propertyValue) == null) {
+            this.typeHints.remove(propertyKey);
+        } else {
+            this.typeHints.put(propertyKey, getTypeHintOf(propertyValue));
+        }
         return new FireflyVertexPropertyProperty<>(graph, this, propertyKey, propertyValue);
     }
 

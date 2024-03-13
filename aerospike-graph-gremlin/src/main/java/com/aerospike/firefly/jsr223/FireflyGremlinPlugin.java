@@ -12,8 +12,7 @@ import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.FireflyVertexProperty;
 import com.aerospike.firefly.util.FireflyHelper;
 import com.aerospike.firefly.util.ConfigurationHelper;
-import com.aerospike.firefly.runtime.HealthcheckServer;
-import com.aerospike.firefly.runtime.PrometheusMetricsServer;
+import com.aerospike.firefly.runtime.HttpServer;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.jsr223.AbstractGremlinPlugin;
 import org.apache.tinkerpop.gremlin.jsr223.DefaultImportCustomizer;
@@ -29,7 +28,7 @@ import java.io.File;
 public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
     private static final String NAME = "aerospike.firefly";
     private static final ImportCustomizer imports;
-    public static final PrometheusMetricsServer metricsProtocolServer;
+    public static final HttpServer metricsProtocolServer;
 
     static {
         try {
@@ -53,22 +52,29 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
             throw new RuntimeException(ex);
         }
 
-        int port = PrometheusMetricsServer.DEFAULT_PROMETHEUS_PORT;
-        String endpoint = PrometheusMetricsServer.DEFAULT_PROMETHEUS_PATH;
+        int httpPort = HttpServer.DEFAULT_HTTP_PORT;
+        String prometheusPath = HttpServer.DEFAULT_PROMETHEUS_PATH;
+        String healthcheckPath = HttpServer.DEFAULT_HEALTHCHECK_PATH;
         try {
             final Settings settings = FireflyGraph.getGremlinServerSettings();
             final String configFileLocation = settings.graphs.get("graph");
             if (configFileLocation != null) {
                 if (new File(configFileLocation).exists()) {
                     final Configuration configuration = ConfigurationHelper.loadFromFile(configFileLocation);
-                    port = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PORT, configuration));
-                    endpoint = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration);
+                    httpPort = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HTTP_PORT, configuration));
+                    prometheusPath = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_PATH, configuration);
+                    healthcheckPath = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.HEALTHCHECK_PATH, configuration);
                 }
             }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-        metricsProtocolServer = PrometheusMetricsServer.create(port, endpoint);
+        metricsProtocolServer = HttpServer.create(httpPort, prometheusPath, healthcheckPath);
+    }
+
+    public static void initializeGraphMetrics(final AerospikeConnection db) {
+        HttpServer.registerGraphMetrics(db);
+        HttpServer.registerHealthcheck(db);
     }
 
     private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();
@@ -76,23 +82,6 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
     public FireflyGremlinPlugin() {
         super(NAME, imports);
         metricsProtocolServer.start();
-    }
-
-    public static void startHealthcheckServer(final Configuration config, final int port) {
-        final HealthcheckServer x = HealthcheckServer.create(config, port);
-        x.start();
-    }
-
-    public static void initializeGraphMetrics(final AerospikeConnection db) {
-        PrometheusMetricsServer.registerGraphMetrics(db);
-    }
-
-    public static void stopHealthcheckServer() {
-        HealthcheckServer.get().stop(maybeError -> {
-            if (maybeError.isPresent())
-                throw new RuntimeException(maybeError.get());
-            return null;
-        });
     }
 
     public static GremlinPlugin instance() {

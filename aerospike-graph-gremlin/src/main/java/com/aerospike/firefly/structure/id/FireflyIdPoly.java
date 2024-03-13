@@ -4,6 +4,7 @@ import com.aerospike.client.Value;
 import com.aerospike.client.util.Crypto;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -112,6 +113,17 @@ public class FireflyIdPoly extends FireflyId {
     }
 
     /**
+     * Create a FireflyId from an Aerospike Key digest as a String
+     *
+     * @param hash    The digest bytes in String form
+     * @param setName the name of the Aerospike Set this id belongs to
+     * @return a FireflyId
+     */
+    public static FireflyIdPoly fromHashString(final String hash, final String setName) {
+        return new FireflyIdPoly(hash.getBytes(StandardCharsets.ISO_8859_1), setName);
+    }
+
+    /**
      * Create a FireflyId from an Aerospike Key digest
      *
      * @param base64hash The base64 encoded hash string
@@ -169,6 +181,11 @@ public class FireflyIdPoly extends FireflyId {
             this.hash = getIdHash(this.setName);
         }
         return this.hash;
+    }
+
+    @Override
+    public String getKeyHashString() {
+        return new String(getKeyHash(), StandardCharsets.ISO_8859_1);
     }
 
     @Override

@@ -40,7 +40,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalS
 @Warmup(iterations = 1)
 @Measurement(iterations = 1, time = 45, timeUnit = TimeUnit.SECONDS)
 public class BenchmarkTestProjectNewGeneratorSchemaData {
-    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Ddataset.size=1g -Dtest=BenchmarkTestProjectNewGeneratorSchemaData -DfailIfNoTests=false --no-transfer-progress
+    // Sample usage: mvn test -Dfirefly.host=172.17.0.3 -Dbenchmark.mode=[all|throughput|average] -Dbenchmark.threads=4 -Ddocker.benchmark=1 -Ddataset.size=1g -Dstorage.type=mmd -Dtest=BenchmarkTestProjectNewGeneratorSchemaData -DfailIfNoTests=false --no-transfer-progress
     private static final Logger LOG = LoggerFactory.getLogger(BenchmarkTestProjectNewGeneratorSchemaData.class);
     private static final String HOST = BenchmarkTestUtils.getHost();
     private static final int PORT = 8182;
@@ -48,16 +48,18 @@ public class BenchmarkTestProjectNewGeneratorSchemaData {
     private static final Mode MODE = BenchmarkTestUtils.getMode(LOG);
     private Cluster cluster = null;
     private GraphTraversalSource g = null;
-    private static final String DATASET_SIZE = BenchmarkTestUtils.getDatasetSize() + ": ";
+    private static final String DATASET_SIZE = BenchmarkTestUtils.getDefaultDatasetSize();
+    private static final String STORAGE_TYPE = BenchmarkTestUtils.getStorageType();
+    private static final String TEST_PREFIX = DATASET_SIZE + "-" + STORAGE_TYPE + ": ";
     private static final Map<String, String> TEST_TO_TRAVERSAL = Map.of(
-            "directLookupProperties", DATASET_SIZE + "g.V(id).properties()",
-            "oneHopToDigitalEntityGetProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties()",
-            "twoHopToCookieGetProperties", DATASET_SIZE + "g.V(id).out(Schema.GoldenEntity.observedEdge).out(Schema.DigitalEntity.associatedWithCookieEdge).properties()",
-            "threeHopToDigitalEntity", DATASET_SIZE + "g.V(houseHoldId).in(Schema.Individual.livesAtEdge).in(Schema.GoldenEntity.resolvesToIndividualEdge).out(Schema.GoldenEntity.observedEdge).properties()",
-            "testSearchByVertexPropertyValue", DATASET_SIZE + "g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size())))",
-            "addTwoVertexOneEdge", DATASET_SIZE + "g.addV().addE(\"test\").to(__.addV())",
-            "twoHopSelectByLabelCountProperties", DATASET_SIZE + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().out().hasLabel(Schema.Cookie.label).properties().count()",
-            "countLabelsInSubgraphTwoHop", DATASET_SIZE + "g.V(id).out().out().groupCount().by(T.label).limit(1)"
+            "directLookupProperties", TEST_PREFIX + "g.V(id).properties()",
+            "oneHopToDigitalEntityGetProperties", TEST_PREFIX + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().properties()",
+            "twoHopToCookieGetProperties", TEST_PREFIX + "g.V(id).out(Schema.GoldenEntity.observedEdge).out(Schema.DigitalEntity.associatedWithCookieEdge).properties()",
+            "threeHopToDigitalEntity", TEST_PREFIX + "g.V(houseHoldId).in(Schema.Individual.livesAtEdge).in(Schema.GoldenEntity.resolvesToIndividualEdge).out(Schema.GoldenEntity.observedEdge).properties()",
+            "testSearchByVertexPropertyValue", TEST_PREFIX + "g.V().has(Schema.DigitalEntity.PropertyKeys.macAddress, macAddressValues.get(random.nextInt(macAddressValues.size())))",
+            "addTwoVertexOneEdge", TEST_PREFIX + "g.addV().addE(\"test\").to(__.addV())",
+            "twoHopSelectByLabelCountProperties", TEST_PREFIX + "g.V(id).outE(Schema.GoldenEntity.observedEdge).otherV().out().hasLabel(Schema.Cookie.label).properties().count()",
+            "countLabelsInSubgraphTwoHop", TEST_PREFIX + "g.V(id).out().out().groupCount().by(T.label).limit(1)"
     );
 
     private static class Schema {

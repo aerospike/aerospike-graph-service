@@ -35,5 +35,5 @@ currently supported data models are:
 
 The namespace must be configured on your Aerospike cluster ahead of time.
 
-`gremlin-server` is configured via a yaml file, which specifies the properties file to use with Firefly.
-A sample `gremlin-server` yaml configuration can be found in `conf/aerospike-graph-gremlin-server.yaml`
+`gremlin-server` is configured via a yaml file, which specifies the properties file to use with Firefly. This is abstracted from the user. If it needs to be overwritten, a `aerospike-graph-service.yaml` can be placed at 
+`/opt/aerospike-graph/custom/aerospike-graph-service.yaml`.

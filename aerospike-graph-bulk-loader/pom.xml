@@ -5,7 +5,7 @@
     <parent>
         <artifactId>firefly</artifactId>
         <groupId>com.aerospike</groupId>
-        <version>1.2.0</version>
+        <version>2.0.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -78,6 +78,12 @@
             <artifactId>zookeeper</artifactId>
             <version>3.7.2</version>
         </dependency>
+        <!-- Fixes ttps://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECOMMONS-6254296 in spark-core_2.12@3.4.1 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.26.0</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.12</artifactId>
@@ -113,7 +119,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.590</version>
+            <version>${awssdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.bigdataoss</groupId>

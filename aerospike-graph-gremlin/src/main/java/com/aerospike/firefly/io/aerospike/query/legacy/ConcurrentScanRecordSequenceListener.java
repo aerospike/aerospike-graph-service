@@ -1,4 +1,4 @@
-package com.aerospike.firefly.io.aerospike;
+package com.aerospike.firefly.io.aerospike.query.legacy;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Key;
@@ -6,6 +6,7 @@ import com.aerospike.client.Record;
 import com.aerospike.client.async.Monitor;
 import com.aerospike.client.listener.RecordSequenceListener;
 import com.aerospike.client.query.KeyRecord;
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

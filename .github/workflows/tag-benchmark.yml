@@ -50,10 +50,10 @@ jobs:
         uses: christian-draeger/read-properties@1.1.1
         with:
           path: benchmark.properties
-          properties: 'data-size server-instances instance-type benchmark ssd-count'
+          properties: 'data-size server-instances instance-type benchmark ssd-count storage-type tag-hash'
       - name: Clamp Runtime Variables to Environment
         run: |
-          echo "SHA_PATH=${GITHUB_SHA::5}-${{ steps.read_property.outputs.data-size }}" >> $GITHUB_ENV
+          echo "SHA_PATH=${{ steps.read_property.outputs.tag-hash }}" >> $GITHUB_ENV
       - name: Authorize gcloud CLI
         uses: google-github-actions/auth@v1
         with:
@@ -77,15 +77,15 @@ jobs:
           gcloud storage cp gs://incremental-datasets/${{ steps.read_property.outputs.benchmark }}/benchmark_name.txt ${{ github.workspace }}/benchmark_name.txt
       - name: Download, Install, and Configure Aerolab
         run: |
-          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.1.1/aerolab-linux-amd64-7.1.1.zip
-          unzip aerolab-linux-amd64-7.1.1.zip -d /usr/local/bin/
+          cd /tmp && wget https://github.com/aerospike/aerolab/releases/download/7.3.0/aerolab-linux-amd64-7.3.0.zip
+          unzip aerolab-linux-amd64-7.3.0.zip -d /usr/local/bin/
           aerolab config backend -t gcp -o firefly-aerospike
       - name: Deploy Aerospike Cluster to GCP
         env:
           FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           echo $FEATURES_B64 | base64 -d > ${{ github.workspace }}/scripts/features.conf
-          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
+          cd ${{ github.workspace }}/scripts && ./provision-aerospike-gcp.sh -i ${{ steps.read_property.outputs.instance-type }} -a ${{ steps.read_property.outputs.storage-type }} -s ${{ steps.read_property.outputs.ssd-count }} -c ${{ steps.read_property.outputs.server-instances }} -n ${{ env.SHA_PATH }} -o ../.github/aerospike/aerospike_l3.conf -f ./features.conf
       - name: Generate Hosts List and Config for Deployed Cluster
         run: |
           aerolab cluster list -j | jq '.' > ${{ github.workspace }}/scripts/clusters.json
@@ -95,6 +95,7 @@ jobs:
         run: |
           aerolab client create none --zone=us-central1-a --disk=pd-ssd:40 --instance n2d-standard-8 -n ${{ env.SHA_PATH }}-firefly
           cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.data-size }} >> data_size.txt
+          cd ${{ github.workspace }} && echo ${{ steps.read_property.outputs.storage-type }} >> storage_type.txt
           cd ${{ github.workspace }}/.. && tar -zcvf firefly.tgz ./firefly
           cd ${{ github.workspace }}/.. && gcloud compute scp --zone=us-central1-a ./firefly.tgz aerolab4-${{ env.SHA_PATH }}-firefly-1:firefly.tgz
           cd ${{ github.workspace }}/scripts && gcloud compute scp --zone=us-central1-a ./run-benchmark-gcp.sh aerolab4-${{ env.SHA_PATH }}-firefly-1:run-benchmark-gcp.sh
@@ -109,7 +110,7 @@ jobs:
       - name: Run L3 Bulk Loading Job
         run: |
           cd ${{ github.workspace }}/scripts && ./bulk-load-dataproc.sh -n ci-${{ env.SHA_PATH }} -w 4 -j gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/aerospike-graph-bulk-loader.jar -c gs://gha-ci-firefly-bulkloader/${{ env.SHA_PATH }}/l3_config.properties
-          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
+          cd ${{ github.workspace }} && jq -n --arg name L3_${{ steps.read_property.outputs.data-size }}_${{ steps.read_property.outputs.storage-type }}_${{ steps.read_property.outputs.instance-type }}_${{ steps.read_property.outputs.server-instances }}-node --arg runtime $(cat ./scripts/l3_runtime.txt) '[{"name":$name, "unit":"Minutes", "value":$runtime|tonumber}]' > l3_benchmark.json
           gcloud storage cp ${{ github.workspace }}/l3_benchmark.json gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/l3_benchmark.json
       - name: Archive L3 Bulk Loading Job Log
         if: success() || failure()
@@ -159,6 +160,11 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
+      - name: Log Aerospike Server on Failure
+        if: failure()
+        run: |
+          aerolab logs get -n ${{ env.SHA_PATH }} --journal
+          gcloud storage mv logs gs://gha-ci-firefly-bulkloader/archive/${{ github.ref_name }}/aerospike-server-log
       - name: Delete Firefly Compute Instances (Cleanup)
         if: always()
         run: |

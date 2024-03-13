@@ -474,8 +474,6 @@ public class TestProperties {
         listValue.add(456.78);
         // byte[]
         listValue.add(new byte[]{ 1, 2, 3 });
-        // Byte[]
-//        listValue.add(new Byte[]{ 4, 5, 6});
 
         // Vertex Property
         g.V().hasLabel("person").property("listProperty", listValue).iterate();
@@ -486,6 +484,11 @@ public class TestProperties {
         g.V().hasLabel("person").property("listProperty", listValue).iterate();
         returnedListValue = (List<Object>) g.V().hasLabel("person").properties("listProperty").next().value();
         assertListPropertyValue(listValue, returnedListValue);
+
+        // Check Int Casting in a List when accessed more than once
+        final Vertex v = g.V().hasLabel("person").next();
+        v.properties();
+        v.properties();
 
         // Vertex Property Property
         g.V().hasLabel("person").property("vpp", "vpp").iterate();
@@ -545,6 +548,5 @@ public class TestProperties {
         for (int i = 0; i < expectedByte.length; i++) {
             Assert.assertEquals(expectedByte[i], actualByte[i]);
         }
-
     }
 }

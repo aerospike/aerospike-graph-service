@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 public class VertexWriteTask {
@@ -44,19 +43,18 @@ public class VertexWriteTask {
         fireflyId = sparkVertex.getFireflyId(this.graph.getBaseGraph());
     }
 
-    public void write(final ScheduledExecutorService service, AtomicLong completionCounter) {
+    public CompletionStage<Void> write(final ScheduledExecutorService service) {
 
         final Supplier<CompletionStage<Void>> supplier = () -> CompletableFuture.supplyAsync(() -> {
             this.graph.bulkWriteVertex(fireflyId, sparkVertex.getLabel(),
                     sparkVertex.getProperties(), isSupernode());
             return null;
         }, service);
-        retry.withRetries(supplier, service).exceptionally(e -> {
+        return retry.withRetries(supplier, service).exceptionally(e -> {
             // Log the error when no longer retrying
             LOGGER.error(String.format("Exception occurred during Vertex writing %s", this), e);
             throw new RuntimeException(e);
-        }).handleAsync( (res, th ) ->
-            completionCounter.incrementAndGet());
+        });
     }
 
     private boolean isSupernode() {

@@ -56,7 +56,7 @@ public class FireflyPhatEdgeIdIterator implements CloseableIterator<FireflyId> {
     }
 
     protected void getNextKeyRecords() {
-        this.currentRecordIds = ((Map<Object, String>) this.keyRecords.next().record.getMap(db.LABEL_BIN))
+        this.currentRecordIds = ((Map<Object, ?>) this.keyRecords.next().record.getMap(db.EDGE_DATA_BIN))
                 .keySet().iterator();
     }
 }

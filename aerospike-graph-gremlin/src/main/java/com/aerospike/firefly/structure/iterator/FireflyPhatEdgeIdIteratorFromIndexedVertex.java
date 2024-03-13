@@ -1,11 +1,15 @@
 package com.aerospike.firefly.structure.iterator;
 
+import com.aerospike.client.Record;
 import com.aerospike.client.query.KeyRecord;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 
+import java.nio.ByteBuffer;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -32,12 +36,23 @@ public class FireflyPhatEdgeIdIteratorFromIndexedVertex extends FireflyPhatEdgeI
     }
 
     @Override
-    protected String getInVBinName() {
-        return this.db.SUPERNODES_IN_BIN;
-    }
+    protected Set<ByteBuffer> getIndividualEdgeIdsAttachedToVertex(final Record record, final Direction direction) {
+        final String directionKey;
+        if (direction == Direction.BOTH) {
+            // Direction.BOTH should not be propagated here and should be combined at a higher level.
+            throw new RuntimeException("Cannot get individual Edge IDs attached to a Vertex with Direction.BOTH");
+        } else {
+            directionKey = direction == Direction.OUT ? db.SUPERNODES_OUT_BIN : db.SUPERNODES_IN_BIN;
+        }
 
-    @Override
-    protected String getOutVBinName() {
-        return this.db.SUPERNODES_OUT_BIN;
+        final Map<ByteBuffer, String> edgeIdToVertexIdMap = (Map<ByteBuffer, String>) record.getMap(directionKey);
+
+        final Set<ByteBuffer> attachedEdgeIds = new HashSet<>();
+        for (final Map.Entry<ByteBuffer, String> edgeIdToVertexId : edgeIdToVertexIdMap.entrySet()) {
+            if (edgeIdToVertexId.getValue().equals(this.vertexId.getKeyHashString())) {
+                attachedEdgeIds.add(edgeIdToVertexId.getKey());
+            }
+        }
+        return attachedEdgeIds;
     }
 }

@@ -26,6 +26,22 @@ Configuration options are broken into 3 sections:
 | aerospike.graph.summary.enabled            | true           | true, false                                                         | Enable Aerospike Graph summary metadata.                                                                           |
 | aerospike.graph.summary.ticker.enabled     | true           | true, false                                                         | Enable Aerospike Graph summary metadata ticker.                                                                    |
 
+## Gremlin Server configs
+
+Gremlin server configs are exposed as aerospike.graph-service.* in the properties file. These configs are injected into gremlin-server.
+Min and max heap can also be configured here.
+
+| Config                                        | Default               | Allowed Values                                | Description                                                                                                                 |
+|-----------------------------------------------|-----------------------|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| aerospike.graph-service.heap.min              | None                  | String that follows JAVA_OPTIONS xms standard | Minimum heap size                                                                                                           |
+| aerospike.graph-service.heap.max              | 80% available memory  | String that follows JAVA_OPTIONS xmx standard | Maximum heap size                                                                                                           |
+| aerospike.graph-service.port                  | 8182                  | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#port                   |
+| aerospike.graph-service.threadPoolWorker      | 8                     | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#threadPoolWorker       |
+| aerospike.graph-service.gremlinPool           | availableProcessors() | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#gremlinPool            |
+| aerospike.graph-service.evaluationTimeout     | 10000                 | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#evaluationTimeout      |
+| aerospike.graph-service.idleConnectionTimeout | 0                     | Any Integer                                   | https://tinkerpop.apache.org/javadocs/current/full/org/apache/tinkerpop/gremlin/server/Settings.html#idleConnectionTimeout  |
+
+
 ## Hybrid Configs
 
 | Config                                                | Default | Description                                                                                                                                                   |
@@ -34,7 +50,6 @@ Configuration options are broken into 3 sections:
 | aerospike.client.batch.read.size                      | 5000    | Max number of elements to batch read when reading a stream of elements (default max in Aerospike is 5000).                                                    |
 | aerospike.graph.id                                    | _none_  | Specify a unique identifier for this graph database. Multiple instances of Aerospike Graph can use the same id.                                               |
 | aerospike.graph.phat.edge.size                        | 10      | Number of edges to pack into a single record.                                                                                                                 |
-| aerospike.graph.index.adjacency.enabled               | true    | Enable adjacency indexes on the Aerospike Graph instance. This allows fast traversing across the edges of supernodes but increases memory usage of Aerospike. |
 | aerospike.graph.cache.weight                          | 1000000 | Max cache weight.                                                                                                                                             | 
 | aerospike.graph.metadata.index.update.frequency       | 30000   | Update frequency of index metadata (in milliseconds).                                                                                                         |
 | aerospike.graph.metadata.cardinality.update.frequency | 3600000 | Update frequency of cardinality metadata (in milliseconds).                                                                                                   |

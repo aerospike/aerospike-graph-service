@@ -6,7 +6,7 @@
     <parent>
         <artifactId>firefly</artifactId>
         <groupId>com.aerospike</groupId>
-        <version>1.2.0</version>
+        <version>2.0.0</version>
     </parent>
 
     <artifactId>aerospike-graph-sizing-tool</artifactId>

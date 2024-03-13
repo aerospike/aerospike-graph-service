@@ -8,7 +8,7 @@ import com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper;
 import com.aerospike.firefly.process.call.bulkload.utils.CommandLineParser;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyBulkLoaderException;
-import com.aerospike.firefly.runtime.PrometheusMetricsServer;
+import com.aerospike.firefly.runtime.HttpServer;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.cli.CommandLine;
@@ -34,9 +34,16 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Timer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.DATABASE_NOT_EMPTY;
+import static com.aerospike.firefly.bulkloader.util.ExceptionMessages.JOB_ALREADY_RUNNING;
+import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.BULK_LOAD_SUCCESS;
+import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.formatErrorCount;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.GCS_EMAIL;
@@ -58,6 +65,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
     private static ProgressBar PROGRESS_BAR;
     private static Timer PROGRESS_BAR_TIMER;
     private static final int DRYRUN_STACKTRACE_LIMIT = 5;
+    private static final AtomicBoolean IN_PROGRESS = new AtomicBoolean(false);
 
     public static void main(final String[] args) {
         // Create new Object so we can invoke non-static method load()
@@ -70,6 +78,11 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             DatasetOperations.getScheduledThreadPoolService().shutdown();
         }));
         try {
+            if (IN_PROGRESS.getAndSet(true)) {
+                LOGGER.error(JOB_ALREADY_RUNNING);
+                throw new RuntimeException(JOB_ALREADY_RUNNING);
+            }
+
             final CommandLine cmd = CommandLineParser.parseCmdArgs(args);
             final List<String> printableArgs = new ArrayList();
             String previous = "";
@@ -103,6 +116,14 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             // Set LOG LEVEL for spark logging to disable logging of each step during debugging purposes.
             spark.sparkContext().setLogLevel(logLevel);
 
+            final FireflyGraph initializerGraph = FireflyGraph.open(config.getFireflyConfig());
+            if (!initializerGraph.isEmpty() && !config.hasAction(DISABLE_EDGE_WRITE) && !config.hasAction(DISABLE_VERTEX_WRITE)) {
+                // If we're doing partial writing checking the emptiness of the database isn't valid.
+                LOGGER.error(DATABASE_NOT_EMPTY);
+                throw new RuntimeException(DATABASE_NOT_EMPTY);
+            }
+            initializerGraph.getBaseGraph().initialzeBulkLoadMetadata();
+
             // Pre-processing
             final List<String> vertexDirectories = getDirectories(spark, cmd, config.getOrDefault(VERTEX_DIRECTORY_KEY));
             // FILE_SYSTEM cannot be mutated after vertex directory filesystem is checked
@@ -116,7 +137,7 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             final Dataset<Row> edgeDataset = DatasetOperations.loadDataset(spark, edgeDirectories,
                     EdgeOperations.REQUIRED_EDGE_HEADERS, DatasetOperations.getDfStorageLevel(config));
 
-            initializeProgressBar(fileConfig);
+            initializeProgressBar(initializerGraph);
 
             // Preflight check
             try {
@@ -132,7 +153,6 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setPreflightCheckComplete();
 
             // Persist Edge ID data to disk
-            PROGRESS_BAR.setStartEdgeIdWrite();
             final boolean edgeIdWriteDisabled = config.hasAction(READ_ONLY);
             String writeLocation = null;
             if (edgeIdWriteDisabled) {
@@ -154,7 +174,10 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setEdgeIdWriteComplete();
 
             // Supernode processing
-            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset);
+            // Get the supernode threshold from Firefly config.
+            final long onRecordIdLimit = initializerGraph.getBaseGraph().ON_RECORD_ID_LIMIT;
+            LOGGER.info("Supernode threshold: " + onRecordIdLimit);
+            final Set<Object> supernodes = edgeOperations.extractSupernodes(edgeDataset, onRecordIdLimit);
             PROGRESS_BAR.setSuperNodeExtractionComplete();
 
             // Vertex processing
@@ -183,24 +206,29 @@ public class SparkBulkLoaderMain implements FireflyBulkLoaderInterface {
             PROGRESS_BAR.setEdgeValidationComplete();
             edgeDataset.unpersist();
 
+            final String output = formatErrorCount(initializerGraph);
+            if (!output.equals(BULK_LOAD_SUCCESS)) {
+                LOGGER.warn(output);
+            }
+
             // Stop spark session
             spark.stop();
         } finally {
+            IN_PROGRESS.set(false);
             if (PROGRESS_BAR_TIMER != null) {
                 PROGRESS_BAR_TIMER.cancel();
             }
             if (PROGRESS_BAR != null) {
                 PROGRESS_BAR.close();
             }
-            PrometheusMetricsServer.close();
+            HttpServer.close();
         }
     }
 
-    private static void initializeProgressBar(Map<String, Object> config) {
+    private static void initializeProgressBar(final FireflyGraph graph) {
         try {
             // Once graph is set in progress bar, it will be used to update progress bar.
-            // If graph fails to open for some reason, it will be null internally and progress bar will not report.
-            PROGRESS_BAR.setGraph(FireflyGraph.open(new MapConfiguration(config)));
+            PROGRESS_BAR.setGraph(graph);
             PROGRESS_BAR_TIMER.scheduleAtFixedRate(PROGRESS_BAR, 0, 10000);
         } catch (final Exception e) {
             LOGGER.warn("Failed to start progress bar", e);

@@ -1,6 +1,8 @@
 package com.aerospike.firefly.process.call.bulkload;
 
+import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
+import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
@@ -13,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_EDGES_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_BAD_ENTRY_COUNT;
+import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.ALLOWED_DUPLICATE_VERTEX_ID_COUNT;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.CONFIG_DIRECTORY_KEY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.READ_ONLY;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.EDGE_DIRECTORY_KEY;
@@ -35,7 +40,8 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    private static final String DEFAULT_CONFIG_PATH = "/opt/aerospike-graph/conf/aerospike-graph.properties";
+    public static final String BULK_LOAD_SUCCESS = "Success";
+    private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph.properties";
     private static final String VERTICES = "vertices";
     private static final String EDGES = "edges";
     private static final Map<String, String> KEY_TO_ARG = new HashMap<>();
@@ -46,7 +52,10 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
             REMOTE_USERNAME,
             REMOTE_PASSKEY,
             GCS_EMAIL,
-            GCS_KEYFILE_DIRECTORY
+            GCS_KEYFILE_DIRECTORY,
+            ALLOWED_DUPLICATE_VERTEX_ID_COUNT,
+            ALLOWED_BAD_EDGES_COUNT,
+            ALLOWED_BAD_ENTRY_COUNT
     );
 
     private static final Set<String> BOOLEAN_KEYS = Set.of(
@@ -57,7 +66,10 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     private static final Set<String> NUMBER_KEYS = Set.of(
             SAMPLING_PERCENTAGE,
             VERTEX_WRITE_BUFFER,
-            EDGE_WRITE_BUFFER
+            EDGE_WRITE_BUFFER,
+            ALLOWED_DUPLICATE_VERTEX_ID_COUNT,
+            ALLOWED_BAD_EDGES_COUNT,
+            ALLOWED_BAD_ENTRY_COUNT
     );
 
     static {
@@ -112,7 +124,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         }
         boolean vertices = true;
         boolean edges = true;
-        boolean validateInputData = false;
+        boolean validateInputData = true;
 
         // The way specifying vertices or edges is that:
         // If you specify neither, both are loaded.
@@ -174,8 +186,9 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
                     Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");
             bulkLoaderClass.newInstance().load(args.toArray(new String[0]));
 
-            // Return success if it worked, otherwise it will return an exception.
-            return FireflyCloseableIteratorUtils.of((R)"Success");
+            final FireflyGraph graph = (FireflyGraph) ctx.getTraversal().getGraph().get();
+            final String output = formatErrorCount(graph);
+            return FireflyCloseableIteratorUtils.of((R) output);
         } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("Error, to use the bulk loader via the call API, " +
@@ -247,10 +260,27 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         return "-" + arg;
     }
 
+    public static String formatErrorCount(final FireflyGraph graph) {
+        final AerospikeConnection db = graph.getBaseGraph();
+        final long badEntryCount = db.incrementAndGetBadEntryCount(0);
+        final long duplicateVertexIdCount = db.incrementAndGetDuplicateVertexIdCount(0);
+        final long badEdgeCount = db.incrementAndGetBadEdgeCount(0);
+        if (badEntryCount == 0 && duplicateVertexIdCount == 0 && badEdgeCount == 0) {
+            return BULK_LOAD_SUCCESS;
+        } else {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("Warning: Errors were encountered during bulk loading.");
+            sb.append("\nduplicate-vertex-id-count: " + duplicateVertexIdCount);
+            sb.append("\nbad-edge-count: " + badEdgeCount);
+            sb.append("\nbad-entry-count: " + badEntryCount);
+            sb.append("\nUse the g.call(\"get-bulk-load-errors\") command for details.");
+            return sb.toString();
+        }
+    }
 
     @Override
     public Map<String, String> describeParams() {
-        return Map.of("See bulk loading documentation", "https://docs.aerospike.com/graph/usage/bulk-loader");
+        return Map.of("See bulk loading documentation", "https://aerospike.com/docs/graph/data-loading/standalone#configuration-options");
     }
 
     @Override

@@ -77,7 +77,7 @@ The following configuration options are available:
 | aerospike.graphloader.config                            | -c   | Yes if Call API \ No if Spark Submit                         | N/A           | Call API: `.properties` of the instance the Call API is made to. |
 | aerospike.graphloader.vertices                          | -vd  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
 | aerospike.graphloader.edges                             | -ed  | No                                                           | N/A           | Local: Absolute path to directory containing Vertex CSVs. AWS S3: `s3://` URI. GCS: `gs://` URI. |
-| aerospike.graphloader.temp-directory                              | -td  | No, unless `read_only` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read_only` flag disables this configuration. |
+| aerospike.graphloader.temp-directory                    | -td  | No, unless `read_only` flag is active (only applicable in L3) | N/A           | Local: Absolute path to directory where temporary Edge IDs would be written. AWS S3: `s3://` URI.  GCS `gs://` URI. `read_only` flag disables this configuration. |
 | aerospike.graphloader.keep-provided-edge-id-as-property | -ki  | Yes                                                          | false         | Keep provided ~id value in Edge CSVs as a Property on the Edge. |
 | aerospike.graphloader.provided-edge-id-property-name    | -ep  | Yes                                                          | "~providedId" | Property key/name of provided ID when stored as a Property.  |
 | aerospike.graphloader.null-value                        | -nv  | Yes                                                          | "null"        | The String value when found in CSV which is parsed to a literal null. |
@@ -85,6 +85,9 @@ The following configuration options are available:
 | aerospike.graphloader.spark-log-level                   | -lv  | Yes                                                          | "INFO"        | Spark logger verbosity level. Allowed values: "ALL", "DEBUG", "ERROR", "FATAL", "INFO", "OFF", "TRACE", "WARN" |
 | aerospike.graphloader.vertex-write-buffer               | -vb  | Yes                                                          | 10000         | Write buffer size for Vertex loading.                        |
 | aerospike.graphloader.edge-write-buffer                 | -eb  | Yes                                                          | 10000         | Write buffer size for Edge loading.                          |
+| aerospike.graphloader.allowed-duplicate-vertex-id-count | -adv | Yes                                                          | Unlimited     | Amount of rows allowed in Vertex CSVs that contain a duplicate `~id` before the bulk load job fails immediately. `validate_input_data` must be enabled for this to work. |
+| aerospike.graphloader.allowed-bad-edges-count           | -ade | Yes                                                          | Unlimited     | Amount of Edges allowed that contain an invalid `~from` or `~to` value due to a non-existent Vertex ID before the bulk load job fails immediately. |
+| aerospike.graphloader.allowed-bad-entry-count           | -abe | Yes                                                          | Unlimited     | Amount of rows allowed in CSV data that contains column values which do not match the specified header type before the bulk load job fails immediately. `validate_input_data` must be enabled for this to work. |
 
 #### Cloud Storage Configurations
 
@@ -176,7 +179,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospi
 ##### Spark Submit
 
 ```
-spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.2.0.jar -c config.properties -validate_input_data -verify_output_data
+spark-submit --conf  spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.0.0.jar -c config.properties -validate_input_data -verify_output_data
 ```
 
 ##### config.properties
@@ -191,6 +194,105 @@ aerospike.graphloader.edges = src/test/resources/sampledata/edges
 aerospike.graphloader.vertices = src/test/resources/sampledata/vertices
 ```
 
+##### Error Allowance and Reporting
+
+When `aerospike.graphloader.allowed-duplicate-vertex-id-count` ,`aerospike.graphloader.allowed-bad-entry-count`, or`aerospike.graphloader.allowed-bad-edges-count` are a non-zero value, meaning an amount of recoverable failures are allowed, the bulk loader will report the results of the bulk load upon completion as a `String` when invoked via the call API and can be retrieved by using `next()` instead of `iterate()`.
+
+Note: `validate_input_data` must be enabled for error allowance to work, and setting any allowed error count to above 0 will cause skipping of their respective `verify_output_data` steps.
+
+```java
+String result = (String) g.call("bulk-load").with(...).next();
+
+// If there were no failures then Result:
+// Success
+
+// If there were failures then Result:
+// Warning: Errors were encountered during bulk loading.
+// duplicate-vertex-id-count: 1
+// bad-edge-count: 3
+// bad-entry-count: 2
+// Use the g.call("get-bulk-load-errors") command for details.
+```
+
+The amount of errors encountered after a bulk load can also be grabbed in `Map<String, Long>` format via `g.call("get-bulk-load-error-count").next()`
+
+```
+Map<String, Long> failureCounts = g.call("get-bulk-load-error-count").next();
+```
+
+This map contains the following keys:
+
+* `duplicate-vertex-id-count`: amount of duplicate Vertex IDs encountered during the bulk load
+* `bad-edge-count`: amount of Edges attached to an invalid Vertex ID encountered during the bulk load
+* `bad-entry-count`: amount of Rows in CSV that contained a column value that did not match the specified header type during the bulk load
+
+To get specific details on each type of error, `g.call("get-bulk-load-errors").with("type", "<error-type>")` can be used to generate an iterator of each individual failures.
+
+Allowed `error-type` keys:
+
+* `duplicate-vertex-ids`
+* `bad-edges`
+* `bad-entries`
+
+All `error-type` returns Map types, with their own key-value pairs containing metadata regarding each of the errors.
+
+`duplicate-vertex-ids`
+
+* `id`: duplicated Vertex ID
+* `count`: amount of times duplicated
+
+`bad-edges`
+
+* `bad-vertex-id`: the non-existent Vertex ID in the Edge dataset
+* `count`: amount of Edges attached to respective Vertex ID
+
+`bad-entry`
+
+* `row`: String representation of the CSV row that did not match specified header type. Note that the value here will include additional columns marked as `null` compared to the row in the CSV
+* `file`: File that contained the bad row
+
+Note: One and only one `error-type` must be specified at a time.
+
+```java
+GraphTraversal duplicateVertexId = g.call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
+while (duplicateVertexId.hasNext()) {
+    Map<String, Object> info = (Map<String, Object>) duplicateVertexId.next();
+    // Example info
+    // {
+    //		"id": "vertexId1"
+    //		"count": 2
+    // }
+    // Two Vertex CSV rows were found with ~id vertexId1
+}
+
+GraphTraversal badEdges = g.call("get-bulk-load-errors").with("type", "bad-edges");
+while (badEdges.hasNext()) {
+    Map<String, Object> info = (Map<String, Object>) badEdges.next();
+    // Example info
+    // {
+    //		"bad-vertex-id": "vertexIdNonExistent"
+    //		"count": 7
+    // }
+    // There were 7 instances where an Edge CSV row had a ~from or ~to value of vertexIdNonExistent
+}
+
+GraphTraversal badEntries = g.call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
+while (badEntries.hasNext()) {
+    Map<String, String> info = (Map<String, String>) badEntries.next();
+    // Example info
+    // {
+    //		"file": "s3://vertices/students/students.csv"
+    //		"row": [vertexId3,student,Joe,Twenty-One,null,null]
+    // }
+    // The specified row had values that did not match the header type.
+    // For this example, assume the header was:
+    // [~id,~label,name,age:int]
+    // Twenty-One is an invalid int
+}
+```
+
+
+
 ### Internal-Use Only Configurations
 
 ### Command line params
@@ -199,17 +301,10 @@ aerospike.graphloader.vertices = src/test/resources/sampledata/vertices
 
 These are the flags to modify the run when bulk loading via Spark Submit. The Call API abstracts this away from the user and we handle passing these to the user.
 
-| execution order | param name   |                                                                                                                            description                                                                                                                             |
-|-----------------|--------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| 3               | writevertex  |                                                                                                             write vertices specified by config into db                                                                                                             |
-| 4               | verify_output_data |                                                                                                           verify post write the sampled vertices dataset                                                                                                           |
-| 5               | writeedge    |                                                                                             write edges to db, assuming that corresponding vertices are present in db                                                                                              |
-| 6               | verify_output_data   |                                                                                                             verify sampled edges after writing into db                                                                                                             |
-
-| name             |                         description                          |                         side effect                          | Used in Call API Publically? |
+| name             |                         description                          |                         side effect                          | Setting in Call API |
 | ---------------- | :----------------------------------------------------------: | :----------------------------------------------------------: | ----------------- |
-| validate_input_data           | preflight check to verify contents of provided CSV files to prevent late failures caused by malformed CSV data after long runtimes and resource consumption |      may cause considerable overhead for large datasets      | No                |
-| verify_output_data | uses gremlin traversals to ensure a percentage of data was written to the database after it was written specified by `aerospike.graphloader.sampling-percentage` | overhead time proportional to the sampling percentage | Yes |
+| validate_input_data           | preflight check to verify contents of provided CSV files to prevent late failures caused by malformed CSV data after long runtimes and resource consumption |      -may cause considerable overhead for large datasets. If this is disabled `aerospike.graphloader.allowed-duplicate-vertex-id-count` and `aerospike.graphloader.allowed-bad-entry-count` do not function.      | Yes             |
+| verify_output_data | uses gremlin traversals to ensure a percentage of data was written to the database after it was written specified by `aerospike.graphloader.sampling-percentage` | overhead time proportional to the sampling percentage. This only functions if `aerospike.graphloader.allowed-duplicate-vertex-id-count` ,`aerospike.graphloader.allowed-bad-entry-count`, and `aerospike.graphloader.allowed-bad-edges-count` are all set to 0. | Yes |
 | read_only | disables writing temporary data (persistent Edge IDs) to a file system while bulk loading to prevent the need of write access | may cause duplicate phantom edges due to Spark's retry logic for dead worker nodes | Yes               |
 | disable_edges | don't write edges |  | No |
 | disable_vertices | don't write vertices |  | No |
@@ -226,10 +321,10 @@ These are the flags to modify the run when bulk loading via Spark Submit. The Ca
 
 ##### sample commands (for single node L2 with 32 GB memory)
 
-| description        | command                                                                                                                                                                                                                                                                       |
-| ------------------ |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.2.0.jar -c c:/config/config.properties -disable_edges -validate_input_data -verify_output_data    |
-| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-1.2.0.jar -c c:/config/config.properties -disable_vertices -validate_input_data -verify_output_data |
+| description        | command                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| only load vertices | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.0.0.jar -c c:/config/config.properties -disable_edges -validate_input_data -verify_output_data |
+| only load edges    | spark-submit --conf spark.driver.memory=17g --conf spark.worker.cleanup.enabled=true --class com.aerospike.firefly.bulkloader.SparkBulkLoader aerospike-graph-bulk-loader-2.0.0.jar -c c:/config/config.properties -disable_vertices -validate_input_data -verify_output_data |
 
 ##### sample config file
  ```

@@ -45,8 +45,9 @@ def get_mounts(config) -> List[Dict]:
 def start_aerospike_node(incr: int, config: Box, docker_client: DockerClient):
     mounts = get_mounts(config)
 
+    sevenXprefix = "7.x_" if "ee-7." in config.aerospike_version else ""
     it = docker_client.containers.run(config.aerospike_image,
-                                      command=f" --config-file /opt/aerospike/etc/aerospike_{incr}.conf",
+                                      command=f" --config-file /opt/aerospike/etc/aerospike_{sevenXprefix}{incr}.conf",
                                       environment={"FEATURE_KEY_FILE": "/opt/aerospike/etc/features.conf",
                                                    "MEM_GB": 2},
                                       ports={f'30{incr}0/tcp': f'30{incr}0/tcp',

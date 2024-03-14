@@ -72,28 +72,88 @@ public class SizingTool {
     }
 
     private static Long propertyTypeToSize(final PropertySchema propertySchema) {
-        switch (propertySchema.type.toLowerCase()) {
-            case "integer":
-            case "float":
-                return 4L;
-            case "long":
-            case "double":
-                return 8L;
-            case "string":
-                if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
-                    throw new RuntimeException("Invalid property " + propertySchema.key + " type 'String' " +
-                            "requires size set > 0. Got " + propertySchema.size + ".");
-                }
-                return propertySchema.size.longValue();
-            case "byte[]":
-                if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
-                    throw new RuntimeException("Invalid property " + propertySchema.key + " type 'byte[]' " +
-                            "requires size set > 0. Got " + propertySchema.size + ".");
-                }
-                return propertySchema.size.longValue();
-            default:
-                throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + propertySchema.type +
-                        "' is not supported.");
+        final String type = propertySchema.type.toLowerCase();
+        if (type.startsWith("list")) {
+            if (propertySchema.count == null || propertySchema.count.longValue() <= 0L) {
+                throw new RuntimeException("Invalid property " + propertySchema.key + " type 'List' " +
+                        "requires count set > 0. Got " + propertySchema.count + ".");
+            }
+
+            String subType = type.replace("list", "");
+            if (!subType.startsWith("<") && !subType.endsWith(">")) {
+                throw new RuntimeException("Invalid property " + propertySchema.key + " type 'List' " +
+                        "requires type to be enclosed in '<' and '>'. Got " + propertySchema.type + ".");
+            }
+
+            subType = subType.substring(1, subType.length() - 1);
+            long size;
+            switch (subType) {
+                case "integer":
+                case "float":
+                    size = 4L;
+                    break;
+                case "long":
+                case "double":
+                    size = 8L;
+                    break;
+                case "string":
+                    if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
+                        throw new RuntimeException("Invalid property " + propertySchema.key + " type 'String' " +
+                                "requires size set > 0. Got " + propertySchema.size + ".");
+                    }
+                    size = propertySchema.size.longValue();
+                    break;
+                case "byte":
+                    size = 1L;
+                    break;
+                default:
+                    throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + propertySchema.type +
+                            "' is not supported.");
+            }
+            return size * propertySchema.count.longValue();
+
+        } else if (type.endsWith("[]")) {
+            if (propertySchema.count == null || propertySchema.count.longValue() <= 0L) {
+                throw new RuntimeException("Invalid property " + propertySchema.key + " types ending in '[]' " +
+                        "requires count set > 0. Got " + propertySchema.count + ".");
+            }
+            final String subType = type.substring(0, type.length() - 2);
+            switch (subType) {
+                case "integer":
+                case "float":
+                    return 4L;
+                case "long":
+                case "double":
+                    return 8L;
+                case "string":
+                case "byte[]":
+                    if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
+                        throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + subType + "' " +
+                                "requires size set > 0. Got " + propertySchema.size + ".");
+                    }
+                    return propertySchema.size.longValue();
+                default:
+                    throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + propertySchema.type +
+                            "' is not supported.");
+            }
+        } else {
+            switch (propertySchema.type.toLowerCase()) {
+                case "integer":
+                case "float":
+                    return 4L;
+                case "long":
+                case "double":
+                    return 8L;
+                case "string":
+                    if (propertySchema.size == null || propertySchema.size.longValue() <= 0L) {
+                        throw new RuntimeException("Invalid property " + propertySchema.key + " type 'String' " +
+                                "requires size set > 0. Got " + propertySchema.size + ".");
+                    }
+                    return propertySchema.size.longValue();
+                default:
+                    throw new RuntimeException("Invalid property " + propertySchema.key + " type '" + propertySchema.type +
+                            "' is not supported.");
+            }
         }
     }
 

@@ -174,6 +174,7 @@ public class SizingToolMain implements Callable<Exception> {
         propertySchema.key = key;
         propertySchema.type = sanitizeType(map.get(key).toString());
         assignSize(propertySchema, map, key);
+        assignCount(propertySchema, map, key);
         if (map.containsKey(key + ".sindexed")) {
             propertySchema.sindexed = getValue(map, key + ".sindexed", Boolean.class);
         }
@@ -217,6 +218,27 @@ public class SizingToolMain implements Callable<Exception> {
                         getValue(map, key + ".size.min", Number.class).longValue()) / 2;
             } else if (map.containsKey(key + ".size.max") || map.containsKey(key + ".size.min")) {
                 throw new RuntimeException("Invalid property size specification, either specify size.min and size.max or just size.");
+            }
+        }
+    }
+
+    private static void assignCount(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
+        // Can either have just size, or size.min and size.max.
+        final String dataTypeFull = (String) map.get(key);
+        if (!dataTypeFull.toLowerCase().startsWith("list")) {
+            return;
+        }
+        if (map.containsKey(key + ".count")) {
+            if (map.containsKey(key + ".count.max") || map.containsKey(key + ".count.min")) {
+                throw new RuntimeException("Invalid property count specification, either specify count.min and count.max or just count.");
+            }
+            propertySchema.size = getValue(map, key + ".count", Number.class);
+        } else {
+            if (map.containsKey(key + ".count.max") && map.containsKey(key + ".count.min")) {
+                propertySchema.size = (getValue(map, key + ".count.max", Number.class).longValue() +
+                        getValue(map, key + ".count.min", Number.class).longValue()) / 2;
+            } else if (map.containsKey(key + ".count.max") || map.containsKey(key + ".count.min")) {
+                throw new RuntimeException("Invalid property count specification, either specify count.min and count.max or just count.");
             }
         }
     }

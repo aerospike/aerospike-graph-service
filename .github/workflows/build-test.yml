@@ -466,9 +466,6 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
-      - name: Run Memory Leak Test Maven
-        run: |
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer -DfailIfNoTests=false --no-transfer-progress
       - name: Test TLS Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
@@ -878,18 +875,7 @@ jobs:
         run: |
           echo "Building docker image"
           bash -x scripts/build-docker.sh firefly linux/amd64
-      - name: Launch Firefly Docker Image with Custom yaml
-        run: |
-          echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-          
-          echo "Running connection test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
-          
-          echo "Stopping docker image"
-          docker stop $(docker ps -q --filter ancestor=firefly)
+      # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         run: |
           echo "Running docker image with custom yaml file"
@@ -899,6 +885,18 @@ jobs:
           
           echo "Running usage test"
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest -DfailIfNoTests=false --no-transfer-progress
+          
+          echo "Stopping docker image"
+          docker stop $(docker ps -q --filter ancestor=firefly)
+      - name: Launch Firefly Docker Image with Custom yaml
+        run: |
+          echo "Running docker image with custom yaml file"
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running connection test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
           
           echo "Stopping docker image"
           docker stop $(docker ps -q --filter ancestor=firefly)

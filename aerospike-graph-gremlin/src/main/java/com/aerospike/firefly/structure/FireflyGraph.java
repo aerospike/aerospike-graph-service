@@ -257,8 +257,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
     public static FireflyGraph open(final Configuration conf) {
         ConfigurationHelper.validateConfig(conf);
-        final String logLevel = (System.getenv("FIREFLY_TESTING") == null ||
-                !System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) ?
+        final String logLevel = (System.getenv("FIREFLY_TESTING") != null &&
+                System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) ?
                 "WARN" : ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
         final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
         final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));

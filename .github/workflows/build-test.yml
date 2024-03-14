@@ -1154,7 +1154,7 @@ jobs:
     name: Stop Chainable Runner
     needs:
       - start-chainable-maven-runner
-      - test-firefly-tls
+      - test-firefly-chainable-maven
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

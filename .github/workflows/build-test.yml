@@ -458,7 +458,6 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
-      - name: Test Bulk loader Maven
         run: |
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
           mvn install -DskipTests

@@ -4,6 +4,7 @@ import com.aerospike.firefly.sizing.SizingToolPlugin;
 import com.aerospike.firefly.util.PluginUtil;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -49,8 +50,8 @@ public class TestSizingTool {
         Assert.assertEquals(100, vertexRecordCount);
         Assert.assertEquals(2000 / 10, edgeRecordCount);
         Assert.assertEquals(totalSindexEntries, vertexRecordCount);
-        Assert.assertEquals(1899, averageVertexRecordSize);
-        Assert.assertEquals(2060, averageEdgeRecordSize);
+        Assert.assertEquals(1680, averageVertexRecordSize);
+        Assert.assertEquals(1220, averageEdgeRecordSize);
     }
 
 
@@ -60,6 +61,8 @@ public class TestSizingTool {
         public Long averageVertexRecordSize;
         public Long averageEdgeRecordSize;
         public Long totalSindexEntries;
+        public Long averageRecordSize;
+        public Long totalRecordCount;
 
         public OutputYaml() {
         }
@@ -78,7 +81,7 @@ public class TestSizingTool {
             final Vertex person = g.addV("person").
                     property("person.count", 100L).
                     property("name", "String").
-                    property("name.valueSize", 10L).
+                    property("name.size", 10L).
                     property("name.sindexed", false).
                     property("age", "Long").next();
 
@@ -122,9 +125,9 @@ public class TestSizingTool {
                     property("Groomer.count", 10).
                     property("name", "String").
                     property("name.sindexed", true).
-                    property("name.valueSize", 15).
+                    property("name.size", 15).
                     property("phone", "String").
-                    property("phone.valueSize", 12).
+                    property("phone.size", 12).
                     next();
 
             // Clients have names and phone numbers. Each Groomer has about 100 Clients, leading to 1000 Clients in total.
@@ -132,9 +135,9 @@ public class TestSizingTool {
             Vertex client = g.addV("Client").
                     property("Client.count", 1000).
                     property("name", "String").
-                    property("name.valueSize", 15).
+                    property("name.size", 15).
                     property("phone", "String").
-                    property("phone.valueSize", 12).
+                    property("phone.size", 12).
                     next();
 
             // Pets have a name and a breed. Each client has on average 1.5 pets, leading to 1500 pets in total.
@@ -142,9 +145,9 @@ public class TestSizingTool {
             Vertex pet = g.addV("Pet").
                     property("Pet.count", 1500).
                     property("name", "String").
-                    property("name.valueSize", 15).
+                    property("name.size", 15).
                     property("breed", "String").
-                    property("breed.valueSize", 10).
+                    property("breed.size", 10).
                     next();
 
             // Every pet has an appointment with a groomer scheduled whenever their last appointment ends, leading to 1500 appointments.
@@ -154,7 +157,7 @@ public class TestSizingTool {
             Vertex appointment = g.addV("Appt").
                     property("Appt.count", 1500).
                     property("date", "String").
-                    property("date.valueSize", 10).
+                    property("date.size", 10).
                     property("time", "Integer").
                     property("estimatedAppointmentLength", "Integer").
                     next();
@@ -165,7 +168,7 @@ public class TestSizingTool {
             Vertex service = g.addV("Service").
                     property("Service.count", 50).
                     property("serviceType", "String").
-                    property("serviceType.valueSize", 25).
+                    property("serviceType.size", 25).
                     next();
 
             // Note - since we do not use the return value of edges, iterate() is used to terminate the query instead of next.
@@ -176,7 +179,7 @@ public class TestSizingTool {
             g.addE("CLIENT_OF").from(client).to(groomer).
                     property("CLIENT_OF.count", 1000).
                     property("date", "String").
-                    property("date.valueSize", 10).
+                    property("date.size", 10).
                     iterate();
 
             // Pets are connected to Clients with a OWNER edge. Each Pet has an OWNER edge to 1 Client.
@@ -225,9 +228,260 @@ public class TestSizingTool {
         final OutputYaml outputYaml = yaml.load(yamlText);
         Assert.assertEquals(100, outputYaml.vertexRecordCount.longValue());
         Assert.assertEquals(2000 / 10, outputYaml.edgeRecordCount.longValue());
-        Assert.assertEquals(1899, outputYaml.averageVertexRecordSize.longValue());
-        Assert.assertEquals(2060, outputYaml.averageEdgeRecordSize.longValue());
+        Assert.assertEquals(1680, outputYaml.averageVertexRecordSize.longValue());
+        Assert.assertEquals(1220, outputYaml.averageEdgeRecordSize.longValue());
         Assert.assertEquals(outputYaml.vertexRecordCount.longValue(), outputYaml.totalSindexEntries.longValue());
+    }
+
+    @Test
+    public void testLikelihood() throws Exception {
+        try (final Graph graph = TinkerGraph.open()) {
+            PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("vertexLabelSindex", true).iterate();
+
+            Vertex groomer = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "String").
+                    property("name.size", 10).
+                    property("name.likelihood", 0.5).
+                    next();
+
+            Edge groomerToGroomer = g.addE("KNOWS").from(groomer).to(groomer).
+                    property("KNOWS.count", 100L).
+                    property("since", "String").
+                    property("since.size", 10).
+                    property("since.likelihood", 0.5).
+                    next();
+
+            g.call("sizing-tool").next();
+        }
+    }
+
+    @Test
+    public void testSizeRange() throws Exception {
+        try (final Graph graph = TinkerGraph.open()) {
+            PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("vertexLabelSindex", true).iterate();
+
+            Vertex groomer = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "String").
+                    property("name.size.min", 10).
+                    property("name.size.max", 20).
+                    next();
+
+            Edge groomerToGroomer = g.addE("KNOWS").from(groomer).to(groomer).
+                    property("KNOWS.count", 100L).
+                    property("since", "String").
+                    property("since.size.min", 10).
+                    property("since.size.max", 20).
+                    next();
+
+            g.call("sizing-tool").next();
+
+            Vertex invalidSizeVertex = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String").
+                    property("name.size", 15).
+                    property("name.size.min", 10).
+                    property("name.size.max", 20).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.V().hasLabel("InvalidVertex").drop().iterate();
+            }
+
+            invalidSizeVertex = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String").
+                    property("name.size", 15).
+                    property("name.size.max", 20).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.V().hasLabel("InvalidVertex").drop().iterate();
+            }
+
+            invalidSizeVertex = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String").
+                    property("name.size", 15).
+                    property("name.size.min", 10).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.V().hasLabel("InvalidVertex").drop().iterate();
+            }
+
+            invalidSizeVertex = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String").
+                    property("name.size.max", 20).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.V().hasLabel("InvalidVertex").drop().iterate();
+            }
+
+            invalidSizeVertex = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String").
+                    property("name.size.min", 10).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+
+            Edge invalidSizeEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since.size", 15).
+                    property("since.size.min", 10).
+                    property("since.size.max", 20).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+
+            invalidSizeEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since.size", 15).
+                    property("since.size.min", 10).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+
+            invalidSizeEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since.size", 15).
+                    property("since.size.max", 10).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+
+            invalidSizeEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since.size.max", 10).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+
+            invalidSizeEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since.size.min", 10).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid size on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Invalid property size specification, either specify size.min and size.max or just size.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+        }
+    }
+
+    @Test
+    public void testAnnotation() throws Exception {
+        try (final Graph graph = TinkerGraph.open()) {
+            PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("vertexLabelSindex", true).iterate();
+
+            Vertex groomer = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "String<MyConstructor.class>").
+                    property("name.sindexed", true).
+                    property("name.size", 15).
+                    property("phone", "String").
+                    property("phone.size", 12).
+                    next();
+
+            Edge groomerToGroomer = g.addE("KNOWS").from(groomer).to(groomer).
+                    property("KNOWS.count", 100L).
+                    property("since", "Long<Foobar.blah>").
+                    next();
+
+            g.call("sizing-tool").next();
+
+            Vertex invalidAnnotation = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "String<InvalidConstructor").
+                    property("name.size", 15).
+                    next();
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid annotation on vertex.");
+            } catch (Exception e) {
+                Assert.assertEquals("Type 'String<InvalidConstructor' has an annotation opening '<' but no closing '>'.", e.getMessage());
+                g.V().hasLabel("InvalidVertex").drop().iterate();
+            }
+
+            Edge invalidAnnotationEdge = g.addE("InvalidEdge").from(groomer).to(groomer).
+                    property("InvalidEdge.count", 100L).
+                    property("since", "String<InvalidConstructor").
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid annotation on edge.");
+            } catch (Exception e) {
+                Assert.assertEquals("Type 'String<InvalidConstructor' has an annotation opening '<' but no closing '>'.", e.getMessage());
+                g.E().hasLabel("InvalidEdge").drop().iterate();
+            }
+        }
     }
 
     @Test

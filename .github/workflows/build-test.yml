@@ -161,78 +161,6 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-small-memory-packed:
-    name: Start Small Memory Packed Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-aerospike-version-minimum:
-    name: Start Aerospike Minimum Version Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-invalid-feature-key:
-    name: Start Invalid Feature Key
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark:
     name: Start Benchmark Build Runner
     runs-on: ubuntu-latest
@@ -353,18 +281,6 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  build-firefly-docker:
-    name: Build Firefly Docker
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: |
-          java -XX:+PrintFlagsFinal -version | grep HeapSize
-          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
   negative-test-bulk-loader-call-docker:
     name: Bulk Loader Call without Spark Fails
     timeout-minutes: 120
@@ -542,11 +458,16 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
+      - name: Test Bulk loader Maven
         run: |
           sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
           mvn install -DskipTests
           mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
-      - name: Run Memory Leak Test
+      - name: Test small memory Maven
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+      - name: Run Memory Leak Test Maven
         run: |
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyServer -DfailIfNoTests=false --no-transfer-progress
       - name: Test TLS Maven
@@ -682,45 +603,18 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
-  test-firefly-small-memory-packed:
-    name: Test Small Memory Packed
-    timeout-minutes: 120
-    needs: start-runner-small-memory-packed
-    runs-on: ${{ needs.start-runner-small-memory-packed.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
-    needs: start-runner-aerospike-version-minimum
-    runs-on: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
+          firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
 
       - name: Set up JDK 17
@@ -739,15 +633,15 @@ jobs:
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key
     timeout-minutes: 120
-    needs: start-runner-invalid-feature-key
-    runs-on: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
+    needs: build-firefly-maven
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.4.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE_WITHOUT_GRAPH_SERVICE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
+          firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -1098,69 +992,6 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-chainable-maven-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-chainable-maven-runner.outputs.ec2-instance-id }}
-  stop-runner-small-memory-packed:
-    name: Stop Small Memory Packed Runner
-    needs:
-      - test-firefly-small-memory-packed
-      - start-runner-small-memory-packed
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-small-memory-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-small-memory-packed.outputs.ec2-instance-id }}
-  stop-runner-aerospike-version-minimum:
-    name: Stop Aerospike Minimum Version Runner
-    needs:
-      - test-firefly-aerospike-version-minimum
-      - start-runner-aerospike-version-minimum
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-aerospike-version-minimum.outputs.ec2-instance-id }}
-  stop-runner-invalid-feature-key:
-    name: Stop Invalid Feature Key Runner
-    needs:
-      - test-firefly-invalid-feature-key
-      - start-runner-invalid-feature-key
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-invalid-feature-key.outputs.ec2-instance-id }}
   stop-runner-packed:
     name: Stop Packed Runner
     needs:

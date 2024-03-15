@@ -121,8 +121,8 @@ public class BenchmarkTestIdentifiesTraversal {
                 .forks(1)
                 .threads(1)
                 .mode(MODE)
-                .measurementIterations(10)
-                .measurementTime(TimeValue.seconds(30))
+                .measurementIterations(5)
+                .measurementTime(TimeValue.seconds(15))
                 .timeout(TimeValue.minutes(1)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();

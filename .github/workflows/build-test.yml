@@ -998,7 +998,7 @@ jobs:
   stop-runner-test-firefly-process:
     name: Stop Packed Process Runner
     needs:
-      - test-firefly-test-firefly-process
+      - test-firefly-process
       - start-runner-test-firefly-process
     runs-on: ubuntu-latest
     if: ${{ always() }}
@@ -1019,7 +1019,7 @@ jobs:
   stop-runner-test-firefly-structure:
     name: Stop Packed Structure Runner
     needs:
-      - test-firefly-test-firefly-structure
+      - test-firefly-structure
       - start-runner-test-firefly-structure
     runs-on: ubuntu-latest
     if: ${{ always() }}

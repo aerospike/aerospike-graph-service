@@ -509,7 +509,7 @@ jobs:
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120
-    needs: start-runner-structure
+    needs: start-runner-test-firefly-structure
     runs-on: ${{ needs.start-runner.outputs.label }}
     steps:
       - uses: actions/checkout@v3
@@ -1016,7 +1016,7 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-test-firefly-process.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly-process.outputs.ec2-instance-id }}
-  stop-runner-structure:
+  stop-runner-test-firefly-structure:
     name: Stop Packed Structure Runner
     needs:
       - test-firefly-test-firefly-structure

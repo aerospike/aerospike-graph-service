@@ -477,7 +477,7 @@ jobs:
   test-firefly:
     name: Test Packed
     timeout-minutes: 120
-    needs: start-runner
+    needs: start-runner-test-firefly
     runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
     steps:
       - uses: actions/checkout@v3

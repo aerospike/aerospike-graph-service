@@ -916,7 +916,7 @@ jobs:
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
 
@@ -927,7 +927,7 @@ jobs:
       - name: Test Firefly Docker Image with Custom Prometheus
         run: |
           echo "Running Prometheus Test"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/custom firefly &
+          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
           sleep 30
           
@@ -939,7 +939,7 @@ jobs:
         run: |
           
           docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
             -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
             aerospike/firefly &
           

@@ -18,6 +18,16 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -61,8 +71,8 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed-lz4:
-    name: Start Packed Runner lz4
+  start-runner-test-firefly-structure:
+    name: Start Packed Runner Structure
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -87,8 +97,8 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed:
-    name: Start Packed Runner
+  start-runner-test-firefly-process:
+    name: Start Packed Runner Process
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -113,8 +123,8 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed-sindex:
-    name: Start Packed Sindex Runner
+  start-runner-test-firefly:
+    name: Start Firefly Test Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -127,6 +137,8 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@v2
@@ -137,7 +149,7 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-movielens-packed:
+  start-runner-movielens:
     name: Start Movielens Packed Runner
     runs-on: ubuntu-latest
     needs: build-firefly-maven
@@ -211,30 +223,6 @@ jobs:
           security-group-id: sg-005fce4b475465f9e
   start-runner-benchmark-identifies:
     name: Start Benchmark Identifies Build Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-spark-bulk-loader-lz4:
-    name: Start Spark Bulk Loader Runner lz4
     runs-on: ubuntu-latest
     needs: build-firefly-maven
     outputs:
@@ -335,6 +323,16 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
@@ -476,11 +474,11 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
-  test-firefly-packed:
+  test-firefly:
     name: Test Packed
     timeout-minutes: 120
-    needs: start-runner-packed
-    runs-on: ${{ needs.start-runner-packed.outputs.label }}
+    needs: start-runner
+    runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -507,44 +505,12 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-packed-lz4:
-    name: Test Packed lz4
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest=\!Firefly*StandardTest --no-transfer-progress
+  test-firefly-structure:
+    name: Test Packed Structure Tests
     timeout-minutes: 120
-    needs: start-runner-packed-lz4
-    runs-on: ${{ needs.start-runner-packed-lz4.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike_lz4.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-packed-sindex:
-    name: Test Packed Sindex
-    timeout-minutes: 120
-    needs: start-runner-packed-sindex
-    runs-on: ${{ needs.start-runner-packed-sindex.outputs.label }}
+    needs: start-runner-structure
+    runs-on: ${{ needs.start-runner.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -571,12 +537,44 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed-sindex test --no-transfer-progress
-  test-firefly-movielens-packed:
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
+  test-firefly-process:
+    name: Test Packed Process Tests
+    timeout-minutes: 120
+    needs: start-runner-process
+    runs-on: ${{ needs.start-runner.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.4.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /actions-runner/_work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*ProcessStandardTest --no-transfer-progress
+  test-firefly-movielens:
     name: Test Movielens Packed
     timeout-minutes: 120
-    needs: start-runner-movielens-packed
-    runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
+    needs: start-runner-movielens
+    runs-on: ${{ needs.start-runner-movielens.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -604,6 +602,16 @@ jobs:
     needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
@@ -629,6 +637,16 @@ jobs:
     needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
@@ -661,41 +679,6 @@ jobs:
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
-          GH_WORKSPACE: ${{ github.workspace}}
-        run: |
-          sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
-          mvn clean install -DskipTests
-          mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
-  test-firefly-spark-bulk-loader-lz4:
-    name: Test Spark Bulk Loader lz4
-    timeout-minutes: 30
-    needs: start-runner-spark-bulk-loader-lz4
-    runs-on: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike_lz4.conf'
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -949,11 +932,11 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
-  stop-runner-movielens-packed:
+  stop-runner-movielens:
     name: Stop Movielens Packed Runner
     needs:
-      - test-firefly-movielens-packed
-      - start-runner-movielens-packed
+      - test-firefly-movielens
+      - start-runner-movielens
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -968,8 +951,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-movielens-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-movielens-packed.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-movielens.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-movielens.outputs.ec2-instance-id }}
   stop-chainable-maven-runner:
     name: Stop Chainable Runner
     needs:
@@ -991,11 +974,11 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-chainable-maven-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-chainable-maven-runner.outputs.ec2-instance-id }}
-  stop-runner-packed:
+  stop-runner-test-firefly:
     name: Stop Packed Runner
     needs:
-      - test-firefly-packed
-      - start-runner-packed
+      - test-firefly
+      - start-runner-test-firefly
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1010,13 +993,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
-  stop-runner-packed-lz4:
-    name: Stop Packed Runner lz4
+          label: ${{ needs.start-runner-test-firefly.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly.outputs.ec2-instance-id }}
+  stop-runner-test-firefly-process:
+    name: Stop Packed Process Runner
     needs:
-      - test-firefly-packed-lz4
-      - start-runner-packed-lz4
+      - test-firefly-test-firefly-process
+      - start-runner-test-firefly-process
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1031,13 +1014,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed-lz4.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed-lz4.outputs.ec2-instance-id }}
-  stop-runner-packed-sindex:
-    name: Stop Packed Sindex Runner
+          label: ${{ needs.start-runner-test-firefly-process.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-process.outputs.ec2-instance-id }}
+  stop-runner-structure:
+    name: Stop Packed Structure Runner
     needs:
-      - test-firefly-packed-sindex
-      - start-runner-packed-sindex
+      - test-firefly-test-firefly-structure
+      - start-runner-test-firefly-structure
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1052,8 +1035,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed-sindex.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed-sindex.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-structure.outputs.ec2-instance-id }}
   stop-runner-benchmark:
     name: Stop Benchmark Runner
     needs:
@@ -1138,24 +1121,3 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader.outputs.ec2-instance-id }}
-  stop-runner-spark-bulk-loader-lz4:
-    name: Stop Spark Bulk Loader Runner lz4
-    needs:
-      - test-firefly-spark-bulk-loader-lz4
-      - start-runner-spark-bulk-loader-lz4
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.ec2-instance-id }}

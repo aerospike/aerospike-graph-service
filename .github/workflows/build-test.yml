@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: [main,2.x-dev]
 
-# Firefly has the following jobs:
-# - Build Firefly Maven
-# - Build Firefly Docker
-# - Test Spark Bulk Loader
-# - Test Packed Data Model
-
 jobs:
   build-firefly-maven:
     name: Build Firefly Maven
@@ -71,7 +65,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-structure:
-    name: Start Packed Runner Structure
+    name: Start Runner Structure
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -96,7 +90,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-test-firefly-process:
-    name: Start Packed Runner Process
+    name: Start Runner Process
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -146,7 +140,7 @@ jobs:
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
   start-runner-movielens:
-    name: Start Movielens Packed Runner
+    name: Start Movielens Runner
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -466,7 +460,7 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
   test-firefly:
-    name: Test Packed
+    name: Test Firefly
     timeout-minutes: 120
     needs: start-runner-test-firefly
     runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
@@ -530,10 +524,10 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
   test-firefly-process:
-    name: Test Packed Process Tests
+    name: Test Firefly Process Tests
     timeout-minutes: 120
     needs: start-runner-test-firefly-process
-    runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
+    runs-on: ${{ needs.start-runner-test-firefly-process.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -562,7 +556,7 @@ jobs:
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*ProcessStandardTest --no-transfer-progress
   test-firefly-movielens:
-    name: Test Movielens Packed
+    name: Test Movielens
     timeout-minutes: 120
     needs: start-runner-movielens
     runs-on: ${{ needs.start-runner-movielens.outputs.label }}
@@ -907,6 +901,12 @@ jobs:
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image Bulk Loader Call
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           
           docker run -p 8182:8182  \
@@ -921,7 +921,7 @@ jobs:
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
   stop-runner-movielens:
-    name: Stop Movielens Packed Runner
+    name: Stop Movielens Runner
     needs:
       - test-firefly-movielens
       - start-runner-movielens
@@ -963,7 +963,7 @@ jobs:
           label: ${{ needs.start-chainable-maven-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-chainable-maven-runner.outputs.ec2-instance-id }}
   stop-runner-test-firefly:
-    name: Stop Packed Runner
+    name: Stop Runner
     needs:
       - test-firefly
       - start-runner-test-firefly
@@ -984,7 +984,7 @@ jobs:
           label: ${{ needs.start-runner-test-firefly.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly.outputs.ec2-instance-id }}
   stop-runner-test-firefly-process:
-    name: Stop Packed Process Runner
+    name: Stop Process Runner
     needs:
       - test-firefly-process
       - start-runner-test-firefly-process
@@ -1005,7 +1005,7 @@ jobs:
           label: ${{ needs.start-runner-test-firefly-process.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly-process.outputs.ec2-instance-id }}
   stop-runner-test-firefly-structure:
-    name: Stop Packed Structure Runner
+    name: Stop Structure Runner
     needs:
       - test-firefly-structure
       - start-runner-test-firefly-structure

@@ -1040,11 +1040,11 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-test-firefly.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-test-firefly.outputs.ec2-instance-id }}
-  stop-runner-test-firefly-process:
-    name: Stop Process Runner
+  stop-runner-test-firefly-process-1:
+    name: Stop Process Runner 1
     needs:
-      - test-firefly-process
-      - start-runner-test-firefly-process
+      - test-firefly-process-1
+      - start-runner-test-firefly-process-1
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1059,8 +1059,29 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-test-firefly-process.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-test-firefly-process.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-1.outputs.ec2-instance-id }}
+  stop-runner-test-firefly-process-2:
+    name: Stop Process Runner 2
+    needs:
+      - test-firefly-process-2
+      - start-runner-test-firefly-process-2
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          label: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-2.outputs.ec2-instance-id }}
   stop-runner-test-firefly-structure:
     name: Stop Structure Runner
     needs:

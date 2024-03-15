@@ -1,18 +1,21 @@
 package com.aerospike.firefly.structure;
 
+import com.aerospike.firefly.process.FireflyTestListener;
 import com.aerospike.firefly.util.ConfigurationHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.tinkerpop.gremlin.AbstractGraphProvider;
 import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES_SINDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 
@@ -20,7 +23,7 @@ import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public class FireflyGraphProviderSindex extends AbstractGraphProvider {
-
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphProviderSindex.class);
     private static final Configuration config;
 
     static {
@@ -65,6 +68,11 @@ public class FireflyGraphProviderSindex extends AbstractGraphProvider {
                 fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             }
         }
+    }
+
+    @Override
+    public Optional<TestListener> getTestListener() {
+        return Optional.of(new FireflyTestListener(LOG));
     }
 
     @Override

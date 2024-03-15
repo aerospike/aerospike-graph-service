@@ -48,7 +48,6 @@ jobs:
   start-chainable-maven-runner:
     name: Start Chainable Maven Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -74,7 +73,6 @@ jobs:
   start-runner-test-firefly-structure:
     name: Start Packed Runner Structure
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -100,7 +98,6 @@ jobs:
   start-runner-test-firefly-process:
     name: Start Packed Runner Process
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -126,7 +123,6 @@ jobs:
   start-runner-test-firefly:
     name: Start Firefly Test Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -152,7 +148,6 @@ jobs:
   start-runner-movielens:
     name: Start Movielens Packed Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -176,7 +171,6 @@ jobs:
   start-runner-benchmark:
     name: Start Benchmark Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -200,7 +194,6 @@ jobs:
   start-runner-benchmark-internal dataset:
     name: Start Benchmark internal dataset Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -224,7 +217,6 @@ jobs:
   start-runner-benchmark-identifies:
     name: Start Benchmark Identifies Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -248,7 +240,6 @@ jobs:
   start-runner-spark-bulk-loader:
     name: Start Spark Bulk Loader Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -599,7 +590,6 @@ jobs:
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
-    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -634,7 +624,6 @@ jobs:
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key
     timeout-minutes: 120
-    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -822,7 +811,6 @@ jobs:
   test-chainable-docker:
     name: Test Chainable Docker
     timeout-minutes: 30
-    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)

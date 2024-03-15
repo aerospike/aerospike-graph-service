@@ -496,12 +496,12 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test -Dtest=\!Firefly*StandardTest --no-transfer-progress
+          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
   test-firefly-structure:
     name: Test Packed Structure Tests
     timeout-minutes: 120
     needs: start-runner-test-firefly-structure
-    runs-on: ${{ needs.start-runner.outputs.label }}
+    runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -528,12 +528,12 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
   test-firefly-process:
     name: Test Packed Process Tests
     timeout-minutes: 120
     needs: start-runner-test-firefly-process
-    runs-on: ${{ needs.start-runner.outputs.label }}
+    runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -560,7 +560,7 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*ProcessStandardTest --no-transfer-progress
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*ProcessStandardTest --no-transfer-progress
   test-firefly-movielens:
     name: Test Movielens Packed
     timeout-minutes: 120

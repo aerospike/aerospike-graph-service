@@ -155,9 +155,9 @@ public class BenchmarkTestFlightsData {
                 .include(BenchmarkTestFlightsData.class.getSimpleName())
                 .detectJvmArgs()
                 .forks(2)
-                .measurementIterations(1)
-                .measurementTime(TimeValue.seconds(8))
-                .timeout(TimeValue.seconds(30)); // Timeout
+                .measurementIterations(2)
+                .measurementTime(TimeValue.seconds(2))
+                .timeout(TimeValue.seconds(60)); // Timeout
         BenchmarkTestUtils.appendJmhOptionsBuilder(optBuilder);
         Options opt = optBuilder.build();
         Collection<RunResult> runResult = new Runner(opt).run();

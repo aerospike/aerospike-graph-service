@@ -28,14 +28,14 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.aerospike.firefly.io.aerospike.AerospikeConnection.LOG;
 import static com.aerospike.firefly.io.aerospike.AerospikeConnection.getDefaultThreadPoolSize;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
  */
 public final class ConfigurationHelper {
-    private static final Logger logger = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeConnection.class);
+    private static final NumericConfigValidator NUMERIC_CONFIG_VALIDATOR = new NumericConfigValidator();
 
     private ConfigurationHelper() {
     }
@@ -337,6 +337,30 @@ public final class ConfigurationHelper {
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
     }};
 
+    static {
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.SCAN_MAX_WAIT, 100, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_WRITE_MAX_RETRY, 0, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_SIZE, 128, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_MAX_WAIT, 1000, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_TIMEOUT, 100, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_SOCKET_TIMEOUT, 100, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.TTL_PURGE_INTERVAL_SECONDS, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_BATCH_READ_SIZE, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MOVEMENT_BARRIER_SIZE, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MAX_ERROR_RATE, 0, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.CONNECT_TIMEOUT, 0, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.TIMEOUT_DELAY, 0, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
+    }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
         // Adds a space if it is empty. Remove the space.
@@ -353,7 +377,7 @@ public final class ConfigurationHelper {
             props.keySet().forEach(it -> {
                 final String key = it.toString().toLowerCase();
                 final Object value = props.get(it.toString());
-                logger.debug("config[{}:{}]", key, value);
+                LOG.debug("config[{}:{}]", key, value);
                 configData.put(key, value);
             });
             return new MapConfiguration(configData);
@@ -444,6 +468,11 @@ public final class ConfigurationHelper {
             return null;
     }
 
+    public static long getOrDefaultNumeric(final String key, Configuration config) {
+        final String value = (String) getOrDefault(key, config);
+        return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+    }
+
     public static String getPrefix(Configuration config) {
         return config.containsKey(Keys.GRAPH_ID.toLowerCase()) ? config.get(String.class, Keys.GRAPH_ID.toLowerCase()) + "_" : defaultValues.get(Keys.GRAPH_ID) + "_";
     }
@@ -472,7 +501,6 @@ public final class ConfigurationHelper {
         return sw.toString();
     }
 
-    public static final String UNKNOWN_KEY_MESSAGE = "The following configuration keys are unknown: ";
     public static void validateConfig(final Configuration config) {
         final Field[] keyFields = Keys.class.getFields();
         final Keys keys = new Keys();
@@ -507,6 +535,42 @@ public final class ConfigurationHelper {
         }
         if (!invalidKeys.isEmpty()) {
             throw new IllegalArgumentException("Error, the following configuration keys are invalid: " + invalidKeys);
+        }
+    }
+
+    private static class NumericConfigValidator {
+        private final Map<String, Long> minimums = new HashMap<>();
+        private final Map<String, Long> maximums = new HashMap<>();
+
+        private void addConfig(final String key, final long min, final long max) {
+            addConfigMin(key, min);
+            addConfigMax(key, max);
+        }
+
+        private void addConfigMin(final String key, final long min) {
+            this.minimums.put(key, min);
+        }
+
+        private void addConfigMax(final String key, final long max) {
+            this.maximums.put(key, max);
+        }
+
+        private long validate(final String key, final String value) {
+            try {
+                final long valueLong = Long.parseLong(value);
+                if (minimums.containsKey(key) && valueLong < minimums.get(key)) {
+                    final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is below the minimum acceptable value, \"" + minimums.get(key) + "\".";
+                    throw new RuntimeException(errorMessage);
+                } else if (maximums.containsKey(key) && valueLong > maximums.get(key)) {
+                    final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is above the maximum acceptable value, \"" + maximums.get(key) + "\".";
+                    throw new RuntimeException(errorMessage);
+                }
+                return valueLong;
+            } catch (final NumberFormatException e) {
+                final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is invalid due to not being numeric.";
+                LOG.error(errorMessage);
+                throw new RuntimeException(errorMessage);
+            }
         }
     }
 }

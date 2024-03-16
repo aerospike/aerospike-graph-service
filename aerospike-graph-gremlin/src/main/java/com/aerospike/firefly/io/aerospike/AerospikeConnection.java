@@ -228,7 +228,7 @@ public class AerospikeConnection implements AutoCloseable {
         clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
         clientPolicy.minConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf));
 
-        clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
+        clientPolicy.timeout = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
         // If username and password are not null or empty strings, then set the user and password on the client policy.
@@ -244,7 +244,7 @@ public class AerospikeConnection implements AutoCloseable {
             clientPolicy.tlsPolicy = new TlsPolicy();
 
         }
-        clientPolicy.maxErrorRate = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf));
+        clientPolicy.maxErrorRate = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf);
         clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());
         final String useServicesAlternate = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
         clientPolicy.useServicesAlternate = Boolean.parseBoolean(useServicesAlternate);
@@ -349,20 +349,20 @@ public class AerospikeConnection implements AutoCloseable {
         ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
         TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
         TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
-        PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
-        PAGINATION_PAGE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf));
-        PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
+        PAGINATION_PAGE_SIZE = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
+        PAGINATION_PAGE_MAX_WAIT = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
+        PAGINATION_PAGE_QUEUE_SIZE = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
         BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);
         BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
-        AEROSPIKE_WRITE_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf));
+        AEROSPIKE_WRITE_MAX_RETRY = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf);
 
-        CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
-        INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
-        TTL_PURGE_INTERVAL_SECONDS = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf));
+        CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
+        INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
+        TTL_PURGE_INTERVAL_SECONDS = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
@@ -410,19 +410,19 @@ public class AerospikeConnection implements AutoCloseable {
         BL_ROW_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_ROW_BIN.name(), conf);
         BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
 
-        AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
-        FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
-        PHAT_EDGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf));
-        MOVEMENT_BARRIER_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf));
+        AEROSPIKE_BATCH_READ_SIZE = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
+        FIREFLY_READ_THROUGH_CACHE_WEIGHT = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
+        PHAT_EDGE_SIZE = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
+        MOVEMENT_BARRIER_SIZE = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);
 
-        PROPERTY_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf));
-        VERTEX_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf));
-        EDGE_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf));
+        PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
+        VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
+        EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
 
-        AEROSPIKE_SOCKET_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf));
-        CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
-        TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
-        USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
+        AEROSPIKE_SOCKET_TIMEOUT = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf);
+        CONNECT_TIMEOUT = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
+        TIMEOUT_DELAY = (int) ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
+        USAGE_STATS_UPDATE_INTERVAL = ConfigurationHelper.getOrDefaultNumeric(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf);
         WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
         PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
 

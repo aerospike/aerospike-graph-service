@@ -437,7 +437,7 @@ jobs:
           benchmark-data-dir-path: docs/
   test-firefly-chainable-maven:
     name: Test Chainable Maven
-    timeout-minutes: 12
+    timeout-minutes: 120
     needs: start-chainable-maven-runner
     runs-on: ${{ needs.start-chainable-maven-runner.outputs.label }}
     steps:

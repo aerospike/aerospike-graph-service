@@ -103,7 +103,16 @@ public class SizingToolMain implements Callable<Exception> {
 
     private static String sanitizeType(final String type) {
         // Remove annotation (looks like String<JFaker.name.fullname>).
-        if (type.contains("<")) {
+        if (type.toLowerCase().startsWith("list")) {
+            if (!type.endsWith(">")) {
+                throw new RuntimeException("Type '" + type + "' has an annotation opening '<' but no closing '>'.");
+            }
+            String subType = type.substring(type.indexOf("<") + 1, type.length() - 1);
+            if (subType.contains("<")) {
+                subType = subType.substring(0, subType.indexOf("<"));
+            }
+            return type.toLowerCase().substring(0, type.indexOf("<")) + "<" + subType.toLowerCase() + ">";
+        } else if (type.contains("<")) {
             if (!type.endsWith(">")) {
                 throw new RuntimeException("Type '" + type + "' has an annotation opening '<' but no closing '>'.");
             }
@@ -173,13 +182,23 @@ public class SizingToolMain implements Callable<Exception> {
     private static void populatePropertySchema(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
         propertySchema.key = key;
         propertySchema.type = sanitizeType(map.get(key).toString());
-        assignSize(propertySchema, map, key);
-        assignCount(propertySchema, map, key);
+        assignCountSize(propertySchema, map, key);
         if (map.containsKey(key + ".sindexed")) {
             propertySchema.sindexed = getValue(map, key + ".sindexed", Boolean.class);
         }
         if (map.containsKey(key + ".likelihood")) {
             propertySchema.likelihood = getValue(map, key + ".likelihood", Double.class);
+        }
+        if (propertySchema.type.startsWith("list")) {
+            if (propertySchema.count == null) {
+                throw new RuntimeException("List property '" + key + "' does not have required '" + key + ".size' field.");
+            }
+
+            if (propertySchema.type.contains("string") &&
+                    propertySchema.size == null) {
+                throw new RuntimeException("List property '" + key + "' does not have size annotation." +
+                        " List<String>> specification requires format List<String<X>> for size to be set.");
+            }
         }
     }
 
@@ -198,47 +217,61 @@ public class SizingToolMain implements Callable<Exception> {
         keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
                 key.equals(label + ".count") ||
                 key.toString().endsWith(".size") ||
-                key.toString().endsWith(".sindexed") ||
-                key.toString().endsWith(".size.max") ||
                 key.toString().endsWith(".size.min") ||
+                key.toString().endsWith(".size.max") ||
+                key.toString().endsWith(".sindexed") ||
                 key.toString().endsWith(".likelihood"));
         return keys;
     }
 
-    private static void assignSize(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
+    private static void assignCountSize(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
+        // If we have something like list<string>
+        if (propertySchema.type.startsWith("list")) {
+            final String rawMapValue = ((String) map.get(key)).toLowerCase();
+            if (rawMapValue.contains("string")) {
+                String annotation = rawMapValue.substring(rawMapValue.indexOf("string"));
+                if (!annotation.contains("<")) {
+                    throw new RuntimeException("List property '" + key + "' does not have size annotation." +
+                            " List<String>> specification requires format List<String<X>> for size to be set.");
+                }
+                annotation = annotation.substring(annotation.indexOf("<") + 1, annotation.indexOf(">"));
+                if (annotation.contains(",")) {
+                    annotation = annotation.substring(0, annotation.indexOf(","));
+                }
+                if (annotation.contains("-")) {
+                    final String[] split = annotation.split("-");
+                    if (split.length != 2) {
+                        throw new RuntimeException("Invalid property size specification '" + rawMapValue +
+                                "', must have two numbers if a '-' is used.");
+                    }
+                    propertySchema.size = (Long.parseLong(split[1]) + Long.parseLong(split[0])) / 2;
+                } else {
+                    propertySchema.size = Long.parseLong(annotation);
+                }
+            }
+        }
+
         // Can either have just size, or size.min and size.max.
         if (map.containsKey(key + ".size")) {
             if (map.containsKey(key + ".size.max") || map.containsKey(key + ".size.min")) {
                 throw new RuntimeException("Invalid property size specification, either specify size.min and size.max or just size.");
             }
-            propertySchema.size = getValue(map, key + ".size", Number.class);
+            if (propertySchema.type.startsWith("list")) {
+                propertySchema.count = getValue(map, key + ".size", Number.class);
+            } else {
+                propertySchema.size = getValue(map, key + ".size", Number.class);
+            }
         } else {
             if (map.containsKey(key + ".size.max") && map.containsKey(key + ".size.min")) {
-                propertySchema.size = (getValue(map, key + ".size.max", Number.class).longValue() +
-                        getValue(map, key + ".size.min", Number.class).longValue()) / 2;
+                if (propertySchema.type.startsWith("list")) {
+                    propertySchema.count = (getValue(map, key + ".size.max", Number.class).longValue() +
+                            getValue(map, key + ".size.min", Number.class).longValue()) / 2;
+                } else {
+                    propertySchema.size = (getValue(map, key + ".size.max", Number.class).longValue() +
+                            getValue(map, key + ".size.min", Number.class).longValue()) / 2;
+                }
             } else if (map.containsKey(key + ".size.max") || map.containsKey(key + ".size.min")) {
                 throw new RuntimeException("Invalid property size specification, either specify size.min and size.max or just size.");
-            }
-        }
-    }
-
-    private static void assignCount(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
-        // Can either have just size, or size.min and size.max.
-        final String dataTypeFull = (String) map.get(key);
-        if (!dataTypeFull.toLowerCase().startsWith("list")) {
-            return;
-        }
-        if (map.containsKey(key + ".count")) {
-            if (map.containsKey(key + ".count.max") || map.containsKey(key + ".count.min")) {
-                throw new RuntimeException("Invalid property count specification, either specify count.min and count.max or just count.");
-            }
-            propertySchema.size = getValue(map, key + ".count", Number.class);
-        } else {
-            if (map.containsKey(key + ".count.max") && map.containsKey(key + ".count.min")) {
-                propertySchema.size = (getValue(map, key + ".count.max", Number.class).longValue() +
-                        getValue(map, key + ".count.min", Number.class).longValue()) / 2;
-            } else if (map.containsKey(key + ".count.max") || map.containsKey(key + ".count.min")) {
-                throw new RuntimeException("Invalid property count specification, either specify count.min and count.max or just count.");
             }
         }
     }

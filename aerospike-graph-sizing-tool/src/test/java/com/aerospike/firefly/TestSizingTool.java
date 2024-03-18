@@ -430,6 +430,111 @@ public class TestSizingTool {
     }
 
     @Test
+    public void testList() throws Exception {
+        try (final Graph graph = TinkerGraph.open()) {
+            PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("vertexLabelSindex", true).iterate();
+
+            Vertex list1 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<String<15>>").
+                    property("name.size", 15).
+                    next();
+
+            Vertex list2 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<String<15-20>>").
+                    property("name.size", 15).
+                    next();
+
+            Vertex list3 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<String<15,Foo.bar>>").
+                    property("name.size", 15).
+                    next();
+
+            Vertex list4 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<String<15-20,Foo.bar>>").
+                    property("name.size", 15).
+                    next();
+
+            Vertex list5 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<Long>").
+                    property("name.size", 15).
+                    next();
+
+            Vertex list6 = g.addV("Groomer").
+                    property("Groomer.count", 10).
+                    property("name", "List<Long<foo.bar>>").
+                    property("name.size", 15).
+                    next();
+
+            final Object data = g.call("sizing-tool").next();
+            g.V().drop().iterate();
+            g.addV().property(T.id, "~metadata").
+                    property("replicationFactor", 2).
+                    property("vertexLabelSindex", true).iterate();
+
+            Vertex invalidList = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "List<String<15").
+                    property("name.size", 15).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception with invalid list.");
+            } catch (Exception e) {
+                Assert.assertEquals("Type 'List<String<15' has an annotation opening '<' but no closing '>'.", e.getMessage());
+                g.V().drop().iterate();
+                g.addV().property(T.id, "~metadata").
+                        property("replicationFactor", 2).
+                        property("vertexLabelSindex", true).iterate();
+            }
+
+            invalidList = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "List<String<15>>").
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception string missing size.");
+            } catch (Exception e) {
+                Assert.assertEquals("List property 'name' does not have required 'name.size' field.", e.getMessage());
+                g.V().drop().iterate();
+                g.addV().property(T.id, "~metadata").
+                        property("replicationFactor", 2).
+                        property("vertexLabelSindex", true).iterate();
+            }
+
+            invalidList = g.addV("InvalidVertex").
+                    property("InvalidVertex.count", 10).
+                    property("name", "List<String>").
+                    property("name.size", 15).
+                    next();
+
+            try {
+                g.call("sizing-tool").next();
+                Assert.fail("Should have thrown an exception string missing size.");
+            } catch (Exception e) {
+                Assert.assertEquals("List property 'name' does not have size annotation. List<String>> specification requires format List<String<X>> for size to be set.", e.getMessage());
+                g.V().drop().iterate();
+                g.addV().property(T.id, "~metadata").
+                        property("replicationFactor", 2).
+                        property("vertexLabelSindex", true).iterate();
+            }
+        }
+    }
+
+    @Test
     public void testAnnotation() throws Exception {
         try (final Graph graph = TinkerGraph.open()) {
             PluginUtil.loadPlugin(SizingToolPlugin.class.getName(), new MapConfiguration(Map.of()), graph);

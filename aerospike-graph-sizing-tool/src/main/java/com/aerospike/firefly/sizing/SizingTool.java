@@ -24,7 +24,7 @@ public class SizingTool {
     private final static Long EDGE_RECORD_OVERHEAD = 20L;
     private final static Long EDGE_PROPERTY_OVERHEAD = 20L;
     private final static Long LABEL_OVERHEAD = 4L;
-    private final static Long EDGE_RECORD_VALUE_SIZE = 32L;
+    private final static Long EDGE_RECORD_VALUE_SIZE = 34L;
     private final static Long EDGE_RECORD_ENTRY_OVERHEAD = 20L; // 16 bytes for the key which is the edge id.
                                                                 // 4  bytes for the overhead of the map entry.
 
@@ -89,6 +89,9 @@ public class SizingTool {
             long size;
             switch (subType) {
                 case "integer":
+                    // Weirdly integer in list seems to be stored bigger than expected.
+                    size = 7L;
+                    break;
                 case "float":
                     size = 4L;
                     break;

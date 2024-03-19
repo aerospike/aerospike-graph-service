@@ -317,7 +317,6 @@ jobs:
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -517,7 +516,6 @@ jobs:
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -551,7 +549,6 @@ jobs:
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -585,7 +582,6 @@ jobs:
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -619,7 +615,6 @@ jobs:
           GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
           GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh
@@ -755,7 +750,6 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
           GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
           GH_WORKSPACE: ${{ github.workspace}}
-        env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
           bash -x scripts/start_aerospike.sh

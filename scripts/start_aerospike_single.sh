@@ -6,5 +6,5 @@ else
   virtualenv -p $(which python3) .github/aerospike/venv
   source .github/aerospike/venv/bin/activate
   pip3 install -r .github/aerospike/requirements.txt
-  python3 .github/aerospike/start_cluster.py --aerospike_version $AS_VERSION --features_file $(realpath .github/aerospike/features.conf) --repo_path $(realpath ./) $@
+  python3 .github/aerospike/start_cluster.py --aerospike_version $AS_VERSION --features_file $(realpath .github/aerospike/features.conf) --repo_path $(realpath ./) --node_count=1 $@
 fi

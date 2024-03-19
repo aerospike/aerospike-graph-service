@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 AS_VERSION=${1:-"ee-7.0.0.5_1"}
 if [ ! -f .github/aerospike/features.conf ]; then
-  if [ -z "$AEROSPIKE_FETURES_B64" ]; then
+  if [ -z "$AEROSPIKE_FEATURES_B64" ]; then
     echo "no features file present at .github/aerospike/features.conf"
   else
-    echo $AEROSPIKE_FETURES_B64 | base64 -d >$REPOSITORY_ROOT/.github/aerospike/features.conf
+    echo $AEROSPIKE_FEATURES_B64 | base64 -d > .github/aerospike/features.conf
   fi
 else
   virtualenv -p $(which python3) .github/aerospike/venv

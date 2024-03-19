@@ -6,42 +6,22 @@ on:
   pull_request:
     branches: [main,2.x-dev]
 
-# Firefly has the following jobs:
-# - Build Firefly Maven
-# - Build Firefly Docker
-# - Test Spark Bulk Loader
-# - Test Packed Data Model
-
 jobs:
-  start-runner-build:
-    name: Start Build Runner
-    runs-on: ubuntu-latest
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
   build-firefly-maven:
     name: Build Firefly Maven
-    needs: start-runner-build
     timeout-minutes: 120
-    runs-on: ${{ needs.start-runner-build.outputs.label }}
+    runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -59,31 +39,9 @@ jobs:
           # mvn editorconfig:format
           mvn editorconfig:check
           mvn clean package -DskipTests --no-transfer-progress
-  stop-runner-build:
-    name: Stop Build Runner
-    needs:
-      - build-firefly-maven
-      - start-runner-build
+  start-chainable-maven-runner:
+    name: Start Chainable Maven Runner
     runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-build.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-build.outputs.ec2-instance-id }}
-  start-runner-tls:
-    name: Start TLS Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -106,10 +64,9 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-client-provider:
-    name: Start Client Provider Runner
+  start-runner-test-firefly-structure:
+    name: Start Runner Structure
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -132,10 +89,9 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed-lz4:
-    name: Start Packed Runner lz4
+  start-runner-test-firefly-process-1:
+    name: Start Runner Process 1
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -158,10 +114,9 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed:
-    name: Start Packed Runner
+  start-runner-test-firefly-process-2:
+    name: Start Runner Process 2
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -184,10 +139,9 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-packed-sindex:
-    name: Start Packed Sindex Runner
+  start-runner-test-firefly:
+    name: Start Firefly Test Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -198,6 +152,8 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /home/runner/work/firefly/firefly
       - name: Start EC2 runner
         id: start-ec2-runner
         uses: machulav/ec2-github-runner@v2
@@ -208,106 +164,9 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  start-runner-movielens-packed:
-    name: Start Movielens Packed Runner
+  start-runner-movielens:
+    name: Start Movielens Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-small-memory-packed:
-    name: Start Small Memory Packed Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-aerospike-version-minimum:
-    name: Start Aerospike Minimum Version Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-invalid-feature-key:
-    name: Start Invalid Feature Key
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-docker:
-    name: Start Docker Build Runner
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -331,7 +190,6 @@ jobs:
   start-runner-benchmark:
     name: Start Benchmark Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -355,7 +213,6 @@ jobs:
   start-runner-benchmark-internal dataset:
     name: Start Benchmark internal dataset Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -379,31 +236,6 @@ jobs:
   start-runner-benchmark-identifies:
     name: Start Benchmark Identifies Build Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Start EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: start
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-0d006286a6209f4bc
-          ec2-instance-type: t2.2xlarge
-          subnet-id: subnet-0bdbb4255fbffb239
-          security-group-id: sg-005fce4b475465f9e
-  start-runner-spark-bulk-loader-lz4:
-    name: Start Spark Bulk Loader Runner lz4
-    runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -427,7 +259,6 @@ jobs:
   start-runner-spark-bulk-loader:
     name: Start Spark Bulk Loader Runner
     runs-on: ubuntu-latest
-    needs: build-firefly-maven
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
@@ -448,66 +279,21 @@ jobs:
           ec2-instance-type: t2.2xlarge
           subnet-id: subnet-0bdbb4255fbffb239
           security-group-id: sg-005fce4b475465f9e
-  build-firefly-docker:
-    name: Build Firefly Docker
-    timeout-minutes: 120
-    needs: start-runner-docker
-    runs-on: ${{ needs.start-runner-docker.outputs.label }}
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: actions/checkout@v3
-      - name: Build Docker Image
-        run: |
-          java -XX:+PrintFlagsFinal -version | grep HeapSize
-          bash -x scripts/build-docker.sh aerospike/firefly linux/amd64
-  test-bulk-loader-call-docker:
-    name: Bulk Loader Call with Spark
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Build Docker Image
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        run: |
-          bash -x scripts/build-docker.sh aerospike/firefly-bulk-load linux/amd64
-          
-          docker run -p 8182:8182  \
-            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/:/opt/aerospike-graph/custom/ \
-            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
-            aerospike/firefly-bulk-load &
-          
-          echo "Sleeping for 30 seconds while docker image starts"
-          sleep 30
-          
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
   negative-test-bulk-loader-call-docker:
     name: Bulk Loader Call without Spark Fails
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - uses: actions/checkout@v3
@@ -547,6 +333,16 @@ jobs:
     timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
@@ -639,11 +435,11 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
-  test-firefly-tls:
-    name: Test TLS integration
-    timeout-minutes: 12
-    needs: start-runner-tls
-    runs-on: ${{ needs.start-runner-tls.outputs.label }}
+  test-firefly-chainable-maven:
+    name: Test Chainable Maven
+    timeout-minutes: 120
+    needs: start-chainable-maven-runner
+    runs-on: ${{ needs.start-chainable-maven-runner.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -661,43 +457,38 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
-      - name: Test with Maven
+      - name: Build maven
+        run: |
+          mvn install -DskipTests
+      - name: Test Bulk Loader Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
+          GH_WORKSPACE: ${{ github.workspace}}
+        run: |
+          sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
+          mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
+      - name: Test small memory Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -DskipTests clean compile test-compile package
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
+      - name: Test TLS Maven
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Djavax.net.ssl.trustStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/trust-store.jks) -Djavax.net.ssl.keyStore=$(realpath aerospike-graph-gremlin/src/test/resources/tls/client.jks) -Djavax.net.ssl.trustStorePassword=abc123 -Djavax.net.ssl.keyStorePassword=abc123 -Dtest=TestTLSIntegration -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-client-provider:
-    name: Test Client Provider
-    timeout-minutes: 12
-    needs: start-runner-client-provider
-    runs-on: ${{ needs.start-runner-client-provider.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
+      - name: Test Client Provider Maven
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -DfailIfNoTests=false --no-transfer-progress
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
-  test-firefly-packed:
-    name: Test Packed
+          mvn test -pl aerospike-graph-gremlin -Dtest=ConcurrentClientProviderInstantiationTest -Dtest=TestAerospikeClientProviderConfiguration -DfailIfNoTests=false --no-transfer-progress
+  test-firefly:
+    name: Test Firefly
     timeout-minutes: 120
-    needs: start-runner-packed
-    runs-on: ${{ needs.start-runner-packed.outputs.label }}
+    needs: start-runner-test-firefly
+    runs-on: ${{ needs.start-runner-test-firefly.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -725,43 +516,11 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-packed-lz4:
-    name: Test Packed lz4
+  test-firefly-structure:
+    name: Test Packed Structure Tests
     timeout-minutes: 120
-    needs: start-runner-packed-lz4
-    runs-on: ${{ needs.start-runner-packed-lz4.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike_lz4.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-        run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed test --no-transfer-progress
-  test-firefly-packed-sindex:
-    name: Test Packed Sindex
-    timeout-minutes: 120
-    needs: start-runner-packed-sindex
-    runs-on: ${{ needs.start-runner-packed-sindex.outputs.label }}
+    needs: start-runner-test-firefly-structure
+    runs-on: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -788,12 +547,76 @@ jobs:
           GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn -pl aerospike-graph-gremlin -Dintegration.test.properties=packed-sindex test --no-transfer-progress
-  test-firefly-movielens-packed:
-    name: Test Movielens Packed
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=Firefly*StructureStandardTest --no-transfer-progress
+  test-firefly-process-1:
+    name: Test Firefly Process Tests 1
     timeout-minutes: 120
-    needs: start-runner-movielens-packed
-    runs-on: ${{ needs.start-runner-movielens-packed.outputs.label }}
+    needs: start-runner-test-firefly-process-1
+    runs-on: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.4.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /actions-runner/_work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphProcessStandardTest -Dtest=FireflyGraphUncachedProcessStandardTest --no-transfer-progress
+  test-firefly-process-2:
+    name: Test Firefly Process Tests 2
+    timeout-minutes: 120
+    needs: start-runner-test-firefly-process-2
+    runs-on: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cinterloper/github-action-aerospike@v5
+        with:
+          server-version: ee-6.4.0.7
+          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
+          firefly-path: /actions-runner/_work/firefly/firefly
+          config-file: '.github/aerospike/aerospike.conf'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+      - name: Test with Maven
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
+          mvn test -pl aerospike-graph-gremlin -Dintegration.test.properties=packed -Dtest=FireflyGraphSindexProcessStandardTest -Dtest=FireflyGraphSupernodeProcessStandardTest --no-transfer-progress
+  test-firefly-movielens:
+    name: Test Movielens
+    timeout-minutes: 120
+    needs: start-runner-movielens
+    runs-on: ${{ needs.start-runner-movielens.outputs.label }}
     steps:
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
@@ -815,47 +638,28 @@ jobs:
         run: |
           sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=TestMovielens1M -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
-  test-firefly-small-memory-packed:
-    name: Test Small Memory Packed
-    timeout-minutes: 120
-    needs: start-runner-small-memory-packed
-    runs-on: ${{ needs.start-runner-small-memory-packed.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
-          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyExceedHeap -DfailIfNoTests=false -Dintegration.test.properties=packed -Djvmheapsize=small --no-transfer-progress
   test-firefly-aerospike-version-minimum:
     name: Test Aerospike Version Minimum
     timeout-minutes: 120
-    needs: start-runner-aerospike-version-minimum
-    runs-on: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
+    runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.2.0.3
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
+          firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -867,22 +671,29 @@ jobs:
           maven-version: 3.9.5
       - name: Test with Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key
     timeout-minutes: 120
-    needs: start-runner-invalid-feature-key
-    runs-on: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
+    runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - uses: cinterloper/github-action-aerospike@v5
         with:
           server-version: ee-6.4.0.7
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE_WITHOUT_GRAPH_SERVICE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
+          firefly-path: /home/runner/work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -894,7 +705,6 @@ jobs:
           maven-version: 3.9.5
       - name: Test with Maven
         run: |
-          sudo echo "172.17.0.1 aerospike.test.aerospike.dev" > /etc/hosts
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeGraphServiceCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-spark-bulk-loader:
     name: Test Spark Bulk Loader
@@ -909,41 +719,6 @@ jobs:
           feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
           firefly-path: /actions-runner/_work/firefly/firefly
           config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Test with Maven
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
-          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
-          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
-          GCS_KEYFILE_B64: ${{ secrets.GCS_KEYFILE_B64 }}
-          GH_WORKSPACE: ${{ github.workspace}}
-        run: |
-          sudo echo $GCS_KEYFILE_B64 | base64 -d > ${{ github.workspace }}/gcs-keyfile.json
-          mvn clean install -DskipTests
-          mvn -pl aerospike-graph-bulk-loader test --no-transfer-progress
-  test-firefly-spark-bulk-loader-lz4:
-    name: Test Spark Bulk Loader lz4
-    timeout-minutes: 30
-    needs: start-runner-spark-bulk-loader-lz4
-    runs-on: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.label }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /actions-runner/_work/firefly/firefly
-          config-file: '.github/aerospike/aerospike_lz4.conf'
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -1084,12 +859,21 @@ jobs:
           alert-comment-cc-users: '@lyndonbauto @cinterloper @DKZed'
           github-token: ${{ secrets.PUBLISH_BENCHMARKS_TOKEN }}
           benchmark-data-dir-path: docs/
-  run-prometheus-test:
-    name: Prometheus Runner
+  test-chainable-docker:
+    name: Test Chainable Docker
     timeout-minutes: 30
-    needs: build-firefly-maven
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
       - uses: actions/checkout@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -1108,120 +892,13 @@ jobs:
         uses: stCarolas/setup-maven@v4.5
         with:
           maven-version: 3.9.5
-      - name: Launch Firefly in Gremlin-Server and Test Prometheus
-        run: |
-          echo "Starting gremlin-server"
-          bash -x scripts/build-docker.sh firefly linux/amd64
-          
-          echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-
-          echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
-  run-custom-prometheus-port-and-endpoint-test:
-    name: Custom Prometheus Port And Endpoint Runner
-    timeout-minutes: 30
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Launch Firefly in Gremlin-Server and Test Prometheus
+      - name: Build docker
         run: |
           echo "Building docker image"
           bash -x scripts/build-docker.sh firefly linux/amd64
-          
-          echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs:/opt/aerospike-graph/custom firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-
-          echo "Running Prometheus Test"
-          mvn test -pl aerospike-graph-gremlin -Dtest=CustomPrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
-  test-docker-with-custom-yaml:
-    name: Test Docker Image with Custom yaml
-    timeout-minutes: 30
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-      - name: Launch Firefly Docker Image with Custom yaml
-        run: |
-          echo "Starting gremlin-server"
-          bash -x scripts/build-docker.sh firefly linux/amd64
-          
-          
-          echo "Running docker image with custom yaml file"
-          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
-          echo "Sleeping for 30 seconds while gremlin-server starts"
-          sleep 30
-          
-          echo "Running benchmark"
-          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
-  test-firefly-usage-stats-multi:
-    name: Test Firefly Usage Stats Multi
-    timeout-minutes: 30
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
+      # Due to the nature of the multi usage stats test, it MUST come first. Otherwise it will have problems.
       - name: Run multi Firefly usage test
         run: |
-          echo "Starting gremlin-server"
-          bash -x scripts/build-docker.sh firefly linux/amd64
-          
           echo "Running docker image with custom yaml file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs-usage-stats/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
           echo "Sleeping for 30 seconds while gremlin-server starts"
@@ -1229,36 +906,25 @@ jobs:
           
           echo "Running usage test"
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyUsageStatsCallMultiTest -DfailIfNoTests=false --no-transfer-progress
-  test-docker-with-custom-properties:
-    name: Test Docker Image with Custom properties
-    timeout-minutes: 30
-    needs: build-firefly-maven
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - uses: cinterloper/github-action-aerospike@v5
-        with:
-          server-version: ee-6.4.0.7
-          feature-key-b64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
-          firefly-path: /home/runner/work/firefly/firefly
-          config-file: '.github/aerospike/aerospike.conf'
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
+          
+          echo "Stopping docker image"
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Launch Firefly Docker Image with Custom yaml
+        run: |
+          echo "Running docker image with custom yaml file"
+          docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs:/opt/aerospike-graph/custom firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running connection test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
+          
+          echo "Stopping docker image"
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Launch Firefly Docker Image with Custom properties
         run: |
-          echo "Starting gremlin-server"
-          bash -x scripts/build-docker.sh firefly linux/amd64
-          
           echo "Running docker image with custom properties file"
           docker run -p 8182:8182 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
 
@@ -1267,11 +933,55 @@ jobs:
 
           echo "Running benchmark"
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
-  stop-runner-movielens-packed:
-    name: Stop Movielens Packed Runner
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image with Default Prometheus
+        run: |
+          echo "Running docker image with prometheus"
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-custom-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running Prometheus Test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=PrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image with Custom Prometheus
+        run: |
+          echo "Running Prometheus Test"
+          docker run -p 8182:8182 -p 9191:9191 -v /home/runner/work/firefly/firefly/conf/test-custom-prometheus-configs/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+          
+          echo "Running Prometheus Test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=CustomPrometheusExporterTest -DfailIfNoTests=false --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image Bulk Loader Call
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GCS_PRIVATE_KEY: ${{ secrets.GCS_PRIVATE_KEY }}
+          GCS_PRIVATE_KEY_ID: ${{ secrets.GCS_PRIVATE_KEY_ID }}
+          GCS_CLIENT_EMAIL: ${{ secrets.GCS_CLIENT_EMAIL }}
+        run: |
+          
+          docker run -p 8182:8182  \
+            -v /home/runner/work/firefly/firefly/conf/docker-bulk-load/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties \
+            -v /home/runner/work/firefly/firefly/data/docker-bulk-load/:/opt/aerospike-graph/etc/ \
+            firefly &
+          
+          echo "Sleeping for 30 seconds while docker image starts"
+          sleep 30
+          
+          mvn test -pl aerospike-graph-gremlin -Dtest=TestFireflyBulkLoaderCallEntrypointRemote -DfailIfNoTests=false --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
+  stop-runner-movielens:
+    name: Stop Movielens Runner
     needs:
-      - test-firefly-movielens-packed
-      - start-runner-movielens-packed
+      - test-firefly-movielens
+      - start-runner-movielens
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1286,13 +996,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-movielens-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-movielens-packed.outputs.ec2-instance-id }}
-  stop-runner-tls-packed:
-    name: Stop TLS Runner
+          label: ${{ needs.start-runner-movielens.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-movielens.outputs.ec2-instance-id }}
+  stop-chainable-maven-runner:
+    name: Stop Chainable Runner
     needs:
-      - start-runner-tls
-      - test-firefly-tls
+      - start-chainable-maven-runner
+      - test-firefly-chainable-maven
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1307,13 +1017,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-tls.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-tls.outputs.ec2-instance-id }}
-  stop-runner-client-provider:
-    name: Stop Client Provider Runner
+          label: ${{ needs.start-chainable-maven-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.start-chainable-maven-runner.outputs.ec2-instance-id }}
+  stop-runner-test-firefly:
+    name: Stop Runner
     needs:
-      - start-runner-client-provider
-      - test-firefly-client-provider
+      - test-firefly
+      - start-runner-test-firefly
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1328,13 +1038,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-client-provider.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-client-provider.outputs.ec2-instance-id }}
-  stop-runner-small-memory-packed:
-    name: Stop Small Memory Packed Runner
+          label: ${{ needs.start-runner-test-firefly.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly.outputs.ec2-instance-id }}
+  stop-runner-test-firefly-process-1:
+    name: Stop Process Runner 1
     needs:
-      - test-firefly-small-memory-packed
-      - start-runner-small-memory-packed
+      - test-firefly-process-1
+      - start-runner-test-firefly-process-1
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1349,13 +1059,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-small-memory-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-small-memory-packed.outputs.ec2-instance-id }}
-  stop-runner-aerospike-version-minimum:
-    name: Stop Aerospike Minimum Version Runner
+          label: ${{ needs.start-runner-test-firefly-process-1.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-1.outputs.ec2-instance-id }}
+  stop-runner-test-firefly-process-2:
+    name: Stop Process Runner 2
     needs:
-      - test-firefly-aerospike-version-minimum
-      - start-runner-aerospike-version-minimum
+      - test-firefly-process-2
+      - start-runner-test-firefly-process-2
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1370,13 +1080,13 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-aerospike-version-minimum.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-aerospike-version-minimum.outputs.ec2-instance-id }}
-  stop-runner-invalid-feature-key:
-    name: Stop Invalid Feature Key Runner
+          label: ${{ needs.start-runner-test-firefly-process-2.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-process-2.outputs.ec2-instance-id }}
+  stop-runner-test-firefly-structure:
+    name: Stop Structure Runner
     needs:
-      - test-firefly-invalid-feature-key
-      - start-runner-invalid-feature-key
+      - test-firefly-structure
+      - start-runner-test-firefly-structure
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -1391,92 +1101,8 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-invalid-feature-key.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-invalid-feature-key.outputs.ec2-instance-id }}
-  stop-runner-packed:
-    name: Stop Packed Runner
-    needs:
-      - test-firefly-packed
-      - start-runner-packed
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed.outputs.ec2-instance-id }}
-  stop-runner-packed-lz4:
-    name: Stop Packed Runner lz4
-    needs:
-      - test-firefly-packed-lz4
-      - start-runner-packed-lz4
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed-lz4.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed-lz4.outputs.ec2-instance-id }}
-  stop-runner-packed-sindex:
-    name: Stop Packed Sindex Runner
-    needs:
-      - test-firefly-packed-sindex
-      - start-runner-packed-sindex
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-packed-sindex.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-packed-sindex.outputs.ec2-instance-id }}
-  stop-runner-docker:
-    name: Stop Docker Build Runner
-    needs:
-      - build-firefly-docker
-      - start-runner-docker
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-docker.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-docker.outputs.ec2-instance-id }}
+          label: ${{ needs.start-runner-test-firefly-structure.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner-test-firefly-structure.outputs.ec2-instance-id }}
   stop-runner-benchmark:
     name: Stop Benchmark Runner
     needs:
@@ -1561,24 +1187,3 @@ jobs:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           label: ${{ needs.start-runner-spark-bulk-loader.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader.outputs.ec2-instance-id }}
-  stop-runner-spark-bulk-loader-lz4:
-    name: Stop Spark Bulk Loader Runner lz4
-    needs:
-      - test-firefly-spark-bulk-loader-lz4
-      - start-runner-spark-bulk-loader-lz4
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@v2
-        with:
-          mode: stop
-          github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          label: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.label }}
-          ec2-instance-id: ${{ needs.start-runner-spark-bulk-loader-lz4.outputs.ec2-instance-id }}

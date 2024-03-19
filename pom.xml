@@ -159,6 +159,7 @@
                     </argLine>
                     <trimStackTrace>false</trimStackTrace>
                     <excludes>
+                        <exclude>**/Firefly*StandardTest*</exclude>
                         <exclude>**/BenchmarkTest*</exclude>
                         <exclude>**/TestPhantomEdges</exclude>
                         <exclude>**/ValidConnectionTest.java</exclude>

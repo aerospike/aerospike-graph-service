@@ -16,23 +16,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.util.ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED;
+import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES_SINDEX;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.ENABLE_FIREFLY_DROP_STRATEGY;
 
 /**
  * @author Grant Haywood (<a href="http://iowntheinter.net">http://iowntheinter.net</a>)
- * @author Lyndon Bauto (<a href="https://github.com/lyndonbauto">https://github.com/lyndonbauto</a>)
  */
-public class FireflyGraphProviderSupernode extends AbstractGraphProvider {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphProviderSupernode.class);
+public class FireflyGraphProviderSindex extends AbstractGraphProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyGraphProviderSindex.class);
     private static final Configuration config;
 
     static {
-        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
-
-        // Adjust here to test transition from caches to scans
-        config.setProperty(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT.toLowerCase(), "2");
+        config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES_SINDEX);
     }
 
     @Override
@@ -58,9 +53,6 @@ public class FireflyGraphProviderSupernode extends AbstractGraphProvider {
 
     @Override
     public void clear(final Graph graph, final Configuration configuration) {
-        // Connect to db using configuration
-        Configuration conf = configuration;
-        conf.setProperty(GLOBAL_EDGE_CACHE_ENABLED.toLowerCase(), "false");
         if (graph != null) {
             final FireflyGraph fireflyGraph = (FireflyGraph) graph;
             if (fireflyGraph.closed.get()) {
@@ -72,7 +64,7 @@ public class FireflyGraphProviderSupernode extends AbstractGraphProvider {
                 fireflyGraph.close();
             }
         } else {
-            try (final FireflyGraph fireflyGraph = FireflyGraph.open(conf)) {
+            try (final FireflyGraph fireflyGraph = FireflyGraph.open(configuration)) {
                 fireflyGraph.getBaseGraph().dropDatabase(fireflyGraph, false);
             }
         }

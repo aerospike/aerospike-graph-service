@@ -682,7 +682,7 @@ jobs:
         env:
           AEROSPIKE_FEATURES_B64: ${{ secrets.AEROSPIKE_DEV_LICENSE }}
         run: |
-          bash -x scripts/start_aerospike.sh
+          bash -x scripts/start_aerospike.sh --aerospike_version ee-6.2.0.3
           mvn test -pl aerospike-graph-gremlin -Dtest=FireflyAerospikeVersionCheckTest -DfailIfNoTests=false -Dintegration.test.properties=packed --no-transfer-progress
   test-firefly-invalid-feature-key:
     name: Test Aerospike Invalid Feature Key

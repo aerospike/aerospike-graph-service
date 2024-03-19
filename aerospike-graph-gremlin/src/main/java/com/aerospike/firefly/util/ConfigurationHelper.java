@@ -338,28 +338,30 @@ public final class ConfigurationHelper {
     }};
 
     static {
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.SCAN_MAX_WAIT, 100, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_WRITE_MAX_RETRY, 0, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_SIZE, 128, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PAGINATION_PAGE_MAX_WAIT, 1000, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_TIMEOUT, 100, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_SOCKET_TIMEOUT, 100, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.SCAN_MAX_WAIT, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_WRITE_MAX_RETRY, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_QUEUE_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_SIZE, 128);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PAGINATION_PAGE_MAX_WAIT, 1000);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_TIMEOUT, 100);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_SOCKET_TIMEOUT, 100);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.VERTEX_ID_BUFFER_SIZE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.EDGE_ID_BUFFER_SIZE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.PROPERTY_ID_BUFFER_SIZE, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.INDEX_METADATA_UPDATE_FREQUENCY, 1);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.TTL_PURGE_INTERVAL_SECONDS, 1, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.AEROSPIKE_BATCH_READ_SIZE, 1, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TTL_PURGE_INTERVAL_SECONDS, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.AEROSPIKE_BATCH_READ_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, 1);
         NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.PHAT_EDGE_SIZE, 1, 100);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MOVEMENT_BARRIER_SIZE, 1, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.MAX_ERROR_RATE, 0, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.CONNECT_TIMEOUT, 0, Integer.MAX_VALUE);
-        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.TIMEOUT_DELAY, 0, Integer.MAX_VALUE);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MOVEMENT_BARRIER_SIZE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_ERROR_RATE, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.CONNECT_TIMEOUT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.TIMEOUT_DELAY, 0);
         NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.USAGE_STATS_UPDATE_INTERVAL, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MAX_CONNECTIONS_PER_NODE, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(Keys.MIN_CONNECTIONS_PER_NODE, 1);
     }
 
     public static List<String> getOrDefaultList(final String key, final Configuration config) {
@@ -423,7 +425,7 @@ public final class ConfigurationHelper {
 
         final String lowerKey = key.toLowerCase();
         final String upperKey = key.toUpperCase();
-        final boolean debugMode = Boolean.parseBoolean((String) getOrDefault(Keys.DEBUG_MODE_FLAG, config));
+        final boolean debugMode = getOrDefaultBool(Keys.DEBUG_MODE_FLAG, config);
 
         if (System.getenv().containsKey(lowerKey) || System.getenv().containsKey(upperKey)) {
             String envConfig = System.getenv(upperKey);
@@ -468,9 +470,23 @@ public final class ConfigurationHelper {
             return null;
     }
 
-    public static long getOrDefaultNumeric(final String key, Configuration config) {
+    public static int getOrDefaultInt(final String key, Configuration config) {
         final String value = (String) getOrDefault(key, config);
         return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+    }
+
+    public static boolean getOrDefaultBool(final String key, Configuration config) {
+        final String value = (String) getOrDefault(key, config);
+        // Use our own parser here to be more strict and robust
+        if ("true".equals(value.toLowerCase().trim())) {
+            return true;
+        } else if ("false".equals(value.toLowerCase().trim())) {
+            return false;
+        } else {
+            final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is not a valid boolean.";
+            LOG.error(errorMessage);
+            throw new ConfigurationRuntimeException(errorMessage);
+        }
     }
 
     public static String getPrefix(Configuration config) {
@@ -538,39 +554,8 @@ public final class ConfigurationHelper {
         }
     }
 
-    private static class NumericConfigValidator {
-        private final Map<String, Long> minimums = new HashMap<>();
-        private final Map<String, Long> maximums = new HashMap<>();
-
-        private void addConfig(final String key, final long min, final long max) {
-            addConfigMin(key, min);
-            addConfigMax(key, max);
-        }
-
-        private void addConfigMin(final String key, final long min) {
-            this.minimums.put(key, min);
-        }
-
-        private void addConfigMax(final String key, final long max) {
-            this.maximums.put(key, max);
-        }
-
-        private long validate(final String key, final String value) {
-            try {
-                final long valueLong = Long.parseLong(value);
-                if (minimums.containsKey(key) && valueLong < minimums.get(key)) {
-                    final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is below the minimum acceptable value, \"" + minimums.get(key) + "\".";
-                    throw new RuntimeException(errorMessage);
-                } else if (maximums.containsKey(key) && valueLong > maximums.get(key)) {
-                    final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is above the maximum acceptable value, \"" + maximums.get(key) + "\".";
-                    throw new RuntimeException(errorMessage);
-                }
-                return valueLong;
-            } catch (final NumberFormatException e) {
-                final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is invalid due to not being numeric.";
-                LOG.error(errorMessage);
-                throw new RuntimeException(errorMessage);
-            }
-        }
+    public static void setOnRecordIdLimit(final long limit) {
+        final int intLimit = limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) limit;
+        NUMERIC_CONFIG_VALIDATOR.addConfig(Keys.ON_RECORD_ID_LIMIT, 0, intLimit);
     }
 }

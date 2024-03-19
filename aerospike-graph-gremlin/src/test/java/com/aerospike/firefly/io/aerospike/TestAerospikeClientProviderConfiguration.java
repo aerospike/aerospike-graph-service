@@ -70,7 +70,7 @@ public class TestAerospikeClientProviderConfiguration {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(PHAT_EDGE_SIZE, "notNumeric");
         try {
-            ConfigurationHelper.getOrDefaultNumeric(PHAT_EDGE_SIZE, config);
+            ConfigurationHelper.getOrDefaultInt(PHAT_EDGE_SIZE, config);
             Assert.fail("Non numeric config value should have failed.");
         } catch (final Exception e) {
             Assert.assertEquals("Value provided, \"notNumeric\", for configuration key, \"aerospike.graph.phat.edge.size\", is invalid due to not being numeric.", e.getMessage());
@@ -82,7 +82,7 @@ public class TestAerospikeClientProviderConfiguration {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(PHAT_EDGE_SIZE, "101");
         try {
-            ConfigurationHelper.getOrDefaultNumeric(PHAT_EDGE_SIZE, config);
+            ConfigurationHelper.getOrDefaultInt(PHAT_EDGE_SIZE, config);
             Assert.fail("> max numeric config value should have failed.");
         } catch (final Exception e) {
             Assert.assertEquals("Value provided, \"101\", for configuration key, \"aerospike.graph.phat.edge.size\", is above the maximum acceptable value, \"100\".", e.getMessage());
@@ -94,7 +94,7 @@ public class TestAerospikeClientProviderConfiguration {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         config.setProperty(PHAT_EDGE_SIZE, "0");
         try {
-            ConfigurationHelper.getOrDefaultNumeric(PHAT_EDGE_SIZE, config);
+            ConfigurationHelper.getOrDefaultInt(PHAT_EDGE_SIZE, config);
             Assert.fail("< min numeric config value should have failed.");
         } catch (final Exception e) {
             Assert.assertEquals("Value provided, \"0\", for configuration key, \"aerospike.graph.phat.edge.size\", is below the minimum acceptable value, \"1\".", e.getMessage());

@@ -21,26 +21,26 @@ public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R>
 
     public static void registerSindexServices(final FireflyGraph firefly) {
         synchronized (SindexServiceBase.class) {
-            if (sindexServices == null) {
-                sindexServices = Set.of(
+                Set.of(
                         new SindexServiceCardinality(firefly),
                         new SindexServiceCreate(firefly),
                         new SindexServiceDrop(firefly),
                         new SindexServiceList(firefly),
                         new SindexServiceStatus(firefly)
-                );
-            }
-            sindexServices.forEach(firefly.getServiceRegistry()::registerService);
+                ).forEach(firefly.getServiceRegistry()::registerService);
             System.out.println("REGISTERING SINDEX SERVICES");
         }
     }
 
-    public static void routerSindexServices(final Router router) {
+    public static void routerSindexServices(final Router router, final FireflyGraph firefly) {
         synchronized (SindexServiceBase.class) {
-            if (sindexServices == null) {
-                throw new IllegalStateException("Sindex services not registered.");
-            }
-            sindexServices.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
+                Set.of(
+                        new SindexServiceCardinality(firefly),
+                        new SindexServiceCreate(firefly),
+                        new SindexServiceDrop(firefly),
+                        new SindexServiceList(firefly),
+                        new SindexServiceStatus(firefly)
+                ).forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
             System.out.println("ROUTING SINDEX SERVICES");
         }
     }

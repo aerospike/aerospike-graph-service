@@ -77,7 +77,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         SindexServiceBase.registerSindexServices(firefly);
     }
 
-    public static void appendHandlers(final Router router) {
-        SindexServiceBase.routerSindexServices(router);
+    public static void appendHandlers(final Router router, final FireflyGraph graph) {
+        SindexServiceBase.routerSindexServices(router, graph);
     }
 }

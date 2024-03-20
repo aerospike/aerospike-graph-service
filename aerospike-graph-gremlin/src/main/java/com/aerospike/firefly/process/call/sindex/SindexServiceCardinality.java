@@ -2,9 +2,14 @@ package com.aerospike.firefly.process.call.sindex;
 
 import com.aerospike.firefly.io.aerospike.admin.Admin;
 import com.aerospike.firefly.structure.FireflyGraph;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.stream.Collectors;
 
 // Used as g.call("aerospike.graph.admin.index.cardinality").next();
 public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
@@ -14,7 +19,7 @@ public class SindexServiceCardinality<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "cardinality";
     }
 

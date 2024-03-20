@@ -1,6 +1,7 @@
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -107,6 +108,7 @@ public class HttpServer {
                         end(String.valueOf(List.of(Map.of("status", "false"))));
             }
         });
+        AdminServiceRegistry.appendHandlers(router);
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()

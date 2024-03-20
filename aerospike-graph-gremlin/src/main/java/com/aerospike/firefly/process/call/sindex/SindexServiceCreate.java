@@ -18,7 +18,7 @@ public class SindexServiceCreate<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "create";
     }
 

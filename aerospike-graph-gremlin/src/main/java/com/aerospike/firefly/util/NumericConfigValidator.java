@@ -13,8 +13,8 @@ public class NumericConfigValidator implements Serializable {
     private final Map<String, Integer> maximums = new HashMap<>();
 
     public void addConfig(final String key, final int min, final int max) {
-        addConfigMin(key, min);
-        addConfigMax(key, max);
+        this.minimums.put(key, min);
+        this.maximums.put(key, max);
     }
 
     public void addConfigMin(final String key, final int min) {

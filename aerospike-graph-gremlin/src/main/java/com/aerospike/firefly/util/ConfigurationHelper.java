@@ -137,6 +137,9 @@ public final class ConfigurationHelper {
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
         public static final String QUERY_PAGED = "paged";
         public static final String QUERY_LEGACY = "legacy";
+        public static final String JWT_SECRET = "aerospike.graph.auth.jwt.secret";
+        public static final String JWT_ISSUER = "aerospike.graph.auth.jwt.issuer";
+
         public static class Pair {
             public final int numeric;
             public final String english;

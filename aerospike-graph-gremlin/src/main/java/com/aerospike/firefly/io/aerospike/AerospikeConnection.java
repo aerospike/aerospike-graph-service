@@ -41,6 +41,8 @@ import com.aerospike.firefly.io.FireflyCache;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.exceptions.RecordTooBigException;
+import com.aerospike.firefly.security.JWTAuthenticator;
+import com.aerospike.firefly.security.UserContext;
 import com.aerospike.firefly.structure.FireflyEdge;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -596,6 +598,11 @@ public class AerospikeConnection implements AutoCloseable {
                 this.operate(null, key, newImmutableConfigs.toArray(new Operation[0]));
             }
         }
+    }
+
+    public boolean userIsValid(UserContext userContext) {
+        //@todo
+        return true;
     }
 
     public static class GraphMetadata {

@@ -36,7 +36,7 @@ public abstract class FireflyStrategyBase extends AbstractTraversalStrategy<Trav
         // If strategy has no enabled key, then it is always enabled.
         final String enabledKey = getStrategyEnabledKey();
 
-        final boolean value = enabledKey == null ? true : Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(enabledKey, fireflyGraph.configuration()));
+        final boolean value = enabledKey == null ? true : ConfigurationHelper.getOrDefaultBool(enabledKey, fireflyGraph.configuration());
         // Check if the strategy is enabled.
         return value;
     }

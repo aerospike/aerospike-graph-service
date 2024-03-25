@@ -39,7 +39,7 @@ public class TestRecordSizeExceeded {
 
     @BeforeClass
     public static void beforeAll() {
-        CONFIG.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), String.format("%d", Long.MAX_VALUE));
+        CONFIG.setProperty(ON_RECORD_ID_LIMIT.toLowerCase(), "13000");
         CONFIG.setProperty(PHAT_EDGE_SIZE.toLowerCase(), String.format("%d", 10));
         SETUP_GRAPH = FireflyGraph.open(CONFIG);
         SETUP_GRAPH.getBaseGraph().dropDatabase(SETUP_GRAPH, true);

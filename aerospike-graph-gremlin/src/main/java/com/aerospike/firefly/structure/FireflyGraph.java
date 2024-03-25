@@ -262,8 +262,8 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         final String logLevel = (System.getenv("FIREFLY_TESTING") != null &&
                 System.getenv("FIREFLY_TESTING").equalsIgnoreCase("true")) ?
                 "WARN" : ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.LOG_LEVEL, conf);
-        final boolean clientLogging = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf));
-        final boolean preheat = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf));
+        final boolean clientLogging = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASCLIENT_LOG_ENABLED, conf);
+        final boolean preheat = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTO_PRE_HEAT, conf);
         try {
             if (clientLogging) {
                 Log.setCallback(new AerospikeLogger());
@@ -300,7 +300,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
             }
             LOG.info("Starting Aerospike Graph Service v{}.", FIREFLY_VERSION.replace("-SNAPSHOT", ""));
 
-            if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(BULK_LOADER_FLAG, conf))) {
+            if (ConfigurationHelper.getOrDefaultBool(BULK_LOADER_FLAG, conf)) {
                 // If we are in bulk load mode, sleep between 0 and 1 second to allow Aerospike time between spark
                 // works initializing.
                 final Random random = new Random();

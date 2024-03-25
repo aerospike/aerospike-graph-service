@@ -99,7 +99,7 @@ public class EdgeOperations implements Serializable {
         this.config = Objects.requireNonNull(config);
         this.edgePaths = Objects.requireNonNull(edgeCSVFiles);
         this.keepProvidedId =
-                Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+                config.getOrDefaultBool(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY);
         this.providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
         this.nullValue = this.config.getOrDefault(NULL_VALUE);
         this.usePersistedEdgeId = !config.hasAction(READ_ONLY);
@@ -114,7 +114,7 @@ public class EdgeOperations implements Serializable {
                 LOGGER.info(String.format("Graph cache enabled:  %s", graph.getBaseGraph().GLOBAL_EDGE_CACHE_ENABLED_FLAG));
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap = new ConcurrentHashMap<>();
                 final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap = new ConcurrentHashMap<>();
-                final long allowBadEntryCount = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+                final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
 
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("edge-write-partitionid-" + partitionId);
@@ -181,7 +181,7 @@ public class EdgeOperations implements Serializable {
     private void writeEdgeCacheToDB(final FireflyGraph graph,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexOutEdgeMap,
                                     final ConcurrentHashMap<Object, ConcurrentHashMap<String, Set<Value>>> vertexInEdgeMap) {
-        final long allowedDetachedEdges = Long.valueOf(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
+        final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
         final Set<byte[]> invalidEdgeIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         GraphOperations.flushEdgeMap(graph, Direction.OUT, vertexOutEdgeMap, allowedDetachedEdges, invalidEdgeIds);
@@ -198,7 +198,7 @@ public class EdgeOperations implements Serializable {
         boolean hasEdgeID = Arrays.asList(edgeDatasetsSample.schema().fieldNames()).contains(EDGE_ID_COLUMN);
         edgeDatasetsSample.foreachPartition(rowIterator -> {
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(this.config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+                    config.getOrDefaultBool(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY);
             final String providedIdPropertyName = this.config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
             final String nullValue = this.config.getOrDefault(NULL_VALUE);
             try (final FireflyGraph graph = FireflyGraph.open(this.config.getFireflyConfig())) {
@@ -355,12 +355,12 @@ public class EdgeOperations implements Serializable {
     public void verifySampleEdgeAfterWrite(final Dataset<Row> sampledEdgeDataset) {
         if (this.config.hasAction(VERIFY_OUTPUT_DATA) &&
                 !this.config.hasAction(DISABLE_EDGE_WRITE)) {
-            final long allowedDetachedEdges = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_EDGES_COUNT));
+            final long allowedDetachedEdges = this.config.getOrDefaultInt(ALLOWED_BAD_EDGES_COUNT);
             if (allowedDetachedEdges > 0) {
                 LOGGER.warn(ALLOWED_BAD_EDGES_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
                 return;
             }
-            final long allowBadEntries = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+            final long allowBadEntries = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
             if (allowBadEntries > 0) {
                 LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Edge verification cannot be performed and will be skipped.");
                 return;
@@ -535,6 +535,6 @@ public class EdgeOperations implements Serializable {
     }
 
     private int getEdgeWriteBufferSize() {
-        return Integer.parseInt(this.config.getOrDefault(EDGE_WRITE_BUFFER).trim());
+        return this.config.getOrDefaultInt(EDGE_WRITE_BUFFER);
     }
 }

@@ -118,7 +118,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
-                    // Cannot pushdown hasContainers to batch edge read step.
+                    hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                    traversal.removeStep(steps.get(index));
                     break;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {
                     if (!graph.getBaseGraph().ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY) {

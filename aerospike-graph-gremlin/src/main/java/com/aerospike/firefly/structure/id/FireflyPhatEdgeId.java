@@ -32,6 +32,11 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
         return getPackingId() / capacity;
     }
 
+    public byte getPackingIndex() {
+        // This can be cast to a byte since capacity defaults to 10 and is capped at 100.
+        return (byte) (getPackingId() % capacity);
+    }
+
     /**
      * Uses the Aerospike Client Crypto routines to produce a RIPEMD160 hash of the string capable of retrieving the record by digest.
      *

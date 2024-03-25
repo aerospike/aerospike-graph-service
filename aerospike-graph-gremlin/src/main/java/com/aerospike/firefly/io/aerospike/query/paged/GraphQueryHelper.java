@@ -12,11 +12,18 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyElement;
 import com.aerospike.firefly.structure.FireflyVertex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static com.aerospike.firefly.structure.FireflyEdge.EDGE_SUPERNODE_LABEL_KEY;
 
 public class GraphQueryHelper {
 
@@ -145,5 +152,196 @@ public class GraphQueryHelper {
                 predicateToExpression(db, h.getKey().equals("~label") ?
                                 db.LABEL_BIN : db.VERTEX_PROPERTY_NAME_TO_VALUE_BIN,
                         h.getKey(), h.getPredicate())).toArray(Exp[]::new);
+    }
+
+    public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
+                                                                  final List<HasContainer> hasContainers,
+                                                                  final Set<String> labels,
+                                                                  final String vertexIdKeyHashString
+                                                                  ) {
+        final Exp labelExp = getPhatEdgeLabelExp(db, labels, vertexIdKeyHashString);
+        final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
+        if (labelExp != null && propertiesExp != null) {
+            return Exp.build(Exp.and(labelExp, propertiesExp));
+        } else if (labelExp != null) {
+            return Exp.build(labelExp);
+        } else if (propertiesExp != null ){
+            return Exp.build(propertiesExp);
+        } else {
+            return null;
+        }
+    }
+
+    private static Exp getPhatEdgeLabelExp(final AerospikeConnection db,
+                                           final Set<String> labels,
+                                           final String vertexIdKeyHashString) {
+        if (labels.isEmpty()) {
+            return null;
+        } else {
+            final List<Exp> allLabelExp = new ArrayList<>();
+            for (final String label : labels) {
+                final Exp labelExp = MapExp.getByValue(MapReturnType.EXISTS, Exp.val(label),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(EDGE_SUPERNODE_LABEL_KEY)));
+                allLabelExp.add(labelExp);
+            }
+            if (allLabelExp.size() == 1) {
+                return allLabelExp.get(0);
+            } else {
+                return Exp.or(allLabelExp.toArray(new Exp[0]));
+            }
+        }
+    }
+
+    private static Exp getPhatEdgePropertyExp(final AerospikeConnection db,
+                                              final List<HasContainer> hasContainers,
+                                              final String vertexIdKeyHashString) {
+        if (hasContainers.isEmpty()) {
+            return null;
+        }
+        final PhatEdgeHasContainers phatEdgeHasContainers = new PhatEdgeHasContainers(hasContainers);
+
+        final Exp[] exps = phatEdgeHasContainers.filteredHasContainers.stream().map(hasContainer ->
+                        phatEdgePredicateToExp(db, vertexIdKeyHashString, hasContainer.getKey(), hasContainer.getPredicate()))
+                .toArray(Exp[]::new);
+        final Exp[] compoundExps = phatEdgeHasContainers.compoundHasContainers.entrySet().stream().map(compoundContainer ->
+                        phatEdgeCompoundPredicateToExp(db, vertexIdKeyHashString, compoundContainer))
+                .toArray(Exp[]::new);
+        final Exp[] allExps = ArrayUtils.addAll(exps, compoundExps);
+        if (allExps.length == 1) {
+            return allExps[0];
+        } else {
+            return Exp.and(allExps);
+        }
+    }
+
+    private static Exp phatEdgePredicateToExp(final AerospikeConnection db, final String vertexIdKeyHashString,
+                                              final String propertyKey, final P<?> predicate) {
+        // Build expression for nested Phat Edge properties.
+        final Object value = predicate.getValue();
+        if (Number.class.isAssignableFrom(value.getClass())) {
+            final Long casted;
+            if (Integer.class.isAssignableFrom(value.getClass())) {
+                casted = Long.valueOf((Integer) value);
+            } else if (Long.class.isAssignableFrom(value.getClass())) {
+                casted = (Long) value;
+            } else {
+                throw new RuntimeException(String.format("%s not a supported numeric type", predicate.getValue().getClass()));
+            }
+
+            if (predicate.getBiPredicate().equals(Compare.eq)) {
+                return MapExp.getByValue(MapReturnType.EXISTS, Exp.val(casted),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            } else if (predicate.getBiPredicate().equals(Compare.lt)) {
+                // getByValueRange valueBegin is inclusive; valueEnd is exclusive.
+                return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(Long.MIN_VALUE), Exp.val(casted),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            } else if (predicate.getBiPredicate().equals(Compare.lte)) {
+                return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(Long.MIN_VALUE), Exp.val(casted + 1),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+                return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(casted + 1), Exp.val(Long.MAX_VALUE),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            } else if (predicate.getBiPredicate().equals(Compare.gte)) {
+                return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(casted), Exp.val(Long.MAX_VALUE),
+                        Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                        CTX.mapKey(Value.get(propertyKey)));
+            } else {
+                throw new RuntimeException(String.format("%s not a supported predicate", predicate));
+            }
+        } else {
+            return MapExp.getByValue(MapReturnType.EXISTS, Exp.val((String) value),
+                    Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN), CTX.mapKey(Value.get(vertexIdKeyHashString)),
+                    CTX.mapKey(Value.get(propertyKey)));
+        }
+    }
+
+    private static Exp phatEdgeCompoundPredicateToExp(final AerospikeConnection db, final String vertexIdKeyHashString,
+                                                      final Map.Entry<String, List<Long>> compoundHasContainer) {
+        return MapExp.getByValueRange(MapReturnType.EXISTS, Exp.val(compoundHasContainer.getValue().get(0)),
+                Exp.val(compoundHasContainer.getValue().get(1)), Exp.mapBin(db.SUPERNODE_EDGE_PROPERTIES_BIN),
+                CTX.mapKey(Value.get(vertexIdKeyHashString)), CTX.mapKey(Value.get(compoundHasContainer.getKey())));
+    }
+
+    private static class PhatEdgeHasContainers {
+        private final Map<String, Boolean> compoundContainerKeys= new HashMap<>();
+        private final List<HasContainer> filteredHasContainers = new ArrayList<>();
+        private final Map<String, List<Long>> compoundHasContainers = new HashMap<>();
+
+        private PhatEdgeHasContainers(final List<HasContainer> hasContainers) {
+            // First pass - mark HasContainer keys that can be compounded.
+            findCompoundKeys(hasContainers);
+            // Second pass - separate hasContainers into types.
+            separateHasContainers(hasContainers);
+        }
+
+        private void findCompoundKeys(final List<HasContainer> hasContainers) {
+            for (final HasContainer hasContainer : hasContainers) {
+                final P<?> predicate = hasContainer.getPredicate();
+                final Object value = predicate.getValue();
+                // Update !equals(Compare.eq) if new predicates that can't be compounded are supported in the future.
+                if (!predicate.getBiPredicate().equals(Compare.eq) &&
+                        (Long.class.isAssignableFrom(value.getClass()) ||
+                                Integer.class.isAssignableFrom(value.getClass()))) {
+                    final String key = hasContainer.getKey();
+                    // A HasContainer can only be compounded if there are two or more. Add the key the first time it's
+                    // found; mark the key as true for any successive times.
+                    if (compoundContainerKeys.containsKey(key)) {
+                        compoundContainerKeys.put(key, true);
+                    } else {
+                        compoundContainerKeys.put(key, false);
+                    }
+                }
+            }
+        }
+
+        private void separateHasContainers(final List<HasContainer> hasContainers) {
+            // Initialize compoundHasContainers.
+            for (final Map.Entry<String, Boolean> compoundContainerKey : compoundContainerKeys.entrySet()) {
+                if (compoundContainerKey.getValue()) {
+                    final List<Long> defaultMinMax = new ArrayList<>();
+                    defaultMinMax.add(Long.MIN_VALUE);
+                    defaultMinMax.add(Long.MAX_VALUE);
+                    compoundHasContainers.put(compoundContainerKey.getKey(), defaultMinMax);
+                }
+            }
+            // Filter the hasContainers.
+            for (final HasContainer hasContainer : hasContainers) {
+                final String key = hasContainer.getKey();
+                final P<?> predicate = hasContainer.getPredicate();
+                if (compoundHasContainers.containsKey(key) &&
+                        !predicate.getBiPredicate().equals(Compare.eq)) {
+                    final Long value = ((Number) predicate.getValue()).longValue();
+                    final List<Long> lowerUpperBounds = compoundHasContainers.get(key);
+                    // lower is inclusive; upper is exclusive. Handle it here so no need to mess with off-by-1 issues later.
+                    if (predicate.getBiPredicate().equals(Compare.lt)) {
+                        if (value < lowerUpperBounds.get(1)) {
+                            lowerUpperBounds.set(1, value);
+                        }
+                    } else if (predicate.getBiPredicate().equals(Compare.lte)) {
+                        if (value + 1 < lowerUpperBounds.get(1)) {
+                            lowerUpperBounds.set(1, value + 1);
+                        }
+                    } else if (predicate.getBiPredicate().equals(Compare.gt)) {
+                        if (value + 1 > lowerUpperBounds.get(0)) {
+                            lowerUpperBounds.set(0, value + 1);
+                        }
+                    } else if (predicate.getBiPredicate().equals(Compare.gte)) {
+                        if (value > lowerUpperBounds.get(0)) {
+                            lowerUpperBounds.set(0, value);
+                        }
+                    } else {
+                        // This should never happen.
+                        throw new RuntimeException(String.format("%s not a supported predicate for setting a lower/upper bound", predicate));
+                    }
+                } else {
+                    filteredHasContainers.add(hasContainer);
+                }
+            }
+        }
     }
 }

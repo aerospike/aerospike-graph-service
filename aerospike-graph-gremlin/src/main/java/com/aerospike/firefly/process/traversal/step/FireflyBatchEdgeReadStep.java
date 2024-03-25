@@ -85,7 +85,7 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             // Latch the size of the current id list.
             final int previousSize = fireflyIdList.size();
 
-            final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction, edgeLabels);
+            final List<FireflyId> edgeIds = vertex.getEdgeIdsFromVertex(direction, edgeLabels, aerospikeHasContainers);
             FireflyBatchReadHelper.addElementsToSet(fireflyIdList, uniqueIdSet, fireflyEdgeMap, edgeIds);
 
             // Calculate how many ids were added by the function (size of list - previous size).
@@ -95,15 +95,15 @@ public class FireflyBatchEdgeReadStep extends CollectingBarrierStep<Edge> {
             // If we reach or exceed batch size then execute so we don't use too much memory at any given point. Also drain if list size gets very big.
             if (uniqueIdSet.size() >= graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE ||
                     fireflyIdList.size() >= 5 * graph.getBaseGraph().AEROSPIKE_BATCH_READ_SIZE) {
-                // Drain data to output.
+                // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
                 FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readEdges);
+                        fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges);
             }
         }
 
-        // Drain data to output.
+        // Drain data to output. No need to pass in aerospikeHasContainers since they were used to filter Edge IDs already.
         FireflyBatchReadHelper.drainDataToOutput(this, fireflyIdList, uniqueIdSet,
-                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, aerospikeHasContainers, fireflyHasContainers, output, graph::readEdges);
+                fireflyEdgeMap, fireflyBatchEdgeReadStepInfos, Collections.emptyList(), fireflyHasContainers, output, graph::readEdges);
 
         set.addAll(output);
         output.clear(); // Force garbage collection.

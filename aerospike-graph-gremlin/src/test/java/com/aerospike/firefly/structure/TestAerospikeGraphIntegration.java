@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -631,7 +632,7 @@ public class TestAerospikeGraphIntegration extends AbstractFireflySuite {
                 .addE("IsA").from("b").to("a").property("this", "that").iterate();
         final Vertex lemon = g.V().hasLabel("lemon").next();
         final Vertex lime = g.V().hasLabel("lime").next();
-        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of());
+        List<FireflyId> i = graph.readVertex(graph.getIdFactory().createFromUser(FireflyVertex.class, fruit.id())).getEdgeIdsFromVertex(Direction.IN, Set.of(), Collections.emptyList());
         assertFalse(i.isEmpty());
         List<Object> x = List.of(lemon.edges(Direction.OUT).next().id(), lime.edges(Direction.OUT).next().id());
         FireflyId next = i.get(0);

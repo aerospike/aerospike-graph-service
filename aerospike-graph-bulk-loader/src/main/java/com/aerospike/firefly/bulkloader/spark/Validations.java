@@ -49,15 +49,15 @@ public class Validations {
     private static final Logger LOGGER = LoggerFactory.getLogger(Validations.class);
 
     private static long dryRunEdgeCreation(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
-        final boolean allowBadEntries = Long.valueOf(config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT)) > 0;
+        final boolean allowBadEntries = config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT) > 0;
 
         final List<Long> failures = edgeDataset.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             final boolean keepProvidedId =
-                    Boolean.parseBoolean(config.getOrDefault(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY));
+                    config.getOrDefaultBool(KEEP_PROVIDED_EDGE_ID_AS_PROPERTY);
             final String providedIdPropertyName = config.getOrDefault(PROVIDED_EDGE_ID_PROPERTY_NAME);
             final String nullValue = config.getOrDefault(NULL_VALUE);
             long failureCount = 0L;
-            final int bufferSize = Integer.parseInt(config.getOrDefault(EDGE_WRITE_BUFFER).trim());
+            final int bufferSize = config.getOrDefaultInt(EDGE_WRITE_BUFFER);
             final List<CompletableFuture<Integer>> futures = new ArrayList<>();
 
             FireflyGraph graph = null;
@@ -154,7 +154,7 @@ public class Validations {
 
     public static void dryRunEdgeRows(final Dataset<Row> edgeDataset, final BulkLoaderConfigHelper config) {
         long badEntryCount = dryRunEdgeCreation(edgeDataset,config);
-        final long allowedBadEntryCount = Long.parseLong(config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+        final long allowedBadEntryCount = config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
         if (badEntryCount > 0) {
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 int tryCount = 0;
@@ -192,7 +192,7 @@ public class Validations {
 
         if (duplicateIdCount > 0 || badEntryCount > 0) {
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
-                final long allowedDuplicateIdCount = Long.parseLong(config.getOrDefault(ALLOWED_DUPLICATE_VERTEX_ID_COUNT));
+                final long allowedDuplicateIdCount = config.getOrDefaultInt(ALLOWED_DUPLICATE_VERTEX_ID_COUNT);
                 if (duplicateIdCount > 0) {
                     int tryCount = 0;
                     while (true) {
@@ -219,7 +219,7 @@ public class Validations {
                     }
                 }
 
-                final long allowedBadEntryCount = Long.parseLong(config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+                final long allowedBadEntryCount = config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
                 if (badEntryCount > 0) {
                     int tryCount = 0;
                     while (true) {
@@ -251,11 +251,11 @@ public class Validations {
 
     private static long dryRunVertexCreation(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         final String nullValue = config.getOrDefault(NULL_VALUE);
-        final boolean allowBadEntries = Long.valueOf(config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT)) > 0;
+        final boolean allowBadEntries = config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT) > 0;
         final List<Long> failures = vertices.mapPartitions((MapPartitionsFunction<Row, Long>) rowIterator -> {
             long count = 0L;
             long failureCount = 0L;
-            final int bufferSize = Integer.parseInt(config.getOrDefault(EDGE_WRITE_BUFFER).trim());
+            final int bufferSize = config.getOrDefaultInt(EDGE_WRITE_BUFFER);
             final List<CompletableFuture<Integer>> futures = new ArrayList<>();
             final Instant start = Instant.now();
             LOGGER.info("Starting dryRunVertexCreation; partition-id: {}", TaskContext.getPartitionId());
@@ -298,7 +298,7 @@ public class Validations {
     public static long validateNoDuplicateVertexIds(final Dataset<Row> vertices, final BulkLoaderConfigHelper config) {
         final String countColumn = "~count";
         final String idColumn = SparkFireflyElement.ID_HEADER;
-        final long allowedDuplicateIdCount = Long.parseLong(config.getOrDefault(ALLOWED_DUPLICATE_VERTEX_ID_COUNT));
+        final long allowedDuplicateIdCount = config.getOrDefaultInt(ALLOWED_DUPLICATE_VERTEX_ID_COUNT);
 
         final Instant start = Instant.now();
         final Dataset<Row> dsWithCount = vertices.select(idColumn,FILENAME_COLUMN)

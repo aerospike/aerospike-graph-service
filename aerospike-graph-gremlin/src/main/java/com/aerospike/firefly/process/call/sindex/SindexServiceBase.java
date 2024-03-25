@@ -14,10 +14,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R> {
-    protected final FireflyGraph firefly;
+    protected FireflyGraph firefly;
     protected static final String ELEMENT_TYPE = "element_type";
     protected static final String PROPERTY_KEY = "property_key";
-    private static Set<SindexServiceBase> sindexServices;
+    protected static Set<SindexServiceBase> services;
 
     public static void registerSindexServices(final FireflyGraph firefly) {
         synchronized (SindexServiceBase.class) {
@@ -28,20 +28,26 @@ public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R>
                         new SindexServiceList(firefly),
                         new SindexServiceStatus(firefly)
                 ).forEach(firefly.getServiceRegistry()::registerService);
-            System.out.println("REGISTERING SINDEX SERVICES");
+
+            // HTTP routing comes up before firefly. Need to latch firefly into the services.
+            if (services != null) {
+                services.forEach(s -> s.firefly = firefly);
+            }
         }
     }
 
-    public static void routerSindexServices(final Router router, final FireflyGraph firefly) {
+    public static void routeSindexServices(final Router router) {
         synchronized (SindexServiceBase.class) {
-                Set.of(
-                        new SindexServiceCardinality(firefly),
-                        new SindexServiceCreate(firefly),
-                        new SindexServiceDrop(firefly),
-                        new SindexServiceList(firefly),
-                        new SindexServiceStatus(firefly)
-                ).forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
-            System.out.println("ROUTING SINDEX SERVICES");
+            // Latch services so they can be updated later.
+            if (services == null) {
+                services = Set.of(
+                        new SindexServiceCardinality(null),
+                        new SindexServiceCreate(null),
+                        new SindexServiceDrop(null),
+                        new SindexServiceList(null),
+                        new SindexServiceStatus(null));
+                services.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
+            }
         }
     }
 
@@ -79,17 +85,24 @@ public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R>
         return FireflyCloseableIteratorUtils.of(execute(params));
     }
 
+    private static final int SINDEX_SUCCESS_CODE = 200;
+    private static final int SINDEX_ERROR_CODE = 400;
+
     @Override
     public Handler<RoutingContext> getHandler() {
         return routerContext -> {
+            if (firefly == null) {
+                throw new IllegalStateException("Graph has not completed initialization.");
+            }
             final Map<String, String> params = routerContext.queryParams().entries().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             if (!sanitize(params)) {
-                routerContext.fail(400, new IllegalArgumentException(usage(params)));
+                routerContext.fail(SINDEX_ERROR_CODE, new IllegalArgumentException(usage(params)));
                 return;
             }
             final R result = execute(params);
-            routerContext.response().end(result.toString());
+            routerContext.response().setStatusCode(SINDEX_SUCCESS_CODE).putHeader("content-type", "text/html")
+                    .end(String.valueOf(result));
         };
     }
 }

@@ -73,6 +73,7 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
     }
 
     public static void initializeGraphMetrics(final FireflyGraph fireflyGraph) {
+        // NOTE: Invoking this function causes the HTTP server to start due to static initialization.
         HttpServer.registerGraphMetrics(fireflyGraph.getBaseGraph());
         HttpServer.registerHealthcheck(fireflyGraph);
     }

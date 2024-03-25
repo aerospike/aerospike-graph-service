@@ -1,11 +1,6 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
-import com.aerospike.firefly.process.call.sindex.SindexServiceCardinality;
-import com.aerospike.firefly.process.call.sindex.SindexServiceCreate;
-import com.aerospike.firefly.process.call.sindex.SindexServiceDrop;
-import com.aerospike.firefly.process.call.sindex.SindexServiceList;
-import com.aerospike.firefly.process.call.sindex.SindexServiceStatus;
 import com.aerospike.firefly.structure.FireflyGraph;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.Router;
@@ -77,7 +72,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
         SindexServiceBase.registerSindexServices(firefly);
     }
 
-    public static void appendHandlers(final Router router, final FireflyGraph graph) {
-        SindexServiceBase.routerSindexServices(router, graph);
+    public static void appendHandlers(final Router router) {
+        SindexServiceBase.routeSindexServices(router);
     }
 }

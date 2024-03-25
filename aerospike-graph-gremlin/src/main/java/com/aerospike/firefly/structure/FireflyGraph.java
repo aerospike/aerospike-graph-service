@@ -239,7 +239,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyBulkLoaderErrorCountServiceFactory());
         serviceRegistry.registerService(new FireflyBulkLoaderErrorProviderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
-        AdminServiceRegistry.registerAdminServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
@@ -253,6 +252,9 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         // Start metrics.
         FireflyGremlinPlugin.initializeGraphMetrics(this);
+
+        // Register admin services graph metrics since it will bootstrap the server.
+        AdminServiceRegistry.registerAdminServices(this);
     }
 
     public static FireflyGraph open(final Configuration conf) {

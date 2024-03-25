@@ -101,7 +101,7 @@ public class HttpServer {
         // Add a handler for the metrics endpoint - this picks up the default registry.
         router.get(prometheusPath).handler(new FireflyMetricRewiter());
         router.get(healthcheckPath).handler(routingContext -> {
-            if (graph.getBaseGraph() != null && graph.getBaseGraph().getClient().isConnected()) {
+            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClient().isConnected()) {
                 routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "true"))));
             } else {
@@ -109,7 +109,7 @@ public class HttpServer {
                         end(String.valueOf(List.of(Map.of("status", "false"))));
             }
         });
-        AdminServiceRegistry.appendHandlers(router, graph);
+        AdminServiceRegistry.appendHandlers(router);
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()

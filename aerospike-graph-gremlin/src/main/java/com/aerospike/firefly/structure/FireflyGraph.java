@@ -26,10 +26,10 @@ import com.aerospike.firefly.io.aerospike.AerospikeLogger;
 import com.aerospike.firefly.io.FireflyCardinalityMetadata;
 import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
+import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
 import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderErrorCountServiceFactory;
 import com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderErrorProviderServiceFactory;
-import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
@@ -239,7 +239,6 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         serviceRegistry.registerService(new FireflyBulkLoaderErrorCountServiceFactory());
         serviceRegistry.registerService(new FireflyBulkLoaderErrorProviderServiceFactory());
         serviceRegistry.registerService(new FireflyUsageStatsServiceFactory());
-        SindexServiceBase.registerSindexServices(this);
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));
@@ -252,7 +251,10 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
         FireflyUsageStats.startUsageStats(db);
 
         // Start metrics.
-        FireflyGremlinPlugin.initializeGraphMetrics(db);
+        FireflyGremlinPlugin.initializeGraphMetrics(this);
+
+        // Register admin services graph metrics since it will bootstrap the server.
+        AdminServiceRegistry.registerAdminServices(this);
     }
 
     public static FireflyGraph open(final Configuration conf) {

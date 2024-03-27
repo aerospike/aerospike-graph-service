@@ -77,9 +77,7 @@ public class TestFireflySindexCallSteps {
                         with("property_key", "nameA").
                         with("element_type", "vertex").next();
                 fail("Expected second call to create index to fail");
-            } catch (Exception e) {
-                // Expected
-                System.out.println(e);
+            } catch (final Exception ignored) {
             }
         }
     }

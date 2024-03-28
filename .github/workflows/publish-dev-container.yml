@@ -1,0 +1,113 @@
+name: Publish Firefly Container for Dev
+
+on:
+  push:
+    branches: [main,2.x-dev]
+
+env:
+  GITHUB_REPOSITORY_NAME: citrusleaf
+  GITHUB_IMAGE_NAME: firefly
+  GITHUB_REGISTRY_URL: ghcr.io
+
+jobs:
+
+  publish-artifacts:
+    name: Publish Artifacts
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Java 17 Install
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4.5
+        with:
+          maven-version: 3.9.5
+
+      - name: Build Bulk Loader
+        run: |
+          mvn clean install -DskipTests
+
+      - name: Upload Bulk Loader
+        uses: actions/upload-artifact@v3
+        with:
+          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar
+
+      - name: Upload Firefly
+        uses: actions/upload-artifact@v3
+        with:
+          path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
+
+  publish-github:
+    name: Publish Firefly Docker Image - GitHub
+    permissions:
+      packages: write
+      contents: read
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    needs: publish-artifacts
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          # Login to ghcr.io.
+          echo ${{ secrets.CONTAINER_PUBLISH_PASSWORD }} | docker login $GITHUB_REGISTRY_URL --username ${{ secrets.CONTAINER_PUBLISH_USERNAME }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Download a Jar File
+        uses: actions/download-artifact@v3
+
+      - name: Publish Container
+        run: |
+          # Make output directories.
+          mkdir aerospike-graph-gremlin/target
+          mkdir aerospike-graph-bulk-loader/target
+          
+          # Move the jar files to the target bin folders.
+          mv artifact/aerospike-graph-gremlin-*.jar aerospike-graph-gremlin/target/
+          mv artifact/aerospike-graph-bulk-loader-*.jar aerospike-graph-bulk-loader/target/
+          
+          # Strip git ref prefix (refs/tags or ref/heads).
+          VERSION=$(git rev-parse --short "$GITHUB_SHA")
+  
+          # Get registry URL and convert to lower case.
+          OUTPUT_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:dev-$VERSION
+          OUTPUT_IMAGE=$(echo $OUTPUT_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          DOCKER_IMAGE=$GITHUB_REGISTRY_URL/$GITHUB_REPOSITORY_NAME/$GITHUB_IMAGE_NAME:dev
+          DOCKER_IMAGE=$(echo $DOCKER_IMAGE | tr '[A-Z]' '[a-z]')
+          
+          echo "Building and tagging docker image for linux/amd64 $DOCKER_IMAGE $OUTPUT_IMAGE"
+
+          bash -x scripts/build-docker.sh $DOCKER_IMAGE linux/amd64 --push
+          bash -x scripts/build-docker.sh $OUTPUT_IMAGE linux/amd64 --push
+          
+          echo "OUTPUT_IMAGE=$OUTPUT_IMAGE" >> $GITHUB_ENV
+
+      - name: Run Snyk to check Docker image for vulnerabilities
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.OUTPUT_IMAGE }}

@@ -26,13 +26,13 @@ public class TestFireflyBasicCall {
 
             // The output is a list of strings that looks like:
             // [summary, bulk-load]
-            Assert.assertEquals(Set.of("summary", "get-bulk-load-errors", "get-bulk-load-error-count", "bulk-load", "aerospike.graph.metadata.usage",
+            Assert.assertEquals(Set.of("aerospike.graph.metadata.summary", "get-bulk-load-errors", "get-bulk-load-error-count", "bulk-load", "aerospike.graph.metadata.usage",
                     "aerospike.graph.admin.index.create", "aerospike.graph.admin.index.drop",
                     "aerospike.graph.admin.index.list", "aerospike.graph.admin.index.status",
                     "aerospike.graph.admin.index.cardinality"), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
-            // [{"name":"summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"bulk-load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
+            // [{"name":"aerospike.graph.metadata.summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"bulk-load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
             for (final Object output: verboseOutput) {
                 final String outputString = (String) output;
                 final List<String> infoPieces = List.of(outputString.split(",")).stream().map(String::trim).collect(Collectors.toList());

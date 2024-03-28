@@ -57,7 +57,7 @@ public class BulkLoaderServiceErrors<I, R> extends BulkLoaderServiceBase<I, R> {
         } else {
             // This should never happen since it's already safety checked via sanitization.
             throw new IllegalStateException(
-                    "Invalid \"" + KEY + "\" detected for \""aerospike.graphloader.bulk-load.errors"\": '" + params.get(KEY) + "'.");
+                    "Invalid \"" + KEY + "\" detected for \"aerospike.graphloader.bulk-load.errors\": '" + params.get(KEY) + "'.");
         }
     }
 

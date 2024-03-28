@@ -46,8 +46,8 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://aerospike.com/docs/graph/data-loading/standalone#configuration-options\"}}");
                         break;
-                    case "{\"name\":\"get-bulk-load-errors\"":
-                    case "{\"name\":\"get-bulk-load-error-count\"":
+                    case "{\"name\":\""aerospike.graphloader.bulk-load.errors"\"":
+                    case "{\"name\":\""aerospike.graphloader.bulk-load.error-count"\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;

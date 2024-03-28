@@ -320,7 +320,7 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
                     "\nbad-edge-count: " + badEdgeCount +
                     "\nbad-entry-count: " + badEntryCount +
                     // TODO: Fix below.
-                    "\nUse the g.call(\"get-bulk-load-errors\") command for details.";
+                    "\nUse the g.call(\""aerospike.graphloader.bulk-load.errors"\") command for details.";
             return sb;
         }
     }

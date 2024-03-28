@@ -141,27 +141,27 @@ public class TestBulkLoaderFailureCallEntryPoint {
             final GraphTraversalSource g = fireflyGraph.traversal();
             try {
                 g.call("aerospike.graphloader.bulk-load.errors").next();
-                Assert.fail("get-bulk-load-errors succeeded when failure expected due to no params");
+                Assert.fail("aerospike.graphloader.bulk-load.errors succeeded when failure expected due to no params");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("\"get-bulk-load-errors\" must be invoked with parameter \"type\" and only one of the following values:"));
+                Assert.assertTrue(e.getMessage().startsWith("\""aerospike.graphloader.bulk-load.errors"\" must be invoked with parameter \"type\" and only one of the following values:"));
             }
             try {
                 g.call("aerospike.graphloader.bulk-load.errors").with("type").next();
-                Assert.fail("get-bulk-load-errors succeeded when failure expected due to param with key and no value");
+                Assert.fail(""aerospike.graphloader.bulk-load.errors" succeeded when failure expected due to param with key and no value");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("\"get-bulk-load-errors\" must be invoked with parameter \"type\" and only one of the following values:"));
+                Assert.assertTrue(e.getMessage().startsWith("\""aerospike.graphloader.bulk-load.errors"\" must be invoked with parameter \"type\" and only one of the following values:"));
             }
             try {
                 g.call("aerospike.graphloader.bulk-load.errors").with("type", "foo").next();
-                Assert.fail("get-bulk-load-errors succeeded when failure expected due to param with bad value");
+                Assert.fail(""aerospike.graphloader.bulk-load.errors" succeeded when failure expected due to param with bad value");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("\"get-bulk-load-errors\" must be invoked with parameter \"type\" and only one of the following values:"));
+                Assert.assertTrue(e.getMessage().startsWith("\""aerospike.graphloader.bulk-load.errors"\" must be invoked with parameter \"type\" and only one of the following values:"));
             }
             try {
                 g.call("aerospike.graphloader.bulk-load.errors").with("foo", "bad-edges").next();
-                Assert.fail("get-bulk-load-errors succeeded when failure expected due to param with bad key");
+                Assert.fail(""aerospike.graphloader.bulk-load.errors" succeeded when failure expected due to param with bad key");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("\"get-bulk-load-errors\" must be invoked with parameter \"type\" and only one of the following values:"));
+                Assert.assertTrue(e.getMessage().startsWith("\""aerospike.graphloader.bulk-load.errors"\" must be invoked with parameter \"type\" and only one of the following values:"));
             }
         }
     }

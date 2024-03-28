@@ -28,9 +28,6 @@ import com.aerospike.firefly.io.FireflyIndexMetadata;
 import com.aerospike.firefly.io.FireflyRecord;
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.io.aerospike.query.GraphQuery;
-import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceCountErrors;
-import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceErrors;
-import com.aerospike.firefly.process.call.metadata.MetadataServiceUsage;
 import com.aerospike.firefly.runtime.exceptions.ElementNotFoundException;
 import com.aerospike.firefly.runtime.tasks.FireflyUsageStats;
 import com.aerospike.firefly.structure.util.FireflyTtlHandler;
@@ -38,8 +35,6 @@ import com.aerospike.firefly.util.GraphFactory;
 import com.aerospike.firefly.runtime.exceptions.EdgeRecordSizeExceededException;
 import com.aerospike.firefly.runtime.exceptions.VertexRecordSizeExceededException;
 import com.aerospike.firefly.jsr223.FireflyGremlinPlugin;
-import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad;
-import com.aerospike.firefly.process.call.metadata.MetadataServiceSummary;
 import com.aerospike.firefly.process.call.bulkload.utils.exception.FireflyLoadingException;
 import com.aerospike.firefly.process.computer.FireflyGraphComputerView;
 import com.aerospike.firefly.process.traversal.strategy.optimization.FireflyContentionHandlingStrategy;
@@ -234,11 +229,7 @@ public class FireflyGraph implements Graph, WrappedGraph<AerospikeConnection> {
 
         fireflyCardinalityMetadataTask.schedule(cardinalityMetadataTimerTask, 0, db.CARDINALITY_METADATA_UPDATE_FREQUENCY);
         fireflySummaryUpdater = new FireflyGraphSummaryUpdater(db);
-        serviceRegistry.registerService(new MetadataServiceSummary(this));
-        serviceRegistry.registerService(new BulkLoaderServiceLoad(this));
-        serviceRegistry.registerService(new BulkLoaderServiceCountErrors(this));
-        serviceRegistry.registerService(new BulkLoaderServiceErrors(this));
-        serviceRegistry.registerService(new MetadataServiceUsage(this));
+
         if (conf.containsKey(ConfigurationHelper.Keys.PLUGIN)) {
             final String pluginConfigString = conf.getString(ConfigurationHelper.Keys.PLUGIN);
            final List<String> plugins = Arrays.asList(pluginConfigString.split(","));

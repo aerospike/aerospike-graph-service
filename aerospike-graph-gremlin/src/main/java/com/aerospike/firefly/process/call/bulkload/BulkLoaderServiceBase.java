@@ -2,6 +2,9 @@ package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.structure.FireflyGraph;
+import io.vertx.ext.web.Router;
+
+import java.util.Set;
 
 public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I, R> {
     protected FireflyGraph graph;
@@ -13,11 +16,41 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
 
     @Override
     protected String getAdminNamespace() {
-        return "aerospike.graphloader.bulk-load.load";
+        return "bulk-load";
     }
 
     @Override
     protected String getGraphProjectNamespace() {
         return "graphloader";
+    }
+
+    protected static Set<BulkLoaderServiceBase> services;
+
+    public static void registerBulkLoadServices(final FireflyGraph firefly) {
+        synchronized (BulkLoaderServiceBase.class) {
+            Set.of(
+                    new BulkLoaderServiceLoad<>(firefly),
+                    new BulkLoaderServiceErrors<>(firefly),
+                    new BulkLoaderServiceCountErrors<>(firefly)
+            ).forEach(firefly.getServiceRegistry()::registerService);
+
+            // HTTP routing comes up before firefly. Need to latch firefly into the services.
+            if (services != null) {
+                services.forEach(s -> s.firefly = firefly);
+            }
+        }
+    }
+
+    public static void routeBulkLoadServices(final Router router) {
+        synchronized (BulkLoaderServiceBase.class) {
+            // Latch services so they can be updated later.
+            if (services == null) {
+                services = Set.of(
+                        new BulkLoaderServiceLoad<>(null),
+                        new BulkLoaderServiceErrors<>(null),
+                        new BulkLoaderServiceCountErrors<>(null));
+                services.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
+            }
+        }
     }
 }

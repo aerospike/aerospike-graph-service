@@ -1,5 +1,6 @@
 package com.aerospike.firefly.io.aerospike.admin;
 
+import com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceBase;
 import com.aerospike.firefly.process.call.metadata.MetadataServiceBase;
 import com.aerospike.firefly.process.call.sindex.SindexServiceBase;
 import com.aerospike.firefly.structure.FireflyGraph;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    protected final FireflyGraph firefly;
+    protected FireflyGraph firefly;
     protected static final Logger LOGGER = LoggerFactory.getLogger(AdminServiceRegistry.class);
 
     public AdminServiceRegistry(final FireflyGraph firefly) {
@@ -92,11 +93,13 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
     public static void registerAdminServices(final FireflyGraph firefly) {
         SindexServiceBase.registerSindexServices(firefly);
         MetadataServiceBase.registerMetadataServices(firefly);
+        BulkLoaderServiceBase.registerBulkLoadServices(firefly);
     }
 
     public static void appendHandlers(final Router router) {
         SindexServiceBase.routeSindexServices(router);
         MetadataServiceBase.routeMetadataServices(router);
+        BulkLoaderServiceBase.routeBulkLoadServices(router);
     }
 
     @Override

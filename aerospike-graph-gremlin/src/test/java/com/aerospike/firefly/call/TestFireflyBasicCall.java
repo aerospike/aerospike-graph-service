@@ -26,9 +26,15 @@ public class TestFireflyBasicCall {
 
             // The output is a list of strings that looks like:
             // [summary, bulk-load]
-            Assert.assertEquals(Set.of("aerospike.graph.metadata.summary", "aerospike.graphloader.bulk-load.errors", "aerospike.graphloader.bulk-load.error-count", "aerospike.graphloader.bulk-load.load", "aerospike.graph.metadata.usage",
-                    "aerospike.graph.admin.index.create", "aerospike.graph.admin.index.drop",
-                    "aerospike.graph.admin.index.list", "aerospike.graph.admin.index.status",
+            Assert.assertEquals(Set.of("aerospike.graph.metadata.summary",
+                    "aerospike.graphloader.bulk-load.errors",
+                    "aerospike.graphloader.bulk-load.error-count",
+                    "aerospike.graphloader.bulk-load.load",
+                    "aerospike.graph.metadata.usage",
+                    "aerospike.graph.admin.index.create",
+                    "aerospike.graph.admin.index.drop",
+                    "aerospike.graph.admin.index.list",
+                    "aerospike.graph.admin.index.status",
                     "aerospike.graph.admin.index.cardinality"), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
@@ -42,12 +48,12 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"pretty\":\"Pretty print the output.\"}}");
                         break;
-                    case "{\"name\":\"bulk-load\"":
+                    case "{\"name\":\"aerospike.graphloader.bulk-load.load\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://aerospike.com/docs/graph/data-loading/standalone#configuration-options\"}}");
                         break;
-                    case "{\"name\":\""aerospike.graphloader.bulk-load.errors"\"":
-                    case "{\"name\":\""aerospike.graphloader.bulk-load.error-count"\"":
+                    case "{\"name\":\"aerospike.graphloader.bulk-load.errors\"":
+                    case "{\"name\":\"aerospike.graphloader.bulk-load.error-count\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;

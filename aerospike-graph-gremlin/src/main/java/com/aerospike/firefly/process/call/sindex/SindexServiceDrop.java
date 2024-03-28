@@ -64,13 +64,13 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
         if (params.get(ELEMENT_TYPE).equals("vertex")) {
             try {
                 if (params.get(PROPERTY_KEY).equals("~label")) {
-                    return (R) Admin.index.dropVertexLabelIndex(firefly, new EmptyAdminContext());
+                    return (R) Admin.index.dropVertexLabelIndex(graph, new EmptyAdminContext());
                 } else {
-                    return (R) Admin.index.dropVertexPropertyIndex(firefly, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
+                    return (R) Admin.index.dropVertexPropertyIndex(graph, (String) params.get(PROPERTY_KEY), new EmptyAdminContext());
                 }
             } finally {
                 try {
-                    firefly.fireflyIndexMetadata.updateMetadata();
+                    graph.fireflyIndexMetadata.updateMetadata();
                 } catch (final Exception e) {
                     LOG.warn("Updating Index metadata forcibly due to dropping an index failed.", e);
                 }

@@ -22,11 +22,11 @@ import java.util.stream.Collectors;
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    protected FireflyGraph firefly;
+    protected FireflyGraph graph;
     protected static final Logger LOGGER = LoggerFactory.getLogger(AdminServiceRegistry.class);
 
-    public AdminServiceRegistry(final FireflyGraph firefly) {
-        this.firefly = firefly;
+    public AdminServiceRegistry(final FireflyGraph graph) {
+        this.graph = graph;
     }
 
     // Dummy for now.
@@ -125,7 +125,7 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
 
     public Handler<RoutingContext> getHandler() {
         return routerContext -> {
-            if (firefly == null) {
+            if (graph == null) {
                 throw new IllegalStateException("Graph has not completed initialization.");
             }
             final Map<String, String> params = routerContext.queryParams().entries().stream()

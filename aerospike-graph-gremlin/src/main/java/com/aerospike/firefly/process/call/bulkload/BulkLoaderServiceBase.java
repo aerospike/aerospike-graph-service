@@ -7,11 +7,9 @@ import io.vertx.ext.web.Router;
 import java.util.Set;
 
 public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I, R> {
-    protected FireflyGraph graph;
 
     public BulkLoaderServiceBase(final FireflyGraph graph) {
         super(graph);
-        this.graph = graph;
     }
 
     @Override
@@ -26,17 +24,17 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
 
     protected static Set<BulkLoaderServiceBase> services;
 
-    public static void registerBulkLoadServices(final FireflyGraph firefly) {
+    public static void registerBulkLoadServices(final FireflyGraph graph) {
         synchronized (BulkLoaderServiceBase.class) {
             Set.of(
-                    new BulkLoaderServiceLoad<>(firefly),
-                    new BulkLoaderServiceErrors<>(firefly),
-                    new BulkLoaderServiceCountErrors<>(firefly)
-            ).forEach(firefly.getServiceRegistry()::registerService);
+                    new BulkLoaderServiceLoad<>(graph),
+                    new BulkLoaderServiceErrors<>(graph),
+                    new BulkLoaderServiceCountErrors<>(graph)
+            ).forEach(graph.getServiceRegistry()::registerService);
 
             // HTTP routing comes up before firefly. Need to latch firefly into the services.
             if (services != null) {
-                services.forEach(s -> s.firefly = firefly);
+                services.forEach(s -> s.graph = graph);
             }
         }
     }

@@ -13,11 +13,9 @@ import io.vertx.ext.web.Router;
 import java.util.Set;
 
 public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, R> {
-    protected FireflyGraph firefly;
 
     public MetadataServiceBase(final FireflyGraph firefly) {
         super(firefly);
-        this.firefly = firefly;
     }
 
     @Override
@@ -32,16 +30,16 @@ public abstract class MetadataServiceBase<I, R> extends AdminServiceRegistry<I, 
 
     protected static Set<MetadataServiceBase> services;
 
-    public static void registerMetadataServices(final FireflyGraph firefly) {
+    public static void registerMetadataServices(final FireflyGraph graph) {
         synchronized (MetadataServiceBase.class) {
             Set.of(
-                    new MetadataServiceUsage<>(firefly),
-                    new MetadataServiceSummary<>(firefly)
-            ).forEach(firefly.getServiceRegistry()::registerService);
+                    new MetadataServiceUsage<>(graph),
+                    new MetadataServiceSummary<>(graph)
+            ).forEach(graph.getServiceRegistry()::registerService);
 
             // HTTP routing comes up before firefly. Need to latch firefly into the services.
             if (services != null) {
-                services.forEach(s -> s.firefly = firefly);
+                services.forEach(s -> s.graph = graph);
             }
         }
     }

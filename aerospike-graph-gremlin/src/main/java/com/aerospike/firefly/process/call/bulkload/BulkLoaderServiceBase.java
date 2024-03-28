@@ -13,7 +13,7 @@ public abstract class BulkLoaderServiceBase<I, R> extends AdminServiceRegistry<I
 
     @Override
     protected String getAdminNamespace() {
-        return "bulk-load";
+        return "aerospike.graphloader.bulk-load.load";
     }
 
     @Override

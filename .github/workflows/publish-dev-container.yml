@@ -2,7 +2,7 @@ name: Publish Firefly Container for Dev
 
 on:
   push:
-    branches: [main,2.x-dev]
+    branches: [2.x-dev]
 
 env:
   GITHUB_REPOSITORY_NAME: citrusleaf
@@ -10,40 +10,6 @@ env:
   GITHUB_REGISTRY_URL: ghcr.io
 
 jobs:
-
-  publish-artifacts:
-    name: Publish Artifacts
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Java 17 Install
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v4.5
-        with:
-          maven-version: 3.9.5
-
-      - name: Build Bulk Loader
-        run: |
-          mvn clean install -DskipTests
-
-      - name: Upload Bulk Loader
-        uses: actions/upload-artifact@v3
-        with:
-          path: aerospike-graph-bulk-loader/target/aerospike-graph-bulk-loader-*.jar
-
-      - name: Upload Firefly
-        uses: actions/upload-artifact@v3
-        with:
-          path: aerospike-graph-gremlin/target/aerospike-graph-gremlin*.jar
-
   publish-github:
     name: Publish Firefly Docker Image - GitHub
     permissions:

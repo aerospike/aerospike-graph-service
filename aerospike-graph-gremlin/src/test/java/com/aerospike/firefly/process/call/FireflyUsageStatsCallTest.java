@@ -55,7 +55,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.metadata.usage").toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -86,8 +86,8 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("aerospike.graph.metadata.usage").with("since", null).toList();
-                fail("Expected call to aerospike.graph.metadata.usage with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", null).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
                 Assert.assertEquals("Failed to parse provided date 'null'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was null.", e.getMessage());
             }
@@ -102,8 +102,8 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("aerospike.graph.metadata.usage").with("since", 1).toList();
-                fail("Expected call to aerospike.graph.metadata.usage with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", 1).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
                 Assert.assertEquals("Failed to parse provided date '1'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was not a String.", e.getMessage());
             }
@@ -124,7 +124,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.metadata.usage").with("since", previousDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", previousDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -161,7 +161,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.metadata.usage").with("since", futureDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", futureDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -206,7 +206,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph1.traversal().call("aerospike.graph.metadata.usage").toList();
+            final List<Object> usageStatsList = graph1.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");

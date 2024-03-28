@@ -28,7 +28,7 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
 
     @Override
     protected String getAdminServiceName() {
-        return "aerospike.graph.metadata.summary";
+        return "summary";
     }
 
     @Override

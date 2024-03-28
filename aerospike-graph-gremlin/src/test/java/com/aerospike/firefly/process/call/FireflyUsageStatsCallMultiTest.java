@@ -54,7 +54,7 @@ public class FireflyUsageStatsCallMultiTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.metadata.usage").toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");

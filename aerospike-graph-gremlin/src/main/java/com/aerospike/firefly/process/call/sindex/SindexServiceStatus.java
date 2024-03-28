@@ -23,7 +23,7 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected Map<String, String> getParamDescription() {
+    public Map<String, String> describeParams() {
         // No parameters.
         final Map<String, String> parameters = new HashMap<>();
         parameters.put(ELEMENT_TYPE, "The type of element to get the index status of. Only 'vertex' is currently supported.");
@@ -38,9 +38,9 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
                         "\tNote, only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.\n" +
                         "\tProvided arguments: %s.\n" +
                         "\tExamples of correct usage:\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.status\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
-                        "\t\tg.call(\"aerospike.graph.admin.index.status\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
-                getName(), params);
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"~label\").next();\n" +
+                        "\t\tg.call(\"%s\").with(\"" + ELEMENT_TYPE + "\", \"vertex\").with(\"" + PROPERTY_KEY + "\", \"name\").next();",
+                getName(), params, getName(), getName());
     }
 
     @Override
@@ -68,5 +68,10 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
             // Should be caught by sanitize().
             throw new IllegalArgumentException("Only 'vertex' is currently supported for '" + ELEMENT_TYPE + "'.");
         }
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " Get status.");
     }
 }

@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.aerospike.firefly.bulkloader.integration.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.BULK_LOAD_SUCCESS;
-import static com.aerospike.firefly.process.call.bulkload.FireflyBulkLoaderServiceFactory.formatErrorCount;
+import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.BULK_LOAD_SUCCESS;
+import static com.aerospike.firefly.process.call.bulkload.BulkLoaderServiceLoad.formatErrorCount;
 
 public class TestBulkLoaderFailureCallEntryPoint {
     @Before

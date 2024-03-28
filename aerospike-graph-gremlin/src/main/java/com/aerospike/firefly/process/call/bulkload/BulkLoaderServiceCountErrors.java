@@ -15,51 +15,35 @@ import java.util.Set;
 
 import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
-public class FireflyBulkLoaderErrorCountServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
-    private static final Logger LOG = LoggerFactory.getLogger(FireflyBulkLoaderErrorCountServiceFactory.class);
+public class BulkLoaderServiceCountErrors<I, R> extends BulkLoaderServiceBase<I, R> {
 
-    @Override
-    public Type getType() {
-        return Start;
+    public BulkLoaderServiceCountErrors(final FireflyGraph graph) {
+        super(graph);
     }
 
     @Override
-    public Set<TraverserRequirement> getRequirements() {
-        return Service.super.getRequirements();
+    protected String getAdminServiceName() {
+        return "error-count";
     }
 
     @Override
-    public String getName() {
-        return "get-bulk-load-error-count";
+    protected String usage(final Map params) {
+        return String.format("Illegal arguments provided to '%s'.\n" +
+                "\tExpected no arguments.\n" +
+                "\tProvided arguments: '%s'.\n" +
+                "\tExample of correct usage:\n" +
+                "\t\tg.call(\"%s\").next();\n",
+                getName(), params, getName());
     }
 
     @Override
-    public Set<Type> getSupportedTypes() {
-        return Set.of(Start);
+    protected boolean sanitize(final Map params) {
+        return params.isEmpty();
     }
 
     @Override
-    public Service<I, R> createService(boolean isStart, Map params) {
-        if (!isStart) {
-            throw new UnsupportedOperationException(Service.Exceptions.cannotUseMidTraversal);
-        }
-        return this;
-    }
-
-    @Override
-    public void close() {
-        ServiceFactory.super.close();
-        Service.super.close();
-    }
-
-    @Override
-    public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
-        if (!params.isEmpty()) {
-            LOG.warn("get-bulk-load-error-count does not support any parameters.");
-        }
-
+    protected R execute(final Map params) {
         final Map<String, Long> errorCounts = new HashMap<>();
-        final FireflyGraph graph = (FireflyGraph) ctx.getTraversal().getGraph().get();
         final AerospikeConnection db = graph.getBaseGraph();
         final long badEntryCount = db.incrementAndGetBadEntryCount(0);
         final long duplicateVertexIdCount = db.incrementAndGetDuplicateVertexIdCount(0);
@@ -67,6 +51,11 @@ public class FireflyBulkLoaderErrorCountServiceFactory<I, R> implements Service.
         errorCounts.put("duplicate-vertex-id-count", duplicateVertexIdCount);
         errorCounts.put("bad-edge-count", badEdgeCount);
         errorCounts.put("bad-entry-count", badEntryCount);
-        return FireflyCloseableIteratorUtils.of((R) errorCounts);
+        return (R) errorCounts;
+    }
+
+    @Override
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " Get bulk load error count.");
     }
 }

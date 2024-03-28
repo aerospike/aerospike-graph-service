@@ -26,7 +26,7 @@ public class TestFireflyBasicCall {
 
             // The output is a list of strings that looks like:
             // [summary, bulk-load]
-            Assert.assertEquals(Set.of("summary", "get-bulk-load-errors", "get-bulk-load-error-count", "bulk-load", "usage-stats",
+            Assert.assertEquals(Set.of("summary", "get-bulk-load-errors", "get-bulk-load-error-count", "bulk-load", "aerospike.graph.metadata.usage",
                     "aerospike.graph.admin.index.create", "aerospike.graph.admin.index.drop",
                     "aerospike.graph.admin.index.list", "aerospike.graph.admin.index.status",
                     "aerospike.graph.admin.index.cardinality"), new HashSet<>(normalOutput));
@@ -51,7 +51,7 @@ public class TestFireflyBasicCall {
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;
-                    case "{\"name\":\"usage-stats\"":
+                    case "{\"name\":\"aerospike.graph.metadata.usage\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"since\":\"Return usage stats since a certain date in format 'yyyy-MM-dd'.\"}}");
                         break;

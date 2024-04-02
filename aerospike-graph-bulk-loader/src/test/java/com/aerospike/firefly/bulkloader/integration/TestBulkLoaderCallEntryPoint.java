@@ -23,7 +23,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("vertices", false).with("edges", false).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertEquals("Either 'vertices' or 'edges' must be set to true.", e.getMessage());
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'."));
             }
         }
     }
@@ -39,7 +39,7 @@ public class TestBulkLoaderCallEntryPoint {
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
                 Assert.assertTrue(e instanceof AnalysisException);
-                Assert.assertTrue(e.getMessage().startsWith("[PATH_NOT_FOUND]"));
+                Assert.assertTrue(e.getMessage().startsWith("[PATH_NOT_FOUND] Path does not exist:"));
             }
         }
     }
@@ -54,7 +54,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", null).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -69,7 +69,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("configure", "path").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -84,7 +84,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.sampling-percentage", "invalid").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -99,7 +99,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.sampling-percentage", true).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -114,7 +114,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.keep-provided-edge-id-as-property", "boolean").iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -129,7 +129,7 @@ public class TestBulkLoaderCallEntryPoint {
                 fireflyGraph.traversal().call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.keep-provided-edge-id-as-property", 123).iterate();
                 Assert.fail("Expected call to fail.");
             } catch (final Exception e) {
-                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to \"aerospike.graphloader.admin.bulk-load.load\""));
+                Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
             }
         }
     }
@@ -307,7 +307,7 @@ public class TestBulkLoaderCallEntryPoint {
             g.call("aerospike.graphloader.admin.bulk-load.load").with("aerospike.graphloader.config", "src/test/resources/conf/packed/config.properties").with("validate_input_data", "notABoolean").iterate();
             Assert.fail("Expected call to fail.");
         } catch (final Exception e) {
-            Assert.assertEquals("Expected bulk loader flag 'validate_input_data' to be set to a boolean value. Instead value was set with type 'java.lang.String'.", e.getMessage());
+            Assert.assertTrue(e.getMessage().startsWith("Illegal arguments provided to 'aerospike.graphloader.admin.bulk-load.load'"));
         }
     }
 

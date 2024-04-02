@@ -59,7 +59,7 @@ public class TestFireflyConfigCompatibility {
     public void testImmutablePhatEdgeSize() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
         exit.expectSystemExitWithStatus(1);
-        config.setProperty(PHAT_EDGE_SIZE, "1337");
+        config.setProperty(PHAT_EDGE_SIZE, "99");
         try (final FireflyGraph graph = FireflyGraph.open(config)) {
             Assert.fail("Graph should not start with immutable config change on key: " + PHAT_EDGE_SIZE);
         }

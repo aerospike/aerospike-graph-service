@@ -1,10 +1,13 @@
 package com.aerospike.firefly.process.call.bulkload.utils;
 
 import com.aerospike.firefly.util.ConfigurationHelper;
+import com.aerospike.firefly.util.NumericConfigValidator;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.nio.file.Path;
@@ -12,6 +15,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BulkLoaderConfigHelper implements Serializable {
+    private static final Logger LOG = LoggerFactory.getLogger(BulkLoaderConfigHelper.class);
+    private static final NumericConfigValidator NUMERIC_CONFIG_VALIDATOR = new NumericConfigValidator();
+
     // ==CommandLine Configurations==
     // Flag indicating that the job is running from IDE/JVM.
     public static final String LOCAL_MODE = "local";
@@ -106,10 +112,18 @@ public class BulkLoaderConfigHelper implements Serializable {
         put(NULL_VALUE, "null");
         put(VERTEX_WRITE_BUFFER, "10000");
         put(EDGE_WRITE_BUFFER, "10000");
-        put(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, String.valueOf(Long.MAX_VALUE));
-        put(ALLOWED_BAD_EDGES_COUNT, String.valueOf(Long.MAX_VALUE));
-        put(ALLOWED_BAD_ENTRY_COUNT, String.valueOf(Long.MAX_VALUE));
+        put(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, String.valueOf(Integer.MAX_VALUE));
+        put(ALLOWED_BAD_EDGES_COUNT, String.valueOf(Integer.MAX_VALUE));
+        put(ALLOWED_BAD_ENTRY_COUNT, String.valueOf(Integer.MAX_VALUE));
     }};
+
+    static {
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(VERTEX_WRITE_BUFFER, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(EDGE_WRITE_BUFFER, 1);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_DUPLICATE_VERTEX_ID_COUNT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_EDGES_COUNT, 0);
+        NUMERIC_CONFIG_VALIDATOR.addConfigMin(ALLOWED_BAD_ENTRY_COUNT, 0);
+    }
 
     public BulkLoaderConfigHelper(final Map<String, Object> fileConfig, final CommandLine cmdConfig) {
         this.fileConfig = fileConfig;
@@ -119,6 +133,7 @@ public class BulkLoaderConfigHelper implements Serializable {
     public String getOrDefault(final String key) {
         final String loweredKey = key.toLowerCase();
         final String cmdKey = KEY_TO_CMD.get(key);
+
         if (this.cmdConfig.hasOption(cmdKey)) {
             return this.cmdConfig.getOptionValue(cmdKey);
         } else if (this.fileConfig.containsKey(loweredKey)) {
@@ -126,7 +141,46 @@ public class BulkLoaderConfigHelper implements Serializable {
         } else if (DEFAULT_VALUES.containsKey(loweredKey)) {
             return DEFAULT_VALUES.get(loweredKey);
         } else {
-            throw new ConfigurationRuntimeException("No default value available for key: " + loweredKey);
+            final String errorMessage = "No default value available for key: " + loweredKey;
+            LOG.error(errorMessage);
+            throw new ConfigurationRuntimeException(errorMessage);
+        }
+    }
+
+    public boolean getOrDefaultBool(final String key) {
+        final String value = getOrDefault(key);
+        // Use our own parser here to be more strict and robust
+        if ("true".equals(value.toLowerCase().trim())) {
+            return true;
+        } else if ("false".equals(value.toLowerCase().trim())) {
+            return false;
+        } else {
+            final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is not a valid boolean.";
+            LOG.error(errorMessage);
+            throw new ConfigurationRuntimeException(errorMessage);
+        }
+    }
+
+    public int getOrDefaultInt(final String key) {
+        final String value = (String) getOrDefault(key);
+        return NUMERIC_CONFIG_VALIDATOR.validate(key, value);
+    }
+
+    public double getOrDefaultDoublePercentageDecimal(final String key) {
+        final String value = getOrDefault(key);
+        try {
+            final double percentage = Double.parseDouble(value.trim());
+            if (percentage > 100 || percentage < 0) {
+                final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", must be between 0 and 100.";
+                LOG.error(errorMessage);
+                throw new ConfigurationRuntimeException(errorMessage);
+            } else {
+                return percentage / 100;
+            }
+        } catch (final NumberFormatException e) {
+            final String errorMessage = "Value provided, \"" + value + "\", for configuration key, \"" + key + "\", is invalid due to not being numeric.";
+            LOG.error(errorMessage);
+            throw new ConfigurationRuntimeException(errorMessage);
         }
     }
 

@@ -109,7 +109,6 @@ public abstract class AdminServiceRegistry<I, R> implements Service.ServiceFacto
             throw new IllegalArgumentException("Invalid admin context.");
         }
         if (!sanitize(params)) {
-
             throw new IllegalArgumentException(usage(params));
         }
         auditLog(params);

@@ -89,7 +89,13 @@ public class FireflyUsageStatsCallTest {
                 graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", null).toList();
                 fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date 'null'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was null.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                        "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=null}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }
@@ -105,7 +111,13 @@ public class FireflyUsageStatsCallTest {
                 graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", 1).toList();
                 fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date '1'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was not a String.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=1}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }

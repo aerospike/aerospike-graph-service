@@ -32,7 +32,7 @@ public class MetadataServiceUsage<I, R> extends MetadataServiceBase<I, R> {
                 "\tExample of correct usage:\n" +
                 "\t\tg.call(\"%s\").next();\n" +
                 "\t\t\tor\n" +
-                "\t\tg.call(\"%s\").with(\"since\", \"1993-03-30\").next();\n",
+                "\t\tg.call(\"%s\").with(\"since\", \"1993-03-30\").next();",
                 getName(), PATTERN, params, getName(), getName());
     }
 

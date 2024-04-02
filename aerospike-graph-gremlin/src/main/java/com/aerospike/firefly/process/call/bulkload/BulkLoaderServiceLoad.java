@@ -316,10 +316,10 @@ public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
             return BULK_LOAD_SUCCESS;
         } else {
             final String sb = "Warning: Errors were encountered during bulk loading." +
-                    "\nduplicate-vertex-id-count: " + duplicateVertexIdCount +
-                    "\nbad-edge-count: " + badEdgeCount +
-                    "\nbad-entry-count: " + badEntryCount +
-                    "\nUse the g.call(\"aerospike.graphloader.admin.bulk-load.errors\") command for details.";
+                    "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
+                    "\n\t\tbad-edge-count: " + badEdgeCount +
+                    "\n\t\tbad-entry-count: " + badEntryCount +
+                    "\n\t\tUse the g.call(\"aerospike.graphloader.admin.bulk-load.errors\") command for details.";
             return sb;
         }
     }

@@ -64,7 +64,7 @@ public class VertexOperations implements Serializable {
 
             try (final FireflyGraph graph = FireflyGraph.open(config.getFireflyConfig())) {
                 final String nullValue = this.config.getOrDefault(BulkLoaderConfigHelper.NULL_VALUE);
-                final long allowBadEntryCount = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+                final long allowBadEntryCount = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
                 final ScheduledExecutorService executor = DatasetOperations.getScheduledThreadPoolService();
                 final ExponentialBackoffRetry retry = new ExponentialBackoffRetry("vertex-write-partitionid-"+ partitionId);
                 final int bufferSize = getVertexWriteBufferSize();
@@ -219,12 +219,12 @@ public class VertexOperations implements Serializable {
 
     public void verifySampleVerticesAfterWrite(final Dataset<Row> sampledVertexDataset) {
         if (this.config.hasAction(VERIFY_OUTPUT_DATA) && !this.config.hasAction(DISABLE_VERTEX_WRITE)) {
-            final long allowDuplicateVertexIds = Long.parseLong(this.config.getOrDefault(ALLOWED_DUPLICATE_VERTEX_ID_COUNT));
+            final long allowDuplicateVertexIds = this.config.getOrDefaultInt(ALLOWED_DUPLICATE_VERTEX_ID_COUNT);
             if (allowDuplicateVertexIds > 0) {
                 LOGGER.warn(ALLOWED_DUPLICATE_VERTEX_ID_COUNT + " is set to a value greater than 0. Vertex verification cannot be performed and will be skipped.");
                 return;
             }
-            final long allowBadEntries = Long.parseLong(this.config.getOrDefault(ALLOWED_BAD_ENTRY_COUNT));
+            final long allowBadEntries = this.config.getOrDefaultInt(ALLOWED_BAD_ENTRY_COUNT);
             if (allowBadEntries > 0) {
                 LOGGER.warn(ALLOWED_BAD_ENTRY_COUNT + " is set to a value greater than 0. Vertex verification cannot be performed and will be skipped.");
                 return;
@@ -250,6 +250,6 @@ public class VertexOperations implements Serializable {
     }
 
     private int getVertexWriteBufferSize() {
-        return Integer.parseInt(this.config.getOrDefault(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER).trim());
+        return this.config.getOrDefaultInt(BulkLoaderConfigHelper.VERTEX_WRITE_BUFFER);
     }
 }

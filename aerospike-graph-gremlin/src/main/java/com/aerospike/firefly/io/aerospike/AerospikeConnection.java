@@ -227,10 +227,10 @@ public class AerospikeConnection implements AutoCloseable {
     public static ClientPolicy setupClientPolicy(final Configuration conf, final int threadPoolSize, final EventLoops eventLoops) {
         final ClientPolicy clientPolicy = new ClientPolicy();
 
-        clientPolicy.maxConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf));
-        clientPolicy.minConnsPerNode = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf));
+        clientPolicy.maxConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_CONNECTIONS_PER_NODE, conf);
+        clientPolicy.minConnsPerNode = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MIN_CONNECTIONS_PER_NODE, conf);
 
-        clientPolicy.timeout = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf));
+        clientPolicy.timeout = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_TIMEOUT, conf);
         clientPolicy.eventLoops = eventLoops;
 
         // If username and password are not null or empty strings, then set the user and password on the client policy.
@@ -241,22 +241,20 @@ public class AerospikeConnection implements AutoCloseable {
             clientPolicy.user = user;
             clientPolicy.password = password;
         }
-        final String tlsEnabled = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TLS, conf);
-        if (Boolean.parseBoolean(tlsEnabled)) {
+        final boolean tlsEnabled = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TLS, conf);
+        if (tlsEnabled) {
             clientPolicy.tlsPolicy = new TlsPolicy();
 
         }
-        clientPolicy.maxErrorRate = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf));
+        clientPolicy.maxErrorRate = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MAX_ERROR_RATE, conf);
         clientPolicy.authMode = AuthMode.valueOf(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AUTH_MODE, conf).toUpperCase());
-        final String useServicesAlternate = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
-        clientPolicy.useServicesAlternate = Boolean.parseBoolean(useServicesAlternate);
+        clientPolicy.useServicesAlternate = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_SERVICES_ALTERNATE, conf);
         final String clusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLUSTER_NAME, conf);
         if (clusterName != null && !clusterName.isBlank()) {
             clientPolicy.clusterName = clusterName;
         }
         // This setting should only be disabled for internal testing use.
-        final String validateClusterName = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
-        clientPolicy.validateClusterName = Boolean.parseBoolean(validateClusterName);
+        clientPolicy.validateClusterName = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.VALIDATE_CLUSTER_NAME, conf);
         return clientPolicy;
     }
 
@@ -292,7 +290,7 @@ public class AerospikeConnection implements AutoCloseable {
         FireflyAerospikeVersionCheck.validateVersion(aerospikeClient);
         FireflyAerospikeGraphServiceCheck.checkFeatureKey(aerospikeClient);
 
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf))) {
+        if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.CLIENT_FAILURE_TEST, conf)) {
             return DiagnosticUtil.enableWriteFails(aerospikeClient, conf);
         } else {
             return aerospikeClient;
@@ -334,37 +332,37 @@ public class AerospikeConnection implements AutoCloseable {
         this.eventLoops = eventLoops;
         this.client = client;
 
-        V_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf));
-        E_LABEL_INDEX_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf));
-        GLOBAL_EDGE_CACHE_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf));
-        SUMMARY_TICKER_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf));
-        SUMMARY_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf));
-        STORAGE_DEBUGGER_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf));
-        ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf));
-        ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, conf));
-        ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, conf));
-        ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf));
-        ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, conf));
-        ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf));
-        ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf));
-        ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf));
-        ENABLE_BATCHED_REPEAT_STEP_STRATEGY = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf));
-        TTL_ENABLED_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf));
-        TTL_UPDATE_ANYTIME_FLAG = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf));
-        PAGINATION_PAGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf));
-        PAGINATION_PAGE_MAX_WAIT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf));
-        PAGINATION_PAGE_QUEUE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf));
+        V_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.V_LABEL_INDEX_ENABLED_FLAG, conf);
+        E_LABEL_INDEX_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.E_LABEL_INDEX_ENABLED_FLAG, conf);
+        GLOBAL_EDGE_CACHE_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.GLOBAL_EDGE_CACHE_ENABLED, conf);
+        SUMMARY_TICKER_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_TICKER_ENABLED_FLAG, conf);
+        SUMMARY_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.SUMMARY_ENABLED_FLAG, conf);
+        STORAGE_DEBUGGER_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.STORAGE_DEBUGGER_FLAG, conf);
+        ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_COMPOSITE_ID_STRATEGY, conf);
+        ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_SAMPLING_STRATEGY, conf);
+        ENABLE_COMPOSITE_ID_LIMIT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_COMPOSITE_ID_LIMIT_STRATEGY, conf);
+        ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_BATCH_EDGE_READ_STRATEGY, conf);
+        ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_SAMPLING_STRATEGY, conf);
+        ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCH_EDGE_READ_LIMIT_STRATEGY, conf);
+        ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_GRAPH_COUNT_STRATEGY, conf);
+        ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_EMBEDDED_VERTEX_EDGE_LOCAL_COUNT_STRATEGY, conf);
+        ENABLE_BATCHED_REPEAT_STEP_STRATEGY = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ENABLE_BATCHED_REPEAT_STEP_STRATEGY, conf);
+        TTL_ENABLED_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_ENABLED_FLAG, conf);
+        TTL_UPDATE_ANYTIME_FLAG = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.TTL_UPDATE_ANYTIME_FLAG, conf);
+        PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
+        PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
+        PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
         BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);
         BL_BAD_EDGES_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_EDGES_COUNT_KEY.name(), conf);
         BL_BAD_ENTRY_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_BAD_ENTRY_COUNT_KEY.name(), conf);
 
-        AEROSPIKE_WRITE_MAX_RETRY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf));
+        AEROSPIKE_WRITE_MAX_RETRY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_WRITE_MAX_RETRY, conf);
 
-        CARDINALITY_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf));
-        INDEX_METADATA_UPDATE_FREQUENCY = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf));
-        TTL_PURGE_INTERVAL_SECONDS = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf));
+        CARDINALITY_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CARDINALITY_METADATA_UPDATE_FREQUENCY, conf);
+        INDEX_METADATA_UPDATE_FREQUENCY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.INDEX_METADATA_UPDATE_FREQUENCY, conf);
+        TTL_PURGE_INTERVAL_SECONDS = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TTL_PURGE_INTERVAL_SECONDS, conf);
 
         TEST_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.TEST_SET.name(), conf);
         SUMMARY_SET = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Sets.SUMMARY_SET.name(), conf);
@@ -412,21 +410,21 @@ public class AerospikeConnection implements AutoCloseable {
         BL_ROW_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_ROW_BIN.name(), conf);
         BL_FILE_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.BL_FILE_BIN.name(), conf);
 
-        AEROSPIKE_BATCH_READ_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf));
-        FIREFLY_READ_THROUGH_CACHE_WEIGHT = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf));
-        PHAT_EDGE_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf));
-        MOVEMENT_BARRIER_SIZE = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf));
+        AEROSPIKE_BATCH_READ_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_BATCH_READ_SIZE, conf);
+        FIREFLY_READ_THROUGH_CACHE_WEIGHT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.FIREFLY_READ_THROUGH_CACHE_WEIGHT, conf);
+        PHAT_EDGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PHAT_EDGE_SIZE, conf);
+        MOVEMENT_BARRIER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.MOVEMENT_BARRIER_SIZE, conf);
 
-        PROPERTY_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf));
-        VERTEX_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf));
-        EDGE_ID_BUFFER_SIZE = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf));
+        PROPERTY_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PROPERTY_ID_BUFFER_SIZE, conf);
+        VERTEX_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.VERTEX_ID_BUFFER_SIZE, conf);
+        EDGE_ID_BUFFER_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.EDGE_ID_BUFFER_SIZE, conf);
 
-        AEROSPIKE_SOCKET_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf));
-        CONNECT_TIMEOUT = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf));
-        TIMEOUT_DELAY = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf));
-        USAGE_STATS_UPDATE_INTERVAL = Integer.parseInt(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf));
-        WARMUP_MODE = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
-        PROMETHEUS_RENAME_ENABLED = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf));
+        AEROSPIKE_SOCKET_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.AEROSPIKE_SOCKET_TIMEOUT, conf);
+        CONNECT_TIMEOUT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.CONNECT_TIMEOUT, conf);
+        TIMEOUT_DELAY = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.TIMEOUT_DELAY, conf);
+        USAGE_STATS_UPDATE_INTERVAL = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL, conf);
+        WARMUP_MODE = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
+        PROMETHEUS_RENAME_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.PROMETHEUS_RENAME, conf);
 
         QUERY_IMPL = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.QUERY_IMPL, conf);
 
@@ -434,20 +432,25 @@ public class AerospikeConnection implements AutoCloseable {
         idFactory = FireflyIdFactory.create(this);
 
         // Set Edge cache size
-        long onRecordIdLimit;
+        final long onRecordIdMaxLimit = getRecordIdLimitFromAerospike(.9);
+        ConfigurationHelper.setOnRecordIdLimit(onRecordIdMaxLimit);
+        int onRecordIdLimit;
         try {
-            onRecordIdLimit = Long.parseLong(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf));
+            onRecordIdLimit = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, conf);
         } catch (final ConfigurationRuntimeException ignored) {
             // If it was not manually configured, dynamically adjust it relative to the max-record-size configuration of Aerospike
-            final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
-            final double edgeCacheIdSizeBytes = 36;
-            final double fillPercentage = 0.45;
-            final double numberOfCaches = 2;
-
-            onRecordIdLimit = (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
+            final long onRecordIdDefaultLimit = getRecordIdLimitFromAerospike(.45);
+            onRecordIdLimit = onRecordIdDefaultLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) onRecordIdDefaultLimit;
         }
         LOG.info("{} configured to {}.", ConfigurationHelper.Keys.ON_RECORD_ID_LIMIT, onRecordIdLimit);
         ON_RECORD_ID_LIMIT = onRecordIdLimit;
+    }
+
+    private long getRecordIdLimitFromAerospike(final double fillPercentage) {
+        final double maxRecordSizeBytes = InfoOps.getMaxRecordSizeBytes(this.client, this.namespace);
+        final double edgeCacheIdSizeBytes = 36;
+        final double numberOfCaches = 2;
+        return (long) (((maxRecordSizeBytes * fillPercentage) / edgeCacheIdSizeBytes) / numberOfCaches);
     }
 
     /**
@@ -516,7 +519,7 @@ public class AerospikeConnection implements AutoCloseable {
      * @param task    prefetch task to execute
      */
     public void runPrefetchTask(UUID cacheId, Runnable task) {
-        if (Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf))) {
+        if (ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.ASYNC_SUBGRAPH_CACHE, this.conf)) {
             cacheTasks.add(new AbstractMap.SimpleEntry<>(cacheId, CompletableFuture.runAsync(task)));
         } else {
             task.run();
@@ -942,7 +945,7 @@ public class AerospikeConnection implements AutoCloseable {
      * Create Indexes for Firefly
      */
     public void createGraphIndexes() {
-        final boolean warmup_mode = Boolean.parseBoolean(ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.WARMUP_MODE, conf));
+        final boolean warmup_mode = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.WARMUP_MODE, conf);
         if (warmup_mode || VERTEX_AERO_SET.contains(WarmupUtil.getWarmupArenaName()))
             return;
 

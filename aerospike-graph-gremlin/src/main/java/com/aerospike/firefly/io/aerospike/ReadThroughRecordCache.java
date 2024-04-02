@@ -6,7 +6,6 @@ import com.aerospike.client.Record;
 import com.aerospike.client.policy.BatchPolicy;
 import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.io.FireflyCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;

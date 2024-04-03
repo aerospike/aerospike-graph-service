@@ -86,6 +86,53 @@ public class TestAdminCallHttp {
         }
     }
 
+    public String adminMetadataSummary() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/summary");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminMetadataUsage() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/usage");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminBulkLoad() {
+        try {
+            final String query = String.format("aerospike.graphloader.config=%s",
+                    URLEncoder.encode("src/test/resources/conf/packed/config.properties", "UTF-8"));
+            final URL url = new URL("http://localhost:9090/admin/bulk-load/load?" + query);
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void testList() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -238,5 +285,50 @@ public class TestAdminCallHttp {
             }
             Assert.assertEquals(Set.of("nameA=1", "nameB=1"), cardinalitySet);
         }
+    }
+
+    @Test
+    public void testSummary() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final String summary = adminMetadataSummary();
+            Assert.assertTrue(summary.contains("Total vertex count"));
+        }
+    }
+
+    @Test
+    public void testUsage() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final String usage = adminMetadataUsage();
+            System.out.println(usage.contains("raw"));
+        }
+    }
+
+    @Test
+    public void testBulkLoaderLoad() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph graph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = graph.traversal();
+            g.V().drop().iterate();
+            Assert.assertEquals(0, g.V().count().next().longValue());
+            Assert.assertEquals(0, g.E().count().next().longValue());
+            adminBulkLoad();
+            Assert.assertNotEquals(0, g.V().count().next().longValue());
+            Assert.assertNotEquals(0, g.E().count().next().longValue());
+        }
+
+    }
+
+    @Test
+    public void testBulkLoaderErrors() {
+
+    }
+
+    @Test
+    public void testBulkLoaderCountErrors() {
+
     }
 }

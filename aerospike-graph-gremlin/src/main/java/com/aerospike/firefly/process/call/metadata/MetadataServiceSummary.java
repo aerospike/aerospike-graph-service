@@ -1,13 +1,11 @@
 package com.aerospike.firefly.process.call.metadata;
 
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.aerospike.firefly.runtime.tasks.FireflyGraphSummaryUpdater;
 
 import java.util.Map;
 
 public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
-    private final FireflyGraph graph;
     public static final String PRETTY_PRINT_FORMAT_LOG = "\tTotal vertex count: {}.\n" +
             "\tVertex count by label: {}.\n" +
             "\tVertex properties by label: {}.\n" +
@@ -23,7 +21,6 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
 
     public MetadataServiceSummary(final FireflyGraph graph) {
         super(graph);
-        this.graph = graph;
     }
 
     @Override
@@ -53,22 +50,22 @@ public class MetadataServiceSummary<I, R> extends MetadataServiceBase<I, R> {
         final FireflyGraphSummaryUpdater.FireflyElementMetadata fireflyElementMetadata =
                 graph.fireflySummaryUpdater.getFireflyStatistics();
         if (params.containsKey("pretty") && params.get("pretty").equals(true)) {
-            return (R) FireflyCloseableIteratorUtils.of(
+            return (R)
                     String.format(PRETTY_PRINT_FORMAT_SYSTEM,
                             fireflyElementMetadata.totalVertexCount(),
                             fireflyElementMetadata.vertexCountByLabel().toString(),
                             fireflyElementMetadata.vertexPropertiesByLabel().toString(),
                             fireflyElementMetadata.totalEdgeCount(),
                             fireflyElementMetadata.edgeCountByLabel().toString(),
-                            fireflyElementMetadata.edgePropertiesByLabel().toString()));
+                            fireflyElementMetadata.edgePropertiesByLabel().toString());
         }
-        return (R) FireflyCloseableIteratorUtils.of(Map.of(
+        return (R) Map.of(
                 "Total vertex count", fireflyElementMetadata.totalVertexCount(),
                 "Vertex count by label", fireflyElementMetadata.vertexCountByLabel(),
                 "Vertex properties by label", fireflyElementMetadata.vertexPropertiesByLabel(),
                 "Total edge count", fireflyElementMetadata.totalEdgeCount(),
                 "Edge count by label", fireflyElementMetadata.edgeCountByLabel(),
-                "Edge properties by label", fireflyElementMetadata.edgePropertiesByLabel()));
+                "Edge properties by label", fireflyElementMetadata.edgePropertiesByLabel());
     }
 
     @Override

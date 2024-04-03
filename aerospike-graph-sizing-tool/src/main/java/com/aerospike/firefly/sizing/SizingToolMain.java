@@ -214,6 +214,9 @@ public class SizingToolMain implements Callable<Exception> {
         if (metadata.containsKey("edgePackSize")) {
             graphSchema.edgePackSize = ((Number) metadata.get("edgePackSize")).longValue();
         }
+        if (metadata.containsKey("vertexLabelSindex")) {
+            graphSchema.vertexLabelSindex = ((Boolean) metadata.get("vertexLabelSindex"));
+        }
     }
 
     public static GraphSchema fromGraphTraversalSource(final GraphTraversalSource g) {

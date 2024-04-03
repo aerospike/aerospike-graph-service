@@ -33,7 +33,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Thread.sleep(5000);
         g.V().drop().iterate();
         Thread.sleep(5000);
-        final Map<Object, Object> summaryCallEmpty = (Map<Object, Object>) (((FireflyCloseableSingleIterator) g.call("aerospike.graph.admin.metadata.summary").next())).next();
+        final Map<Object, Object> summaryCallEmpty = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
         final Map<Object, Object> expectedEmpty = Map.of(
                 "Vertex count by label", Map.of(),
                 "Edge count by label", Map.of(),
@@ -73,7 +73,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
                         "Vertex properties by label", vertexProperties,
                         "Total vertex count", vertexCount,
                         "Total edge count", edgeCount);
-        final Map<Object, Object> summaryCallGrateful = (Map<Object, Object>) (((FireflyCloseableSingleIterator) g.call("aerospike.graph.admin.metadata.summary").next())).next();
+        final Map<Object, Object> summaryCallGrateful = (Map<Object, Object>) g.call("aerospike.graph.admin.metadata.summary").next();
         Assert.assertEquals(expectedGrateful, summaryCallGrateful);
     }
 
@@ -105,7 +105,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         Thread.sleep(5000);
         g.V().drop().iterate();
         Thread.sleep(5000);
-        final String summaryCall = (String) ((FireflyCloseableSingleIterator) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next()).next();
+        final String summaryCall = (String) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next();
         final String expectedOutputEmpty = String.format(PRETTY_PRINT_FORMAT_SYSTEM, 0L, "{}", "{}", 0L, "{}", "{}");
         Assert.assertEquals(expectedOutputEmpty, summaryCall);
         GraphHelper.cloneElements(TinkerFactory.createGratefulDead(), graph);
@@ -119,7 +119,7 @@ public class FireflySummaryCallTest extends AbstractFireflySuite {
         // final Map<Object, Object> vertexProperties = g.V().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
         // final Map<Object, Object> edgeProperties = g.E().group().by(__.label()).by(__.properties().key().dedup().fold()).next();
 
-        final String actualOutputGrateful = (String) ((FireflyCloseableSingleIterator) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next()).next();
+        final String actualOutputGrateful = (String) g.call("aerospike.graph.admin.metadata.summary").with("pretty").next();
         final String[] gratefulDelimiterSplit = actualOutputGrateful.split("\n");
         for (int i = 0; i < gratefulDelimiterSplit.length; i += 2) {
             if (gratefulDelimiterSplit[i].contains("Total vertex count:")) {

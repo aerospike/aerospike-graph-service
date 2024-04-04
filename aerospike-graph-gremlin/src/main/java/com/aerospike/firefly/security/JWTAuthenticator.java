@@ -86,7 +86,7 @@ public class JWTAuthenticator implements Authenticator {
         return verifier.verify(jwtToken);
     }
 
-    private DecodedJWT decodeJWT(String jwtToken) {
+    public static DecodedJWT decodeJWT(String jwtToken) {
         return JWT.decode(jwtToken);
     }
 

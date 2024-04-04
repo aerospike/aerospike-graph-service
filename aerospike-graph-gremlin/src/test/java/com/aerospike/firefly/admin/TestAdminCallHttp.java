@@ -86,6 +86,36 @@ public class TestAdminCallHttp {
         }
     }
 
+    public String adminMetadataSummary() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/summary");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String adminMetadataUsage() {
+        try {
+            final URL url = new URL("http://localhost:9090/admin/metadata/usage");
+            final HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+
+            // Read input stream into String.
+            final byte[] bytes = con.getInputStream().readAllBytes();
+            final String response = new String(bytes);
+            return response;
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void testList() {
         final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
@@ -237,6 +267,26 @@ public class TestAdminCallHttp {
                 cardinalitySet.add(s.trim());
             }
             Assert.assertEquals(Set.of("nameA=1", "nameB=1"), cardinalitySet);
+        }
+    }
+
+    @Test
+    public void testSummary() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final String summary = adminMetadataSummary();
+            Assert.assertTrue(summary.contains("Total vertex count"));
+        }
+    }
+
+    @Test
+    public void testUsage() {
+        final Configuration config = ConfigurationHelper.loadFromFile(INTEGRATION_TEST_PROPERTIES);
+        try (final FireflyGraph fireflyGraph = FireflyGraph.open(config)) {
+            final GraphTraversalSource g = fireflyGraph.traversal();
+            final String usage = adminMetadataUsage();
+            Assert.assertTrue(usage.contains("raw"));
         }
     }
 }

@@ -3,11 +3,7 @@ package com.aerospike.firefly.process.call.bulkload;
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.process.call.bulkload.utils.FireflyBulkLoaderInterface;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import com.google.common.collect.Sets;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.structure.service.Service;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,9 +33,8 @@ import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfig
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.VERIFY_OUTPUT_DATA;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_EDGE_WRITE;
 import static com.aerospike.firefly.process.call.bulkload.utils.BulkLoaderConfigHelper.DISABLE_VERTEX_WRITE;
-import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
-public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFactory<I, R>, Service<I, R> {
+public class BulkLoaderServiceLoad<I, R> extends BulkLoaderServiceBase<I, R> {
     public static final String BULK_LOAD_SUCCESS = "Success";
     private static final String DEFAULT_CONFIG_PATH = "/opt/conf/aerospike-graph.properties";
     private static final String VERTICES = "vertices";
@@ -79,36 +74,89 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         KEY_TO_ARG.putAll(KEY_TO_CMD);
     }
 
-    @Override
-    public String getName() {
-        return "bulk-load";
+    public BulkLoaderServiceLoad(final FireflyGraph graph) {
+        super(graph);
     }
 
     @Override
-    public Set<Type> getSupportedTypes() {
-        return Set.of(Type.Start);
+    protected String getAdminServiceName() {
+        return "load";
     }
 
     @Override
-    public Service<I, R> createService(final boolean isStart, final Map params) {
-        if (!isStart) {
-            throw new UnsupportedOperationException(Service.Exceptions.cannotUseMidTraversal);
+    protected String usage(final Map params) {
+        return String.format("Illegal arguments provided to '%s'.\n" +
+                        "\tExpected arguments within '%s'.\n" +
+                        "\tProvided argument: '%s'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.with(\"evaluationTimeout\", 24 * 60 * 60 * 1000).call(\"%s\")\n" +
+                        "\t\t\t.with(\"aerospike.graphloader.vertices\", \"/opt/aerospike-graph/etc/sampledata/vertices\")\n" +
+                        "\t\t\t.with(\"aerospike.graphloader.edges\", \"/opt/aerospike-graph/etc/sampledata/edges\");\n",
+                getName(), PUBLIC_PARAMS, params, getName());
+    }
+
+    @Override
+    protected boolean sanitize(final Map params) {
+        // To sanitize, dry run of parameter collection is used since the inputs are complicated and interrelated.
+        try {
+            // Get any provided parameters that are not allowed.
+            final Sets.SetView<String> diff = Sets.difference(params.keySet(), KEY_TO_ARG.keySet());
+            if (!diff.isEmpty()) {
+                throw new IllegalArgumentException("The bulk loader allows the following parameters: " + PUBLIC_PARAMS + ". " +
+                        "The following provided parameters are not allowed: " + diff + ".");
+            }
+
+            final List<String> args = new ArrayList<>();
+            final Map<String, Object> mutableParams = new HashMap();
+            mutableParams.putAll(params);
+            if (!mutableParams.containsKey(CONFIG_DIRECTORY_KEY)) {
+                mutableParams.put(CONFIG_DIRECTORY_KEY, DEFAULT_CONFIG_PATH);
+            }
+            boolean vertices = true;
+            boolean edges = true;
+
+            // The way specifying vertices or edges is that:
+            // If you specify neither, both are loaded.
+            // If you specify both as true, then both element types are loaded.
+            // If you specify both as false, an error is returned.
+            // If you specify 1 as true, that is the only element type loaded.
+            // If you specify 1 as false, then only the other element type is loaded.
+            if (mutableParams.containsKey(VERTICES) && mutableParams.containsKey(EDGES)) {
+                vertices = getBooleanFromObject(mutableParams.get(VERTICES), VERTICES);
+                edges = getBooleanFromObject(mutableParams.get(EDGES), EDGES);
+            } else if (mutableParams.containsKey(VERTICES)) {
+                vertices = getBooleanFromObject(mutableParams.get(VERTICES), VERTICES);
+                edges = !vertices;
+            } else if (mutableParams.containsKey(EDGES)) {
+                edges = getBooleanFromObject(mutableParams.get(EDGES), EDGES);
+                vertices = !edges;
+            }
+
+            if (!vertices && !edges) {
+                throw new IllegalArgumentException("Either '" + VERTICES + "' or '" + EDGES + "' must be set to true.");
+            }
+
+            if (mutableParams.containsKey(VALIDATE_INPUT_DATA)) {
+                getBooleanFromObject(mutableParams.get(VALIDATE_INPUT_DATA), VALIDATE_INPUT_DATA);
+            }
+
+            for (final Map.Entry<String, Object> config : mutableParams.entrySet()) {
+                final String key = config.getKey();
+                if (key.equals(VERTICES) || key.equals(EDGES) || key.equals(VALIDATE_INPUT_DATA)) {
+                    // Actions are handled elsewhere
+                    continue;
+                }
+                args.add(formatArg(KEY_TO_ARG.get(key)));
+                args.add(getStringFromObject(config.getValue(), key));
+            }
+        } catch (final IllegalArgumentException e) {
+            return false;
         }
-        return this;
+        return true;
     }
 
     @Override
-    public Type getType() {
-        return Start;
-    }
-
-    @Override
-    public Set<TraverserRequirement> getRequirements() {
-        return Service.super.getRequirements();
-    }
-
-    @Override
-    public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
+    protected R execute(final Map params) {
         // Get any provided parameters that are not allowed.
         final Sets.SetView<String> diff = Sets.difference(params.keySet(), KEY_TO_ARG.keySet());
         if (!diff.isEmpty()) {
@@ -186,9 +234,8 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
                     Class.forName("com.aerospike.firefly.bulkloader.SparkBulkLoaderMain");
             bulkLoaderClass.newInstance().load(args.toArray(new String[0]));
 
-            final FireflyGraph graph = (FireflyGraph) ctx.getTraversal().getGraph().get();
             final String output = formatErrorCount(graph);
-            return FireflyCloseableIteratorUtils.of((R) output);
+            return (R) output;
         } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
             throw new IllegalStateException("Error, to use the bulk loader via the call API, " +
@@ -268,13 +315,12 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
         if (badEntryCount == 0 && duplicateVertexIdCount == 0 && badEdgeCount == 0) {
             return BULK_LOAD_SUCCESS;
         } else {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("Warning: Errors were encountered during bulk loading.");
-            sb.append("\nduplicate-vertex-id-count: " + duplicateVertexIdCount);
-            sb.append("\nbad-edge-count: " + badEdgeCount);
-            sb.append("\nbad-entry-count: " + badEntryCount);
-            sb.append("\nUse the g.call(\"get-bulk-load-errors\") command for details.");
-            return sb.toString();
+            final String sb = "Warning: Errors were encountered during bulk loading." +
+                    "\n\t\tduplicate-vertex-id-count: " + duplicateVertexIdCount +
+                    "\n\t\tbad-edge-count: " + badEdgeCount +
+                    "\n\t\tbad-entry-count: " + badEntryCount +
+                    "\n\t\tUse the g.call(\"aerospike.graphloader.admin.bulk-load.errors\") command for details.";
+            return sb;
         }
     }
 
@@ -284,8 +330,7 @@ public class FireflyBulkLoaderServiceFactory<I, R> implements Service.ServiceFac
     }
 
     @Override
-    public void close() {
-        ServiceFactory.super.close();
-        Service.super.close();
+    protected void auditLog(final Map params) {
+        LOGGER.info(getName() + " bulk load graph.");
     }
 }

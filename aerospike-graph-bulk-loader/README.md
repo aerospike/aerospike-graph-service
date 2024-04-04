@@ -165,7 +165,7 @@ docker run -p 8182:8182  \
             ghcr.io/citrusleaf/firefly
 
 # Invoke call API with path to files in docker container.
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bulk-load.load")
     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
 ```
@@ -173,7 +173,7 @@ g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load")
 Most customers will likely use S3 or GCS, which is the recommended way.
 An S3 example is shown below:
 ```java
-g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("bulk-load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
+g.with("evaluationTimeout", 24 * 60 * 60 * 1000).call("aerospike.graphloader.bulk-load.load").with("aerospike.graphloader.vertices", "s3://myBucket/vertices").with("aerospike.graphloader.edges", "s3://myOtherBucket/edges").with("aerospike.graphloader.remote-user", "myAwsId").with("aerospike.graphloader.remote-passkey", "myAwsSecretKey").iterate();
 ```
 
 ##### Spark Submit
@@ -201,7 +201,7 @@ When `aerospike.graphloader.allowed-duplicate-vertex-id-count` ,`aerospike.graph
 Note: `validate_input_data` must be enabled for error allowance to work, and setting any allowed error count to above 0 will cause skipping of their respective `verify_output_data` steps.
 
 ```java
-String result = (String) g.call("bulk-load").with(...).next();
+String result = (String) g.call("aerospike.graphloader.bulk-load.load").with(...).next();
 
 // If there were no failures then Result:
 // Success
@@ -211,7 +211,7 @@ String result = (String) g.call("bulk-load").with(...).next();
 // duplicate-vertex-id-count: 1
 // bad-edge-count: 3
 // bad-entry-count: 2
-// Use the g.call("get-bulk-load-errors") command for details.
+// Use the g.call("aerospike.graphloader.bulk-load.errors") command for details.
 ```
 
 The amount of errors encountered after a bulk load can also be grabbed in `Map<String, Long>` format via `g.call("get-bulk-load-error-count").next()`
@@ -226,7 +226,7 @@ This map contains the following keys:
 * `bad-edge-count`: amount of Edges attached to an invalid Vertex ID encountered during the bulk load
 * `bad-entry-count`: amount of Rows in CSV that contained a column value that did not match the specified header type during the bulk load
 
-To get specific details on each type of error, `g.call("get-bulk-load-errors").with("type", "<error-type>")` can be used to generate an iterator of each individual failures.
+To get specific details on each type of error, `g.call("aerospike.graphloader.bulk-load.errors").with("type", "<error-type>")` can be used to generate an iterator of each individual failures.
 
 Allowed `error-type` keys:
 
@@ -254,7 +254,7 @@ All `error-type` returns Map types, with their own key-value pairs containing me
 Note: One and only one `error-type` must be specified at a time.
 
 ```java
-GraphTraversal duplicateVertexId = g.call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
+GraphTraversal duplicateVertexId = g.call("aerospike.graphloader.bulk-load.errors").with("type", "duplicate-vertex-ids");
 while (duplicateVertexId.hasNext()) {
     Map<String, Object> info = (Map<String, Object>) duplicateVertexId.next();
     // Example info
@@ -265,7 +265,7 @@ while (duplicateVertexId.hasNext()) {
     // Two Vertex CSV rows were found with ~id vertexId1
 }
 
-GraphTraversal badEdges = g.call("get-bulk-load-errors").with("type", "bad-edges");
+GraphTraversal badEdges = g.call("aerospike.graphloader.bulk-load.errors").with("type", "bad-edges");
 while (badEdges.hasNext()) {
     Map<String, Object> info = (Map<String, Object>) badEdges.next();
     // Example info
@@ -276,7 +276,7 @@ while (badEdges.hasNext()) {
     // There were 7 instances where an Edge CSV row had a ~from or ~to value of vertexIdNonExistent
 }
 
-GraphTraversal badEntries = g.call("get-bulk-load-errors").with("type", "duplicate-vertex-ids");
+GraphTraversal badEntries = g.call("aerospike.graphloader.bulk-load.errors").with("type", "duplicate-vertex-ids");
 while (badEntries.hasNext()) {
     Map<String, String> info = (Map<String, String>) badEntries.next();
     // Example info

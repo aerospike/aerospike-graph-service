@@ -8,7 +8,7 @@ The vcpu and memory size are also collected. By doing this we can get a rough id
 The usage stats can be collected by invoking the follow command in gremlin:
 
 ```
-g.call("usage-stats").next()
+g.call("aerospike.graph.metadata.usage").next()
 ```
 
 This will return a Map<String, Object> that contains the following fields:
@@ -18,11 +18,11 @@ This will return a Map<String, Object> that contains the following fields:
 The usage stats from a specific date can also be collected by invoking the follow command in gremlin:
 
 ```
-g.call("usage-stats").with("since", "yyyy-mm-dd").next()
+g.call("aerospike.graph.metadata.usage").with("since", "yyyy-mm-dd").next()
 ```
 example:
 ```
-g.call("usage-stats").with("since", "2023-03-30").next()
+g.call("aerospike.graph.metadata.usage").with("since", "2023-03-30").next()
 ```
 
 This will return a Map<String, Object> that contains the following fields:

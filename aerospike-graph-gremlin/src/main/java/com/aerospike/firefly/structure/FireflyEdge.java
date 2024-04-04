@@ -200,7 +200,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
         // Write to filterable supernode bin if necessary.
         operations.addAll(createFilterableSupernodeOperation(graph, (FireflyPhatEdgeId) edgeId, !outVertexCacheWrite,
-                !inVertexCacheWrite, outVertex, inVertex, label, propertyMap));
+                !inVertexCacheWrite, outVertex.id, inVertex.id, label, propertyMap));
 
         // Add properties and type hints to Edge data.
         edgeData.add(PROPERTIES_POSITION, Value.get(propertyMap));
@@ -232,9 +232,9 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
     }
 
-    private static List<Operation> createFilterableSupernodeOperation(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
+    public static List<Operation> createFilterableSupernodeOperation(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
                                                                 boolean isOutSupernode, boolean isInSupernode,
-                                                                final FireflyVertex outV, final FireflyVertex inV,
+                                                                final FireflyId outVId, final FireflyId inVId,
                                                                 final String label, final Map<String, Object> propertyMap) {
         if (!isOutSupernode && !isInSupernode) {
             // No supernodes so we don't have to do anything
@@ -242,20 +242,20 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         }
         final String binName = graph.getBaseGraph().SUPERNODE_EDGE_PROPERTIES_BIN;
         final Value edgeStorageIndex = Value.get(edgeId.getPackingIndex());
-        final Value outVId = Value.get(outV.id.getKeyHashString());
-        final Value inVId = Value.get(inV.id.getKeyHashString());
+        final Value outVIdValue = Value.get(outVId.getKeyHashString());
+        final Value inVIdValue = Value.get(inVId.getKeyHashString());
 
         final List<Operation> operations = new ArrayList<>();
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteMode.CREATE_ONLY);
         // Label
         if (isOutSupernode) {
             final Operation labelOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(label),
-                    CTX.mapKeyCreate(outVId, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
+                    CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
         }
         if (isInSupernode) {
             final Operation labelOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(label),
-                    CTX.mapKeyCreate(inVId, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
+                    CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
         }
         // Properties
@@ -266,12 +266,12 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
                     Integer.class.isAssignableFrom(propertyValueClass)) {
                 if (isOutSupernode) {
                     final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(property.getValue()),
-                            CTX.mapKeyCreate(outVId, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
+                            CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
                     operations.add(propertyOperation);
                 }
                 if (isInSupernode) {
                     final Operation propertyOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(property.getValue()),
-                            CTX.mapKeyCreate(inVId, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
+                            CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(property.getKey()), MapOrder.KEY_ORDERED));
                     operations.add(propertyOperation);
                 }
             }

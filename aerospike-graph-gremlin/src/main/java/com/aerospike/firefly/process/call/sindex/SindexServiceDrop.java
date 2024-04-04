@@ -21,7 +21,7 @@ public class SindexServiceDrop<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "drop";
     }
 

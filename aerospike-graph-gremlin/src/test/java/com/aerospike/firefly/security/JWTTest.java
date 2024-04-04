@@ -43,9 +43,14 @@ public class JWTTest {
         ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
         ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
 
+
+
         // Create Algorithm instance
         Algorithm signingKeyPair = Algorithm.ECDSA256(publicKey, privateKey);
-        final String j = JWT.create().withClaim("role", "ADMIN")
+
+
+        final String j = JWT.create()
+                .withClaim("role", "ADMIN")
                 .withClaim("role", "READ")
                 .withClaim("role", "WRITE")
                 .withSubject("Grant")

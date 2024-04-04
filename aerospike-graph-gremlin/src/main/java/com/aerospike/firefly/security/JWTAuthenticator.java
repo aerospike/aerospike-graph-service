@@ -6,10 +6,7 @@ import com.aerospike.firefly.util.ConfigurationHelper;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.impl.JWTParser;
-import com.auth0.jwt.interfaces.DecodedJWT;
-import com.auth0.jwt.interfaces.Header;
-import com.auth0.jwt.interfaces.JWTVerifier;
-import com.auth0.jwt.interfaces.Payload;
+import com.auth0.jwt.interfaces.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.server.auth.AuthenticatedUser;
@@ -120,7 +117,7 @@ public class JWTAuthenticator implements Authenticator {
         return new JWTAuthenticatedUser(payload);
     }
 
-    protected class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext{
+    protected class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext {
 
         private final Payload jwtPayload;
 
@@ -132,9 +129,11 @@ public class JWTAuthenticator implements Authenticator {
         @Override
         public List<ROLE> getRoles() {
             return jwtPayload
-                    .getClaim("roles")
-                    .asList(String.class)
-                    .stream()
+                    .getClaims()
+                    .entrySet()
+                    .stream().filter(entry -> entry.getKey().equals("role"))
+                    .map(Map.Entry::getValue)
+                    .map(Claim::asString)
                     .map(ROLE::valueOf)
                     .collect(Collectors.toList());
         }

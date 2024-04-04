@@ -2,18 +2,9 @@ package com.aerospike.firefly.process.call.bulkload;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
 import com.aerospike.firefly.structure.FireflyGraph;
-import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
-import org.apache.tinkerpop.gremlin.structure.service.Service;
-import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-
-import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
 
 public class BulkLoaderServiceCountErrors<I, R> extends BulkLoaderServiceBase<I, R> {
 

@@ -8,7 +8,6 @@ import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import org.apache.http.auth.InvalidCredentialsException;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;

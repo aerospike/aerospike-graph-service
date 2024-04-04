@@ -513,6 +513,10 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         this.removed = true;
     }
 
+    public List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels) {
+        return getEdgeIdsFromVertex(direction, labels, null);
+    }
+
     /**
      * Get all edge ids from vertex for given Direction. This considers supernode ids and cached ids,
      * handling index/scanning under the hood.
@@ -520,9 +524,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @param direction Direction to get edge ids for.
      * @return Iterator of all edge ids.
      */
-    public List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels) {
+    public List<FireflyId> getEdgeIdsFromVertex(final Direction direction, final Set<String> labels, final List<FireflyId> edgeIdContainer) {
         LOG.trace("Getting edge ids from vertex {}.", id);
-        final List<FireflyId> edgeIds = new ArrayList<>();
+        final List<FireflyId> edgeIds;
+        if (edgeIdContainer == null) {
+            edgeIds = new ArrayList<>();
+        } else {
+            edgeIds = edgeIdContainer;
+        }
 
         edgeIds.addAll(getCachedEdgeIds(direction, labels));
         if (isEdgeCacheOverflowed) {
@@ -837,7 +846,23 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                     new FireflyPhatEdgeIdIteratorFromIndexedVertex(GraphQuery.create(graph).querySIndex(db.EDGE_AERO_SET, db.E_IN_INDEX_NAME, Filter.contains(db.SUPERNODES_IN_BIN,
                             IndexCollectionType.MAPVALUES, id.getKeyHashString()), queryPolicy), this.db, Direction.IN, this.id, labels, outputType));
         }
-        return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);
+
+        // Tag supernode reads in cache.
+        final Iterator<KeyRecord> finalKeyRecordIterator = new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                return keyRecordIterator.hasNext();
+            }
+
+            @Override
+            public KeyRecord next() {
+                final KeyRecord keyRecord = keyRecordIterator.next();
+                graph.getBaseGraph().transactionCache.get().insert(keyRecord.key, keyRecord.record);
+                return keyRecord;
+            }
+        };
+
+        return new FireflyPhatEdgeIdIteratorFromIndexedVertex(finalKeyRecordIterator, this.db, direction, this.id, labels, outputType);
     }
 
     public long getEdgeCount(final Direction direction) {
@@ -1131,7 +1156,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      * @param vertexIds FireflyIds to use.
      * @return FireflyVertex.
      */
-    public static List<FireflyVertex> readVertices(final FireflyGraph graph, final List<HasContainer> hasContainers,
+    public static List<FireflyVertex> readVertices(final FireflyGraph graph,
+                                                   final List<HasContainer> hasContainers,
                                                    final List<FireflyId> vertexIds) {
         LOG.debug("Reading vertices {}.", vertexIds);
 

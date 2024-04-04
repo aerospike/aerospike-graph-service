@@ -11,13 +11,16 @@ import java.util.Arrays;
  */
 public class FireflyPhatEdgeId extends FireflyIdPoly {
     private final long capacity;
+    private Long storageId = null;
+    private Integer hashcode = null;
 
     public FireflyPhatEdgeId(final ByteBuffer id, final long capacity, final String edgeSetName) {
         super(id, edgeSetName);
         this.capacity = capacity;
     }
 
-    public long getPackingId() {
+
+    public Long getPackingId() {
         // Edge byte array is [<recycledId>, <uniqueId>]
         // and the recycled id is used for the edge record.
         final byte[] bytes = Arrays.copyOfRange(((ByteBuffer)this.id).array(), 0, 8);
@@ -29,7 +32,10 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
 
     @Override
     public Object getStorageId() {
-        return getPackingId() / capacity;
+        if (this.storageId == null) {
+            this.storageId = getPackingId() / capacity;
+        }
+        return this.storageId;
     }
 
     /**
@@ -46,7 +52,10 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
 
     @Override
     public int hashCode() {
-        return getUserId().hashCode();
+        if (this.hashcode == null) {
+            this.hashcode = getUserId().hashCode();
+        }
+        return this.hashcode;
     }
 
     @Override
@@ -60,7 +69,7 @@ public class FireflyPhatEdgeId extends FireflyIdPoly {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return super.equals(o) && this.getUserId().equals(((FireflyId) o).getUserId());
+    public boolean equals(final Object o) {
+        return this.getUserId().equals(((FireflyId) o).getUserId()) && super.equals(o);
     }
 }

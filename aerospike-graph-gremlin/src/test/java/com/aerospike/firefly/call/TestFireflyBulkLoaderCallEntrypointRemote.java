@@ -30,7 +30,8 @@ public class TestFireflyBulkLoaderCallEntrypointRemote {
         try (final GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(CLUSTER))) {
             g.V().drop().iterate();
             g.E().drop().iterate();
-            Assert.assertEquals("Success", g.call("aerospike.graphloader.admin.bulk-load.load")
+            Assert.assertEquals("Success", g.with("evaluationTimeout", 5 * 60 * 1000).
+                    call("aerospike.graphloader.admin.bulk-load.load")
                     .with("aerospike.graphloader.vertices", "/opt/aerospike-graph/etc/sampledata/vertices")
                     .with("aerospike.graphloader.edges", "/opt/aerospike-graph/etc/sampledata/edges")
                     .next());

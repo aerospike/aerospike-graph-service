@@ -849,6 +849,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         // Tag supernode reads in cache.
         final Iterator<KeyRecord> finalKeyRecordIterator = new Iterator<>() {
+            final FireflyCache cache =  graph.getBaseGraph().transactionCache.get();
+
             @Override
             public boolean hasNext() {
                 return keyRecordIterator.hasNext();
@@ -857,7 +859,9 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             @Override
             public KeyRecord next() {
                 final KeyRecord keyRecord = keyRecordIterator.next();
-                graph.getBaseGraph().transactionCache.get().insert(keyRecord.key, keyRecord.record);
+                if (cache != null) {
+                    cache.insert(keyRecord.key, keyRecord.record);
+                }
                 return keyRecord;
             }
         };

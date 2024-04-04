@@ -1,40 +1,65 @@
 package com.aerospike.firefly.process.call.sindex;
 
-import com.aerospike.firefly.io.aerospike.admin.AdminContext;
+import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.iterator.FireflyCloseableIteratorUtils;
-import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
+import io.vertx.core.Handler;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import org.apache.tinkerpop.gremlin.structure.service.Service;
 import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import static org.apache.tinkerpop.gremlin.structure.service.Service.Type.Start;
-
-public abstract class SindexServiceBase<I, R> implements Service.ServiceFactory<I, R>, Service<I, R>  {
-    protected final FireflyGraph firefly;
+public abstract class SindexServiceBase<I, R> extends AdminServiceRegistry<I, R> {
+    protected FireflyGraph firefly;
     protected static final String ELEMENT_TYPE = "element_type";
     protected static final String PROPERTY_KEY = "property_key";
+    protected static Set<SindexServiceBase> services;
 
     public static void registerSindexServices(final FireflyGraph firefly) {
-        firefly.getServiceRegistry().registerService(new SindexServiceCardinality(firefly));
-        firefly.getServiceRegistry().registerService(new SindexServiceCreate(firefly));
-        firefly.getServiceRegistry().registerService(new SindexServiceDrop(firefly));
-        firefly.getServiceRegistry().registerService(new SindexServiceList(firefly));
-        firefly.getServiceRegistry().registerService(new SindexServiceStatus(firefly));
+        synchronized (SindexServiceBase.class) {
+                Set.of(
+                        new SindexServiceCardinality(firefly),
+                        new SindexServiceCreate(firefly),
+                        new SindexServiceDrop(firefly),
+                        new SindexServiceList(firefly),
+                        new SindexServiceStatus(firefly)
+                ).forEach(firefly.getServiceRegistry()::registerService);
+
+            // HTTP routing comes up before firefly. Need to latch firefly into the services.
+            if (services != null) {
+                services.forEach(s -> s.firefly = firefly);
+            }
+        }
+    }
+
+    public static void routeSindexServices(final Router router) {
+        synchronized (SindexServiceBase.class) {
+            // Latch services so they can be updated later.
+            if (services == null) {
+                services = Set.of(
+                        new SindexServiceCardinality(null),
+                        new SindexServiceCreate(null),
+                        new SindexServiceDrop(null),
+                        new SindexServiceList(null),
+                        new SindexServiceStatus(null));
+                services.forEach(service -> router.route(service.getPath()).handler(service.getHandler()));
+            }
+        }
     }
 
     public SindexServiceBase(final FireflyGraph firefly) {
+        super(firefly);
         this.firefly = firefly;
     }
 
     @Override
-    public String getName() {
-        return "aerospike.graph.admin.index." + adminServiceName();
+    protected String getAdminNamespace() {
+        return "index";
     }
-
-    protected abstract String adminServiceName();
 
     @Override
     public Set<Service.Type> getSupportedTypes() {
@@ -48,17 +73,9 @@ public abstract class SindexServiceBase<I, R> implements Service.ServiceFactory<
         return getParamDescription();
     }
 
-    @Override
-    public Service<I, R> createService(final boolean isStart, final Map params) {
-        if (!isStart) {
-            throw new UnsupportedOperationException(Service.Exceptions.cannotUseMidTraversal);
-        }
-        return this;
-    }
-
     protected abstract String usage(Map params);
     protected abstract boolean sanitize(final Map params);
-     protected abstract R execute(final Map params);
+    protected abstract R execute(final Map params);
 
     @Override
     public CloseableIterator<R> execute(final ServiceCallContext ctx, final Map params) {
@@ -68,28 +85,24 @@ public abstract class SindexServiceBase<I, R> implements Service.ServiceFactory<
         return FireflyCloseableIteratorUtils.of(execute(params));
     }
 
+    private static final int SINDEX_SUCCESS_CODE = 200;
+    private static final int SINDEX_ERROR_CODE = 400;
 
     @Override
-    public Service.Type getType() {
-        return Start;
-    }
-
-    @Override
-    public Set<TraverserRequirement> getRequirements() {
-        return Service.super.getRequirements();
-    }
-
-    @Override
-    public void close() {
-        Service.ServiceFactory.super.close();
-        Service.super.close();
-    }
-
-    // Dummy for now.
-    class EmptyAdminContext<V> implements AdminContext {
-        @Override
-        public V getContext() {
-            return null;
-        }
+    public Handler<RoutingContext> getHandler() {
+        return routerContext -> {
+            if (firefly == null) {
+                throw new IllegalStateException("Graph has not completed initialization.");
+            }
+            final Map<String, String> params = routerContext.queryParams().entries().stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            if (!sanitize(params)) {
+                routerContext.fail(SINDEX_ERROR_CODE, new IllegalArgumentException(usage(params)));
+                return;
+            }
+            final R result = execute(params);
+            routerContext.response().setStatusCode(SINDEX_SUCCESS_CODE).putHeader("content-type", "text/html")
+                    .end(String.valueOf(result));
+        };
     }
 }

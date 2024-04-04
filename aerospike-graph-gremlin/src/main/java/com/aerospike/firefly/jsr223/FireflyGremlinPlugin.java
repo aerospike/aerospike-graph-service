@@ -72,9 +72,10 @@ public final class FireflyGremlinPlugin extends AbstractGremlinPlugin {
         metricsProtocolServer = HttpServer.create(httpPort, prometheusPath, healthcheckPath);
     }
 
-    public static void initializeGraphMetrics(final AerospikeConnection db) {
-        HttpServer.registerGraphMetrics(db);
-        HttpServer.registerHealthcheck(db);
+    public static void initializeGraphMetrics(final FireflyGraph fireflyGraph) {
+        // NOTE: Invoking this function causes the HTTP server to start due to static initialization.
+        HttpServer.registerGraphMetrics(fireflyGraph.getBaseGraph());
+        HttpServer.registerHealthcheck(fireflyGraph);
     }
 
     private static final FireflyGremlinPlugin instance = new FireflyGremlinPlugin();

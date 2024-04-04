@@ -101,6 +101,26 @@ public class SizingToolMain implements Callable<Exception> {
         return fromGraphTraversalSource(g);
     }
 
+    private static String sanitizeType(final String type) {
+        // Remove annotation (looks like String<JFaker.name.fullname>).
+        if (type.toLowerCase().startsWith("list")) {
+            if (!type.endsWith(">")) {
+                throw new RuntimeException("Type '" + type + "' has an annotation opening '<' but no closing '>'.");
+            }
+            String subType = type.substring(type.indexOf("<") + 1, type.length() - 1);
+            if (subType.contains("<")) {
+                subType = subType.substring(0, subType.indexOf("<"));
+            }
+            return type.toLowerCase().substring(0, type.indexOf("<")) + "<" + subType.toLowerCase() + ">";
+        } else if (type.contains("<")) {
+            if (!type.endsWith(">")) {
+                throw new RuntimeException("Type '" + type + "' has an annotation opening '<' but no closing '>'.");
+            }
+            return type.substring(0, type.indexOf("<")).toLowerCase();
+        }
+        return type.toLowerCase();
+    }
+
     private static List<VertexSchema> getVertexSchema(final GraphTraversalSource g) {
         final List<Map<Object, Object>> vertexElementMap = g.V().elementMap().toList();
         final List<VertexSchema> vertexSchemas = new ArrayList<>();
@@ -110,34 +130,12 @@ public class SizingToolMain implements Callable<Exception> {
             }
 
             final VertexSchema vertexSchema = new VertexSchema();
-            final String label = getValue(vertexMap, T.label, String.class);
-            if (!vertexMap.containsKey(label + ".count")) {
-                throw new RuntimeException("Vertex '" + vertexMap.get(T.label) + "' does not have a '" + label + ".count' property.");
-            } else if (!(vertexMap.get(label + ".count") instanceof Number)) {
-                throw new RuntimeException("Vertex '" + vertexMap.get(T.label) + "' has a '" + label + ".count' property that is not a Number.");
-            }
+            final String label = getAndSanitizeLabel(vertexMap, "Vertex");
             vertexSchema.count = getValue(vertexMap, label + ".count", Number.class);
-
-            final Set<Object> keys = new HashSet<>(vertexMap.keySet());
-            keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
-                    key.equals(label + ".count") ||
-                    key.toString().endsWith(".valueSize") ||
-                    key.toString().endsWith(".sindexed"));
-
+            final Set<Object> keys = getSanitizedKeySet(vertexMap, label);
             for (final Object key : keys) {
                 final PropertySchema propertySchema = new PropertySchema();
-                final String keyString = key.toString();
-                propertySchema.key = keyString;
-                propertySchema.type = vertexMap.get(keyString).toString();
-                if (vertexMap.containsKey(keyString + ".valueSize")) {
-                    propertySchema.size = getValue(vertexMap, keyString + ".valueSize", Number.class);
-                }
-                if (vertexMap.containsKey(keyString + ".sindexed")) {
-                    propertySchema.sindexed = getValue(vertexMap, keyString + ".sindexed", Boolean.class);
-                }
-                if (vertexMap.containsKey(keyString + ".likelihood")) {
-                    propertySchema.likelihood = getValue(vertexMap, keyString + ".likelihood", Double.class);
-                }
+                populatePropertySchema(propertySchema, vertexMap, key.toString());
                 vertexSchema.properties.add(propertySchema);
             }
             vertexSchema.label = (String) vertexMap.get(T.label);
@@ -166,40 +164,116 @@ public class SizingToolMain implements Callable<Exception> {
             edgeMap.remove(Direction.OUT);
 
             final EdgeSchema edgeSchema = new EdgeSchema();
-            final String label = getValue(edgeMap, T.label, String.class);
-            if (!edgeMap.containsKey(label + ".count")) {
-                throw new RuntimeException("Edge '" + edgeMap.get(T.label) + "' does not have a '" + label + ".count' property.");
-            } else if (!(edgeMap.get(label + ".count") instanceof Number)) {
-                throw new RuntimeException("Edge '" + edgeMap.get(T.label) + "' has a '" + label + ".count' property that is not a Number.");
-            }
+            final String label = getAndSanitizeLabel(edgeMap, "Edge");
             edgeSchema.count = getValue(edgeMap, label + ".count", Number.class);
 
-            final Set<Object> keys = new HashSet<>(edgeMap.keySet());
-            keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
-                    key.equals(label + ".count") ||
-                    key.toString().endsWith(".valueSize") ||
-                    key.toString().endsWith(".sindexed"));
-
+            final Set<Object> keys = getSanitizedKeySet(edgeMap, label);
             for (final Object key : keys) {
                 final PropertySchema propertySchema = new PropertySchema();
-                final String keyString = key.toString();
-                propertySchema.key = keyString;
-                propertySchema.type = edgeMap.get(keyString).toString();
-                if (edgeMap.containsKey(keyString + ".valueSize")) {
-                    propertySchema.size = getValue(edgeMap, keyString + ".valueSize", Number.class);
-                }
-                if (edgeMap.containsKey(keyString + ".sindexed")) {
-                    propertySchema.sindexed = getValue(edgeMap, keyString + ".sindexed", Boolean.class);
-                }
-                if (edgeMap.containsKey(keyString + ".likelihood")) {
-                    propertySchema.likelihood = getValue(edgeMap, keyString + ".likelihood", Double.class);
-                }
+                populatePropertySchema(propertySchema, edgeMap, key.toString());
                 edgeSchema.properties.add(propertySchema);
             }
             edgeSchema.label = (String) edgeMap.get(T.label);
             edgeSchemas.add(edgeSchema);
         }
         return edgeSchemas;
+    }
+
+    private static void populatePropertySchema(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
+        propertySchema.key = key;
+        propertySchema.type = sanitizeType(map.get(key).toString());
+        assignCountSize(propertySchema, map, key);
+        if (map.containsKey(key + ".sindexed")) {
+            propertySchema.sindexed = getValue(map, key + ".sindexed", Boolean.class);
+        }
+        if (map.containsKey(key + ".likelihood")) {
+            propertySchema.likelihood = getValue(map, key + ".likelihood", Double.class);
+        }
+        if (propertySchema.type.startsWith("list")) {
+            if (propertySchema.count == null) {
+                throw new RuntimeException("List property '" + key + "' does not have required '" + key + ".size' field.");
+            }
+
+            if (propertySchema.type.contains("string") &&
+                    propertySchema.size == null) {
+                throw new RuntimeException("List property '" + key + "' does not have size annotation." +
+                        " List<String>> specification requires format List<String<X>> for size to be set.");
+            }
+        }
+    }
+
+    private static String getAndSanitizeLabel(final Map<Object, Object> map, final String type) {
+        final String label = getValue(map, T.label, String.class);
+        if (!map.containsKey(label + ".count")) {
+            throw new RuntimeException(type + " '" + map.get(T.label) + "' does not have a '" + label + ".count' property.");
+        } else if (!(map.get(label + ".count") instanceof Number)) {
+            throw new RuntimeException(type + " '" + map.get(T.label) + "' has a '" + label + ".count' property that is not a Number.");
+        }
+        return label;
+    }
+
+    private static Set<Object> getSanitizedKeySet(final Map<Object, Object> map, final String label) {
+        final Set<Object> keys = new HashSet<>(map.keySet());
+        keys.removeIf(key -> key.equals(T.id) || key.equals(T.label) ||
+                key.equals(label + ".count") ||
+                key.toString().endsWith(".size") ||
+                key.toString().endsWith(".size.min") ||
+                key.toString().endsWith(".size.max") ||
+                key.toString().endsWith(".sindexed") ||
+                key.toString().endsWith(".likelihood"));
+        return keys;
+    }
+
+    private static void assignCountSize(final PropertySchema propertySchema, final Map<Object, Object> map, final String key) {
+        // If we have something like list<string>
+        if (propertySchema.type.startsWith("list")) {
+            final String rawMapValue = ((String) map.get(key)).toLowerCase();
+            if (rawMapValue.contains("string")) {
+                String annotation = rawMapValue.substring(rawMapValue.indexOf("string"));
+                if (!annotation.contains("<")) {
+                    throw new RuntimeException("List property '" + key + "' does not have size annotation." +
+                            " List<String>> specification requires format List<String<X>> for size to be set.");
+                }
+                annotation = annotation.substring(annotation.indexOf("<") + 1, annotation.indexOf(">"));
+                if (annotation.contains(",")) {
+                    annotation = annotation.substring(0, annotation.indexOf(","));
+                }
+                if (annotation.contains("-")) {
+                    final String[] split = annotation.split("-");
+                    if (split.length != 2) {
+                        throw new RuntimeException("Invalid property size specification '" + rawMapValue +
+                                "', must have two numbers if a '-' is used.");
+                    }
+                    propertySchema.size = (Long.parseLong(split[1]) + Long.parseLong(split[0])) / 2;
+                } else {
+                    propertySchema.size = Long.parseLong(annotation);
+                }
+            }
+        }
+
+        // Can either have just size, or size.min and size.max.
+        if (map.containsKey(key + ".size")) {
+            if (map.containsKey(key + ".size.max") || map.containsKey(key + ".size.min")) {
+                throw new RuntimeException("Invalid property size specification, either specify size.min and size.max or just size.");
+            }
+            if (propertySchema.type.startsWith("list")) {
+                propertySchema.count = getValue(map, key + ".size", Number.class);
+            } else {
+                propertySchema.size = getValue(map, key + ".size", Number.class);
+            }
+        } else {
+            if (map.containsKey(key + ".size.max") && map.containsKey(key + ".size.min")) {
+                if (propertySchema.type.startsWith("list")) {
+                    propertySchema.count = (getValue(map, key + ".size.max", Number.class).longValue() +
+                            getValue(map, key + ".size.min", Number.class).longValue()) / 2;
+                } else {
+                    propertySchema.size = (getValue(map, key + ".size.max", Number.class).longValue() +
+                            getValue(map, key + ".size.min", Number.class).longValue()) / 2;
+                }
+            } else if (map.containsKey(key + ".size.max") || map.containsKey(key + ".size.min")) {
+                throw new RuntimeException("Invalid property size specification, either specify size.min and size.max or just size.");
+            }
+        }
     }
 
     private static void getMetadata(final GraphTraversalSource g, final GraphSchema graphSchema) {

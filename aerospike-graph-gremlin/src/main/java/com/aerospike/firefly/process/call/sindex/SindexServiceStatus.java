@@ -18,7 +18,7 @@ public class SindexServiceStatus<I, R> extends SindexServiceBase<I, R> {
     }
 
     @Override
-    protected String adminServiceName() {
+    protected String getAdminServiceName() {
         return "status";
     }
 

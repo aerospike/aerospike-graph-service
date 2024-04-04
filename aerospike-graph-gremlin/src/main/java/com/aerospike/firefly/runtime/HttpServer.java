@@ -1,7 +1,9 @@
 package com.aerospike.firefly.runtime;
 
 import com.aerospike.firefly.io.aerospike.AerospikeConnection;
+import com.aerospike.firefly.io.aerospike.admin.AdminServiceRegistry;
 import com.aerospike.firefly.runtime.metrics.FireflyMetricCollector;
+import com.aerospike.firefly.structure.FireflyGraph;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
@@ -42,7 +44,7 @@ public class HttpServer {
     private static final int HEALTHCHECK_SUCCESS_CODE = 200;
     private static final int HEALTHCHECK_ERROR_CODE = 503;
     public static boolean PROMETHEUS_RENAME_ENABLED = true;
-    private static AerospikeConnection db;
+    private static FireflyGraph graph;
     private static final AtomicBoolean started = new AtomicBoolean(false);
     private static final Vertx vertx = Vertx.vertx();
 
@@ -69,8 +71,8 @@ public class HttpServer {
         }
     }
 
-    public static void registerHealthcheck(final AerospikeConnection db) {
-        HttpServer.db = db;
+    public static void registerHealthcheck(final FireflyGraph graph) {
+        HttpServer.graph = graph;
     }
 
     // Not required except for bulk loader which hangs if it does not close this.
@@ -99,7 +101,7 @@ public class HttpServer {
         // Add a handler for the metrics endpoint - this picks up the default registry.
         router.get(prometheusPath).handler(new FireflyMetricRewiter());
         router.get(healthcheckPath).handler(routingContext -> {
-            if (db != null && db.getClient().isConnected()) {
+            if (graph != null && graph.getBaseGraph() != null && graph.getBaseGraph().getClient().isConnected()) {
                 routingContext.response().setStatusCode(HEALTHCHECK_SUCCESS_CODE).putHeader("content-type", "text/html").
                         end(String.valueOf(List.of(Map.of("status", "true"))));
             } else {
@@ -107,6 +109,7 @@ public class HttpServer {
                         end(String.valueOf(List.of(Map.of("status", "false"))));
             }
         });
+        AdminServiceRegistry.appendHandlers(router);
 
         // Bootstrap http server with request handler on provided port.
         vertx.createHttpServer()

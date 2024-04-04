@@ -8,6 +8,7 @@ public class PropertySchema {
     public String key;
     public String type;
     public Number size;
+    public Number count;
     public Number likelihood;
     public boolean sindexed;
 

@@ -15,10 +15,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.GroupSideEffectStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
-import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -119,6 +117,7 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
                     hasContainers = ((HasStep) steps.get(index)).getHasContainers();
+                    labels = steps.get(index).getLabels();
                     traversal.removeStep(steps.get(index));
                     break;
                 } else if (steps.get(index) instanceof SampleGlobalStep) {

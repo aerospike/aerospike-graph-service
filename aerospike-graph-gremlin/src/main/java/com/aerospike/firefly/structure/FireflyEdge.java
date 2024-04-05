@@ -246,7 +246,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Value inVIdValue = Value.get(inVId.getKeyHashString());
 
         final List<Operation> operations = new ArrayList<>();
-        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteMode.CREATE_ONLY);
+        final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
         // Label
         if (isOutSupernode) {
             final Operation labelOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(label),
@@ -340,6 +340,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         final Operation removeSupernodesInBin = ExpOperation.write(db.SUPERNODES_IN_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeSupernodesOutBin = ExpOperation.write(db.SUPERNODES_OUT_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
         final Operation removeTtlBin = ExpOperation.write(db.TTL_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
+        final Operation removeSupernodePropertiesBin = ExpOperation.write(db.SUPERNODE_EDGE_PROPERTIES_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
 
         // This operation must be last since the expression checks the map in the edge data bin.
         final Operation removeEdgeDataBin = ExpOperation.write(db.EDGE_DATA_BIN, removeEmptyPhatEdgeExp, deletePhatEdgeWriteFlags);
@@ -347,7 +348,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
         try {
             final Record record = db.operate(null, key, removeEdgeData, removeSupernodesIn,
                     removeSupernodesOut, removeTtl, removeSupernodesInBin, removeSupernodesOutBin, removeTtlBin,
-                    removeEdgeDataBin);
+                    removeSupernodePropertiesBin, removeEdgeDataBin);
 
             // Result returned is always [List<?>, null] since we have operations [removeEdgeData, removeEdgeDataBin]
             final Command.OpResults results = (Command.OpResults) record.getValue(db.EDGE_DATA_BIN);

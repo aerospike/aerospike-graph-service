@@ -827,8 +827,8 @@ public class FireflyVertex extends FireflyElement implements Vertex {
         if (direction == Direction.BOTH) {
             final Iterator<KeyRecord> inKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.IN, labels, outputType, hasContainers);
             final Iterator<KeyRecord> outKeyRecordIterator = getEdgeKeyRecordsByIndex(Direction.OUT, labels, outputType, hasContainers);
-            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.db, direction, this.id, labels, outputType),
-                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.db, direction, this.id, labels, outputType));
+            return FireflyCloseableIteratorUtils.concat(new FireflyPhatEdgeIdIteratorFromIndexedVertex(inKeyRecordIterator, this.db, Direction.IN, this.id, labels, outputType),
+                    new FireflyPhatEdgeIdIteratorFromIndexedVertex(outKeyRecordIterator, this.db, Direction.OUT, this.id, labels, outputType));
         } else {
             final Iterator<KeyRecord> keyRecordIterator = getEdgeKeyRecordsByIndex(direction, labels, outputType, hasContainers);
             return new FireflyPhatEdgeIdIteratorFromIndexedVertex(keyRecordIterator, this.db, direction, this.id, labels, outputType);

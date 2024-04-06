@@ -37,6 +37,7 @@ import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
@@ -75,7 +76,8 @@ public class FireflyEdge extends FireflyElement implements Edge {
     public static final int PROPERTIES_POSITION = 3;
     public static final int TYPE_HINTS_POSITION = 4;
     public static final int EDGE_DATA_SIZE = 5;
-    public static final String EDGE_SUPERNODE_LABEL_KEY = "~label";
+    public static final String EDGE_SUPERNODE_ID_KEY = T.id.getAccessor();
+    public static final String EDGE_SUPERNODE_LABEL_KEY = T.label.getAccessor();
 
     protected final AerospikeConnection db;
     public boolean removed;
@@ -247,13 +249,19 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
         final List<Operation> operations = new ArrayList<>();
         final MapPolicy policy = new MapPolicy(MapOrder.KEY_ORDERED, MapWriteFlags.DEFAULT);
-        // Label
+        // ID and Label
         if (isOutSupernode) {
+            final Operation idOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(getBase64UserIdString(edgeId)),
+                    CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_ID_KEY), MapOrder.KEY_ORDERED));
+            operations.add(idOperation);
             final Operation labelOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(label),
                     CTX.mapKeyCreate(outVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
         }
         if (isInSupernode) {
+            final Operation idOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(getBase64UserIdString(edgeId)),
+                    CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_ID_KEY), MapOrder.KEY_ORDERED));
+            operations.add(idOperation);
             final Operation labelOperation = MapOperation.put(policy, binName, edgeStorageIndex, Value.get(label),
                     CTX.mapKeyCreate(inVIdValue, MapOrder.KEY_ORDERED), CTX.mapKeyCreate(Value.get(EDGE_SUPERNODE_LABEL_KEY), MapOrder.KEY_ORDERED));
             operations.add(labelOperation);
@@ -383,6 +391,10 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
 
     @Override
     public Object id() {
+        return getBase64UserIdString(this.id);
+    }
+
+    static private String getBase64UserIdString(final FireflyId id) {
         return Base64.getEncoder().encodeToString(((ByteBuffer) id.getUserId()).array());
     }
 

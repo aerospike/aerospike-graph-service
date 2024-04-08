@@ -235,7 +235,7 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
     }
 
     public static List<Operation> createFilterableSupernodeOperation(final FireflyGraph graph, final FireflyPhatEdgeId edgeId,
-                                                                boolean isOutSupernode, boolean isInSupernode,
+                                                                final boolean isOutSupernode, final boolean isInSupernode,
                                                                 final FireflyId outVId, final FireflyId inVId,
                                                                 final String label, final Map<String, Object> propertyMap) {
         if (!isOutSupernode && !isInSupernode) {

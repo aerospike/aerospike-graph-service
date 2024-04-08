@@ -157,8 +157,7 @@ public class GraphQueryHelper {
     public static Expression phatEdgeHasContainerListToExpression(final AerospikeConnection db,
                                                                   final List<HasContainer> hasContainers,
                                                                   final Set<String> labels,
-                                                                  final String vertexIdKeyHashString
-                                                                  ) {
+                                                                  final String vertexIdKeyHashString) {
         final Exp labelExp = getPhatEdgeLabelExp(db, labels, vertexIdKeyHashString);
         final Exp propertiesExp = getPhatEdgePropertyExp(db, hasContainers, vertexIdKeyHashString);
         if (labelExp != null && propertiesExp != null) {
@@ -200,7 +199,6 @@ public class GraphQueryHelper {
             return null;
         }
         final PhatEdgeHasContainers phatEdgeHasContainers = new PhatEdgeHasContainers(hasContainers);
-
         final Exp[] exps = phatEdgeHasContainers.filteredHasContainers.stream().map(hasContainer ->
                         phatEdgePredicateToExp(db, vertexIdKeyHashString, hasContainer.getKey(), hasContainer.getPredicate()))
                 .toArray(Exp[]::new);
@@ -268,7 +266,7 @@ public class GraphQueryHelper {
     }
 
     private static class PhatEdgeHasContainers {
-        private final Map<String, Boolean> compoundContainerKeys= new HashMap<>();
+        private final Map<String, Boolean> compoundContainerKeys = new HashMap<>();
         private final List<HasContainer> filteredHasContainers = new ArrayList<>();
         private final Map<String, List<Long>> compoundHasContainers = new HashMap<>();
 

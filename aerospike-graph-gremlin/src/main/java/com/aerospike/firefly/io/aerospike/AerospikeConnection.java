@@ -162,6 +162,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final long INDEX_METADATA_UPDATE_FREQUENCY;
     public final String SUPERNODES_IN_BIN;
     public final String SUPERNODES_OUT_BIN;
+    public final String SUPERNODE_EDGE_PROPERTIES_BIN;
     public final String BL_ROW_BIN;
     public final String BL_FILE_BIN;
     public final boolean GLOBAL_EDGE_CACHE_ENABLED_FLAG;
@@ -400,6 +401,7 @@ public class AerospikeConnection implements AutoCloseable {
         RELATIONAL_VERTEX_TYPE_HINT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.RELATIONAL_VERTEX_TYPE_HINT_BIN.name(), conf);
         SUPERNODES_IN_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_IN.name(), conf);
         SUPERNODES_OUT_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODES_OUT.name(), conf);
+        SUPERNODE_EDGE_PROPERTIES_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.SUPERNODE_EDGE_PROPERTIES_BIN.name(), conf);
         LABEL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.LABEL_BIN.name(), conf);
         USER_KEY_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.USER_KEY_BIN.name(), conf);
         TTL_BIN = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.Bins.TTL_BIN.name(), conf);

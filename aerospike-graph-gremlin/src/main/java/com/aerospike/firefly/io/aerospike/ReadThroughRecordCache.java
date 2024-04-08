@@ -116,6 +116,9 @@ public class ReadThroughRecordCache extends FireflyCache {
             final Record[] records = db.getClient().get(policy, subList.toArray(new Key[0]));
             for (int j = 0; j < records.length; j++) {
                 results.put(subList.get(j), records[j]);
+
+                // Insert to cache since these are new.
+                insert(subList.get(j), records[j]);
             }
         }
 
@@ -129,7 +132,6 @@ public class ReadThroughRecordCache extends FireflyCache {
             final Key key = allKeys.get(i);
             final Record record = results.get(key);
             records[i] = record;
-            insert(key, record);
         }
 
         return records;

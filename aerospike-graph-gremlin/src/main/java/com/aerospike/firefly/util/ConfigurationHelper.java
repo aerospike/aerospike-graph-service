@@ -172,7 +172,8 @@ public final class ConfigurationHelper {
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
-            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE"));
+            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
+            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P"));
 
 
             private final Pair value;

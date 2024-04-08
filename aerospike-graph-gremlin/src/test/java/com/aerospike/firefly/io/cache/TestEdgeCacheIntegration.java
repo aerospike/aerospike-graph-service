@@ -205,8 +205,8 @@ public class TestEdgeCacheIntegration {
             Assert.assertFalse(g.V(v2.id()).hasNext());
             FireflyVertex fv1 = (FireflyVertex) g.V(v1.id()).next();
             FireflyVertex fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -227,9 +227,9 @@ public class TestEdgeCacheIntegration {
             fv1 = (FireflyVertex) g.V(v1.id()).next();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
             FireflyVertex fv4 = (FireflyVertex) g.V(v4.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
-            Assert.assertTrue(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertTrue(fv4.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
             Assert.assertFalse(g.E().hasNext());
             g.V().drop().iterate();
 
@@ -253,16 +253,16 @@ public class TestEdgeCacheIntegration {
             Assert.assertTrue(fv3.isEdgeCacheOverflowed());
             g.V(v2.id()).drop().iterate();
             fv1 = (FireflyVertex) g.V(v1.id()).next();
-            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv1.getEdgeIdsFromVertex(Direction.BOTH, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET).isEmpty());
-            Assert.assertEquals(4, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.IN, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
+            Assert.assertEquals(4, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).size());
             g.V(v4.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertEquals(2, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).size());
+            Assert.assertEquals(2, fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).size());
             g.V(v5.id()).drop().iterate();
             fv3 = (FireflyVertex) g.V(v3.id()).next();
-            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET).isEmpty());
+            Assert.assertTrue(fv3.getEdgeIdsFromVertex(Direction.OUT, Collections.EMPTY_SET, Collections.emptyList()).isEmpty());
             Assert.assertFalse(g.E().hasNext());
         }
     }

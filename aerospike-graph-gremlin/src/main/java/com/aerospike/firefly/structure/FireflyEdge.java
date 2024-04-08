@@ -295,7 +295,6 @@ the subtle issue here is that both of the 4-5th arguments have the same Type but
      * @return Edge.
      */
     public static List<FireflyEdge> readEdges(final FireflyGraph graph, final List<FireflyId> edgeIds) {
-        LOG.debug("Reading edges {}.", edgeIds.toString());
         final AerospikeConnection db = graph.getBaseGraph();
 
         final List<FireflyEdge> edges = new ArrayList<>();

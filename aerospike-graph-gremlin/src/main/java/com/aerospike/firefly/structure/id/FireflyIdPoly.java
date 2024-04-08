@@ -34,6 +34,9 @@ public class FireflyIdPoly extends FireflyId {
     private final String setName;
     // Lazily instantiate this.
     private byte[] hash = null;
+    private Object userId = null;
+    private byte[] cryptoHash = null;
+    private String toString = null;
 
     /**
      * Constructor for Numeric Firefly Id. Object class assumed.
@@ -141,14 +144,18 @@ public class FireflyIdPoly extends FireflyId {
      */
     @Override
     public Object getUserId() {
+        if (this.userId != null) {
+            return this.userId;
+        }
         if (this.userClass == null) throw new RuntimeException("Error, cannot get user id for hash id.");
         if (CONVERT_TO_USER_CLASS.containsKey(userClass)) {
-            return CONVERT_TO_USER_CLASS.get(userClass).getUserId(id);
+            this.userId = CONVERT_TO_USER_CLASS.get(userClass).getUserId(id);
         } else if (CONVERT_TO_USER_CLASS.containsKey(userClass.getSuperclass())) {
-            return CONVERT_TO_USER_CLASS.get(userClass.getSuperclass()).getUserId(id);
+            this.userId = CONVERT_TO_USER_CLASS.get(userClass.getSuperclass()).getUserId(id);
         } else {
             throw new RuntimeException(String.format("Error, cannot convert numeric id to user class of %s.", userClass.getName()));
         }
+        return this.userId;
     }
 
     /**
@@ -200,8 +207,11 @@ public class FireflyIdPoly extends FireflyId {
      * @return the digest of the string
      */
     protected byte[] getIdHash(String setName) {
-        final Value keyValue = Value.get(this.id);
-        return Crypto.computeDigest(setName, keyValue);
+        if (this.cryptoHash == null) {
+            final Value keyValue = Value.get(this.id);
+            this.cryptoHash = Crypto.computeDigest(setName, keyValue);
+        }
+        return this.cryptoHash;
     }
 
     @Override
@@ -209,7 +219,10 @@ public class FireflyIdPoly extends FireflyId {
         if (this.hash == null) {
             this.hash = getIdHash(this.setName);
         }
-        return Crypto.encodeBase64(hash);
+        if (this.toString == null) {
+            this.toString = Crypto.encodeBase64(hash);
+        }
+        return toString;
     }
 
     @Override

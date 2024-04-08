@@ -26,32 +26,40 @@ public class TestFireflyBasicCall {
 
             // The output is a list of strings that looks like:
             // [summary, bulk-load]
-            Assert.assertEquals(Set.of("summary", "get-bulk-load-errors", "get-bulk-load-error-count", "bulk-load", "usage-stats",
-                    "aerospike.graph.admin.index.create", "aerospike.graph.admin.index.drop",
-                    "aerospike.graph.admin.index.list", "aerospike.graph.admin.index.status",
-                    "aerospike.graph.admin.index.cardinality"), new HashSet<>(normalOutput));
+            Assert.assertEquals(Set.of(
+                    "aerospike.graph.admin.metadata.summary",
+                    "aerospike.graphloader.admin.bulk-load.errors",
+                    "aerospike.graphloader.admin.bulk-load.error-count",
+                    "aerospike.graphloader.admin.bulk-load.load",
+                    "aerospike.graph.admin.metadata.usage",
+                    "aerospike.graph.admin.index.create",
+                    "aerospike.graph.admin.index.drop",
+                    "aerospike.graph.admin.index.list",
+                    "aerospike.graph.admin.index.status",
+                    "aerospike.graph.admin.index.cardinality"
+            ), new HashSet<>(normalOutput));
 
             // The verbose output is a list of strings that looks like, note the innards of the list is straight up string:
-            // [{"name":"summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"bulk-load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
+            // [{"name":"aerospike.graph.admin.metadata.summary","type:[requirements]:":{"Start":[]},"params":{"pretty":"Pretty print the output."}}, {"name":"aerospike.graphloader.admin.bulk-load.load","type:[requirements]:":{"Start":[]},"params":{"See bulk loading documentation":"https://docs.aerospike.com/graph/usage/bulk-loader"}}]
             for (final Object output: verboseOutput) {
                 final String outputString = (String) output;
                 final List<String> infoPieces = List.of(outputString.split(",")).stream().map(String::trim).collect(Collectors.toList());
 
                 switch (infoPieces.get(0)) {
-                    case "{\"name\":\"summary\"":
+                    case "{\"name\":\"aerospike.graph.admin.metadata.summary\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"pretty\":\"Pretty print the output.\"}}");
                         break;
-                    case "{\"name\":\"bulk-load\"":
+                    case "{\"name\":\"aerospike.graphloader.admin.bulk-load.load\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"See bulk loading documentation\":\"https://aerospike.com/docs/graph/data-loading/standalone#configuration-options\"}}");
                         break;
-                    case "{\"name\":\"get-bulk-load-errors\"":
-                    case "{\"name\":\"get-bulk-load-error-count\"":
+                    case "{\"name\":\"aerospike.graphloader.admin.bulk-load.errors\"":
+                    case "{\"name\":\"aerospike.graphloader.admin.bulk-load.error-count\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{}}");
                         break;
-                    case "{\"name\":\"usage-stats\"":
+                    case "{\"name\":\"aerospike.graph.admin.metadata.usage\"":
                         Assert.assertEquals(infoPieces.get(1), "\"type:[requirements]:\":{\"Start\":[]}");
                         Assert.assertEquals(infoPieces.get(2), "\"params\":{\"since\":\"Return usage stats since a certain date in format 'yyyy-MM-dd'.\"}}");
                         break;

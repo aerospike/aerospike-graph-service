@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 import static com.aerospike.firefly.Tokens.INTEGRATION_TEST_PROPERTIES;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.HOURS_TO_YEARS;
-import static com.aerospike.firefly.process.call.usage.FireflyUsageStatsServiceFactory.MILLISECONDS_TO_HOURS;
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.HOURS_TO_YEARS;
+import static com.aerospike.firefly.process.call.metadata.MetadataServiceUsage.MILLISECONDS_TO_HOURS;
 import static com.aerospike.firefly.util.ConfigurationHelper.Keys.USAGE_STATS_UPDATE_INTERVAL;
 import static org.junit.Assert.fail;
 
@@ -55,7 +55,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -86,10 +86,16 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("usage-stats").with("since", null).toList();
-                fail("Expected call to usage-stats with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", null).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date 'null'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was null.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                        "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=null}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }
@@ -102,10 +108,16 @@ public class FireflyUsageStatsCallTest {
 
             // Call usage stats api to get usage stats.
             try {
-                graph.traversal().call("usage-stats").with("since", 1).toList();
-                fail("Expected call to usage-stats with 'null' to fail");
+                graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", 1).toList();
+                fail("Expected call to aerospike.graph.admin.metadata.usage with 'null' to fail");
             } catch (final IllegalArgumentException e) {
-                Assert.assertEquals("Failed to parse provided date '1'. Expected date provided to be in format 'yyyy-MM-dd'. Provided date was not a String.", e.getMessage());
+                Assert.assertEquals("Illegal arguments provided to 'aerospike.graph.admin.metadata.usage'.\n" +
+                "\tExpected either no arguments provided or 'since' with a value in format 'yyyy-MM-dd'.\n" +
+                        "\tProvided arguments: '{since=1}'.\n" +
+                        "\tExample of correct usage:\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").next();\n" +
+                        "\t\t\tor\n" +
+                        "\t\tg.call(\"aerospike.graph.admin.metadata.usage\").with(\"since\", \"1993-03-30\").next();", e.getMessage());
             }
         }
     }
@@ -124,7 +136,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").with("since", previousDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", previousDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -161,7 +173,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph.traversal().call("usage-stats").with("since", futureDay).toList();
+            final List<Object> usageStatsList = graph.traversal().call("aerospike.graph.admin.metadata.usage").with("since", futureDay).toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");
@@ -206,7 +218,7 @@ public class FireflyUsageStatsCallTest {
             final Long testVcpuCount = (long) Runtime.getRuntime().availableProcessors();
 
             // Call usage stats api to get usage stats.
-            final List<Object> usageStatsList = graph1.traversal().call("usage-stats").toList();
+            final List<Object> usageStatsList = graph1.traversal().call("aerospike.graph.admin.metadata.usage").toList();
             Assert.assertEquals(1, usageStatsList.size());
             final Map<String, Object> usageStats = (Map<String, Object>) usageStatsList.get(0);
             final List<Map<String, Object>> rawUsageStats = (List<Map<String, Object>>) usageStats.get("raw");

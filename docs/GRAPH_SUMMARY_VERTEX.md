@@ -81,7 +81,7 @@ The following is a sample of the call step:
         Thread.sleep(1000);
         
         // Get summary vertex.
-        final Object summary = g.call("summary").next();
+        final Object summary = g.call("aerospike.graph.metadata.summary").next();
         System.out.println(summary);
 ```
 Will produce the following output (note summary Object above is a Map):
@@ -105,7 +105,7 @@ And a final way to access the summary data with pretty print support:
         Thread.sleep(1000);
         
         // Get summary vertex.
-        final Object summary = g.call("summary").with("pretty").next();
+        final Object summary = g.call("aerospike.graph.metadata.summary").with("pretty").next();
         System.out.println(summary);
 ```
 Will produce the following output:

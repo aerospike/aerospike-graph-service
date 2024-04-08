@@ -85,8 +85,8 @@ public final class ConfigurationHelper {
 
         // Semi internal semi external configs
         public static final String FIREFLY_READ_THROUGH_CACHE_WEIGHT = "aerospike.graph.cache.weight";
-        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.index.update.frequency";
-        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.metadata.cardinality.update.frequency";
+        public static final String INDEX_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.index.update.frequency";
+        public static final String CARDINALITY_METADATA_UPDATE_FREQUENCY = "aerospike.graph.admin.metadata.cardinality.update.frequency";
         public static final String ENABLE_FAST_COUNT_STRATEGY = "aerospike.graph.strategy.fast.count.enabled";
         public static final String ENABLE_READ_THROUGH_CACHE = "aerospike.graph.strategy.cache.read.through.enabled";
         public static final String ENABLE_PREFETCH_STRATEGY = "aerospike.graph.strategy.prefetch.enabled";
@@ -172,7 +172,8 @@ public final class ConfigurationHelper {
             USAGE_STATS_BIN(Pair.of((byte) 19, "USAGE_STATS")),
             EDGE_DATA_BIN(Pair.of((byte) 20, "EDGE_DATA")),
             BL_ROW_BIN(Pair.of((byte) 21, "BL_ROW")),
-            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE"));
+            BL_FILE_BIN(Pair.of((byte) 22, "BL_FILE")),
+            SUPERNODE_EDGE_PROPERTIES_BIN(Pair.of((byte) 23, "SUPERNODE_P"));
 
 
             private final Pair value;

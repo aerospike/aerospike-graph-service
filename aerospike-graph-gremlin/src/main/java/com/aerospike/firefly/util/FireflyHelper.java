@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -75,7 +76,7 @@ public final class FireflyHelper {
     private static List<Edge> getEdgeList(final FireflyGraph graph, final FireflyVertex vertex, final Direction direction, final Set<String> labels) {
         // TODO: This returns a raw list and could blow up on a supernode.
         // This is kind of silly, but we a new ArrayList<> is required to remove the FireflyEdge type and allow it to be cast to Edge.
-        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels)));
+        return new ArrayList<>(graph.readEdges(List.of(), vertex.getEdgeIdsFromVertex(direction, labels, Collections.emptyList())));
     }
 
     public static Iterator<Edge> getEdges(FireflyGraph graph, FireflyVertex vertex, Direction direction, String[] edgeLabels) {

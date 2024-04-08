@@ -10,6 +10,7 @@ import com.aerospike.firefly.structure.FireflyGraph;
 import com.aerospike.firefly.structure.FireflyVertex;
 import com.aerospike.firefly.structure.id.FireflyId;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
+import org.apache.tinkerpop.gremlin.process.traversal.GremlinTypeErrorException;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
@@ -112,8 +113,13 @@ public class FireflyBatchReadHelper {
                 final T element = (T) elementMap.get(fireflyIdList.get(i++));
 
                 // Check firefly has containers to ensure we apply all predicates.
-                if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
-                    // Element was not found - this is because it was deleted concurrently or filtered via expression.
+                try {
+                    if (element == null || !HasContainer.testAll(element, fireflyHasContainers)) {
+                        // Element was not found - this is because it was deleted concurrently or filtered via expression.
+                        continue;
+                    }
+                } catch (final GremlinTypeErrorException e) {
+                    // Element was not found due to a predicate filter type mismatch.
                     continue;
                 }
                 output.add(info.traverser.split(element, notThat));

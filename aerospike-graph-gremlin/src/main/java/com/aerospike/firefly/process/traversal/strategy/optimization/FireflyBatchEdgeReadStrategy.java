@@ -102,7 +102,6 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
             List<HasContainer> hasContainers = null;
             Set<String> labels = vertexStep.getLabels();
 
-
             int sampleSize = -1;
             long limitSize = -1;
 
@@ -116,6 +115,11 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     labels = noOpBarrierStep.getLabels();
                     traversal.removeStep(steps.get(index));
                 } else if (steps.get(index) instanceof HasStep) {
+                    if (sampleSize != -1 || limitSize != -1) {
+                        // outE().limit/sample(<amount>).has(...)
+                        // Can't pushdown HasContainers, therefore just break here and let them be applied after.
+                        break;
+                    }
                     hasContainers = ((HasStep) steps.get(index)).getHasContainers();
                     labels = steps.get(index).getLabels();
                     traversal.removeStep(steps.get(index));
@@ -183,6 +187,8 @@ public class FireflyBatchEdgeReadStrategy extends FireflyStrategyBase {
                     limitSize = high;
 
                     // No need to add limit set since it's already there.
+                    // Cannot push down HasStep after pushing down sample so need to break.
+                    break;
                 } else {
                     // Unknown step, break.
                     break;

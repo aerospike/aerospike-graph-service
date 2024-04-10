@@ -130,13 +130,18 @@ public class FireflyVertex extends FireflyElement implements Vertex {
     /**
      * Read vertex properties for the vertex.
      *
+     * @param includeSupernodeVirtualProperty Whether to include the ~supernode virtual property
      * @return Iterator of String label to List of FireflyVertexProperty
      */
-    protected <V> Iterator<Map.Entry<String, VertexProperty<V>>> readVertexProperties() {
+    protected <V> Iterator<Map.Entry<String, VertexProperty<V>>> readVertexProperties(
+            final boolean includeSupernodeVirtualProperty) {
         LOG.debug("Read vertex properties");
 
         // Vertex property ids are cached - loop through entries and get the properties for the entry.
-        final List<Map.Entry<String, FireflyVertexProperty<V>>> vertexPropertyList = new ArrayList<>();
+        final List<Map.Entry<String, VertexProperty<V>>> vertexPropertyList = new ArrayList<>();
+        if (includeSupernodeVirtualProperty && this.isEdgeCacheOverflowed) {
+            vertexPropertyList.add(new AbstractMap.SimpleEntry<>(SUPERNODE_PROPERTY_KEY, new FireflyVirtualSupernodeVertexProperty<>(this)));
+        }
 
         for (final Map.Entry<String, Object> vertexProperty : vertexPropertyValues.entrySet()) {
             final String vpKey = vertexProperty.getKey();
@@ -165,6 +170,14 @@ public class FireflyVertex extends FireflyElement implements Vertex {
      */
     protected <V> Iterator<VertexProperty<V>> readVertexProperty(final String key) {
         LOG.debug("Reading vertex property {}", key);
+
+        if (SUPERNODE_PROPERTY_KEY.equals(key)) {
+            if (this.isEdgeCacheOverflowed) {
+                return FireflyCloseableIteratorUtils.of((VertexProperty<V>) new FireflyVirtualSupernodeVertexProperty(this));
+            } else {
+                return Collections.emptyIterator();
+            }
+        }
 
         if (!vertexPropertyValues.containsKey(key)) {
             return Collections.emptyIterator();
@@ -944,9 +957,17 @@ public class FireflyVertex extends FireflyElement implements Vertex {
             return readVertexProperty(propertyKeys[0]);
         }
 
-
+        boolean includeSupernodeVirtualProperty = false;
+        if (propertyKeys.length > 1) {
+            for (final String propertyKey : propertyKeys) {
+                if (propertyKey.equals(SUPERNODE_PROPERTY_KEY)) {
+                    includeSupernodeVirtualProperty = true;
+                    break;
+                }
+            }
+        }
         // Read multiple vertex properties.
-        final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties();
+        final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties(includeSupernodeVirtualProperty);
 
         // Return an iterator over the map.
         return (!vertexProperties.hasNext()) ? Collections.emptyIterator() :

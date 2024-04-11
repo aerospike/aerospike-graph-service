@@ -44,6 +44,9 @@ public class FireflyAuthenticationStrategy extends FireflyStrategyBase {
         final FireflyGraph graph = (FireflyGraph) traversal.getGraph().get();
         if (!graph.getBaseGraph().AUTHENTICATION_ENABLED) {
             for (final Step step : traversal.getSteps()) {
+                if (!(step instanceof CallStep)) {
+                    continue;
+                }
                 final CallStep callStep = (CallStep) step;
                 String serviceName = null;
                 // The serviceName is private, need to use reflection to get it so the compiler doesn't complain.

@@ -173,7 +173,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
 
         if (SUPERNODE_PROPERTY_KEY.equals(key)) {
             if (this.isEdgeCacheOverflowed) {
-                return FireflyCloseableIteratorUtils.of((VertexProperty<V>) new FireflyVirtualSupernodeVertexProperty(this));
+                return FireflyCloseableIteratorUtils.of(new FireflyVirtualSupernodeVertexProperty<>(this));
             } else {
                 return Collections.emptyIterator();
             }
@@ -966,6 +966,7 @@ public class FireflyVertex extends FireflyElement implements Vertex {
                 }
             }
         }
+
         // Read multiple vertex properties.
         final Iterator<Map.Entry<String, VertexProperty<V>>> vertexProperties = readVertexProperties(includeSupernodeVirtualProperty);
 

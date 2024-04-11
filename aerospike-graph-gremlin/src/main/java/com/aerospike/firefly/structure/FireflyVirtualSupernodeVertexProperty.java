@@ -55,7 +55,7 @@ public class FireflyVirtualSupernodeVertexProperty<V> implements VertexProperty<
 
     @Override
     public Object id() {
-        final String message = "Virtual property ~supernode does not have an ID.";
+        final String message = "Virtual property ~supernode does not have an ~id.";
         LOG.error(message);
         throw new UnsupportedOperationException(message);
     }

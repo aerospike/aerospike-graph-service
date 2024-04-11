@@ -143,6 +143,10 @@ public class WarmupUtil {
             g.V(FIREFLY_WARMUP_VARIABLE_NAME).next();
             System.out.println("Warmup complete.");
         } catch (final Exception e) {
+            if (e.getMessage().contains("Failure to initialize security context")) {
+                // Silently fail, can't warm up when were secure.
+                return;
+            }
             final String message = String.format("Failed to perform warmup routine: %s", e.getMessage());
             LOG.error(message);
             System.err.println(message);

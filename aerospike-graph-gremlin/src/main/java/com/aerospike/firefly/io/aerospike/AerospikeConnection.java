@@ -215,6 +215,7 @@ public class AerospikeConnection implements AutoCloseable {
     public final int PAGINATION_PAGE_QUEUE_SIZE;
     public final int PAGINATION_PAGE_SIZE;
     public final int PAGINATION_PAGE_MAX_WAIT;
+    public final boolean AUTHENTICATION_ENABLED;
 
     public final String QUERY_IMPL;
     public Policy getPolicy() {
@@ -352,6 +353,7 @@ public class AerospikeConnection implements AutoCloseable {
         PAGINATION_PAGE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_SIZE, conf);
         PAGINATION_PAGE_MAX_WAIT = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_MAX_WAIT, conf);
         PAGINATION_PAGE_QUEUE_SIZE = ConfigurationHelper.getOrDefaultInt(ConfigurationHelper.Keys.PAGINATION_PAGE_QUEUE_SIZE, conf);
+        AUTHENTICATION_ENABLED = ConfigurationHelper.getOrDefaultBool(ConfigurationHelper.Keys.AUTHENTICATION_ENABLED, conf);
 
         GRAPH_VARIABLES_REC_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.GRAPH_VARIABLES_REC_KEY.name(), conf);
         BL_DUPLICATE_VERTEX_COUNT_KEY = ConfigurationHelper.getOrDefault(ConfigurationHelper.Keys.InternalConfigs.BL_DUPLICATE_VERTEX_COUNT_KEY.name(), conf);

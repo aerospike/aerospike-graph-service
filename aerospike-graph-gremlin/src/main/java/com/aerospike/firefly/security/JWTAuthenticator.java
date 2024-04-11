@@ -19,30 +19,27 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_PASSWORD;
 import static org.apache.tinkerpop.gremlin.groovy.jsr223.dsl.credential.CredentialGraphTokens.PROPERTY_USERNAME;
 
 public class JWTAuthenticator implements Authenticator {
-    private static final Logger logger = LoggerFactory.getLogger(FireflyServer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FireflyServer.class);
+    // Other algorithms require inputs that aren't just secret. We could support them later but for now doing minimum.
+    public static final Set<String> SUPPORTED_ALGORITHMS = Set.of("HMAC256", "HMAC384", "HMAC512");
+
     private static final byte NUL = 0;
+    // Do not store secret and issuer for security reasons, just store the verifier.
+    private JWTVerifier verifier;
 
-    private String secret;
-    private String issuer;
-    private final Algorithm algorithm;
-    private final JWTVerifier verifier;
-
-    public JWTAuthenticator(String subject, long tokenValidityInMillis) {
-
-        this.algorithm = Algorithm.HMAC256(secret);
-        this.verifier = JWT.require(algorithm)
-                .withIssuer(issuer)
-                .build();
+    public JWTAuthenticator() {
     }
 
     @Override
@@ -52,26 +49,54 @@ public class JWTAuthenticator implements Authenticator {
 
     @Override
     public void setup(final Map<String, Object> config) {
-        logger.info("Initializing authentication with the {}", SimpleAuthenticator.class.getName());
+        LOG.info("Initializing authentication with the {}", SimpleAuthenticator.class.getName());
 
         if (null == config || config.isEmpty()) {
             throw new IllegalArgumentException(String.format(
                     "Could not configure a %s - provide a 'config' in the 'authentication' settings",
                     SimpleAuthenticator.class.getName()));
         }
-        Configuration configuration = new MapConfiguration(config);
-
+        final Configuration configuration = new MapConfiguration(config);
+        final List<String> missingKeys = new ArrayList<>();
         if (!config.containsKey(ConfigurationHelper.Keys.JWT_SECRET)) {
-            throw new IllegalStateException(String.format(
-                    "Configuration missing the %s key", ConfigurationHelper.Keys.JWT_SECRET));
+            missingKeys.add(ConfigurationHelper.Keys.JWT_SECRET);
         }
-        secret = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_SECRET, configuration);
         if (!config.containsKey(ConfigurationHelper.Keys.JWT_ISSUER)) {
-            throw new IllegalStateException(String.format(
-                    "Configuration missing the %s key", ConfigurationHelper.Keys.JWT_ISSUER));
+            missingKeys.add(ConfigurationHelper.Keys.JWT_ISSUER);
         }
-        issuer = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ISSUER, configuration);
+        if (!missingKeys.isEmpty()) {
+            throw new IllegalStateException(String.format("Configuration missing the following key(s) %s", missingKeys));
+        }
+        Algorithm algo = null;
+        if (config.containsKey(ConfigurationHelper.Keys.JWT_ALGORITHM)) {
+            final String algorithm = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ALGORITHM, configuration);
+            if (algorithm == null) {
+                throw new IllegalArgumentException(ConfigurationHelper.Keys.JWT_ALGORITHM + " cannot be null, must be one of " + SUPPORTED_ALGORITHMS + ".");
+            }
+            final String secret = ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_SECRET, configuration);
+            if (secret == null) {
+                throw new IllegalArgumentException(ConfigurationHelper.Keys.JWT_SECRET + " cannot be null.");
 
+            }
+            switch (algorithm.toUpperCase()) {
+                case "HMAC256":
+                    algo = Algorithm.HMAC256(secret);
+                    break;
+                case "HMAC384":
+                    algo = Algorithm.HMAC384(secret);
+                    break;
+                case "HMAC512":
+                    algo = Algorithm.HMAC512(secret);
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format(
+                            ConfigurationHelper.Keys.JWT_ALGORITHM + " '%s' is not supported, supported algorithms are %s.", algorithm, SUPPORTED_ALGORITHMS));
+            }
+        }
+        verifier = JWT.require(algo).
+                withIssuer(
+                        ConfigurationHelper.getOrDefaultString(ConfigurationHelper.Keys.JWT_ISSUER, configuration))
+                .build();
     }
 
     @Override
@@ -79,70 +104,60 @@ public class JWTAuthenticator implements Authenticator {
         return new PlainTextSaslAuthenticator();
     }
 
-    public DecodedJWT verifyJWT(String jwtToken) {
-        return verifier.verify(jwtToken);
-    }
-
-    public static DecodedJWT decodeJWT(String jwtToken) {
-        return JWT.decode(jwtToken);
-    }
-
     @Override
     public AuthenticatedUser authenticate(final Map<String, String> credentials) throws AuthenticationException {
         if (!credentials.containsKey(PROPERTY_USERNAME))
-            throw new IllegalArgumentException(String.format("Credentials must contain a %s", PROPERTY_USERNAME));
+            throw new AuthenticationException(String.format("Credentials must contain a %s", PROPERTY_USERNAME));
         if (!credentials.containsKey(PROPERTY_PASSWORD))
-            throw new IllegalArgumentException(String.format("Credentials must contain a %s", PROPERTY_PASSWORD));
+            throw new AuthenticationException(String.format("Credentials must contain a %s", PROPERTY_PASSWORD));
+
         final DecodedJWT jwt;
         try {
-            jwt = verifyJWT(credentials.get(PROPERTY_PASSWORD));
+            jwt = verifier.verify(credentials.get(PROPERTY_PASSWORD));
         } catch (Exception e) {
-            throw new RuntimeException(String.format("Error: %s Could not authenticate jwt %s : ", e.getMessage(), credentials.get(PROPERTY_PASSWORD)));
-        }
-        JWTParser parser = new JWTParser();
-        final Header header = parser.parseHeader(jwt.getHeader());
-        final Payload payload = parser.parsePayload(jwt.getPayload());
-        try {
-            assert payload.getSubject().equals(credentials.get(PROPERTY_USERNAME));
-        } catch (AssertionError assertionError) {
-            throw new RuntimeException(String.format("Username %s does not equal token subject %s", credentials.get(PROPERTY_USERNAME), payload.getSubject()));
-        }
-        try {
-            assert payload.getExpiresAtAsInstant().isAfter(Instant.now());
-        } catch (AssertionError e) {
-            throw new RuntimeException(String.format("JWT expired: %s", payload.getExpiresAt()));
+            throw new AuthenticationException(String.format("Failure to validate credentials: %s", e.getMessage()));
         }
 
+        final Instant expiry = jwt.getExpiresAtAsInstant();
+        if (expiry != null && expiry.isBefore(Instant.now())) {
+            throw new AuthenticationException(String.format("JWT is already expired, expiry date: %s", jwt.getExpiresAtAsInstant()));
+        }
 
-        return new JWTAuthenticatedUser(payload);
+        final String subject = jwt.getSubject();
+        if (subject == null || !jwt.getSubject().equals(credentials.get(PROPERTY_USERNAME))) {
+            // Should we return the values back? Maybe we should just throw an exception without info.
+            throw new AuthenticationException("User does not match token subject");
+        }
+
+        return new JWTAuthenticatedUser(jwt);
     }
 
-    protected class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext {
+    public class JWTAuthenticatedUser extends AuthenticatedUser implements UserContext {
 
-        private final Payload jwtPayload;
+        private final DecodedJWT decodedJWT;
 
-        public JWTAuthenticatedUser(final Payload payload) {
-            super(payload.getSubject());
-            this.jwtPayload = payload;
+        public JWTAuthenticatedUser(final DecodedJWT decodedJWT) {
+            super(decodedJWT.getSubject());
+            this.decodedJWT = decodedJWT;
         }
 
         @Override
-        public List<ROLE> getRoles() {
-            return jwtPayload
-                    .getClaims()
-                    .entrySet()
-                    .stream().filter(entry -> entry.getKey().equals("role"))
-                    .map(Map.Entry::getValue)
-                    .map(Claim::asString)
-                    .map(ROLE::valueOf)
-                    .collect(Collectors.toList());
+        public ROLE getRole() {
+            // remove '"' from each side
+            return ROLE.valueOf(decodedJWT.getClaims().get("role").toString().replaceAll("\"", ""));
         }
 
         @Override
-        public boolean valid(FireflyGraph fireflyGraph) {
-            return jwtPayload.getExpiresAtAsInstant().isAfter(Instant.now()) && fireflyGraph.getBaseGraph().userIsValid(this);
+        public boolean valid(final FireflyGraph fireflyGraph) {
+            final Instant expiry = decodedJWT.getExpiresAtAsInstant();
+            if (expiry != null && expiry.isBefore(Instant.now())) {
+                return false;
+            }
+
+            return fireflyGraph.getBaseGraph().userIsValid(this);
         }
     }
+
     private class PlainTextSaslAuthenticator implements Authenticator.SaslNegotiator {
         private boolean complete = false;
         private String username;

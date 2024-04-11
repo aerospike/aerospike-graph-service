@@ -137,8 +137,10 @@ public final class ConfigurationHelper {
         public static final String QUERY_IMPL = "aerospike.graph.query.impl";
         public static final String QUERY_PAGED = "paged";
         public static final String QUERY_LEGACY = "legacy";
-        public static final String JWT_SECRET = "aerospike.graph.auth.jwt.secret";
-        public static final String JWT_ISSUER = "aerospike.graph.auth.jwt.issuer";
+        public static final String JWT_SECRET = "aerospike.graph-service.auth.jwt.secret";
+        public static final String JWT_ISSUER = "aerospike.graph-service.auth.jwt.issuer";
+        public static final String JWT_ALGORITHM = "aerospike.graph-service.auth.jwt.algorithm";
+        public static final String AUTHENTICATION_ENABLED = "aerospike.graph-service.auth.enabled";
 
         public static class Pair {
             public final int numeric;
@@ -338,6 +340,8 @@ public final class ConfigurationHelper {
         put(Keys.CLUSTER_NAME, "");
         put(Keys.VALIDATE_CLUSTER_NAME, "true");
         put(Keys.QUERY_IMPL, Keys.QUERY_PAGED);
+        put(Keys.JWT_ALGORITHM, "HMAC256");
+        put(Keys.AUTHENTICATION_ENABLED, "false");
     }};
 
     static {

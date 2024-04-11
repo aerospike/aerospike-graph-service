@@ -170,6 +170,7 @@
                         <exclude>**/FireflyAerospikeGraphServiceCheckTest.java</exclude>
                         <exclude>**/TestTLSIntegration.java</exclude>
                         <exclude>**/PrometheusExporterTest.java</exclude>
+                        <exclude>**/JwtAuthenticationTest.java</exclude>
                         <exclude>**/CustomPrometheusExporterTest.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemote.java</exclude>
                         <exclude>**/TestFireflyBulkLoaderCallEntrypointRemoteFailsWithoutSpark.java</exclude>

@@ -958,6 +958,17 @@ jobs:
           mvn test -pl aerospike-graph-gremlin -Dtest=ValidConnectionTest -DfailIfNoTests=false --no-transfer-progress
           docker stop $(docker ps -q --filter ancestor=firefly)
           echo "Sleeping 10 seconds for docker to kill the container"
+      - name: Test Firefly Docker Image with Security Enabled
+        run: |
+          echo "Running docker image with prometheus"
+          docker run -p 8182:8182 -p 9090:9090 -v /home/runner/work/firefly/firefly/conf/test-security/aerospike-graph.properties:/opt/aerospike-graph/aerospike-graph.properties firefly &
+          echo "Sleeping for 30 seconds while gremlin-server starts"
+          sleep 30
+
+          echo "Running Security Test"
+          mvn test -pl aerospike-graph-gremlin -Dtest=JwtAuthenticationDockerTest -DfailIfNoTests=false --no-transfer-progress
+          docker stop $(docker ps -q --filter ancestor=firefly)
+          echo "Sleeping 10 seconds for docker to kill the container"
       - name: Test Firefly Docker Image with Default Prometheus
         run: |
           echo "Running docker image with prometheus"
